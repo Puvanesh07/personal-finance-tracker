@@ -21,9 +21,12 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="grid min-h-full place-items-center bg-slate-50 text-slate-700">
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
-          Loading your portfolio…
+      <div className="grid h-screen w-full place-items-center bg-slate-50 transition-colors duration-500 dark:bg-slate-950">
+        <div className="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200/80 bg-white/80 px-8 py-5 shadow-2xl backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/80">
+          <div className="h-6 w-6 animate-spin rounded-full border-4 border-emerald-500/30 border-t-emerald-500" />
+          <span className="text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+            Loading WealthTrack...
+          </span>
         </div>
       </div>
     )
@@ -46,4 +49,3 @@ export default function App() {
     </Routes>
   )
 }
-

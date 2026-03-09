@@ -59,53 +59,56 @@ export function UpsertGoalModal(props: Props) {
     }
   }
 
+  const inputCls = 'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500'
+  const labelCls = 'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block'
+
   return (
-    <Modal open={props.open} onClose={props.onClose} title={props.mode === 'create' ? 'Add goal' : 'Edit goal'}>
-      <div className="grid grid-cols-1 gap-4">
-        <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Name</span>
+    <Modal open={props.open} onClose={props.onClose} title={props.mode === 'create' ? 'Add Goal' : 'Edit Goal'}>
+      <div className="grid grid-cols-1 gap-5">
+        <label className="block">
+          <span className={labelCls}>Goal Name</span>
           <input
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className={inputCls}
             value={state.name}
             onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
             placeholder="e.g. Retirement, Emergency fund, Child education"
           />
         </label>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Target amount</span>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <label className="block">
+            <span className={labelCls}>Target Amount</span>
             <input
               inputMode="decimal"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className={inputCls}
               value={state.targetAmount}
               onChange={(e) => setState((s) => ({ ...s, targetAmount: e.target.value }))}
             />
           </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Current amount</span>
+          <label className="block">
+            <span className={labelCls}>Current Amount</span>
             <input
               inputMode="decimal"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className={inputCls}
               value={state.currentAmount}
               onChange={(e) => setState((s) => ({ ...s, currentAmount: e.target.value }))}
             />
           </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Due date (optional)</span>
+          <label className="block">
+            <span className={labelCls}>Due Date (Optional)</span>
             <input
               type="date"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className={inputCls}
               value={state.dueDate}
               onChange={(e) => setState((s) => ({ ...s, dueDate: e.target.value }))}
             />
           </label>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60">
           <button
             type="button"
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             onClick={props.onClose}
             disabled={saving}
           >
@@ -113,25 +116,16 @@ export function UpsertGoalModal(props: Props) {
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-900 dark:hover:bg-emerald-300"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:opacity-60 disabled:hover:translate-y-0"
             onClick={() => void onSubmit()}
             disabled={saving || !state.name.trim() || toNum(state.targetAmount) <= 0}
           >
             {saving ? (
-              <>
-                <FiSave className="h-4 w-4" />
-                <span>Saving…</span>
-              </>
+              <><FiSave className="h-4 w-4" /><span>Saving…</span></>
             ) : props.mode === 'create' ? (
-              <>
-                <FiPlus className="h-4 w-4" />
-                <span>Add</span>
-              </>
+              <><FiPlus className="h-4 w-4" /><span>Add Goal</span></>
             ) : (
-              <>
-                <FiSave className="h-4 w-4" />
-                <span>Save</span>
-              </>
+              <><FiSave className="h-4 w-4" /><span>Save Changes</span></>
             )}
           </button>
         </div>
@@ -139,4 +133,3 @@ export function UpsertGoalModal(props: Props) {
     </Modal>
   )
 }
-

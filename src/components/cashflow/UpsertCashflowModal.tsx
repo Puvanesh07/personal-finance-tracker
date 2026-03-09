@@ -63,14 +63,17 @@ export function UpsertCashflowModal(props: Props) {
     }
   }
 
+  const inputCls = 'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500'
+  const labelCls = 'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block'
+
   return (
-    <Modal open={props.open} onClose={props.onClose} title={props.mode === 'create' ? 'Add entry' : 'Edit entry'}>
-      <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Type</span>
+    <Modal open={props.open} onClose={props.onClose} title={props.mode === 'create' ? 'Add Transaction' : 'Edit Transaction'}>
+      <div className="grid grid-cols-1 gap-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className={labelCls}>Transaction Type</span>
             <select
-              className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className={`${inputCls} appearance-none`}
               value={state.type}
               onChange={(e) => setState((s) => ({ ...s, type: e.target.value as CashflowType }))}
             >
@@ -78,51 +81,51 @@ export function UpsertCashflowModal(props: Props) {
               <option value="income">Income</option>
             </select>
           </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Date</span>
+          <label className="block">
+            <span className={labelCls}>Date</span>
             <input
               type="date"
-              className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className={inputCls}
               value={state.date}
               onChange={(e) => setState((s) => ({ ...s, date: e.target.value }))}
             />
           </label>
         </div>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Category</span>
+        <label className="block">
+          <span className={labelCls}>Category</span>
           <input
-            className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className={inputCls}
             value={state.category}
             onChange={(e) => setState((s) => ({ ...s, category: e.target.value }))}
             placeholder="e.g. Rent, Groceries, Salary"
           />
         </label>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Amount</span>
+        <label className="block">
+          <span className={labelCls}>Amount</span>
           <input
             inputMode="decimal"
-            className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className={inputCls}
             value={state.amount}
             onChange={(e) => setState((s) => ({ ...s, amount: e.target.value }))}
           />
         </label>
 
-        <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Notes (optional)</span>
+        <label className="block">
+          <span className={labelCls}>Notes (Optional)</span>
           <input
-            className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className={inputCls}
             value={state.notes}
             onChange={(e) => setState((s) => ({ ...s, notes: e.target.value }))}
-            placeholder="optional"
+            placeholder="Add any extra details..."
           />
         </label>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60">
           <button
             type="button"
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             onClick={props.onClose}
             disabled={saving}
           >
@@ -130,25 +133,16 @@ export function UpsertCashflowModal(props: Props) {
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-900 dark:hover:bg-emerald-300"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:opacity-60 disabled:hover:translate-y-0"
             onClick={() => void onSubmit()}
             disabled={saving || !state.category.trim() || toNum(state.amount) <= 0}
           >
             {saving ? (
-              <>
-                <FiSave className="h-4 w-4" />
-                <span>Saving…</span>
-              </>
+              <><FiSave className="h-4 w-4" /><span>Saving…</span></>
             ) : props.mode === 'create' ? (
-              <>
-                <FiPlus className="h-4 w-4" />
-                <span>Add</span>
-              </>
+              <><FiPlus className="h-4 w-4" /><span>Add Entry</span></>
             ) : (
-              <>
-                <FiSave className="h-4 w-4" />
-                <span>Save</span>
-              </>
+              <><FiSave className="h-4 w-4" /><span>Save Changes</span></>
             )}
           </button>
         </div>
@@ -156,4 +150,3 @@ export function UpsertCashflowModal(props: Props) {
     </Modal>
   )
 }
-

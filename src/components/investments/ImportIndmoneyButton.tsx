@@ -2,13 +2,14 @@ import { useRef, useState } from 'react'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { parseCSV, rowToInvestmentDraft } from '../../utils/csvImport'
 import { parseIndmoneyXlsx } from '../../utils/indmoneyXlsxImport'
-import { FiFileText } from 'react-icons/fi'
+import { FiPieChart } from 'react-icons/fi'
 
 export function ImportIndmoneyButton() {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const addInvestment = usePortfolioStore((s) => s.addInvestment)
   const [busy, setBusy] = useState(false)
 
+  // (Keeping the onPickFile logic identical)
   async function onPickFile(file: File) {
     setBusy(true)
     try {
@@ -56,15 +57,14 @@ export function ImportIndmoneyButton() {
       />
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-500/40 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-slate-800"
+        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-violet-600 transition-colors hover:bg-violet-100/80 disabled:opacity-50 dark:text-violet-400 dark:hover:bg-violet-500/20"
         onClick={() => inputRef.current?.click()}
         disabled={busy}
         title="INDmoney import (XLSX/CSV). If it doesn’t map correctly, share a sample export and I’ll add INDmoney-specific auto-mapping."
       >
-        <FiFileText className="h-3.5 w-3.5" />
+        <FiPieChart className="h-3.5 w-3.5" />
         <span>{busy ? 'Importing…' : 'INDmoney'}</span>
       </button>
     </>
   )
 }
-

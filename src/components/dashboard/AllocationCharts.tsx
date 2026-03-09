@@ -4,8 +4,10 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { summarizePortfolio, typeLabel } from '../../utils/calculations'
 import { Card } from '../ui/Card'
 import { formatINR } from '../../utils/format'
+import { FiPieChart } from 'react-icons/fi'
 
-const COLORS = ['#6366F1', '#22C55E', '#F97316', '#0EA5E9', '#EC4899']
+// Updated modern color palette
+const COLORS = ['#6366F1', '#10B981', '#F59E0B', '#0EA5E9', '#EC4899']
 
 export function AllocationCharts() {
   const investments = usePortfolioStore((s) => s.investments)
@@ -27,7 +29,7 @@ export function AllocationCharts() {
   }, [summary.byType])
 
   return (
-    <Card title="Portfolio distribution">
+    <Card title={<div className="flex items-center gap-2"><FiPieChart className="text-indigo-500"/> Asset Distribution</div>}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]">
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
@@ -36,39 +38,43 @@ export function AllocationCharts() {
                 data={data}
                 dataKey="value"
                 nameKey="name"
-                innerRadius={55}
+                innerRadius={60}
                 outerRadius={85}
-                paddingAngle={2}
+                paddingAngle={3}
                 isAnimationActive
-                animationDuration={700}
+                animationDuration={1000}
+                stroke="none"
               />
               <Tooltip
                 formatter={(value: any) => formatINR(Number(value))}
                 contentStyle={{
-                  borderRadius: 12,
-                  borderColor: '#CBD5F5',
-                  backgroundColor: '#0F172A',
-                  color: '#222222',
+                  borderRadius: 16,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#F8FAFC',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
                 }}
+                itemStyle={{ color: '#F8FAFC', fontWeight: 600 }}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/40">
+        <div className="flex flex-col gap-2 rounded-xl bg-slate-50/50 p-3 dark:bg-slate-800/30">
           {data.length === 0 ? (
-            <div className="text-sm text-slate-600 dark:text-slate-400">Add investments to see allocation.</div>
+            <div className="grid h-full place-items-center text-sm font-medium text-slate-500">No assets to display.</div>
           ) : (
             data.map((d) => (
-              <div key={d.type} className="flex items-center justify-between gap-3 text-sm">
-                <div className="flex items-center gap-2">
+              <div key={d.type} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white dark:hover:bg-slate-800/80">
+                <div className="flex items-center gap-2.5">
                   <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    className="inline-block h-3 w-3 rounded-full shadow-sm"
                     style={{ background: d.fill }}
                   />
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{d.name}</span>
+                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{d.name}</span>
                 </div>
-                <div className="font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+                <div className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-50">
                   {formatINR(d.value)}
                 </div>
               </div>
@@ -79,4 +85,3 @@ export function AllocationCharts() {
     </Card>
   )
 }
-

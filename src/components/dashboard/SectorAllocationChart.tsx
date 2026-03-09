@@ -1,39 +1,42 @@
-// src/components/dashboard/SectorAllocationChart.tsx
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { useStockMetadata } from '../../hooks/useStockMetadata'
 import { currentValue } from '../../utils/calculations'
 import { formatINR } from '../../utils/format'
 import { Card } from '../ui/Card'
-import { FiRefreshCw } from 'react-icons/fi'
+import { FiRefreshCw, FiGrid } from 'react-icons/fi'
 
-const COLORS = ['#6366F1','#22C55E','#0EA5E9','#F97316','#EC4899','#14B8A6','#F59E0B','#4ADE80','#A78BFA','#FB7185','#34D399','#60A5FA']
+const COLORS = ['#6366F1','#10B981','#0EA5E9','#F59E0B','#EC4899','#14B8A6','#8B5CF6','#4ADE80','#F43F5E','#06B6D4','#EAB308','#3B82F6']
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null
   const { name, value, pct } = payload[0].payload
   return (
-    <div style={{ borderRadius: 12, border: '1px solid #334155', backgroundColor: '#0F172A', color: '#E5E7EB', padding: '8px 12px', fontSize: 13 }}>
-      <div style={{ fontWeight: 600, marginBottom: 2 }}>{name}</div>
-      <div>{formatINR(value)}</div>
-      <div style={{ color: '#6366F1', fontWeight: 500 }}>{pct}%</div>
+    <div style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', color: '#F8FAFC', padding: '12px', fontSize: 13, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>{name}</div>
+      <div style={{ fontWeight: 600 }}>{formatINR(value)}</div>
+      <div style={{ color: '#10B981', fontWeight: 800, marginTop: 2 }}>{pct}% of Equities</div>
     </div>
   )
 }
 
 export function SectorAllocationChart() {
   const investments = usePortfolioStore((s) => s.investments)
-  // Pass ALL investments — hook handles stocks, mutual funds, ETFs
   const { metadata, isLoading, refresh } = useStockMetadata(investments)
+  
+  const [chartKey, setChartKey] = useState(0)
+
+  const handleRefresh = () => {
+    setChartKey(prev => prev + 1)
+    refresh() 
+  }
 
   const data = useMemo(() => {
     const bySector = new Map<string, number>()
     for (const inv of investments) {
       if (inv.type === 'fixed_deposit' || inv.type === 'bond') continue
-      // Manual sector wins first
       let sector = inv.type === 'stock' ? (inv.sector ?? '').trim() : ''
-      // Then fetched metadata (keyed by investment id)
       if (!sector) {
         const meta = metadata.get(inv.id)
         sector = (meta?.sector && meta.sector !== 'Unknown') ? meta.sector : ''
@@ -54,46 +57,52 @@ export function SectorAllocationChart() {
 
   return (
     <Card
-      title="Sector allocation"
+      title={<div className="flex items-center gap-2"><FiGrid className="text-pink-500"/> Sector Spread</div>}
       right={
-        <button type="button" onClick={refresh}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:text-emerald-500 transition-colors">
-          <FiRefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          {isLoading ? `Fetching ${pendingCount}…` : 'Refresh'}
+        <button type="button" onClick={handleRefresh}
+          className="group flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/50 px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:bg-slate-800">
+          <FiRefreshCw className={`h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors ${isLoading ? 'animate-spin text-emerald-500' : ''}`} />
+          <span>{isLoading ? `Fetching ${pendingCount}…` : 'Refresh Data'}</span>
         </button>
       }
     >
       {data.length === 0 ? (
-        <div className="grid h-72 place-items-center text-sm text-slate-500 dark:text-slate-400">
-          {isLoading ? 'Fetching sector data…' : 'Add investments to see sector allocation.'}
+        <div className="grid h-72 place-items-center text-sm font-medium text-slate-500 dark:text-slate-400">
+          {isLoading ? 'Fetching sector data…' : 'Add equities to see sector allocation.'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]">
-          <div className="h-56">
+        /* Fixed Grid width using minmax(0, 1fr) to prevent horizontal overflow */
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[220px_minmax(0,1fr)] items-center">
+          <div className="h-64 sm:h-full min-h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2} isAnimationActive animationDuration={700}>
+              <PieChart key={chartKey}>
+                <Pie data={data} dataKey="value" nameKey="name" innerRadius={60} outerRadius={90} paddingAngle={3} stroke="none" isAnimationActive animationDuration={1000} animationEasing="ease-out">
                   {data.map((_, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-900/40 overflow-y-auto max-h-56">
+          
+          {/* Restored max height and vertical scrolling, forced hidden horizontal scroll */}
+          <div className="flex flex-col gap-1 rounded-xl bg-slate-50/50 p-2 dark:bg-slate-900/20 w-full max-h-64 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1.5">
             {data.map((d, idx) => (
-              <div key={d.name} className="flex items-center justify-between gap-3 text-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COLORS[idx % COLORS.length] }} />
-                  <span className="truncate font-medium text-slate-900 dark:text-slate-100">{d.name}</span>
+              <div key={d.name} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-white dark:hover:bg-slate-800/60 transition-colors text-sm min-w-0">
+                
+                {/* min-w-0 and flex-1 allows the text to truncate without pushing width */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full shadow-sm" style={{ background: COLORS[idx % COLORS.length] }} />
+                  <span className="truncate font-semibold text-slate-700 dark:text-slate-300" title={d.name}>{d.name}</span>
                 </div>
-                <div className="flex shrink-0 items-center gap-2 tabular-nums">
-                  <span className="text-xs text-slate-500">{d.pct}%</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-50">{formatINR(d.value)}</span>
+
+                <div className="flex shrink-0 items-center gap-2.5 tabular-nums">
+                  <span className="text-xs font-bold text-slate-400">{d.pct}%</span>
+                  <span className="font-black text-slate-900 dark:text-slate-50">{formatINR(d.value)}</span>
                 </div>
               </div>
             ))}
             {isLoading && pendingCount > 0 && (
-              <p className="text-xs text-slate-400 animate-pulse">{pendingCount} more loading…</p>
+              <p className="text-xs font-semibold text-emerald-500 animate-pulse text-center mt-2 py-2">{pendingCount} assets still loading…</p>
             )}
           </div>
         </div>

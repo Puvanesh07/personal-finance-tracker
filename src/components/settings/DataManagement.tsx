@@ -3,7 +3,7 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { Card } from '../ui/Card'
 import { exportCSV, exportExcel } from '../../utils/exportUtils'
 import { exportFullBackup, importFullBackup } from '../../utils/backup'
-import { FiDownload, FiUpload, FiTrash2 } from 'react-icons/fi'
+import { FiDownload, FiUpload, FiTrash2, FiDatabase, FiAlertOctagon } from 'react-icons/fi'
 
 export function DataManagement() {
   const investments = usePortfolioStore((s) => s.investments)
@@ -14,44 +14,52 @@ export function DataManagement() {
   const [busy, setBusy] = useState(false)
 
   return (
-    <Card title="Data management">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Portfolio exports
+    <Card title={<div className="flex items-center gap-2"><FiDatabase className="text-slate-500 dark:text-slate-400"/> Data Management</div>}>
+      <div className="flex flex-col gap-6">
+        
+        {/* Portfolio Exports */}
+        <div className="flex flex-col gap-3">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            Portfolio Exports
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col xl:flex-row gap-2">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 backdrop-blur-sm transition-all hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => exportCSV(investments, 'portfolio.csv')}
             >
-              <FiDownload className="h-4 w-4" />
+              <FiDownload className="h-4 w-4 text-slate-400" />
               <span>Export CSV</span>
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 backdrop-blur-sm transition-all hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => exportExcel(investments, 'portfolio.xlsx')}
             >
-              <FiDownload className="h-4 w-4" />
+              <FiDownload className="h-4 w-4 text-slate-400" />
               <span>Export Excel</span>
             </button>
           </div>
         </div>
 
-        <div className="h-px w-full bg-slate-100" />
+        <div className="h-px w-full bg-slate-200/60 dark:bg-slate-800/60" />
 
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Full backup</div>
-          <div className="flex flex-wrap gap-2">
+        {/* Full Backup Management */}
+        <div className="flex flex-col gap-3">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            Full Backup (JSON)
+          </div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Backup includes all your tracked assets, liabilities, goals, and history. Importing will overwrite existing local data.
+          </div>
+          <div className="flex flex-col xl:flex-row gap-2">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200/80 bg-indigo-50/50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition-all hover:bg-indigo-100 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
               onClick={() => void exportFullBackup()}
             >
               <FiDownload className="h-4 w-4" />
-              <span>Export backup (JSON)</span>
+              <span>Export Backup</span>
             </button>
 
             <input
@@ -78,40 +86,38 @@ export function DataManagement() {
             />
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200/80 bg-indigo-50/50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition-all hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
               onClick={() => fileInputRef.current?.click()}
               disabled={busy}
             >
               <FiUpload className="h-4 w-4" />
-              <span>Import backup (JSON)</span>
+              <span>Import Backup</span>
             </button>
-          </div>
-          <div className="text-xs text-slate-500">
-            Backup includes investments, liabilities, cashflow, goals, snapshots, and settings. Import will overwrite existing data.
           </div>
         </div>
 
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-rose-800">
-            <FiTrash2 className="h-4 w-4" />
-            <span>Danger zone</span>
+        {/* Danger Zone */}
+        <div className="mt-2 rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
+          <div className="flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400">
+            <FiAlertOctagon className="h-5 w-5" />
+            <span>Danger Zone</span>
           </div>
-          <div className="mt-1 text-xs text-rose-700">
-            Clears all data stored locally on this device (investments, liabilities, cashflow, goals, snapshots, settings).
-          </div>
+          <p className="mt-2 text-xs font-medium text-rose-600/80 dark:text-rose-400/80">
+            Clears all financial data stored locally on this device. This action is irreversible unless you have a backup.
+          </p>
           <button
             type="button"
-            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rose-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600"
             onClick={() => {
-              if (confirm('This will delete ALL local data for this app. Continue?')) void clearAllData()
+              if (confirm('This will delete ALL local data for this app. This cannot be undone. Continue?')) void clearAllData()
             }}
           >
             <FiTrash2 className="h-4 w-4" />
-            <span>Clear all data</span>
+            <span>Clear All Data</span>
           </button>
         </div>
+
       </div>
     </Card>
   )
 }
-
