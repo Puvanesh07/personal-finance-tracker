@@ -1,4 +1,4 @@
-// src/data/nseStockData.ts
+// src/data/nseStockdata.ts
 // PRIMARY source — static offline lookup for every common NSE stock.
 // No network calls needed. Covers Nifty 500 + popular small/mid caps.
 
