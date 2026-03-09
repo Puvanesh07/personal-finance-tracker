@@ -1,0 +1,28 @@
+[build]
+command = "npm run build"
+publish = "dist"
+functions = "netlify/functions"
+
+[functions]
+node_bundler = "esbuild"
+
+# Fix SPA routing (React Router refresh issue)
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+# Optional: cache static assets for better performance
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-XSS-Protection = "1; mode=block"
+X-Content-Type-Options = "nosniff"
+
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
