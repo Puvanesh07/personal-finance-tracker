@@ -66,9 +66,9 @@ export function NotionSettings() {
             placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
           />
           <div className="text-xs text-slate-500">
-            Expected properties: <span className="font-medium">Name</span> (title), <span className="font-medium">Investment Type</span> (select),{' '}
-            <span className="font-medium">Amount Invested</span> (number), <span className="font-medium">Expected Gain</span> (number),{' '}
-            <span className="font-medium">Date Added</span> (date). Optional: <span className="font-medium">Interest Rate</span>, <span className="font-medium">Duration</span>.
+            Expected properties: <span className="font-medium">Name</span> (title), <span className="font-medium">Investment type</span> (select),{' '}
+            <span className="font-medium">Amount invested</span> (number), <span className="font-medium">Expected gain</span> (number),{' '}
+            <span className="font-medium">Date added</span> (date). Optional: <span className="font-medium">Interest Rate</span>, <span className="font-medium">Duration</span>.
           </div>
         </label>
 

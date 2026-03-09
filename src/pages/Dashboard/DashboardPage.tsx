@@ -1,8 +1,10 @@
+// src/pages/Dashboard/DashboardPage.tsx
 import { SummaryCards } from '../../components/dashboard/SummaryCards'
 import { AllocationCharts } from '../../components/dashboard/AllocationCharts'
 import { GrowthChart } from '../../components/dashboard/GrowthChart'
 import { MaturityTimeline } from '../../components/dashboard/MaturityTimeline'
 import { SectorAllocationChart } from '../../components/dashboard/SectorAllocationChart'
+import { MarketCapAllocationChart } from '../../components/dashboard/MarketCapAllocationChart'
 import { GoalsEssentialsSummary } from '../../components/dashboard/GoalsEssentialsSummary'
 import { FiHome } from 'react-icons/fi'
 
@@ -30,10 +32,13 @@ export function DashboardPage() {
 
       <GoalsEssentialsSummary />
 
-      <SectorAllocationChart />
+      {/* Sector + Market Cap side by side on large screens */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SectorAllocationChart />
+        <MarketCapAllocationChart />
+      </div>
 
       <GrowthChart />
     </div>
   )
 }
-
