@@ -1,18 +1,45 @@
+// src/pages/Investments/InvestmentsPage.tsx
+import { useMemo, useState, useRef, useEffect } from 'react' // Added useRef, useEffect
+import { FiTrendingUp, FiPlus, FiSearch, FiFilter, FiChevronDown, FiCheck } from 'react-icons/fi' // Added FiCheck
+import { usePortfolioStore } from '../../store/portfolioStore'
 import { InvestmentsTable } from '../../components/investments/InvestmentsTable'
 import { ImportCsvButton } from '../../components/investments/ImportCsvButton'
 import { ImportAngelOnePdfButton } from '../../components/investments/ImportAngelOnePdfButton'
 import { ImportIndmoneyButton } from '../../components/investments/ImportIndmoneyButton'
+import { ImportGrowwButton } from '../../components/investments/ImportGrowButton' // Assuming this file exists based on your previous turn
 import { UpsertInvestmentModal } from '../../components/investments/UpsertInvestmentModal'
-import { usePortfolioStore } from '../../store/portfolioStore'
-import { useMemo, useState } from 'react'
 import type { InvestmentType } from '../../types/investmentTypes'
-import { FiTrendingUp, FiPlus, FiSearch, FiFilter } from 'react-icons/fi'
 
 export function InvestmentsPage() {
   const investments = usePortfolioStore((s) => s.investments)
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<InvestmentType | 'all'>('all')
   const [isAddOpen, setIsAddOpen] = useState(false)
+  
+  // Custom Dropdown State
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Options for the filter
+  const filterOptions: { label: string; value: InvestmentType | 'all' }[] = [
+    { label: 'All Assets', value: 'all' },
+    { label: 'Stocks', value: 'stock' },
+    { label: 'Mutual Funds', value: 'mutual_fund' },
+    { label: 'Bonds', value: 'bond' },
+    { label: 'Fixed Deposits', value: 'fixed_deposit' },
+    { label: 'Other', value: 'other' }
+  ]
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -28,75 +55,99 @@ export function InvestmentsPage() {
   }, [investments, query, typeFilter])
 
   return (
-    <div className="flex flex-col gap-6 pb-8">
-      {/* Premium Gradient Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30">
-            <FiTrendingUp className="h-6 w-6" />
+    <div className="flex flex-col gap-4 md:gap-6 pb-20 md:pb-8">
+      {/* Responsive Header */}
+      <header className="flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-4 md:p-6 border border-emerald-500/20 shadow-xl">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+              <FiTrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-semibold text-white leading-tight">Investments</h1>
+              <p className="text-[11px] md:text-sm text-slate-400 font-medium">Manage your asset portfolio</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Investments</h1>
-            <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-              Manage, track, and analyze your asset portfolio.
-            </p>
-          </div>
+          
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="flex h-10 w-10 md:w-auto md:px-4 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-colors"
+          >
+            <FiPlus className="h-5 w-5" />
+            <span className="hidden md:inline">Add Asset</span>
+          </button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 p-1.5 backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-900/50 shadow-sm">
-            
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
+          <div className="flex items-center gap-2 rounded-xl bg-slate-800/50 p-1 border border-slate-700/50">
             <ImportAngelOnePdfButton />
             <ImportCsvButton />
             <ImportIndmoneyButton />
+            <ImportGrowwButton />
           </div>
-          <button
-            className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40"
-            onClick={() => setIsAddOpen(true)}
-            type="button"
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0" />
-            <FiPlus className="relative h-4 w-4" />
-            <span className="relative">Add Investment</span>
-          </button>
         </div>
       </header>
 
-      {/* Search and Filters */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_240px]">
+      {/* Search and Filters Section */}
+      <div className="flex flex-col md:grid md:grid-cols-[1fr_240px] gap-3">
+        {/* Search Bar */}
         <div className="relative group">
-          <FiSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-emerald-500" />
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-200/80 bg-white/80 py-3 pl-11 pr-4 text-sm shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/80 dark:text-slate-100 dark:focus:border-emerald-500"
-            placeholder="Search by asset name, symbol, or platform…"
+            className="w-full rounded-xl border border-slate-800 bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+            placeholder="Search assets..."
           />
         </div>
-        <div className="relative group">
-          <FiFilter className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-emerald-500" />
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as InvestmentType | 'all')}
-            className="w-full appearance-none rounded-xl border border-slate-200/80 bg-white/80 py-3 pl-11 pr-10 text-sm shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/80 dark:text-slate-100 dark:focus:border-emerald-500"
+
+        {/* Premium Glassmorphism Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all duration-300 backdrop-blur-md ${
+              isDropdownOpen 
+                ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60'
+            }`}
           >
-            <option value="all">All Asset Types</option>
-            <option value="stock">Stocks</option>
-            <option value="mutual_fund">Mutual Funds</option>
-            <option value="bond">Bonds</option>
-            <option value="fixed_deposit">Fixed Deposits</option>
-            <option value="other">Other</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
-          </div>
+            <div className="flex items-center gap-3">
+              <FiFilter className={`transition-colors ${isDropdownOpen ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <span className="text-slate-200 font-medium">
+                {filterOptions.find(opt => opt.value === typeFilter)?.label}
+              </span>
+            </div>
+            <FiChevronDown className={`transition-transform duration-300 text-slate-500 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Floating Menu */}
+          {isDropdownOpen && (
+            <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900/80 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-1.5 flex flex-col">
+                {filterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      setTypeFilter(option.value)
+                      setIsDropdownOpen(false)
+                    }}
+                    className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${
+                      typeFilter === option.value
+                        ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
+                        : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    {typeFilter === option.value && <FiCheck className="h-4 w-4" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Data Table Wrapper */}
       <InvestmentsTable investments={filtered} />
-
       <UpsertInvestmentModal open={isAddOpen} onClose={() => setIsAddOpen(false)} mode="create" />
     </div>
   )

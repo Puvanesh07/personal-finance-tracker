@@ -1,20 +1,39 @@
+/* src/index.css */
+
 @import "tailwindcss";
 
-/* App-wide defaults */
 :root {
-  color-scheme: light;
-}
-
-:root.dark {
   color-scheme: dark;
 }
 
-html,
-body,
-#root {
+html, body, #root {
   height: 100%;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
+  background-color: #020617; /* slate-950 */
+  color: #f8fafc; /* slate-50 */
+  -webkit-font-smoothing: antialiased;
+  
+  /* Reduced base line-height and size for mobile */
+  line-height: 1.4;
+  font-size: 12px; 
 }
 
+@media (min-width: 768px) {
+  html, body {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+}
 
+/* Reduce bold weights for mobile readability */
+h1, h2, h3, h4 {
+  font-weight: 400; /* Regular instead of Bold */
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 767px) {
+  h1 { font-size: 1.25rem; }
+  h2 { font-size: 1.1rem; }
+  p { font-weight: 400; }
+}
