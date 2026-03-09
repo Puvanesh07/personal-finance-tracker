@@ -1,16 +1,15 @@
 // src/components/investments/InvestmentsTable.tsx
 import { useMemo, useState } from 'react'
-import { FiEdit2, FiTrash2, FiSearch, FiMoreVertical } from 'react-icons/fi'
+import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi'
 import { usePortfolioStore } from '../../store/portfolioStore'
-import { useStockMetadata } from '../../hooks/useStockMetadata'
 import { formatINR } from '../../utils/format'
-import { currentValue, investedValue, typeLabel } from '../../utils/calculations'
+import { currentValue, investedValue } from '../../utils/calculations'
 import { UpsertInvestmentModal } from './UpsertInvestmentModal'
 
 export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment)
   const [edit, setEdit] = useState<any | null>(null)
-  const { metadata } = useStockMetadata(investments)
+  
 
   const rows = useMemo(() => investments.map((inv) => ({
     inv,
@@ -33,7 +32,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     <div className="space-y-3">
       {/* MOBILE VIEW: Card List (Hidden on md+) */}
       <div className="flex flex-col gap-3 md:hidden">
-        {rows.map(({ inv, invested, current, pl, plPct }) => (
+        {rows.map(({ inv, current, pl, plPct }) => (
           <div key={inv.id} className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl flex flex-col gap-3">
             <div className="flex justify-between items-start">
               <div className="max-w-[70%]">
