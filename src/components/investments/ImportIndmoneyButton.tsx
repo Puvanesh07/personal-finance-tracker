@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { parseCSV, rowToInvestmentDraft } from '../../utils/csvImport'
 import { parseIndmoneyXlsx } from '../../utils/indmoneyXlsxImport'
+import { FiFileText } from 'react-icons/fi'
 
 export function ImportIndmoneyButton() {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -55,12 +56,13 @@ export function ImportIndmoneyButton() {
       />
       <button
         type="button"
-        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-500/40 dark:bg-slate-900 dark:text-violet-200 dark:hover:bg-slate-800"
         onClick={() => inputRef.current?.click()}
         disabled={busy}
         title="INDmoney import (XLSX/CSV). If it doesn’t map correctly, share a sample export and I’ll add INDmoney-specific auto-mapping."
       >
-        {busy ? 'Importing…' : 'INDmoney'}
+        <FiFileText className="h-3.5 w-3.5" />
+        <span>{busy ? 'Importing…' : 'INDmoney'}</span>
       </button>
     </>
   )

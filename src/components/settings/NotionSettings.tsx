@@ -34,7 +34,6 @@ export function NotionSettings() {
           <span>Notion integration</span>
         </span>
       }
-      right={notion.lastSyncAt ? `Last sync: ${new Date(notion.lastSyncAt).toLocaleString()}` : undefined}
     >
       <div className="flex flex-col gap-3">
         <label className="flex items-center gap-2 text-sm">
@@ -72,6 +71,12 @@ export function NotionSettings() {
             <span className="font-medium">Date Added</span> (date). Optional: <span className="font-medium">Interest Rate</span>, <span className="font-medium">Duration</span>.
           </div>
         </label>
+
+        {notion.lastSyncAt ? (
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Last sync: {new Date(notion.lastSyncAt).toLocaleString()}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button

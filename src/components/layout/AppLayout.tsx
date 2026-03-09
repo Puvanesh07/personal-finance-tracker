@@ -33,13 +33,13 @@ export function AppLayout() {
   }, [isDark, mode])
 
   return (
-    <div className={isDark ? 'min-h-full bg-slate-950 text-slate-50' : 'min-h-full bg-slate-100 text-slate-900'}>
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 py-6 md:h-screen md:grid-cols-[260px_1fr] md:gap-8">
+    <div className={isDark ? 'min-h-screen bg-slate-950 text-slate-50' : 'min-h-screen bg-white text-slate-900'}>
+      <div className="flex h-screen w-full">
         <aside
           className={
             isDark
-              ? 'flex h-full flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-md'
-              : 'flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-md'
+              ? 'flex h-full w-64 flex-col justify-between border-r border-slate-800 bg-slate-900 px-4 py-6 shadow-md'
+              : 'flex h-full w-64 flex-col justify-between border-r border-slate-200 bg-white px-4 py-6 shadow-md'
           }
         >
           <div className="mb-4 flex items-center justify-between gap-2">
@@ -125,8 +125,10 @@ export function AppLayout() {
           </nav>
         </aside>
 
-        <main className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:h-full md:overflow-y-auto">
-          <Outlet />
+        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

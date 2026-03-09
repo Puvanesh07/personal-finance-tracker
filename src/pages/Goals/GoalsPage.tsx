@@ -3,6 +3,7 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { formatINR } from '../../utils/format'
 import type { Goal } from '../../types/investmentTypes'
 import { UpsertGoalModal } from '../../components/goals/UpsertGoalModal'
+import { FiPlus } from 'react-icons/fi'
 
 export function GoalsPage() {
   const goals = usePortfolioStore((s) => s.goals)
@@ -15,15 +16,18 @@ export function GoalsPage() {
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Goals</h1>
-          <p className="text-sm text-slate-600">Set and track long-term financial goals.</p>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Goals</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Set and track long-term financial goals.
+          </p>
         </div>
         <button
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 dark:bg-emerald-400 dark:text-slate-900 dark:hover:bg-emerald-300"
           onClick={() => setOpen(true)}
           type="button"
         >
-          Add goal
+          <FiPlus className="h-4 w-4" />
+          <span>Add goal</span>
         </button>
       </header>
 

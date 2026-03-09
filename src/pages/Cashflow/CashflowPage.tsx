@@ -14,7 +14,7 @@ function MonthPicker({ value, onChange }: { value: string; onChange: (v: string)
   })
   return (
     <select
-      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -97,7 +97,7 @@ export function CashflowPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-300">
               <tr>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Type</th>
@@ -107,7 +107,7 @@ export function CashflowPage() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {monthRows.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6 text-center text-slate-600" colSpan={6}>

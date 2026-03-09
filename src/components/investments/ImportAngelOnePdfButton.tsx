@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { parseAngelOneHoldingsText } from '../../utils/angelOnePdfImport'
+import { FiFileText } from 'react-icons/fi'
 
 import * as pdfjs from 'pdfjs-dist'
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
@@ -60,12 +61,13 @@ export function ImportAngelOnePdfButton() {
       />
       <button
         type="button"
-        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-500/40 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-slate-800"
         onClick={() => inputRef.current?.click()}
         disabled={busy}
         title="Imports Angel One PDF holdings statement"
       >
-        {busy ? 'Importing…' : 'Angel One'}
+        <FiFileText className="h-3.5 w-3.5" />
+        <span>{busy ? 'Importing…' : 'Angel One'}</span>
       </button>
     </>
   )

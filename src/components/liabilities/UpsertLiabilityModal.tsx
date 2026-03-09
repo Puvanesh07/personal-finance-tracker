@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Liability, LiabilityType } from '../../types/investmentTypes'
 import { Modal } from '../ui/Modal'
 import { usePortfolioStore } from '../../store/portfolioStore'
+import { FiPlus, FiSave } from 'react-icons/fi'
 
 type Props =
   | { open: boolean; onClose: () => void; mode: 'create'; liability?: undefined }
@@ -72,9 +73,9 @@ export function UpsertLiabilityModal(props: Props) {
       <div className="grid grid-cols-1 gap-4">
         {props.mode === 'create' ? (
           <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600">Type</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Type</span>
             <select
-              className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               value={state.type}
               onChange={(e) => setState((s) => ({ ...s, type: e.target.value as LiabilityType }))}
             >
@@ -86,9 +87,9 @@ export function UpsertLiabilityModal(props: Props) {
         ) : null}
 
         <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600">Name</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Name</span>
           <input
-            className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             value={state.name}
             onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
             placeholder="e.g. Home loan, Car loan"
@@ -97,19 +98,19 @@ export function UpsertLiabilityModal(props: Props) {
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600">Principal</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Principal</span>
             <input
               inputMode="decimal"
-              className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               value={state.principal}
               onChange={(e) => setState((s) => ({ ...s, principal: e.target.value }))}
             />
           </label>
           <label className="grid gap-1 text-sm">
-            <span className="text-xs font-medium text-slate-600">Outstanding</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Outstanding</span>
             <input
               inputMode="decimal"
-              className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               value={state.outstanding}
               onChange={(e) => setState((s) => ({ ...s, outstanding: e.target.value }))}
             />
@@ -117,10 +118,10 @@ export function UpsertLiabilityModal(props: Props) {
         </div>
 
         <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600">Interest rate (% p.a., optional)</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Interest rate (% p.a., optional)</span>
           <input
             inputMode="decimal"
-            className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-slate-400"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             value={state.interestRate}
             onChange={(e) => setState((s) => ({ ...s, interestRate: e.target.value }))}
             placeholder="e.g. 9.25"
@@ -130,7 +131,7 @@ export function UpsertLiabilityModal(props: Props) {
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
             onClick={props.onClose}
             disabled={saving}
           >
@@ -138,11 +139,26 @@ export function UpsertLiabilityModal(props: Props) {
           </button>
           <button
             type="button"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-900 dark:hover:bg-emerald-300"
             onClick={() => void onSubmit()}
             disabled={saving || !state.name.trim()}
           >
-            {saving ? 'Saving…' : props.mode === 'create' ? 'Add' : 'Save'}
+            {saving ? (
+              <>
+                <FiSave className="h-4 w-4" />
+                <span>Saving…</span>
+              </>
+            ) : props.mode === 'create' ? (
+              <>
+                <FiPlus className="h-4 w-4" />
+                <span>Add</span>
+              </>
+            ) : (
+              <>
+                <FiSave className="h-4 w-4" />
+                <span>Save</span>
+              </>
+            )}
           </button>
         </div>
       </div>

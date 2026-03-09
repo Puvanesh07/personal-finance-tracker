@@ -419,10 +419,10 @@ export function UpsertInvestmentModal(props: Props) {
           </div>
         ) : null}
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-3">
           <button
             type="button"
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             onClick={props.onClose}
             disabled={saving}
           >
@@ -430,7 +430,7 @@ export function UpsertInvestmentModal(props: Props) {
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
             onClick={() => void onSubmit()}
             disabled={saving || !state.name.trim()}
           >
