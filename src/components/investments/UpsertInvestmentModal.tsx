@@ -3,6 +3,7 @@ import type { Investment, InvestmentType } from '../../types/investmentTypes'
 import { Modal } from '../ui/Modal'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { todayISO } from '../../utils/dateUtils'
+import { FiSave, FiPlus } from 'react-icons/fi'
 
 type Props =
   | { open: boolean; onClose: () => void; mode: 'create'; investment?: undefined }
@@ -429,11 +430,26 @@ export function UpsertInvestmentModal(props: Props) {
           </button>
           <button
             type="button"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
             onClick={() => void onSubmit()}
             disabled={saving || !state.name.trim()}
           >
-            {saving ? 'Saving…' : props.mode === 'create' ? 'Add' : 'Save'}
+            {saving ? (
+              <>
+                <FiSave className="h-4 w-4" />
+                <span>Saving…</span>
+              </>
+            ) : props.mode === 'create' ? (
+              <>
+                <FiPlus className="h-4 w-4" />
+                <span>Add</span>
+              </>
+            ) : (
+              <>
+                <FiSave className="h-4 w-4" />
+                <span>Save</span>
+              </>
+            )}
           </button>
         </div>
       </div>

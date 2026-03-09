@@ -5,7 +5,7 @@ import { Card } from '../ui/Card'
 import { currentValue } from '../../utils/calculations'
 import { formatINR } from '../../utils/format'
 
-const COLORS = ['#0f172a', '#1d4ed8', '#0ea5e9', '#22c55e', '#f97316', '#e11d48', '#6366f1', '#14b8a6']
+const COLORS = ['#6366F1', '#22C55E', '#0EA5E9', '#F97316', '#EC4899', '#14B8A6', '#F59E0B', '#4ADE80']
 
 export function SectorAllocationChart() {
   const investments = usePortfolioStore((s) => s.investments)
@@ -27,7 +27,7 @@ export function SectorAllocationChart() {
     <Card title="Equity sector allocation">
       <div className="h-72">
         {data.length === 0 ? (
-          <div className="grid h-full place-items-center text-sm text-slate-600">
+          <div className="grid h-full place-items-center text-sm text-slate-600 dark:text-slate-400">
             Add stock sectors (Edit investment → Sector) or import from brokers with sector data to see this chart.
           </div>
         ) : (
@@ -40,6 +40,8 @@ export function SectorAllocationChart() {
                 innerRadius={60}
                 outerRadius={90}
                 paddingAngle={2}
+                isAnimationActive
+                animationDuration={700}
               >
                 {data.map((_, idx) => (
                   <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
@@ -48,7 +50,12 @@ export function SectorAllocationChart() {
               <Tooltip
                 formatter={(v: any) => formatINR(Number(v))}
                 labelFormatter={(l: any) => `Sector: ${String(l)}`}
-                contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0' }}
+                contentStyle={{
+                  borderRadius: 12,
+                  borderColor: '#CBD5F5',
+                  backgroundColor: '#0F172A',
+                  color: '#E5E7EB',
+                }}
               />
             </PieChart>
           </ResponsiveContainer>

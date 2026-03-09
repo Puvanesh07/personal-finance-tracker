@@ -3,6 +3,7 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { Card } from '../ui/Card'
 import { exportCSV, exportExcel } from '../../utils/exportUtils'
 import { exportFullBackup, importFullBackup } from '../../utils/backup'
+import { FiDownload, FiUpload, FiTrash2 } from 'react-icons/fi'
 
 export function DataManagement() {
   const investments = usePortfolioStore((s) => s.investments)
@@ -16,21 +17,25 @@ export function DataManagement() {
     <Card title="Data management">
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Portfolio exports</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Portfolio exports
+          </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               onClick={() => exportCSV(investments, 'portfolio.csv')}
             >
-              Export CSV
+              <FiDownload className="h-4 w-4" />
+              <span>Export CSV</span>
             </button>
             <button
               type="button"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               onClick={() => exportExcel(investments, 'portfolio.xlsx')}
             >
-              Export Excel
+              <FiDownload className="h-4 w-4" />
+              <span>Export Excel</span>
             </button>
           </div>
         </div>
@@ -42,10 +47,11 @@ export function DataManagement() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               onClick={() => void exportFullBackup()}
             >
-              Export backup (JSON)
+              <FiDownload className="h-4 w-4" />
+              <span>Export backup (JSON)</span>
             </button>
 
             <input
@@ -72,11 +78,12 @@ export function DataManagement() {
             />
             <button
               type="button"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               onClick={() => fileInputRef.current?.click()}
               disabled={busy}
             >
-              Import backup (JSON)
+              <FiUpload className="h-4 w-4" />
+              <span>Import backup (JSON)</span>
             </button>
           </div>
           <div className="text-xs text-slate-500">
@@ -85,18 +92,22 @@ export function DataManagement() {
         </div>
 
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-          <div className="text-sm font-semibold text-rose-800">Danger zone</div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-rose-800">
+            <FiTrash2 className="h-4 w-4" />
+            <span>Danger zone</span>
+          </div>
           <div className="mt-1 text-xs text-rose-700">
             Clears all data stored locally on this device (investments, liabilities, cashflow, goals, snapshots, settings).
           </div>
           <button
             type="button"
-            className="mt-3 rounded-xl bg-rose-700 px-4 py-2 text-sm font-medium text-white hover:bg-rose-600"
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rose-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
             onClick={() => {
               if (confirm('This will delete ALL local data for this app. Continue?')) void clearAllData()
             }}
           >
-            Clear all data
+            <FiTrash2 className="h-4 w-4" />
+            <span>Clear all data</span>
           </button>
         </div>
       </div>

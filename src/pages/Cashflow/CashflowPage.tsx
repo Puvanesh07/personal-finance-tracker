@@ -5,6 +5,7 @@ import { formatINR } from '../../utils/format'
 import { monthKey, summarizeMonth } from '../../utils/cashflow'
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal'
 import type { CashflowEntry } from '../../types/investmentTypes'
+import { FiActivity, FiPlus } from 'react-icons/fi'
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const options = Array.from({ length: 12 }).map((_, i) => {
@@ -45,41 +46,55 @@ export function CashflowPage() {
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Income &amp; Expenses</h1>
-          <p className="text-sm text-slate-600">Track monthly cashflow, savings rate, and top expenses.</p>
+          <div className="flex items-center gap-2">
+            <FiActivity className="h-6 w-6 text-emerald-500" />
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Income &amp; Expenses</h1>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Track monthly cashflow, savings rate, and top expenses.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <MonthPicker value={month} onChange={setMonth} />
           <button
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-400 dark:text-slate-900 dark:hover:bg-emerald-300"
             onClick={() => setOpen(true)}
             type="button"
           >
-            Add entry
+            <FiPlus className="h-4 w-4" />
+            <span>Add entry</span>
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-500">Income</div>
-          <div className="mt-2 text-lg font-semibold tabular-nums">{formatINR(monthSummary.income)}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Income</div>
+          <div className="mt-2 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+            {formatINR(monthSummary.income)}
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-500">Expenses</div>
-          <div className="mt-2 text-lg font-semibold tabular-nums">{formatINR(monthSummary.expense)}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Expenses</div>
+          <div className="mt-2 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+            {formatINR(monthSummary.expense)}
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-500">Savings</div>
-          <div className="mt-2 text-lg font-semibold tabular-nums">{formatINR(monthSummary.savings)}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Savings</div>
+          <div className="mt-2 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+            {formatINR(monthSummary.savings)}
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-medium text-slate-500">Savings rate</div>
-          <div className="mt-2 text-lg font-semibold tabular-nums">{monthSummary.savingsRate.toFixed(0)}%</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Savings rate</div>
+          <div className="mt-2 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-50">
+            {monthSummary.savingsRate.toFixed(0)}%
+          </div>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">

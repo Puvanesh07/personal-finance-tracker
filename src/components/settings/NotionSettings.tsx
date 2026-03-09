@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { Card } from '../ui/Card'
 import { syncInvestmentsToNotion } from '../../services/notionService'
+import { FiDatabase, FiCloud } from 'react-icons/fi'
 
 export function NotionSettings() {
   const notion = usePortfolioStore((s) => s.notion)
@@ -26,7 +27,15 @@ export function NotionSettings() {
   }
 
   return (
-    <Card title="Notion integration" right={notion.lastSyncAt ? `Last sync: ${new Date(notion.lastSyncAt).toLocaleString()}` : undefined}>
+    <Card
+      title={
+        <span className="inline-flex items-center gap-2">
+          <FiDatabase className="h-4 w-4 text-emerald-500" />
+          <span>Notion integration</span>
+        </span>
+      }
+      right={notion.lastSyncAt ? `Last sync: ${new Date(notion.lastSyncAt).toLocaleString()}` : undefined}
+    >
       <div className="flex flex-col gap-3">
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -38,23 +47,23 @@ export function NotionSettings() {
         </label>
 
         <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600">Notion integration token</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Notion integration token</span>
           <input
             type="password"
             value={notion.token ?? ''}
             onChange={(e) => void setNotionConfig({ token: e.target.value })}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             placeholder="secret_..."
           />
           <div className="text-xs text-slate-500">Stored locally in IndexedDB. Don’t use your Notion password.</div>
         </label>
 
         <label className="grid gap-1 text-sm">
-          <span className="text-xs font-medium text-slate-600">Notion database id</span>
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Notion database id</span>
           <input
             value={notion.databaseId ?? ''}
             onChange={(e) => void setNotionConfig({ databaseId: e.target.value })}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
           />
           <div className="text-xs text-slate-500">
@@ -67,16 +76,21 @@ export function NotionSettings() {
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
             type="button"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-400 dark:text-slate-900 dark:hover:bg-emerald-300"
             onClick={() => void onSync()}
             disabled={busy || !notion.enabled}
           >
-            {busy ? 'Syncing…' : 'Sync now'}
+            <FiCloud className="h-4 w-4" />
+            <span>{busy ? 'Syncing…' : 'Sync now'}</span>
           </button>
           <div className="text-xs text-slate-500">This creates new pages each sync (no dedupe yet).</div>
         </div>
 
-        {status ? <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{status}</div> : null}
+        {status ? (
+          <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            {status}
+          </div>
+        ) : null}
       </div>
     </Card>
   )

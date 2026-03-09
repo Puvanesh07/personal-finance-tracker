@@ -5,7 +5,7 @@ import { summarizePortfolio, typeLabel } from '../../utils/calculations'
 import { Card } from '../ui/Card'
 import { formatINR } from '../../utils/format'
 
-const COLORS = ['#0f172a', '#1d4ed8', '#0ea5e9', '#10b981', '#f97316']
+const COLORS = ['#6366F1', '#22C55E', '#F97316', '#0EA5E9', '#EC4899']
 
 export function AllocationCharts() {
   const investments = usePortfolioStore((s) => s.investments)
@@ -26,14 +26,28 @@ export function AllocationCharts() {
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={2}
+                isAnimationActive
+                animationDuration={700}
+              >
                 {data.map((_, idx) => (
                   <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
                 formatter={(value: any) => formatINR(Number(value))}
-                contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0' }}
+                contentStyle={{
+                  borderRadius: 12,
+                  borderColor: '#CBD5F5',
+                  backgroundColor: '#0F172A',
+                  color: '#E5E7EB',
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -41,7 +55,7 @@ export function AllocationCharts() {
 
         <div className="flex flex-col gap-2">
           {data.length === 0 ? (
-            <div className="text-sm text-slate-600">Add investments to see allocation.</div>
+            <div className="text-sm text-slate-600 dark:text-slate-400">Add investments to see allocation.</div>
           ) : (
             data.map((d, idx) => (
               <div key={d.type} className="flex items-center justify-between gap-3 text-sm">
@@ -50,9 +64,11 @@ export function AllocationCharts() {
                     className="inline-block h-2.5 w-2.5 rounded-full"
                     style={{ background: COLORS[idx % COLORS.length] }}
                   />
-                  <span className="text-slate-700">{d.name}</span>
+                  <span className="text-slate-700 dark:text-slate-100">{d.name}</span>
                 </div>
-                <div className="font-medium tabular-nums">{formatINR(d.value)}</div>
+                <div className="font-medium tabular-nums text-slate-900 dark:text-slate-50">
+                  {formatINR(d.value)}
+                </div>
               </div>
             ))
           )}

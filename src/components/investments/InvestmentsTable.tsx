@@ -21,10 +21,10 @@ export function InvestmentsTable({ investments }: { investments: Investment[] })
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-300">
               <tr>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Name</th>
@@ -35,24 +35,28 @@ export function InvestmentsTable({ investments }: { investments: Investment[] })
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {rows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-600" colSpan={7}>
+                  <td className="px-4 py-6 text-center text-slate-600 dark:text-slate-400" colSpan={7}>
                     No investments found.
                   </td>
                 </tr>
               ) : (
                 rows.map(({ inv, invested, current, pl, plPct }) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-3 text-slate-700">{typeLabel(inv.type)}</td>
+                  <tr key={inv.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/60">
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{typeLabel(inv.type)}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{inv.name}</div>
-                      {inv.symbol ? <div className="text-xs text-slate-500">{inv.symbol}</div> : null}
+                      <div className="font-medium text-slate-900 dark:text-slate-50">{inv.name}</div>
+                      {inv.symbol ? <div className="text-xs text-slate-500 dark:text-slate-400">{inv.symbol}</div> : null}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{inv.platform ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums">{formatINR(invested)}</td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums">{formatINR(current)}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{inv.platform ?? '—'}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-900 dark:text-slate-50">
+                      {formatINR(invested)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-900 dark:text-slate-50">
+                      {formatINR(current)}
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       <div className={pl >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-rose-600'}>
                         {pl >= 0 ? '+' : ''}
