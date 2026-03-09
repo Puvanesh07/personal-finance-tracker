@@ -6,7 +6,7 @@ import { UpsertInvestmentModal } from '../../components/investments/UpsertInvest
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { useMemo, useState } from 'react'
 import type { InvestmentType } from '../../types/investmentTypes'
-import { FiTrendingUp, FiPlus, FiUpload, FiSearch, FiFilter } from 'react-icons/fi'
+import { FiTrendingUp, FiPlus, FiSearch, FiFilter } from 'react-icons/fi'
 
 export function InvestmentsPage() {
   const investments = usePortfolioStore((s) => s.investments)
