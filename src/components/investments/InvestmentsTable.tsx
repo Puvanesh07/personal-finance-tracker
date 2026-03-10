@@ -16,6 +16,7 @@ import {
   FiSearch,
   FiShield,
   FiSquare,
+  FiTag,
   FiTrash2,
   FiTrendingUp,
   FiX,
@@ -59,6 +60,24 @@ const BULK_CATEGORIES = [
   { id: 'crypto', label: 'Crypto', type: 'other', icon: FiMonitor },
   { id: 'other', label: 'Other Asset', type: 'other', icon: FiBox },
 ];
+
+// ── UI Helpers ─────────────────────────────────────────────────────────────
+
+function formatPlatformName(platformStr?: string) {
+  if (!platformStr) return 'Direct';
+  const str = platformStr.toLowerCase();
+  if (str === 'zerodha') return 'Zerodha';
+  if (str === 'angel_one' || str === 'angelone') return 'Angel One';
+  if (str === 'groww') return 'Groww';
+  if (str === 'indmoney') return 'INDmoney';
+  if (str === 'upstox') return 'Upstox';
+  if (str === 'manual') return 'Direct';
+  // Capitalize first letter of each word for unknown platforms
+  return str
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 // ── Custom Dropdown for Bulk Edit ──────────────────────────────────────────
 function BulkCategoryDropdown({
@@ -117,11 +136,7 @@ function BulkCategoryDropdown({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all outline-none ${
-          open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-100'
-            : 'border-slate-700/80 bg-slate-900/80 hover:border-slate-600 hover:bg-slate-800/80 text-slate-200'
-        }`}
+        className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all outline-none ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-100' : 'border-slate-700/80 bg-slate-900/80 hover:border-slate-600 hover:bg-slate-800/80 text-slate-200'}`}
       >
         <div className='flex items-center gap-3'>
           <Icon
@@ -158,11 +173,7 @@ function BulkCategoryDropdown({
                     onChange(cat.id);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                  }`}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${isSelected ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}
                 >
                   <div className='flex items-center gap-3'>
                     <CatIcon
@@ -181,11 +192,141 @@ function BulkCategoryDropdown({
   );
 }
 
+// ── Inline Classification Editor Popover ──────────────────────────────────
+function ClassificationPopover({
+  inv,
+  currentCap,
+  onClose,
+  onSave,
+}: {
+  inv: any;
+  currentCap?: string;
+  onClose: () => void;
+  onSave: (id: string, sector: string, cap: string) => void;
+}) {
+  const [sector, setSector] = useState(inv.sector || '');
+  const [cap, setCap] = useState(currentCap || '');
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onMouse = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', onMouse);
+    return () => document.removeEventListener('mousedown', onMouse);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={panelRef}
+      className='absolute z-50 top-full mt-2 left-0 w-[240px] p-3 rounded-xl border border-slate-700 bg-slate-800 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 cursor-default'
+    >
+      <div className='flex flex-col gap-3'>
+        <div>
+          <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
+            Sector
+          </label>
+          <input
+            value={sector}
+            onChange={(e) => setSector(e.target.value)}
+            placeholder='e.g. Railway, IT, Defence'
+            className='w-full rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
+          />
+        </div>
+        <div>
+          <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
+            Market Cap
+          </label>
+          <select
+            value={cap}
+            onChange={(e) => setCap(e.target.value)}
+            className='w-full appearance-none rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
+          >
+            <option value=''>Select Cap...</option>
+            <option value='Large Cap'>Large Cap</option>
+            <option value='Mid Cap'>Mid Cap</option>
+            <option value='Small Cap'>Small Cap</option>
+            <option value='Micro Cap'>Micro Cap</option>
+          </select>
+        </div>
+        <div className='flex items-center justify-end gap-2 pt-2'>
+          <button
+            onClick={onClose}
+            className='px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors'
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(inv.id, sector, cap)}
+            className='px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-500 transition-colors'
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Asset Chip Components ───────────────────────────────────────────────────
+
+function TypeChip({ type, assetType }: { type: string; assetType?: string }) {
+  let label = type.replace('_', ' ');
+  let color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
+  let Icon = FiBox;
+
+  if (type === 'stock') {
+    label = 'Equity';
+    color = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
+    Icon = FiTrendingUp;
+  } else if (type === 'mutual_fund') {
+    label = 'Mutual Fund';
+    color = 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400';
+    Icon = FiPieChart;
+  } else if (type === 'bond') {
+    label = 'Bond';
+    color = 'border-violet-500/30 bg-violet-500/10 text-violet-400';
+    Icon = FiBriefcase;
+  } else if (type === 'fixed_deposit') {
+    label = 'Fixed Deposit';
+    color = 'border-amber-500/30 bg-amber-500/10 text-amber-400';
+    Icon = FiShield;
+  } else if (type === 'other') {
+    if (assetType) {
+      label = assetType.replace('_', ' ');
+      if (assetType === 'international_equity') {
+        Icon = FiGlobe;
+        color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
+      } else if (assetType === 'gold') {
+        color = 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
+      } else if (assetType === 'real_estate') {
+        Icon = FiHome;
+        color = 'border-orange-500/30 bg-orange-500/10 text-orange-400';
+      } else if (assetType === 'crypto') {
+        Icon = FiMonitor;
+        color = 'border-rose-500/30 bg-rose-500/10 text-rose-400';
+      }
+    } else {
+      label = 'Other';
+    }
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-sm ${color}`}
+    >
+      <Icon size={10} />
+      {label}
+    </span>
+  );
+}
+
 function SectorChip({ sector }: { sector?: string }) {
   if (!sector) return null;
   return (
-    <span className='inline-flex items-center rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-300 shadow-sm'>
+    <span className='inline-flex items-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300 shadow-sm'>
       {sector}
     </span>
   );
@@ -193,10 +334,8 @@ function SectorChip({ sector }: { sector?: string }) {
 
 function MarketCapChip({ cap }: { cap?: string }) {
   if (!cap) return null;
-
   let color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
   const c = cap.toLowerCase();
-
   if (c.includes('large'))
     color = 'border-blue-500/30 bg-blue-500/10 text-blue-300';
   if (c.includes('mid'))
@@ -219,13 +358,11 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
   const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
 
-  // Advanced metadata fetching (to get Market Cap automatically for stocks if needed)
   const [extendedData, setExtendedData] = useState<
     Record<string, { cap?: string }>
   >({});
 
   useEffect(() => {
-    // Attempt to fetch missing market cap data for stocks asynchronously
     investments.forEach(async (inv) => {
       if (inv.type === 'stock' && inv.symbol && !extendedData[inv.id]) {
         try {
@@ -237,25 +374,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             }));
           }
         } catch (e) {
-          // Ignore errors, we just won't show the chip
+          /* silent fail */
         }
       }
     });
   }, [investments]);
 
-  // Row Management
   const [edit, setEdit] = useState<any | null>(null);
-
-  // Selection State
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  // Bulk Modals
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [selectedBulkCat, setSelectedBulkCat] = useState(BULK_CATEGORIES[0].id);
   const [bulkLoading, setBulkLoading] = useState(false);
-
-  // Single Delete Modal
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const rows = useMemo(
@@ -270,8 +401,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             ? ((currentValue(inv) - investedValue(inv)) / investedValue(inv)) *
               100
             : 0,
-        // Add extended data to the row payload
-        marketCap: extendedData[inv.id]?.cap,
+        marketCap: inv.marketCap || extendedData[inv.id]?.cap,
       })),
     [investments, extendedData],
   );
@@ -279,11 +409,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
 
   const toggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(rows.map((r) => r.inv.id));
-    }
+    if (isAllSelected) setSelectedIds([]);
+    else setSelectedIds(rows.map((r) => r.inv.id));
   };
 
   const toggleRow = (id: string) => {
@@ -291,8 +418,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
-
-  // --- ACTIONS ---
 
   const handleSingleDelete = async () => {
     if (deleteId) {
@@ -304,9 +429,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   const handleBulkDelete = async () => {
     setBulkLoading(true);
-    for (const id of selectedIds) {
-      await deleteInvestment(id);
-    }
+    for (const id of selectedIds) await deleteInvestment(id);
     setSelectedIds([]);
     setBulkDeleteOpen(false);
     setBulkLoading(false);
@@ -322,11 +445,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       if (!existing) continue;
 
       const patch: any = { type: cat.type };
-      if (cat.type === 'other') {
-        patch.assetType = cat.id;
-      }
+      if (cat.type === 'other') patch.assetType = cat.id;
 
-      // Safe field migrations to prevent crashes when switching shapes
       if (cat.type === 'stock') {
         patch.quantity = existing.quantity || existing.units || 1;
         patch.buyPrice =
@@ -353,13 +473,23 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           existing.quantity * existing.currentPrice ||
           0;
       }
-
       await updateInvestment(id, patch);
     }
-
     setSelectedIds([]);
     setBulkEditOpen(false);
     setBulkLoading(false);
+  };
+
+  const handleSaveClassification = async (
+    id: string,
+    sector: string,
+    cap: string,
+  ) => {
+    const patch: any = {};
+    if (sector !== undefined) patch.sector = sector;
+    if (cap !== undefined) patch.marketCap = cap;
+    await updateInvestment(id, patch);
+    setInlineEditId(null);
   };
 
   if (rows.length === 0) {
@@ -403,14 +533,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           return (
             <div
               key={inv.id}
-              className={`border p-4 rounded-2xl flex flex-col gap-3 transition-colors ${
-                isSelected
-                  ? 'bg-emerald-500/5 border-emerald-500/30'
-                  : 'bg-slate-900/50 border-slate-800'
-              }`}
+              className={`border p-4 rounded-2xl flex flex-col gap-4 transition-colors ${isSelected ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-900/50 border-slate-800'}`}
             >
               <div className='flex justify-between items-start'>
-                <div className='flex items-start gap-3 max-w-[70%]'>
+                <div className='flex items-start gap-3 max-w-[75%]'>
                   <button
                     onClick={() => toggleRow(inv.id)}
                     className='mt-0.5 text-slate-400 hover:text-emerald-400 transition-colors'
@@ -421,26 +547,53 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <FiSquare size={18} />
                     )}
                   </button>
-                  <div className='flex flex-col gap-1.5'>
+                  <div className='flex flex-col gap-1.5 relative'>
                     <div>
                       <h3
-                        className='font-semibold text-slate-50 truncate text-sm'
+                        className='font-bold text-slate-50 truncate text-sm'
                         title={inv.name}
                       >
                         {inv.name}
                       </h3>
-                      <p className='text-[10px] text-slate-500 uppercase font-bold tracking-tight'>
-                        {inv.platform || 'Direct'}
-                      </p>
+                      <div className='flex items-center gap-2 mt-1'>
+                        <TypeChip
+                          type={inv.type}
+                          assetType={(inv as any).assetType}
+                        />
+                        <span className='text-[10px] text-slate-500 font-bold uppercase tracking-wide'>
+                          {formatPlatformName(inv.platform)}
+                        </span>
+                      </div>
                     </div>
-                    {/* Chips specifically for mobile */}
-                    <div className='flex flex-wrap items-center gap-1.5'>
-                      <SectorChip sector={inv.sector} />
-                      <MarketCapChip cap={marketCap} />
-                    </div>
+                    {inv.type === 'stock' && (
+                      <div
+                        className='flex flex-wrap items-center gap-1.5 mt-1 cursor-pointer group'
+                        onClick={() =>
+                          setInlineEditId(
+                            inlineEditId === inv.id ? null : inv.id,
+                          )
+                        }
+                      >
+                        <SectorChip sector={inv.sector} />
+                        <MarketCapChip cap={marketCap} />
+                        {!inv.sector && !marketCap && (
+                          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover:border-emerald-500/50 group-hover:text-emerald-400 transition-colors'>
+                            <FiTag size={10} /> Add Tags
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {inlineEditId === inv.id && (
+                      <ClassificationPopover
+                        inv={inv}
+                        currentCap={marketCap}
+                        onClose={() => setInlineEditId(null)}
+                        onSave={handleSaveClassification}
+                      />
+                    )}
                   </div>
                 </div>
-                <div className='flex gap-2'>
+                <div className='flex gap-1.5'>
                   <button
                     onClick={() => setEdit(inv)}
                     className='p-2 text-slate-400 bg-slate-800 rounded-lg transition-colors hover:text-white'
@@ -457,22 +610,22 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               </div>
 
               <div
-                className={`grid grid-cols-2 gap-2 pt-2 border-t ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/50'}`}
+                className={`grid grid-cols-2 gap-2 pt-3 border-t ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/50'}`}
               >
                 <div>
-                  <p className='text-[10px] text-slate-500 font-medium'>
+                  <p className='text-[10px] text-slate-500 font-bold uppercase tracking-wider'>
                     Current Value
                   </p>
-                  <p className='text-sm font-bold text-white'>
+                  <p className='text-base font-bold text-white mt-0.5'>
                     {formatINR(current)}
                   </p>
                 </div>
                 <div className='text-right'>
-                  <p className='text-[10px] text-slate-500 font-medium'>
+                  <p className='text-[10px] text-slate-500 font-bold uppercase tracking-wider'>
                     Returns
                   </p>
                   <p
-                    className={`text-sm font-bold ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                    className={`text-base font-bold mt-0.5 ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
                   >
                     {pl >= 0 ? '+' : ''}
                     {plPct.toFixed(2)}%
@@ -485,12 +638,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       </div>
 
       {/* DESKTOP VIEW: Table */}
-      <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50'>
-        <div className='overflow-x-auto'>
+      <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
+        <div className='overflow-x-auto pb-2'>
           <table className='w-full text-left text-sm'>
-            <thead className='bg-slate-800/50 text-[11px] font-bold uppercase text-slate-500 tracking-wider'>
+            <thead className='bg-slate-800/80 text-[10px] font-bold uppercase text-slate-400 tracking-widest border-b border-slate-700/50'>
               <tr>
-                <th className='px-4 py-4 w-10 text-center'>
+                <th className='px-4 py-4 w-12 text-center'>
                   <button
                     onClick={toggleSelectAll}
                     className='text-slate-400 hover:text-emerald-400 transition-colors pt-1'
@@ -502,22 +655,22 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     )}
                   </button>
                 </th>
-                <th className='px-4 py-4'>Asset</th>
-                <th className='px-6 py-4'>Classification</th>
-                <th className='px-6 py-4'>Platform</th>
+                <th className='px-4 py-4 w-64'>Asset Name</th>
+                <th className='px-4 py-4'>Broker</th>
+                <th className='px-4 py-4'>Classification</th>
                 <th className='px-6 py-4 text-right'>Invested</th>
-                <th className='px-6 py-4 text-right'>Current</th>
-                <th className='px-6 py-4 text-right'>P/L</th>
-                <th className='px-6 py-4 text-center'>Actions</th>
+                <th className='px-6 py-4 text-right'>Current Val</th>
+                <th className='px-6 py-4 text-right'>P/L (%)</th>
+                <th className='px-4 py-4 text-center'>Actions</th>
               </tr>
             </thead>
-            <tbody className='divide-y divide-slate-800'>
+            <tbody className='divide-y divide-slate-800/60'>
               {rows.map(({ inv, invested, current, pl, plPct, marketCap }) => {
                 const isSelected = selectedIds.includes(inv.id);
                 return (
                   <tr
                     key={inv.id}
-                    className={`transition-colors ${isSelected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/30'}`}
+                    className={`transition-colors group ${isSelected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/40'}`}
                   >
                     <td className='px-4 py-4 text-center'>
                       <button
@@ -534,55 +687,101 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         )}
                       </button>
                     </td>
-                    <td className='px-4 py-4 max-w-[200px]'>
-                      <div
-                        className='font-semibold text-white truncate'
-                        title={inv.name}
-                      >
-                        {inv.name}
-                      </div>
-                      <div className='text-[10px] text-slate-500 font-bold'>
-                        {inv.symbol}
+                    <td className='px-4 py-4'>
+                      <div className='flex flex-col gap-1.5'>
+                        <div
+                          className='font-bold text-slate-100 truncate max-w-[220px]'
+                          title={inv.name}
+                        >
+                          {inv.name}
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <TypeChip
+                            type={inv.type}
+                            assetType={(inv as any).assetType}
+                          />
+                          {inv.symbol && (
+                            <span className='text-[10px] font-bold text-slate-500'>
+                              {inv.symbol}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className='px-6 py-4'>
-                      <div className='flex flex-wrap gap-1.5'>
-                        <SectorChip sector={inv.sector} />
-                        <MarketCapChip cap={marketCap} />
-                        {/* Fallback if no classification exists for a row */}
-                        {!inv.sector && !marketCap && (
-                          <span className='text-xs text-slate-600'>—</span>
-                        )}
-                      </div>
+                    <td className='px-4 py-4'>
+                      <span className='inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-widest border border-slate-700/50'>
+                        {formatPlatformName(inv.platform)}
+                      </span>
                     </td>
-                    <td className='px-6 py-4 text-slate-400 text-xs'>
-                      {inv.platform}
+                    <td className='px-4 py-4 relative group/class'>
+                      {inv.type === 'stock' ? (
+                        <div
+                          className='flex flex-wrap gap-1.5 cursor-pointer min-h-[24px] items-center'
+                          onClick={() =>
+                            setInlineEditId(
+                              inlineEditId === inv.id ? null : inv.id,
+                            )
+                          }
+                        >
+                          <SectorChip sector={inv.sector} />
+                          <MarketCapChip cap={marketCap} />
+
+                          {!inv.sector && !marketCap && (
+                            <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover/class:border-emerald-500/50 group-hover/class:text-emerald-400 transition-colors'>
+                              <FiTag size={10} /> Add
+                            </span>
+                          )}
+                          {(inv.sector || marketCap) && (
+                            <FiEdit2
+                              size={12}
+                              className='text-slate-500 opacity-0 group-hover/class:opacity-100 transition-opacity ml-1'
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <span className='text-xs text-slate-600 font-medium'>
+                          —
+                        </span>
+                      )}
+
+                      {inlineEditId === inv.id && (
+                        <ClassificationPopover
+                          inv={inv}
+                          currentCap={marketCap}
+                          onClose={() => setInlineEditId(null)}
+                          onSave={handleSaveClassification}
+                        />
+                      )}
                     </td>
-                    <td className='px-6 py-4 text-right text-slate-300 tabular-nums'>
+                    <td className='px-6 py-4 text-right text-slate-300 font-medium tabular-nums'>
                       {formatINR(invested)}
                     </td>
-                    <td className='px-6 py-4 text-right font-semibold text-white tabular-nums'>
+                    <td className='px-6 py-4 text-right font-bold text-white tabular-nums'>
                       {formatINR(current)}
                     </td>
                     <td
                       className={`px-6 py-4 text-right tabular-nums ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
                     >
-                      <div className='font-bold'>{formatINR(pl)}</div>
-                      <div className='text-[10px] opacity-80'>
+                      <div className='font-bold'>
+                        {pl >= 0 ? '+' : ''}
+                        {formatINR(pl)}
+                      </div>
+                      <div className='text-[10px] font-semibold opacity-80 mt-0.5'>
+                        {pl >= 0 ? '+' : ''}
                         {plPct.toFixed(2)}%
                       </div>
                     </td>
-                    <td className='px-6 py-4'>
-                      <div className='flex justify-center gap-2'>
+                    <td className='px-4 py-4'>
+                      <div className='flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
                         <button
                           onClick={() => setEdit(inv)}
-                          className='p-2 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors'
+                          className='p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors'
                         >
                           <FiEdit2 size={14} />
                         </button>
                         <button
                           onClick={() => setDeleteId(inv.id)}
-                          className='p-2 hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-400 transition-colors'
+                          className='p-2 hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-400 transition-colors'
                         >
                           <FiTrash2 size={14} />
                         </button>
@@ -607,9 +806,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               selected
             </span>
           </div>
-
           <div className='w-px h-6 bg-slate-700 mx-1' />
-
           <button
             onClick={() => setBulkEditOpen(true)}
             className='flex items-center gap-2 text-sm font-bold text-slate-200 hover:text-emerald-400 transition-colors'
@@ -617,7 +814,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <FiFolder size={16} />{' '}
             <span className='hidden sm:block'>Edit Category</span>
           </button>
-
           <button
             onClick={() => setBulkDeleteOpen(true)}
             className='flex items-center gap-2 text-sm font-bold text-rose-400 hover:text-rose-300 transition-colors'
@@ -625,9 +821,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <FiTrash2 size={16} />{' '}
             <span className='hidden sm:block'>Delete</span>
           </button>
-
           <div className='w-px h-6 bg-slate-700 mx-1' />
-
           <button
             onClick={() => setSelectedIds([])}
             className='p-1 text-slate-400 hover:text-white transition-colors'
@@ -723,7 +917,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             </span>{' '}
             to a new category.
           </p>
-
           <div>
             <label className='text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block ml-1'>
               New Category
@@ -733,7 +926,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               onChange={setSelectedBulkCat}
             />
           </div>
-
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button
               onClick={() => setBulkEditOpen(false)}
