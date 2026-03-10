@@ -1,5 +1,5 @@
-// src/App.tsx
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast' // <-- Add this import
 import { AppLayout } from './components/layout/AppLayout'
 import { DashboardPage } from './pages/Dashboard/DashboardPage'
 import { InvestmentsPage } from './pages/Investments/InvestmentsPage'
@@ -17,31 +17,31 @@ import { ToolsPage } from './Tools/ToolsPage'
 export default function App() {
   const ready = usePortfolioStore((s) => s.ready)
 
-  // We removed the useEffect with hydrate() because the 
-  // AuthWrapper now handles hydration automatically upon login.
-
   if (!ready) {
-    return (
-      <Loader />
-    )
+    return <Loader />
   }
 
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/investments" element={<InvestmentsPage />} />
-        <Route path="/liabilities" element={<LiabilitiesPage />} />
-        <Route path="/cashflow" element={<CashflowPage />} />
-        <Route path="/goals" element={<GoalsPage />} />
-        <Route path="/insights" element={<InsightsPage />} />
-        <Route path="/tools" element={<ToolsPage />} />
-        <Route path="/snapshots" element={<SnapshotsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <>
+      {/* Add the Toaster here */}
+      <Toaster position="bottom-right" />
+      
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/investments" element={<InvestmentsPage />} />
+          <Route path="/liabilities" element={<LiabilitiesPage />} />
+          <Route path="/cashflow" element={<CashflowPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/insights" element={<InsightsPage />} />
+          <Route path="/tools" element={<ToolsPage />} />
+          <Route path="/snapshots" element={<SnapshotsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </>
   )
 }

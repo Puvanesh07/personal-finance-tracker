@@ -3,6 +3,7 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { parseCSV, rowToInvestmentDraft } from '../../utils/csvImport'
 import { parseIndmoneyXlsx } from '../../utils/indmoneyXlsxImport'
 import { FiPieChart } from 'react-icons/fi'
+import toast from 'react-hot-toast'
 
 export function ImportIndmoneyButton() {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -17,7 +18,7 @@ export function ImportIndmoneyButton() {
       if (lower.endsWith('.xlsx')) {
         const drafts = await parseIndmoneyXlsx(file)
         for (const d of drafts) await addInvestment(d as any)
-        alert(`Imported ${drafts.length} INDmoney holding(s).`)
+          toast.success(`Imported ${drafts.length} INDmoney holding(s).`)
         return
       }
 
@@ -34,10 +35,10 @@ export function ImportIndmoneyButton() {
         await addInvestment(draft as any)
         ok++
       }
-      alert(`Imported ${ok} row(s). Skipped ${skipped} row(s).`)
+      toast.success(`Imported ${ok} row(s). Skipped ${skipped} row(s).`) // <-- Replaced alert
     } catch (e: any) {
-      alert(e?.message ?? 'INDmoney import failed.')
-    } finally {
+      toast.error(e?.message ?? 'INDmoney import failed.') // <-- Replaced alert
+    }finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
     }

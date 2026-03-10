@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { parseCSV, rowToInvestmentDraft } from '../../utils/csvImport'
 import { FiTrendingUp } from 'react-icons/fi'
+import toast from 'react-hot-toast'
 
 export function ImportCsvButton() {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -25,7 +26,9 @@ export function ImportCsvButton() {
         await addInvestment(draft as any)
         ok++
       }
-      alert(`Imported ${ok} row(s). Skipped ${skipped} row(s).`)
+      toast.success(`Imported ${ok} row(s). Skipped ${skipped} row(s).`) // <-- Replaced alert
+    } catch (e: any) {
+      toast.error(e?.message ?? 'CSV import failed.') // <-- Added error handling
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''

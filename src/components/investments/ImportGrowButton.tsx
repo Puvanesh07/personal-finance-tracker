@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { FiUserCheck } from 'react-icons/fi'
 import { parseCSV, rowToInvestmentDraft } from '../../utils/csvImport'
 import { usePortfolioStore } from '../../store/portfolioStore'
+import toast from 'react-hot-toast'
 
 export function ImportGrowwButton() {
     const inputRef = useRef<HTMLInputElement | null>(null)
@@ -26,7 +27,9 @@ export function ImportGrowwButton() {
           await addInvestment(draft as any)
           ok++
         }
-        alert(`Imported ${ok} row(s). Skipped ${skipped} row(s).`)
+        toast.success(`Imported ${ok} row(s). Skipped ${skipped} row(s).`) // <-- Replaced alert
+      } catch (e: any) {
+        toast.error(e?.message ?? 'Groww import failed.') // <-- Added error handling
       } finally {
         setBusy(false)
         if (inputRef.current) inputRef.current.value = ''

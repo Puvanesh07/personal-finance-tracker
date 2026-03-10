@@ -5,6 +5,7 @@ import { FiBriefcase } from 'react-icons/fi'
 
 import * as pdfjs from 'pdfjs-dist'
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import toast from 'react-hot-toast'
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker
 
@@ -34,13 +35,13 @@ export function ImportAngelOnePdfButton() {
       const text = await extractPdfText(file)
       const drafts = parseAngelOneHoldingsText(text)
       if (!drafts.length) {
-        alert('No holdings detected in this PDF. If possible, export CSV from Angel One and import that instead.')
+        toast.error('No holdings detected in this PDF. If possible, export CSV from Angel One and import that instead.')
         return
       }
       for (const d of drafts) await addInvestment(d as any)
-      alert(`Imported ${drafts.length} Angel One holding(s).`)
+      toast.success(`Imported ${drafts.length} Angel One holding(s).`)  
     } catch (e: any) {
-      alert(e?.message ?? 'Angel One PDF import failed.')
+      toast.error(e?.message ?? 'Angel One PDF import failed.')
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
