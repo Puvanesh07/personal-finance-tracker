@@ -188,17 +188,48 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addCashflow: async (entry) => {
     const uid = get().uid; if (!uid) return;
     const now = new Date().toISOString()
-    const withMeta: any = { ...(entry as any), id: createId('cf'), createdAt: now, updatedAt: now, userId: uid }
+    
+    const raw = { 
+      ...entry, 
+      id: createId('cf'), 
+      createdAt: now, 
+      updatedAt: now, 
+      userId: uid 
+    }
+
+    // ✅ Strip ALL undefined fields before writing to Firestore
+    const withMeta = Object.fromEntries(
+      Object.entries(raw).filter(([_, v]) => v !== undefined)
+    ) as CashflowEntry
+
     await setDoc(doc(db, 'cashflows', withMeta.id), withMeta)
-    set((s) => ({ cashflows: [withMeta as CashflowEntry, ...s.cashflows] }))
+    
+    // Update local state and sort so newest are at the top
+    set((s) => ({ 
+      cashflows: [withMeta, ...s.cashflows].sort((a, b) => b.date.localeCompare(a.date))
+    }))
   },
 
   updateCashflow: async (id, patch) => {
     const existing = get().cashflows.find(x => x.id === id)
     if (!existing) return
-    const updated: CashflowEntry = { ...existing, ...(patch as any), id, updatedAt: new Date().toISOString() }
+    
+    const raw = { 
+      ...existing, 
+      ...patch, 
+      id, 
+      updatedAt: new Date().toISOString() 
+    }
+
+    // ✅ Strip ALL undefined fields before writing to Firestore
+    const updated = Object.fromEntries(
+      Object.entries(raw).filter(([_, v]) => v !== undefined)
+    ) as CashflowEntry
+
     await setDoc(doc(db, 'cashflows', id), updated)
-    set((s) => ({ cashflows: s.cashflows.map((x) => (x.id === id ? updated : x)) }))
+    set((s) => ({ 
+      cashflows: s.cashflows.map((x) => (x.id === id ? updated : x)) 
+    }))
   },
 
   deleteCashflow: async (id) => {
