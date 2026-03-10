@@ -58,7 +58,7 @@ export function UpsertLiabilityModal(props: Props) {
         name: state.name.trim(),
         principal: toNum(state.principal),
         outstanding: toNum(state.outstanding),
-        interestRate: state.interestRate.trim() ? toNum(state.interestRate) : undefined,
+        ...(state.interestRate.trim() ? { interestRate: toNum(state.interestRate) } : {}),
       }
       if (props.mode === 'create') await addLiability(payload as any)
       else await updateLiability(props.liability.id, payload as any)

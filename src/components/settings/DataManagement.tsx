@@ -4,9 +4,8 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { Card } from '../ui/Card'
 import { exportCSV, exportExcel } from '../../utils/exportUtils'
 import { exportFullBackup, importFullBackup } from '../../utils/backup'
-import { FiDownload, FiUpload, FiTrash2, FiDatabase, FiAlertOctagon, FiLogOut } from 'react-icons/fi'
-import { signOut } from 'firebase/auth' // Added
-import { auth } from '../../services/firebase' // Added
+import { FiDownload, FiUpload, FiTrash2, FiDatabase, FiAlertOctagon } from 'react-icons/fi'
+
 
 export function DataManagement() {
   const investments = usePortfolioStore((s) => s.investments)
@@ -21,20 +20,7 @@ export function DataManagement() {
     <Card title={<div className="flex items-center gap-2"><FiDatabase className="text-slate-500 dark:text-slate-400"/> Data Management</div>}>
       <div className="flex flex-col gap-6">
         
-        {/* Account Management (Logout) */}
-        <div className="flex flex-col gap-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Account
-          </div>
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 backdrop-blur-sm transition-all hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
-            onClick={() => signOut(auth)}
-          >
-            <FiLogOut className="h-4 w-4 text-rose-500" />
-            <span>Sign Out</span>
-          </button>
-        </div>
+       
 
         <div className="h-px w-full bg-slate-200/60 dark:bg-slate-800/60" />
 

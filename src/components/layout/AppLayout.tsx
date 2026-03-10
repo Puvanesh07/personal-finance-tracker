@@ -2,10 +2,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { 
   FiHome, FiTrendingUp, FiCreditCard, FiActivity, 
-  FiFlag, FiCamera, FiBarChart2, FiSettings, FiLogOut 
+  FiFlag, FiCamera, FiBarChart2, FiSettings, FiLogOut,
+  FiZap // Added for Insights
 } from 'react-icons/fi'
-import { signOut } from 'firebase/auth' // Added
-import { auth } from '../../services/firebase' // Added
+import { signOut } from 'firebase/auth'
+import { auth } from '../../services/firebase'
+import { AiFillCalculator } from 'react-icons/ai'
 
 function linkClassName(isActive: boolean) {
   const base = 'group flex flex-col md:flex-row items-center gap-0.5 md:gap-3 rounded-xl px-1 md:px-4 py-2 md:py-3 transition-all duration-300'
@@ -44,12 +46,23 @@ export function AppLayout() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          <NavLink hide-on-mobile="true" to="/dashboard" className={({ isActive }) => linkClassName(isActive)}><FiHome className="h-4 w-4" /> <span>Dashboard</span></NavLink>
+          <NavLink to="/dashboard" className={({ isActive }) => linkClassName(isActive)}><FiHome className="h-4 w-4" /> <span>Dashboard</span></NavLink>
           <NavLink to="/investments" className={({ isActive }) => linkClassName(isActive)}><FiTrendingUp className="h-4 w-4" /> <span>Investments</span></NavLink>
           <NavLink to="/liabilities" className={({ isActive }) => linkClassName(isActive)}><FiCreditCard className="h-4 w-4" /> <span>Liabilities</span></NavLink>
           <NavLink to="/cashflow" className={({ isActive }) => linkClassName(isActive)}><FiActivity className="h-4 w-4" /> <span>Cashflow</span></NavLink>
           <NavLink to="/goals" className={({ isActive }) => linkClassName(isActive)}><FiFlag className="h-4 w-4" /> <span>Goals</span></NavLink>
-          <div className="mt-6 mb-2 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-600">Analytics</div>
+          
+          {/* New Intelligence Section */}
+          <div className="mt-6 mb-2 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-600">Intelligence</div>
+          <NavLink to="/insights" className={({ isActive }) => linkClassName(isActive)}>
+            <FiZap className="h-4 w-4 text-amber-400" /> 
+            <span>Insights</span>
+          </NavLink>
+          
+          <div className="mt-4 mb-2 px-4 text-[10px] font-bold uppercase tracking-wider text-slate-600">Analytics</div>
+          <NavLink to="/tools" className={({ isActive }) => linkClassName(isActive)}>
+  <AiFillCalculator className="h-4 w-4" /> <span>Investment Tools</span>
+</NavLink>
           <NavLink to="/snapshots" className={({ isActive }) => linkClassName(isActive)}><FiCamera className="h-4 w-4" /> <span>Snapshots</span></NavLink>
           <NavLink to="/reports" className={({ isActive }) => linkClassName(isActive)}><FiBarChart2 className="h-4 w-4" /> <span>Reports</span></NavLink>
           <NavLink to="/settings" className={({ isActive }) => linkClassName(isActive)}><FiSettings className="h-4 w-4" /> <span>Settings</span></NavLink>
@@ -84,9 +97,10 @@ export function AppLayout() {
           <FiTrendingUp className="h-4 w-4" />
           <span className="mt-0.5">Stocks</span>
         </NavLink>
-        <NavLink to="/cashflow" className={({ isActive }) => linkClassName(isActive)}>
-          <FiActivity className="h-4 w-4" />
-          <span className="mt-0.5">Cash</span>
+        {/* Added Insights to Mobile Bar */}
+        <NavLink to="/insights" className={({ isActive }) => linkClassName(isActive)}>
+          <FiZap className="h-4 w-4 text-amber-400" />
+          <span className="mt-0.5">Insights</span>
         </NavLink>
         <NavLink to="/goals" className={({ isActive }) => linkClassName(isActive)}>
           <FiFlag className="h-4 w-4" />

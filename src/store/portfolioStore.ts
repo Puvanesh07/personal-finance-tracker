@@ -1,10 +1,10 @@
-// src/store/portfolioStore.ts
 import { create } from 'zustand'
 import { collection, doc, getDocs, setDoc, deleteDoc, getDoc, query, where } from 'firebase/firestore'
 import { db } from '../services/firebase'
 import type {
   CashflowEntry, EssentialsConfig, Goal, Investment,
   Liability, NetWorthSnapshot, NotionConfig, PortfolioSnapshot,
+  InsightSnapshot, // Added
 } from '../types/investmentTypes'
 import { createId } from '../utils/id'
 import { todayISO } from '../utils/dateUtils'
@@ -25,6 +25,7 @@ type PortfolioState = {
   cashflows: CashflowEntry[]
   goals: Goal[]
   networthSnapshots: NetWorthSnapshot[]
+  latestInsight: InsightSnapshot | null // Added
   notion: NotionConfig
   essentials: EssentialsConfig
 
@@ -48,6 +49,9 @@ type PortfolioState = {
   recordSnapshotIfNeeded: () => Promise<void>
   recordSnapshotNow: () => Promise<void>
   takeNetWorthSnapshot: (label?: string) => Promise<void>
+  
+  // New Action for Insights
+  saveInsightSnapshot: (insight: Omit<InsightSnapshot, 'id' | 'userId' | 'createdAt'>) => Promise<void>
 }
 
 const DEFAULT_NOTION: NotionConfig = { enabled: false }
@@ -68,22 +72,31 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   cashflows: [],
   goals: [],
   networthSnapshots: [],
+  latestInsight: null, // Initial state
   notion: DEFAULT_NOTION,
   essentials: DEFAULT_ESSENTIALS,
 
   hydrate: async (uid: string) => {
     set({ uid })
-    const [investments, snapshots, liabilities, cashflows, goals, networthSnapshots] = await Promise.all([
+    const [
+      investments, 
+      snapshots, 
+      liabilities, 
+      cashflows, 
+      goals, 
+      networthSnapshots,
+      insights // Added
+    ] = await Promise.all([
       fetchUserCollection<Investment>('investments', uid),
       fetchUserCollection<PortfolioSnapshot>('snapshots', uid),
       fetchUserCollection<Liability>('liabilities', uid),
       fetchUserCollection<CashflowEntry>('cashflows', uid),
       fetchUserCollection<Goal>('goals', uid),
       fetchUserCollection<NetWorthSnapshot>('networthSnapshots', uid),
+      fetchUserCollection<InsightSnapshot>('insights', uid), // Added
     ])
 
     const settingsDoc = await getDoc(doc(db, 'settings', uid))
-    // Added explicit type assertion for SettingsRecord
     const settings = settingsDoc.exists() 
       ? (settingsDoc.data() as SettingsRecord) 
       : ({ id: uid, notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS } as SettingsRecord)
@@ -96,6 +109,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       cashflows: cashflows.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt)),
       goals: goals.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
       networthSnapshots: networthSnapshots.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      // Sort insights and pick the most recent one
+      latestInsight: insights.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] || null,
       notion: settings.notion ?? DEFAULT_NOTION,
       essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
     })
@@ -103,6 +118,26 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (investments.length > 0) {
       await get().recordSnapshotIfNeeded()
     }
+  },
+
+  saveInsightSnapshot: async (data) => {
+    const uid = get().uid; if (!uid) return;
+    const now = new Date().toISOString()
+  
+    const raw: InsightSnapshot = {
+      ...data,
+      id: createId('ins'),
+      userId: uid,
+      createdAt: now,
+    }
+  
+    // ✅ Strip ALL undefined fields before writing to Firestore
+    const snapshot = Object.fromEntries(
+      Object.entries(raw).filter(([_, v]) => v !== undefined)
+    ) as InsightSnapshot
+  
+    await setDoc(doc(db, 'insights', snapshot.id), snapshot)
+    set({ latestInsight: snapshot })
   },
 
   addInvestment: async (investment) => {
@@ -195,7 +230,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   clearAllData: async () => {
     set({
       uid: null, investments: [], snapshots: [], liabilities: [], cashflows: [], goals: [], networthSnapshots: [],
-      notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS,
+      latestInsight: null, notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS,
     })
   },
 
@@ -248,16 +283,20 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const { totalValue } = summarizePortfolio(get().investments)
     const totalLiabilities = get().liabilities.reduce((acc, l) => acc + (l.outstanding || 0), 0)
     const now = new Date().toISOString()
-    const snap: any = {
+  
+    const snap: NetWorthSnapshot = {
       id: createId('nws'),
       createdAt: now,
-      label: label?.trim() || undefined,
       totalAssets: totalValue,
       totalLiabilities,
       netWorth: totalValue - totalLiabilities,
-      userId: uid
+      userId: uid,
+      // ✅ Only set label if it's a non-empty string — Firestore rejects undefined
+      ...(label?.trim() ? { label: label.trim() } : {}),
     }
+  
     await setDoc(doc(db, 'networthSnapshots', snap.id), snap)
-    set((s) => ({ networthSnapshots: [snap as NetWorthSnapshot, ...s.networthSnapshots] }))
+    set((s) => ({ networthSnapshots: [snap, ...s.networthSnapshots] }))
   },
+  
 }))

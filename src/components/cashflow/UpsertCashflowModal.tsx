@@ -53,7 +53,7 @@ export function UpsertCashflowModal(props: Props) {
         date: state.date,
         category: state.category.trim() || 'Other',
         amount: toNum(state.amount),
-        notes: state.notes.trim() || undefined,
+        ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
       }
       if (props.mode === 'create') await addCashflow(payload as any)
       else await updateCashflow(props.entry.id, payload as any)

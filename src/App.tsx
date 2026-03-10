@@ -11,6 +11,8 @@ import { GoalsPage } from './pages/Goals/GoalsPage'
 import { SnapshotsPage } from './pages/Snapshots/SnapshotsPage'
 import { usePortfolioStore } from './store/portfolioStore'
 import { Loader } from './components/loader/Loader'
+import InsightsPage from './pages/Insights/InsightsPage'
+import { ToolsPage } from './Tools/ToolsPage'
 
 export default function App() {
   const ready = usePortfolioStore((s) => s.ready)
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="/liabilities" element={<LiabilitiesPage />} />
         <Route path="/cashflow" element={<CashflowPage />} />
         <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/tools" element={<ToolsPage />} />
         <Route path="/snapshots" element={<SnapshotsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />

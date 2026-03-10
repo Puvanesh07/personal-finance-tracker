@@ -15,6 +15,48 @@ export type BaseInvestment = {
   updatedAt: string // ISO datetime
 }
 
+// Add this to your existing types
+export type InsightSnapshot = {
+  id: string;
+  userId: string;
+  createdAt: string; // ISO string
+  debtToAssetRatio: number;
+  emergencyRunwayMonths: number;
+  totalTaxLossPotential: number;
+  equityAllocationPct: number;
+  topDebtPriorityId?: string;
+  rebalanceRequired: boolean;
+};
+
+// Add these to your existing types
+export interface FinancialGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  category: 'retirement' | 'house' | 'car' | 'education' | 'other';
+  deadline?: string;
+  userId: string;
+}
+
+export interface InsightMetrics {
+  healthScore: number;
+  savingsRate: number;
+  emergencyRunway: number; // in months
+  debtToAssetRatio: number;
+  netWorth: number;
+  equityAllocation: number;
+  passiveIncomeMonthly: number;
+}
+
+export interface FinancialInsight {
+  title: string;
+  value: string;
+  description: string;
+  status: 'good' | 'warning' | 'critical';
+  icon: 'safety' | 'debt' | 'growth' | 'diversification';
+}
+
 export type StockInvestment = BaseInvestment & {
   type: 'stock'
   quantity: number
@@ -123,7 +165,8 @@ export type EssentialsConfig = {
 
 export type NetWorthSnapshot = {
   id: string
-  createdAt: string // ISO datetime
+  userId: string   // ✅ add this
+  createdAt: string
   label?: string
   totalAssets: number
   totalLiabilities: number
