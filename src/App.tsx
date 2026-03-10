@@ -10,6 +10,7 @@ import { CashflowPage } from './pages/Cashflow/CashflowPage'
 import { GoalsPage } from './pages/Goals/GoalsPage'
 import { SnapshotsPage } from './pages/Snapshots/SnapshotsPage'
 import { usePortfolioStore } from './store/portfolioStore'
+import { Loader } from './components/loader/Loader'
 
 export default function App() {
   const ready = usePortfolioStore((s) => s.ready)
@@ -19,14 +20,7 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="grid h-screen w-full place-items-center bg-slate-50 transition-colors duration-500 dark:bg-slate-950">
-        <div className="flex animate-pulse items-center gap-4 rounded-2xl border border-slate-200/80 bg-white/80 px-8 py-5 shadow-2xl backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-900/80">
-          <div className="h-6 w-6 animate-spin rounded-full border-4 border-emerald-500/30 border-t-emerald-500" />
-          <span className="text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
-            Loading FinTrackly...
-          </span>
-        </div>
-      </div>
+      <Loader />
     )
   }
 

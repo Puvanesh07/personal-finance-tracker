@@ -4,11 +4,11 @@ import { signInWithPopup } from 'firebase/auth';
 import { motion, type Variants } from 'framer-motion';
 import { useState } from 'react';
 import {
-  FiTrendingUp, FiFileText, FiTarget,
-  FiLock, FiDownload, FiDollarSign, FiBarChart2,
+  FiTrendingUp, FiFileText,
+  FiLock, FiDownload, FiBarChart2,
   FiShield, FiCheck, FiArrowRight, FiUpload,
-  FiPackage, FiCamera, FiBookOpen, FiCreditCard,
-  FiHome, FiBriefcase, FiAlertCircle, FiZap,
+  FiPackage, FiCamera, FiCreditCard, FiBriefcase, FiAlertCircle, FiZap, FiActivity, FiFlag, FiSettings,
+  FiDatabase, FiGlobe,
 } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { SiNotion } from 'react-icons/si';
@@ -31,18 +31,66 @@ const fadeUp: Variants = {
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 const features = [
-  { icon: <FiBarChart2 />, color: "#10b981", glow: "rgba(16,185,129,0.25)", label: "Dashboard", desc: "Unified net worth overview with live asset allocation, P&L charts, income vs expense burn, and portfolio health score." },
-  { icon: <FiDollarSign />, color: "#3b82f6", glow: "rgba(59,130,246,0.25)", label: "Income & Expense", desc: "Categorized transaction tracking with monthly trends, custom tags, recurring entries, and AI-powered spending insights." },
-  { icon: <FiBriefcase />, color: "#a78bfa", glow: "rgba(167,139,250,0.25)", label: "Investments", desc: "Track stocks, mutual funds, ETFs, FDs, gold, crypto and real estate. See XIRR, absolute returns and dividend history." },
-  { icon: <FiHome />, color: "#f59e0b", glow: "rgba(245,158,11,0.25)", label: "Assets", desc: "Log physical and financial assets — property, vehicles, jewellery, EPF, PPF. Attach documents and get reminders." },
-  { icon: <FiCreditCard />, color: "#f87171", glow: "rgba(248,113,113,0.25)", label: "Liabilities", desc: "Full loan management: EMI schedules, remaining tenure, prepayment simulation, and missed payment alerts." },
-  { icon: <FiTarget />, color: "#ec4899", glow: "rgba(236,72,153,0.25)", label: "Goals", desc: "Set FIRE, retirement, home-purchase or custom goals. Get SIP calculations and auto-progress tracking." },
-  { icon: <FiCamera />, color: "#fb923c", glow: "rgba(251,146,60,0.25)", label: "Snapshots", desc: "Create point-in-time net worth snapshots monthly or on demand. Compare over time to see your wealth journey." },
-  { icon: <FiFileText />, color: "#22d3ee", glow: "rgba(34,211,238,0.25)", label: "Reports", desc: "Generate PDF and Excel reports: annual wealth statements, capital gains reports and custom date-range P&L." },
-  { icon: <SiNotion />, color: "#e2e8f0", glow: "rgba(226,232,240,0.15)", label: "Notion Sync", desc: "Two-way sync with your Notion workspace. Push investments, expenses and snapshots — no manual copy-paste." },
-  { icon: <FiPackage />, color: "#818cf8", glow: "rgba(129,140,248,0.25)", label: "Import / Export", desc: "Import from Zerodha, Angel One, Groww, INDmoney. Export as JSON, CSV, or Excel. Full data portability." },
-  { icon: <FiBookOpen />, color: "#38bdf8", glow: "rgba(56,189,248,0.25)", label: "Essentials", desc: "Built-in calculators: SIP, lumpsum, loan EMI, compound interest, CAGR and more for daily money decisions." },
-  { icon: <FiShield />, color: "#34d399", glow: "rgba(52,211,153,0.25)", label: "Privacy", desc: "All data encrypted at rest and in transit. No third-party data sharing. You own 100% of your financial data." },
+  {
+    icon: <FiBarChart2 />, color: "#10b981", glow: "rgba(16,185,129,0.25)", label: "Dashboard",
+    desc: "Unified portfolio overview with net worth summary cards, asset allocation donut charts, maturity timeline for FDs & bonds, sector allocation, market-cap breakdown, goals progress, and a full net worth growth chart across snapshots.",
+    bullets: ["Net worth, assets & liabilities summary cards", "Asset allocation & maturity timeline charts", "Sector & market-cap breakdown charts", "Goals progress summary panel", "Net worth growth chart over time"],
+  },
+  {
+    icon: <FiActivity />, color: "#3b82f6", glow: "rgba(59,130,246,0.25)", label: "Cashflow",
+    desc: "Track monthly income and expenses with a month picker, summary metric cards (income, expenses, savings rate), and a full transaction table with edit/delete per entry.",
+    bullets: ["Month-by-month cashflow view", "Income, expense & savings rate metrics", "Add, edit & delete transactions", "Categorized entries (income / expense)", "12-month history rolling picker"],
+  },
+  {
+    icon: <FiBriefcase />, color: "#a78bfa", glow: "rgba(167,139,250,0.25)", label: "Investments",
+    desc: "Full portfolio management for Stocks, Mutual Funds, Bonds, Fixed Deposits, Gold, Crypto, PPF, NPS, and more. Filter by type, search by name/symbol/platform, and view P&L per holding.",
+    bullets: ["Stocks, MFs, Bonds, FDs, Gold, Crypto, PPF, NPS", "Search & filter by asset type", "Invested vs current value with P&L per row", "Import from Zerodha, Angel One, Groww, INDmoney", "Manual add / edit / delete with rich form"],
+  },
+  {
+    icon: <FiCreditCard />, color: "#f87171", glow: "rgba(248,113,113,0.25)", label: "Liabilities",
+    desc: "Log all loans and outstanding debts — home loans, car loans, credit cards, personal loans. See total outstanding balance and interest rates at a glance.",
+    bullets: ["Track home, car, personal loans & credit cards", "Outstanding amount & interest rate per liability", "Total outstanding debt summary card", "Add, edit & delete liabilities", "Supports custom liability types"],
+  },
+  {
+    icon: <FiFlag />, color: "#ec4899", glow: "rgba(236,72,153,0.25)", label: "Goals",
+    desc: "Set financial milestones with a target amount, current progress, and due date. Visual progress bars show how close you are to each goal.",
+    bullets: ["Create goals with target amount & due date", "Auto-calculated progress percentage bar", "Current vs target amount tracking", "Add, edit & delete goals anytime", "Supports retirement, home, education & custom goals"],
+  },
+  {
+    icon: <FiCamera />, color: "#fb923c", glow: "rgba(251,146,60,0.25)", label: "Snapshots",
+    desc: "Freeze your portfolio state at any moment with a labelled snapshot. Each snapshot records total assets, total liabilities, and net worth — building your wealth history over time.",
+    bullets: ["One-click net worth snapshot creation", "Custom labels (e.g. 'Q3 End', 'Year Start')", "Timestamp, assets, liabilities & net worth logged", "Full snapshot history table", "Foundation for the growth chart on Dashboard"],
+  },
+  {
+    icon: <FiFileText />, color: "#22d3ee", glow: "rgba(34,211,238,0.25)", label: "Reports",
+    desc: "Generate and export your portfolio data. See portfolio summary, asset allocation breakdown, interest earnings on FDs & bonds, and export to CSV or Excel.",
+    bullets: ["Portfolio summary: invested, current, P&L", "Asset allocation table by investment type", "Expected interest earnings for bonds & FDs", "Export investments as CSV", "Export investments as Excel (.xlsx)"],
+  },
+  {
+    icon: <SiNotion />, color: "#e2e8f0", glow: "rgba(226,232,240,0.15)", label: "Notion Sync",
+    desc: "Connect your Notion workspace via API token and database ID. Push investment data, expenses, goals and snapshots directly into your Notion databases — keeping your life OS up to date automatically.",
+    bullets: ["Connect via Notion API token & database ID", "Push investments to a Notion database", "Sync monthly expense summaries", "Goal & snapshot sync support", "Serverless sync via Netlify functions"],
+  },
+  {
+    icon: <FiPackage />, color: "#818cf8", glow: "rgba(129,140,248,0.25)", label: "Import / Export",
+    desc: "Import your portfolio from four major Indian platforms — no broker access needed. Export your complete data anytime for full portability.",
+    bullets: ["Import from Zerodha (CSV format)", "Import from Angel One (PDF statement)", "Import from Groww (CSV format)", "Import from INDmoney (XLSX format)", "Export as CSV or Excel with P&L fields"],
+  },
+  {
+    icon: <FiShield />, color: "#34d399", glow: "rgba(52,211,153,0.25)", label: "Essentials & Safety",
+    desc: "Track your financial safety net: term insurance cover, health insurance cover, emergency fund target and current amount. Dashboard shows your coverage gaps at a glance.",
+    bullets: ["Term insurance cover amount tracking", "Health cover amount tracking", "Emergency fund target vs saved", "Safety net summary on Dashboard", "Configured via Settings panel"],
+  },
+  {
+    icon: <FiDatabase />, color: "#f59e0b", glow: "rgba(245,158,11,0.25)", label: "Data Management",
+    desc: "Full control over your data — backup everything as a JSON file and restore from backup at any time. One-click full data wipe if needed.",
+    bullets: ["Export full data backup as JSON", "Restore from a previous JSON backup", "Wipe all data with one-click reset", "Firebase Firestore as secure cloud store", "All data scoped to your Google account"],
+  },
+  {
+    icon: <FiGlobe />, color: "#38bdf8", glow: "rgba(56,189,248,0.25)", label: "NSE Stock Data",
+    desc: "Built-in NSE stock metadata with sector and market-cap classification for 500+ Indian equities. Powers the sector allocation and market-cap charts on the dashboard automatically.",
+    bullets: ["500+ NSE stock symbols pre-loaded", "Sector classification per stock", "Market-cap category (Large / Mid / Small)", "Auto-populates allocation charts", "No API key needed — data bundled in-app"],
+  },
 ];
 
 const glassBase: React.CSSProperties = {
@@ -162,7 +210,7 @@ export default function AuthPage() {
 
           {/* Trust pills */}
           <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-3 mb-16">
-            {["20+ Asset Classes", "No Broker Access", "100% Encrypted", "Notion Sync"].map((s, i) => (
+            {["12 Built Modules", "4 Platform Imports", "No Broker Access", "Notion Sync", "100% Encrypted", "CSV & Excel Export"].map((s, i) => (
               <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(226,232,240,0.55)" }}>
                 <FiCheck className="text-emerald-400 h-3 w-3 flex-shrink-0" />
@@ -295,7 +343,7 @@ export default function AuthPage() {
               Built for how Indians actually invest
             </h2>
             <p className="mt-3 max-w-xl mx-auto text-sm" style={{ color: "rgba(226,232,240,0.42)" }}>
-              From EPF to equity, SIPs to SGBs — FinTrackly understands Indian finances.
+              12 fully built modules — from portfolio tracking to Notion sync. Every feature is live and ready to use.
             </p>
           </motion.div>
 
@@ -304,14 +352,14 @@ export default function AuthPage() {
               <motion.div
                 key={i}
                 variants={fadeUp}
-                className="p-6 rounded-2xl relative overflow-hidden cursor-default"
+                className="p-6 rounded-2xl relative overflow-hidden cursor-default group"
                 style={glassBase}
                 onHoverStart={() => setHoveredFeature(i)}
                 onHoverEnd={() => setHoveredFeature(null)}
                 whileHover={{ y: -4, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" } as any}
                 transition={{ duration: 0.2 }}
               >
-                {/* Top accent line — CSS only */}
+                {/* Top accent line */}
                 <div className="absolute top-0 left-0 right-0 h-px transition-opacity duration-300"
                   style={{
                     background: `linear-gradient(90deg, transparent, ${f.color}, transparent)`,
@@ -323,11 +371,134 @@ export default function AuthPage() {
                   {f.icon}
                 </div>
                 <h3 className="text-sm font-bold text-white mb-2">{f.label}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: "rgba(226,232,240,0.44)" }}>{f.desc}</p>
+                <p className="text-sm leading-relaxed mb-4" style={{ color: "rgba(226,232,240,0.44)" }}>{f.desc}</p>
+
+                {/* Bullet list — visible always on mobile, on hover on desktop */}
+                <div
+                  className="overflow-hidden transition-all duration-300"
+                  style={{
+                    maxHeight: hoveredFeature === i ? "200px" : "0px",
+                    opacity: hoveredFeature === i ? 1 : 0,
+                  }}
+                >
+                  <div className="pt-3" style={{ borderTop: `1px solid ${f.color}20` }}>
+                    {f.bullets.map((b, bi) => (
+                      <div key={bi} className="flex items-start gap-2 mb-1.5">
+                        <FiCheck className="mt-0.5 flex-shrink-0 h-3 w-3" style={{ color: f.color }} />
+                        <span className="text-xs leading-snug" style={{ color: "rgba(226,232,240,0.55)" }}>{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>
         </motion.div>
+      </section>
+
+      {/* ── FEATURE DEEP DIVE ── */}
+      <section className="px-6 py-20 relative" id="deep-dive" style={{ zIndex: 1 }}>
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial="hidden" whileInView="show" viewport={{ once: true, margin: "-60px" }} variants={stagger}
+          >
+            <motion.div variants={fadeUp} className="text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#10b981" }}>What's inside</p>
+              <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                A closer look at every module
+              </h2>
+              <p className="mt-3 max-w-xl mx-auto text-sm" style={{ color: "rgba(226,232,240,0.42)" }}>
+                Every feature below is fully built and live — not a mockup, not a roadmap item.
+              </p>
+            </motion.div>
+
+            {/* Two-column feature detail rows */}
+            {[
+              {
+                icon: <FiBarChart2 />, color: "#10b981", label: "Dashboard",
+                tagline: "Your entire financial life, one scroll away",
+                detail: "The dashboard pulls from every other module in real time. Summary cards show net worth, total assets, total liabilities, and cashflow for the current month. Below that, asset allocation donuts and a maturity timeline help you see where your money is sitting. Sector and market-cap charts (powered by bundled NSE data) give equity investors a quick portfolio health check. At the bottom, a goals progress panel and a net worth growth chart using your snapshot history complete the picture.",
+                pills: ["Net Worth Cards", "Asset Allocation", "Maturity Timeline", "Sector Charts", "Goals Summary", "Growth Chart"],
+              },
+              {
+                icon: <FiBriefcase />, color: "#a78bfa", label: "Investments",
+                tagline: "Every asset class, one table",
+                detail: "The investments module handles Stocks, Mutual Funds, Bonds, Fixed Deposits, Gold, Crypto, PPF, NPS, and any 'Other' asset. You can add holdings manually via a detailed modal form, or import them from four platforms: Zerodha (CSV), Angel One (PDF), Groww (CSV), and INDmoney (XLSX). The table supports live search by name, symbol, or platform, and filtering by asset type. Each row shows invested amount, current value, and profit/loss.",
+                pills: ["Stocks & MFs", "Bonds & FDs", "Gold, Crypto, PPF, NPS", "Import 4 Platforms", "Search & Filter", "P&L Per Row"],
+              },
+              {
+                icon: <FiActivity />, color: "#3b82f6", label: "Cashflow",
+                tagline: "Monthly income and expense tracking, simplified",
+                detail: "A month picker lets you navigate up to 12 months of history. For each month, summary metric cards calculate your total income, total expenses, and savings rate automatically. Below that, every transaction is listed in a clean table with date, category, description, and amount. You can add, edit, or delete any entry at any time using a smooth modal form. Cashflow data also feeds the 'income vs expense' cards on the dashboard.",
+                pills: ["12-Month History", "Income & Expense Metrics", "Savings Rate", "Add / Edit / Delete", "Monthly Drill-down"],
+              },
+              {
+                icon: <FiFlag />, color: "#ec4899", label: "Goals",
+                tagline: "Track your milestones with visual progress bars",
+                detail: "Create any financial goal with a name, target amount, current amount saved, and an optional due date. The goals table renders a progress bar for each goal, auto-calculated from current vs target. Goals that reach 100% show a 'Completed' state. You can create as many goals as needed — retirement corpus, house down payment, emergency fund, education fund, or anything custom. The dashboard also shows a goals summary panel at a glance.",
+                pills: ["Name & Target Amount", "Progress Bar", "Due Date", "Completed State", "Dashboard Summary Panel"],
+              },
+              {
+                icon: <FiCreditCard />, color: "#f87171", label: "Liabilities",
+                tagline: "See exactly what you owe, all in one place",
+                detail: "The liabilities page tracks all outstanding debts: home loans, car loans, personal loans, credit cards, and custom types. Each entry stores the liability name, type, outstanding amount, and interest rate. A hero summary card at the top shows your total outstanding debt in bold. The table supports add, edit, and delete. Liabilities flow into your net worth calculation on the Dashboard automatically.",
+                pills: ["Loans & Credit Cards", "Outstanding Amount", "Interest Rate", "Total Debt Summary", "Net Worth Integration"],
+              },
+              {
+                icon: <FiCamera />, color: "#fb923c", label: "Snapshots",
+                tagline: "Freeze your net worth. Build your wealth history.",
+                detail: "Snapshots capture your portfolio state at any moment. Enter an optional label (like 'Jan 2026 Start') and click — the app records your total assets, total liabilities, and computed net worth from live data. All snapshots are stored chronologically in a table. The Dashboard's growth chart reads from this snapshot history to render your net worth curve over time. There's no limit to how many snapshots you can take.",
+                pills: ["Instant Snapshot", "Custom Labels", "Assets + Liabilities + Net Worth", "Snapshot History Table", "Feeds Growth Chart"],
+              },
+              {
+                icon: <FiFileText />, color: "#22d3ee", label: "Reports",
+                tagline: "Summarise, analyse, and export your portfolio",
+                detail: "The reports page gives you four panels: a Portfolio Summary showing total invested, current value, and net P&L; a Data Exports panel to download your entire investment dataset as CSV or Excel; an Asset Allocation table grouped by investment type; and an Interest Earnings panel showing expected returns from your bonds and fixed deposits. Exports include computed P&L columns, not just raw input data.",
+                pills: ["Portfolio Summary", "CSV & Excel Export", "Asset Allocation Table", "Interest Earnings", "P&L Computed"],
+              },
+              {
+                icon: <FiSettings />, color: "#94a3b8", label: "Settings",
+                tagline: "Manage data, safety net, and integrations",
+                detail: "Settings has three panels: Notion Integration (enter your Notion API token and database ID to enable sync), Essentials & Safety Net (record your term insurance cover, health cover, emergency fund target and current amount — shown on the Dashboard), and Data Management (export a full JSON backup of all your data, restore from a backup, or wipe all data if needed).",
+                pills: ["Notion API Config", "Term & Health Insurance Tracking", "Emergency Fund Tracker", "JSON Backup & Restore", "Full Data Wipe"],
+              },
+            ].map((item, idx) => (
+              <motion.div
+                key={idx}
+                variants={fadeUp}
+                className="mb-6 rounded-2xl overflow-hidden"
+                style={glassBase}
+              >
+                <div className="flex items-center gap-4 px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ background: `${item.color}18`, border: `1px solid ${item.color}28`, color: item.color }}>
+                    {item.icon}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h3 className="text-base font-black text-white">{item.label}</h3>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${item.color}18`, color: item.color, border: `1px solid ${item.color}28` }}>
+                        Live ✓
+                      </span>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: "rgba(226,232,240,0.45)" }}>{item.tagline}</p>
+                  </div>
+                </div>
+                <div className="px-6 py-5">
+                  <p className="text-sm leading-relaxed mb-5" style={{ color: "rgba(226,232,240,0.55)" }}>{item.detail}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.pills.map((pill, pi) => (
+                      <span key={pi} className="text-xs px-3 py-1 rounded-full font-semibold"
+                        style={{ background: "rgba(255,255,255,0.05)", color: "rgba(226,232,240,0.6)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        {pill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
       </section>
 
       {/* ── NOTION SYNC ── */}
@@ -351,11 +522,11 @@ export default function AuthPage() {
             </p>
             <div className="space-y-3">
               {[
-                "Push investments to a Notion database table",
-                "Sync monthly expense summaries automatically",
-                "Trigger snapshot creation from Notion buttons",
-                "Goal progress updates in your life OS",
-                "Two-way sync with conflict resolution",
+                "Connect via Notion API token & database ID in Settings",
+                "Push investment holdings to a Notion database table",
+                "Sync cashflow and monthly expense summaries",
+                "Goal progress and snapshot data sync support",
+                "Serverless sync powered by Netlify functions",
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 text-sm" style={{ color: "rgba(226,232,240,0.62)" }}>
                   <div className="h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0"

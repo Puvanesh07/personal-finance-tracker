@@ -1,9 +1,23 @@
+import { auth } from '../../services/firebase'
+import { signOut } from 'firebase/auth'
 import { NotionSettings } from '../../components/settings/NotionSettings'
 import { DataManagement } from '../../components/settings/DataManagement'
 import { EssentialsSettings } from '../../components/settings/EssentialsSettings'
-import { FiSettings } from 'react-icons/fi'
+import { FiSettings, FiLogOut, FiUser, FiMail } from 'react-icons/fi'
 
 export function SettingsPage() {
+  const user = auth.currentUser;
+
+  const handleSignOut = async () => {
+    if (window.confirm("Are you sure you want to sign out?")) {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error("Error signing out", error);
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 pb-8">
       {/* Premium Gradient Header */}
@@ -22,6 +36,58 @@ export function SettingsPage() {
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        {/* User Profile Section */}
+        <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">User Profile</h2>
+            <button 
+              onClick={handleSignOut}
+              className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition-colors hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
+            >
+              <FiLogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          </div>
+          
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="relative">
+              {user?.photoURL ? (
+                <img 
+                  src={user.photoURL} 
+                  alt="Profile" 
+                  className="h-20 w-20 rounded-full border-4 border-emerald-500/20 object-cover shadow-xl"
+                />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                  <FiUser className="h-10 w-10 text-slate-400" />
+                </div>
+              )}
+              <div className="absolute bottom-0 right-0 h-5 w-5 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900"></div>
+            </div>
+            
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                {user?.displayName || "FinTrackly User"}
+              </h3>
+              <div className="mt-1 flex items-center justify-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                <FiMail className="h-3.5 w-3.5" />
+                {user?.email || "No email linked"}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Account Security
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+              Logged in via Google Authentication. Your data is encrypted and tied to your unique User ID: 
+              <span className="ml-1 font-mono text-emerald-600 dark:text-emerald-400">{user?.uid.slice(0, 8)}...</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Existing Sections */}
         <NotionSettings />
         <EssentialsSettings />
         <DataManagement />

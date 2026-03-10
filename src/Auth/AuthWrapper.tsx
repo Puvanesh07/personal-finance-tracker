@@ -4,6 +4,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../src/services/firebase';
 import { usePortfolioStore } from '../../src/store/portfolioStore';
 import AuthPage from '../../src/Auth/AuthPage';
+import { Loader } from '../../src/components/loader/Loader'
+
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
@@ -29,7 +31,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }, [hydrate, clearAllData]);
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
+    return (
+      <Loader />
+    )
   }
 
   // If not logged in, show the Google Sign In page
