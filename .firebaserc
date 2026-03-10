@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "finance-tracker-3b842"
+  },
+  "targets": {
+    "finance-tracker-3b842": {
+      "hosting": {
+        "fintrackly": [
+          "fintrackly"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

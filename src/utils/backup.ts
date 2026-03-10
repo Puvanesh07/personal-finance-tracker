@@ -1,5 +1,7 @@
+// src/utils/backup.ts
 import { saveAs } from 'file-saver'
-import { db } from '../services/db'
+import { collection, getDocs, writeBatch, doc, getDoc } from 'firebase/firestore'
+import { db } from '../services/firebase'
 import type {
   CashflowEntry,
   EssentialsConfig,
@@ -10,6 +12,7 @@ import type {
   NotionConfig,
   PortfolioSnapshot,
 } from '../types/investmentTypes'
+import type { SettingsRecord } from '../store/portfolioStore'
 
 export type BackupPayload = {
   version: 1
@@ -24,16 +27,23 @@ export type BackupPayload = {
   essentials: EssentialsConfig
 }
 
+async function fetchAll<T>(colName: string): Promise<T[]> {
+  const snap = await getDocs(collection(db, colName))
+  return snap.docs.map(d => d.data() as T)
+}
+
 export async function exportFullBackup() {
-  const [investments, liabilities, cashflows, goals, snapshots, networthSnapshots, settings] = await Promise.all([
-    db.investments.toArray(),
-    db.liabilities.toArray(),
-    db.cashflows.toArray(),
-    db.goals.toArray(),
-    db.snapshots.toArray(),
-    db.networthSnapshots.toArray(),
-    db.settings.get('settings'),
+  const [investments, liabilities, cashflows, goals, snapshots, networthSnapshots] = await Promise.all([
+    fetchAll<Investment>('investments'),
+    fetchAll<Liability>('liabilities'),
+    fetchAll<CashflowEntry>('cashflows'),
+    fetchAll<Goal>('goals'),
+    fetchAll<PortfolioSnapshot>('snapshots'),
+    fetchAll<NetWorthSnapshot>('networthSnapshots'),
   ])
+
+  const settingsDoc = await getDoc(doc(db, 'settings', 'settings'))
+  const settings = settingsDoc.exists() ? (settingsDoc.data() as SettingsRecord) : null
 
   const payload: BackupPayload = {
     version: 1,
@@ -58,33 +68,27 @@ export async function importFullBackup(jsonText: string) {
   const parsed = JSON.parse(jsonText) as BackupPayload
   if (!parsed || parsed.version !== 1) throw new Error('Unsupported backup format or version.')
 
-  // Replace all data (like a restore).
-  await db.transaction(
-    'rw',
-    [db.investments, db.liabilities, db.cashflows, db.goals, db.snapshots, db.networthSnapshots, db.settings],
-    async () => {
-      await Promise.all([
-        db.investments.clear(),
-        db.liabilities.clear(),
-        db.cashflows.clear(),
-        db.goals.clear(),
-        db.snapshots.clear(),
-        db.networthSnapshots.clear(),
-      ])
-      await Promise.all([
-        db.investments.bulkAdd(parsed.investments),
-        db.liabilities.bulkAdd(parsed.liabilities),
-        db.cashflows.bulkAdd(parsed.cashflows),
-        db.goals.bulkAdd(parsed.goals),
-        db.snapshots.bulkAdd(parsed.snapshots),
-        db.networthSnapshots.bulkAdd(parsed.networthSnapshots),
-      ])
-      await db.settings.put({
-        id: 'settings',
-        notion: parsed.notion ?? { enabled: false },
-        essentials: parsed.essentials ?? {},
-      })
-    },
-  )
-}
+  const batch = writeBatch(db)
 
+  // Function to add an array of items to the batch
+  const addToBatch = (colName: string, items: any[]) => {
+    items.forEach(item => {
+      batch.set(doc(db, colName, item.id), item)
+    })
+  }
+
+  addToBatch('investments', parsed.investments)
+  addToBatch('liabilities', parsed.liabilities)
+  addToBatch('cashflows', parsed.cashflows)
+  addToBatch('goals', parsed.goals)
+  addToBatch('snapshots', parsed.snapshots)
+  addToBatch('networthSnapshots', parsed.networthSnapshots)
+
+  batch.set(doc(db, 'settings', 'settings'), {
+    id: 'settings',
+    notion: parsed.notion ?? { enabled: false },
+    essentials: parsed.essentials ?? {},
+  })
+
+  await batch.commit()
+}

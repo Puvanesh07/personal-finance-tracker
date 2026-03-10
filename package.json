@@ -24,9 +24,9 @@
   },
   "dependencies": {
     "date-fns": "^4.1.0",
-    "dexie": "^4.3.0",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
+    "firebase": "^12.10.0",
     "framer-motion": "^12.35.1",
     "idb": "^8.0.3",
     "pdfjs-dist": "^5.5.207",

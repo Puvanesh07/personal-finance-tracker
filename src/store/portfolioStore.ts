@@ -1,20 +1,23 @@
+// src/store/portfolioStore.ts
 import { create } from 'zustand'
+import { collection, doc, getDocs, setDoc, deleteDoc, getDoc, query, where } from 'firebase/firestore'
+import { db } from '../services/firebase'
 import type {
-  CashflowEntry,
-  EssentialsConfig,
-  Goal,
-  Investment,
-  Liability,
-  NetWorthSnapshot,
-  NotionConfig,
-  PortfolioSnapshot,
+  CashflowEntry, EssentialsConfig, Goal, Investment,
+  Liability, NetWorthSnapshot, NotionConfig, PortfolioSnapshot,
 } from '../types/investmentTypes'
 import { createId } from '../utils/id'
 import { todayISO } from '../utils/dateUtils'
 import { summarizePortfolio } from '../utils/calculations'
-import { db, type SettingsRecord } from '../services/db'
+
+export type SettingsRecord = {
+  id: string
+  notion: NotionConfig
+  essentials?: EssentialsConfig
+}
 
 type PortfolioState = {
+  uid: string | null
   ready: boolean
   investments: Investment[]
   snapshots: PortfolioSnapshot[]
@@ -25,7 +28,7 @@ type PortfolioState = {
   notion: NotionConfig
   essentials: EssentialsConfig
 
-  hydrate: () => Promise<void>
+  hydrate: (uid: string) => Promise<void>
   addInvestment: (investment: Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>
   deleteInvestment: (id: string) => Promise<void>
@@ -50,15 +53,14 @@ type PortfolioState = {
 const DEFAULT_NOTION: NotionConfig = { enabled: false }
 const DEFAULT_ESSENTIALS: EssentialsConfig = {}
 
-async function loadSettings(): Promise<SettingsRecord> {
-  const existing = await db.settings.get('settings')
-  if (existing) return existing
-  const initial: SettingsRecord = { id: 'settings', notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS }
-  await db.settings.put(initial)
-  return initial
+async function fetchUserCollection<T>(collectionName: string, uid: string): Promise<T[]> {
+  const q = query(collection(db, collectionName), where("userId", "==", uid));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => doc.data() as T);
 }
 
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
+  uid: null,
   ready: false,
   investments: [],
   snapshots: [],
@@ -69,229 +71,193 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   notion: DEFAULT_NOTION,
   essentials: DEFAULT_ESSENTIALS,
 
-  hydrate: async () => {
-    const [investments, snapshots, liabilities, cashflows, goals, networthSnapshots, settings] = await Promise.all([
-      db.investments.toArray(),
-      db.snapshots.orderBy('date').toArray(),
-      db.liabilities.toArray(),
-      db.cashflows.toArray(),
-      db.goals.toArray(),
-      db.networthSnapshots.orderBy('createdAt').reverse().toArray(),
-      loadSettings(),
+  hydrate: async (uid: string) => {
+    set({ uid })
+    const [investments, snapshots, liabilities, cashflows, goals, networthSnapshots] = await Promise.all([
+      fetchUserCollection<Investment>('investments', uid),
+      fetchUserCollection<PortfolioSnapshot>('snapshots', uid),
+      fetchUserCollection<Liability>('liabilities', uid),
+      fetchUserCollection<CashflowEntry>('cashflows', uid),
+      fetchUserCollection<Goal>('goals', uid),
+      fetchUserCollection<NetWorthSnapshot>('networthSnapshots', uid),
     ])
+
+    const settingsDoc = await getDoc(doc(db, 'settings', uid))
+    // Added explicit type assertion for SettingsRecord
+    const settings = settingsDoc.exists() 
+      ? (settingsDoc.data() as SettingsRecord) 
+      : ({ id: uid, notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS } as SettingsRecord)
 
     set({
       ready: true,
       investments: investments.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-      snapshots,
+      snapshots: snapshots.sort((a, b) => a.date.localeCompare(b.date)),
       liabilities: liabilities.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
       cashflows: cashflows.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt)),
       goals: goals.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-      networthSnapshots,
+      networthSnapshots: networthSnapshots.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       notion: settings.notion ?? DEFAULT_NOTION,
       essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
     })
 
-    // Ensure at least one "today" snapshot exists when there are investments.
     if (investments.length > 0) {
       await get().recordSnapshotIfNeeded()
     }
   },
 
   addInvestment: async (investment) => {
+    const uid = get().uid; if (!uid) return;
     const now = new Date().toISOString()
-    const withMeta: Investment = {
-      ...(investment as Investment),
-      id: createId('inv'),
-      createdAt: now,
-      updatedAt: now,
-    }
-    await db.investments.put(withMeta)
-    set((s) => ({ investments: [withMeta, ...s.investments] }))
+    const withMeta: any = { ...(investment as any), id: createId('inv'), createdAt: now, updatedAt: now, userId: uid }
+    await setDoc(doc(db, 'investments', withMeta.id), withMeta)
+    set((s) => ({ investments: [withMeta as Investment, ...s.investments] }))
     await get().recordSnapshotIfNeeded()
   },
 
   updateInvestment: async (id, patch) => {
-    const existing = await db.investments.get(id)
+    const existing = get().investments.find(x => x.id === id)
     if (!existing) return
-    const updated: Investment = {
-      ...(existing as Investment),
-      ...(patch as Investment),
-      id,
-      updatedAt: new Date().toISOString(),
-    }
-    await db.investments.put(updated)
+    const updated: Investment = { ...existing, ...(patch as any), id, updatedAt: new Date().toISOString() }
+    await setDoc(doc(db, 'investments', id), updated)
     set((s) => ({ investments: s.investments.map((x) => (x.id === id ? updated : x)) }))
     await get().recordSnapshotIfNeeded()
   },
 
   deleteInvestment: async (id) => {
-    await db.investments.delete(id)
+    await deleteDoc(doc(db, 'investments', id))
     set((s) => ({ investments: s.investments.filter((x) => x.id !== id) }))
     await get().recordSnapshotIfNeeded()
   },
 
   addLiability: async (liability) => {
+    const uid = get().uid; if (!uid) return;
     const now = new Date().toISOString()
-    const withMeta: Liability = {
-      ...(liability as Liability),
-      id: createId('lia'),
-      createdAt: now,
-      updatedAt: now,
-    }
-    await db.liabilities.put(withMeta)
-    set((s) => ({ liabilities: [withMeta, ...s.liabilities] }))
+    const withMeta: any = { ...(liability as any), id: createId('lia'), createdAt: now, updatedAt: now, userId: uid }
+    await setDoc(doc(db, 'liabilities', withMeta.id), withMeta)
+    set((s) => ({ liabilities: [withMeta as Liability, ...s.liabilities] }))
   },
 
   updateLiability: async (id, patch) => {
-    const existing = await db.liabilities.get(id)
+    const existing = get().liabilities.find(x => x.id === id)
     if (!existing) return
-    const updated: Liability = {
-      ...(existing as Liability),
-      ...(patch as Liability),
-      id,
-      updatedAt: new Date().toISOString(),
-    }
-    await db.liabilities.put(updated)
+    const updated: Liability = { ...existing, ...(patch as any), id, updatedAt: new Date().toISOString() }
+    await setDoc(doc(db, 'liabilities', id), updated)
     set((s) => ({ liabilities: s.liabilities.map((x) => (x.id === id ? updated : x)) }))
   },
 
   deleteLiability: async (id) => {
-    await db.liabilities.delete(id)
+    await deleteDoc(doc(db, 'liabilities', id))
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }))
   },
 
   addCashflow: async (entry) => {
+    const uid = get().uid; if (!uid) return;
     const now = new Date().toISOString()
-    const withMeta: CashflowEntry = {
-      ...(entry as CashflowEntry),
-      id: createId('cf'),
-      createdAt: now,
-      updatedAt: now,
-    }
-    await db.cashflows.put(withMeta)
-    set((s) => ({ cashflows: [withMeta, ...s.cashflows] }))
+    const withMeta: any = { ...(entry as any), id: createId('cf'), createdAt: now, updatedAt: now, userId: uid }
+    await setDoc(doc(db, 'cashflows', withMeta.id), withMeta)
+    set((s) => ({ cashflows: [withMeta as CashflowEntry, ...s.cashflows] }))
   },
 
   updateCashflow: async (id, patch) => {
-    const existing = await db.cashflows.get(id)
+    const existing = get().cashflows.find(x => x.id === id)
     if (!existing) return
-    const updated: CashflowEntry = {
-      ...(existing as CashflowEntry),
-      ...(patch as CashflowEntry),
-      id,
-      updatedAt: new Date().toISOString(),
-    }
-    await db.cashflows.put(updated)
+    const updated: CashflowEntry = { ...existing, ...(patch as any), id, updatedAt: new Date().toISOString() }
+    await setDoc(doc(db, 'cashflows', id), updated)
     set((s) => ({ cashflows: s.cashflows.map((x) => (x.id === id ? updated : x)) }))
   },
 
   deleteCashflow: async (id) => {
-    await db.cashflows.delete(id)
+    await deleteDoc(doc(db, 'cashflows', id))
     set((s) => ({ cashflows: s.cashflows.filter((x) => x.id !== id) }))
   },
 
   addGoal: async (goal) => {
+    const uid = get().uid; if (!uid) return;
     const now = new Date().toISOString()
-    const withMeta: Goal = {
-      ...(goal as Goal),
-      id: createId('goal'),
-      createdAt: now,
-      updatedAt: now,
-    }
-    await db.goals.put(withMeta)
-    set((s) => ({ goals: [withMeta, ...s.goals] }))
+    const withMeta: any = { ...(goal as any), id: createId('goal'), createdAt: now, updatedAt: now, userId: uid }
+    await setDoc(doc(db, 'goals', withMeta.id), withMeta)
+    set((s) => ({ goals: [withMeta as Goal, ...s.goals] }))
   },
 
   updateGoal: async (id, patch) => {
-    const existing = await db.goals.get(id)
+    const existing = get().goals.find(x => x.id === id)
     if (!existing) return
-    const updated: Goal = {
-      ...(existing as Goal),
-      ...(patch as Goal),
-      id,
-      updatedAt: new Date().toISOString(),
-    }
-    await db.goals.put(updated)
+    const updated: Goal = { ...existing, ...(patch as any), id, updatedAt: new Date().toISOString() }
+    await setDoc(doc(db, 'goals', id), updated)
     set((s) => ({ goals: s.goals.map((x) => (x.id === id ? updated : x)) }))
   },
 
   deleteGoal: async (id) => {
-    await db.goals.delete(id)
+    await deleteDoc(doc(db, 'goals', id))
     set((s) => ({ goals: s.goals.filter((x) => x.id !== id) }))
   },
 
   clearAllData: async () => {
-    await Promise.all([
-      db.investments.clear(),
-      db.snapshots.clear(),
-      db.liabilities.clear(),
-      db.cashflows.clear(),
-      db.goals.clear(),
-      db.networthSnapshots.clear(),
-      db.settings.delete('settings'),
-    ])
     set({
-      investments: [],
-      snapshots: [],
-      liabilities: [],
-      cashflows: [],
-      goals: [],
-      networthSnapshots: [],
-      notion: DEFAULT_NOTION,
-      essentials: DEFAULT_ESSENTIALS,
+      uid: null, investments: [], snapshots: [], liabilities: [], cashflows: [], goals: [], networthSnapshots: [],
+      notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS,
     })
   },
 
   setNotionConfig: async (patch) => {
-    const settings = await loadSettings()
+    const uid = get().uid; if (!uid) return;
+    const settingsDoc = await getDoc(doc(db, 'settings', uid))
+    const settings = settingsDoc.exists() 
+      ? (settingsDoc.data() as SettingsRecord) 
+      : ({ id: uid, notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS } as SettingsRecord)
     const updated: SettingsRecord = { ...settings, notion: { ...settings.notion, ...patch } }
-    await db.settings.put(updated)
+    await setDoc(doc(db, 'settings', uid), updated)
     set({ notion: updated.notion })
   },
 
   setEssentialsConfig: async (patch) => {
-    const settings = await loadSettings()
+    const uid = get().uid; if (!uid) return;
+    const settingsDoc = await getDoc(doc(db, 'settings', uid))
+    const settings = settingsDoc.exists() 
+      ? (settingsDoc.data() as SettingsRecord) 
+      : ({ id: uid, notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS } as SettingsRecord)
     const updated: SettingsRecord = { ...settings, essentials: { ...(settings.essentials ?? {}), ...patch } }
-    await db.settings.put(updated)
+    await setDoc(doc(db, 'settings', uid), updated)
     set({ essentials: updated.essentials ?? DEFAULT_ESSENTIALS })
   },
 
   recordSnapshotIfNeeded: async () => {
+    const uid = get().uid; if (!uid) return;
     const date = todayISO()
-    const existing = await db.snapshots.where('date').equals(date).first()
+    const existing = get().snapshots.find((x) => x.date === date)
     const { totalValue } = summarizePortfolio(get().investments)
+    
     if (existing) {
       const updated: PortfolioSnapshot = { ...existing, totalValue }
-      await db.snapshots.put(updated)
+      await setDoc(doc(db, 'snapshots', updated.id), updated)
       set((s) => ({ snapshots: s.snapshots.map((x) => (x.id === updated.id ? updated : x)) }))
       return
     }
 
-    const snap: PortfolioSnapshot = { id: createId('snap'), date, totalValue }
-    await db.snapshots.put(snap)
-    set((s) => ({ snapshots: [...s.snapshots, snap].sort((a, b) => a.date.localeCompare(b.date)) }))
+    const snap: any = { id: createId('snap'), date, totalValue, userId: uid }
+    await setDoc(doc(db, 'snapshots', snap.id), snap)
+    set((s) => ({ snapshots: [...s.snapshots, snap as PortfolioSnapshot].sort((a, b) => a.date.localeCompare(b.date)) }))
   },
 
   recordSnapshotNow: async () => {
-    // For a frontend-only daily timeline, a "manual snapshot" means "update today's snapshot to current total".
     await get().recordSnapshotIfNeeded()
   },
 
   takeNetWorthSnapshot: async (label) => {
+    const uid = get().uid; if (!uid) return;
     const { totalValue } = summarizePortfolio(get().investments)
     const totalLiabilities = get().liabilities.reduce((acc, l) => acc + (l.outstanding || 0), 0)
     const now = new Date().toISOString()
-    const snap: NetWorthSnapshot = {
+    const snap: any = {
       id: createId('nws'),
       createdAt: now,
       label: label?.trim() || undefined,
       totalAssets: totalValue,
       totalLiabilities,
       netWorth: totalValue - totalLiabilities,
+      userId: uid
     }
-    await db.networthSnapshots.put(snap)
-    set((s) => ({ networthSnapshots: [snap, ...s.networthSnapshots] }))
+    await setDoc(doc(db, 'networthSnapshots', snap.id), snap)
+    set((s) => ({ networthSnapshots: [snap as NetWorthSnapshot, ...s.networthSnapshots] }))
   },
 }))
-
