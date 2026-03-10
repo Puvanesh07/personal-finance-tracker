@@ -10,6 +10,7 @@ import {
   FiFolder,
   FiGlobe,
   FiHome,
+  FiList,
   FiMonitor,
   FiPieChart,
   FiSearch,
@@ -25,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
+import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { formatINR } from '../../utils/format';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -179,11 +181,67 @@ function BulkCategoryDropdown({
   );
 }
 
+// ── Asset Chip Components ───────────────────────────────────────────────────
+function SectorChip({ sector }: { sector?: string }) {
+  if (!sector) return null;
+  return (
+    <span className='inline-flex items-center rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-indigo-300 shadow-sm'>
+      {sector}
+    </span>
+  );
+}
+
+function MarketCapChip({ cap }: { cap?: string }) {
+  if (!cap) return null;
+
+  let color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
+  const c = cap.toLowerCase();
+
+  if (c.includes('large'))
+    color = 'border-blue-500/30 bg-blue-500/10 text-blue-300';
+  if (c.includes('mid'))
+    color = 'border-orange-500/30 bg-orange-500/10 text-orange-300';
+  if (c.includes('small') || c.includes('micro'))
+    color = 'border-pink-500/30 bg-pink-500/10 text-pink-300';
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-sm ${color}`}
+    >
+      {cap}
+    </span>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 
 export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
   const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
+
+  // Advanced metadata fetching (to get Market Cap automatically for stocks if needed)
+  const [extendedData, setExtendedData] = useState<
+    Record<string, { cap?: string }>
+  >({});
+
+  useEffect(() => {
+    // Attempt to fetch missing market cap data for stocks asynchronously
+    investments.forEach(async (inv) => {
+      if (inv.type === 'stock' && inv.symbol && !extendedData[inv.id]) {
+        try {
+          const meta = await fetchStockMetadata({ symbol: inv.symbol });
+          if (meta?.marketCapCategory) {
+            setExtendedData((prev) => ({
+              ...prev,
+              [inv.id]: { cap: meta.marketCapCategory },
+            }));
+          }
+        } catch (e) {
+          // Ignore errors, we just won't show the chip
+        }
+      }
+    });
+  }, [investments]);
 
   // Row Management
   const [edit, setEdit] = useState<any | null>(null);
@@ -212,8 +270,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             ? ((currentValue(inv) - investedValue(inv)) / investedValue(inv)) *
               100
             : 0,
+        // Add extended data to the row payload
+        marketCap: extendedData[inv.id]?.cap,
       })),
-    [investments],
+    [investments, extendedData],
   );
 
   const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
@@ -313,6 +373,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   return (
     <div className='space-y-3 relative'>
+      {/* ── Dynamic Asset Count Header ── */}
+      <div className='flex items-center gap-2 mb-2 px-1'>
+        <FiList className='h-4 w-4 text-emerald-500' />
+        <h2 className='text-xs font-bold uppercase tracking-widest text-slate-400'>
+          Showing <span className='text-white'>{rows.length}</span> Asset
+          {rows.length !== 1 ? 's' : ''}
+        </h2>
+      </div>
+
       {/* MOBILE VIEW: Card List */}
       <div className='flex flex-col gap-3 md:hidden'>
         <div className='flex items-center gap-3 px-2 py-1'>
@@ -329,7 +398,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </button>
         </div>
 
-        {rows.map(({ inv, current, pl, plPct }) => {
+        {rows.map(({ inv, current, pl, plPct, marketCap }) => {
           const isSelected = selectedIds.includes(inv.id);
           return (
             <div
@@ -352,16 +421,23 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <FiSquare size={18} />
                     )}
                   </button>
-                  <div>
-                    <h3
-                      className='font-semibold text-slate-50 truncate text-sm'
-                      title={inv.name}
-                    >
-                      {inv.name}
-                    </h3>
-                    <p className='text-[10px] text-slate-500 uppercase font-bold tracking-tight'>
-                      {inv.platform || 'Direct'}
-                    </p>
+                  <div className='flex flex-col gap-1.5'>
+                    <div>
+                      <h3
+                        className='font-semibold text-slate-50 truncate text-sm'
+                        title={inv.name}
+                      >
+                        {inv.name}
+                      </h3>
+                      <p className='text-[10px] text-slate-500 uppercase font-bold tracking-tight'>
+                        {inv.platform || 'Direct'}
+                      </p>
+                    </div>
+                    {/* Chips specifically for mobile */}
+                    <div className='flex flex-wrap items-center gap-1.5'>
+                      <SectorChip sector={inv.sector} />
+                      <MarketCapChip cap={marketCap} />
+                    </div>
                   </div>
                 </div>
                 <div className='flex gap-2'>
@@ -427,6 +503,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
                 <th className='px-4 py-4'>Asset</th>
+                <th className='px-6 py-4'>Classification</th>
                 <th className='px-6 py-4'>Platform</th>
                 <th className='px-6 py-4 text-right'>Invested</th>
                 <th className='px-6 py-4 text-right'>Current</th>
@@ -435,7 +512,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-800'>
-              {rows.map(({ inv, invested, current, pl, plPct }) => {
+              {rows.map(({ inv, invested, current, pl, plPct, marketCap }) => {
                 const isSelected = selectedIds.includes(inv.id);
                 return (
                   <tr
@@ -466,6 +543,16 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       </div>
                       <div className='text-[10px] text-slate-500 font-bold'>
                         {inv.symbol}
+                      </div>
+                    </td>
+                    <td className='px-6 py-4'>
+                      <div className='flex flex-wrap gap-1.5'>
+                        <SectorChip sector={inv.sector} />
+                        <MarketCapChip cap={marketCap} />
+                        {/* Fallback if no classification exists for a row */}
+                        {!inv.sector && !marketCap && (
+                          <span className='text-xs text-slate-600'>—</span>
+                        )}
                       </div>
                     </td>
                     <td className='px-6 py-4 text-slate-400 text-xs'>

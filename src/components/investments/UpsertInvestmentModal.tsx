@@ -42,7 +42,6 @@ import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Enhanced Type Definitions ──────────────────────────────────────────────
-// We are mapping the rich UI options back to your backend Types
 type ExtendedAssetCategory =
   | 'stock'
   | 'international_equity'
@@ -192,7 +191,7 @@ function RichAssetDropdown({
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
-    const panelW = 340; // Wider for rich content
+    const panelW = 340;
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
@@ -336,7 +335,6 @@ function RichAssetDropdown({
 }
 
 // ── Calendar Picker ────────────────────────────────────────────────────────
-// [Keep existing CalendarPicker exactly as it is in your code]
 function CalendarPicker({
   value,
   onChange,
@@ -536,8 +534,8 @@ type Props =
     };
 
 type FormState = {
-  uiCategory: ExtendedAssetCategory; // The UI drop down selection
-  type: InvestmentType; // The actual backend type
+  uiCategory: ExtendedAssetCategory;
+  type: InvestmentType;
   name: string;
   symbol: string;
   platform: string;
@@ -601,7 +599,6 @@ export function UpsertInvestmentModal(props: Props) {
       if (inv.type === 'fixed_deposit') base.uiCategory = 'fixed_deposit';
       if (inv.type === 'bond') base.uiCategory = 'bond';
       if (inv.type === 'other') {
-        // Try to infer UI category from assetType if it exists
         base.uiCategory = (inv.assetType as ExtendedAssetCategory) || 'other';
       }
 
@@ -676,8 +673,10 @@ export function UpsertInvestmentModal(props: Props) {
   async function onSubmit() {
     setSaving(true);
     try {
+      let payload: any = {};
+
       if (state.type === 'stock') {
-        const p = {
+        payload = {
           type: 'stock' as const,
           name: state.name.trim(),
           symbol: state.symbol.trim() || undefined,
@@ -687,12 +686,8 @@ export function UpsertInvestmentModal(props: Props) {
           currentPrice: toNumber(state.currentPrice),
           sector: state.sector.trim() || undefined,
         };
-        props.mode === 'create'
-          ? await addInvestment(p as any)
-          : await updateInvestment(props.investment.id, p as any);
-      }
-      if (state.type === 'mutual_fund') {
-        const p = {
+      } else if (state.type === 'mutual_fund') {
+        payload = {
           type: 'mutual_fund' as const,
           name: state.name.trim(),
           symbol: state.symbol.trim() || undefined,
@@ -701,12 +696,8 @@ export function UpsertInvestmentModal(props: Props) {
           nav: toNumber(state.nav),
           investedAmount: toNumber(state.investedAmount),
         };
-        props.mode === 'create'
-          ? await addInvestment(p as any)
-          : await updateInvestment(props.investment.id, p as any);
-      }
-      if (state.type === 'bond') {
-        const p = {
+      } else if (state.type === 'bond') {
+        payload = {
           type: 'bond' as const,
           name: state.name.trim(),
           platform: state.platform.trim() || 'manual',
@@ -716,12 +707,8 @@ export function UpsertInvestmentModal(props: Props) {
           startDate: state.startDate,
           maturityDate: state.maturityDate,
         };
-        props.mode === 'create'
-          ? await addInvestment(p as any)
-          : await updateInvestment(props.investment.id, p as any);
-      }
-      if (state.type === 'fixed_deposit') {
-        const p = {
+      } else if (state.type === 'fixed_deposit') {
+        payload = {
           type: 'fixed_deposit' as const,
           name: state.name.trim() || state.bankName.trim() || 'Fixed Deposit',
           bankName: state.bankName.trim() || 'Bank',
@@ -732,23 +719,21 @@ export function UpsertInvestmentModal(props: Props) {
           startDate: state.startDate,
           maturityDate: state.maturityDate,
         };
-        props.mode === 'create'
-          ? await addInvestment(p as any)
-          : await updateInvestment(props.investment.id, p as any);
-      }
-      if (state.type === 'other') {
-        const p = {
+      } else if (state.type === 'other') {
+        payload = {
           type: 'other' as const,
-          assetType: state.uiCategory, // Save the specific sub-type like 'gold', 'ppf'
+          assetType: state.uiCategory,
           name: state.name.trim() || state.uiCategory.toUpperCase(),
           platform: state.platform.trim() || 'manual',
           investedAmount: toNumber(state.investedAmount),
           currentValue: toNumber(state.currentValue),
         };
-        props.mode === 'create'
-          ? await addInvestment(p as any)
-          : await updateInvestment(props.investment.id, p as any);
       }
+
+      props.mode === 'create'
+        ? await addInvestment(payload)
+        : await updateInvestment(props.investment.id, payload);
+
       props.onClose();
     } finally {
       setSaving(false);
@@ -767,22 +752,20 @@ export function UpsertInvestmentModal(props: Props) {
       title={props.mode === 'create' ? 'Add New Asset' : 'Edit Asset Details'}
     >
       <div className='grid grid-cols-1 gap-6'>
-        {/* Rich Investment Type Dropdown */}
-        {props.mode === 'create' && (
-          <div>
-            <label className={labelCls}>Asset Category</label>
-            <RichAssetDropdown
-              value={state.uiCategory}
-              onChange={(categoryId, baseType) => {
-                setState((s) => ({
-                  ...s,
-                  uiCategory: categoryId,
-                  type: baseType,
-                }));
-              }}
-            />
-          </div>
-        )}
+        {/* Rich Investment Type Dropdown - NOW VISIBLE IN EDIT MODE */}
+        <div>
+          <label className={labelCls}>Asset Category</label>
+          <RichAssetDropdown
+            value={state.uiCategory}
+            onChange={(categoryId, baseType) => {
+              setState((s) => ({
+                ...s,
+                uiCategory: categoryId,
+                type: baseType,
+              }));
+            }}
+          />
+        </div>
 
         {/* Dynamic Fields Container */}
         <div className='rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-5'>
@@ -799,7 +782,7 @@ export function UpsertInvestmentModal(props: Props) {
                 placeholder={
                   state.type === 'fixed_deposit'
                     ? 'FD label (optional)'
-                    : `e.g. My ${state.uiCategory} holding`
+                    : `e.g. My ${state.uiCategory.replace('_', ' ')} holding`
                 }
               />
             </div>
