@@ -19,18 +19,7 @@ function desktopLinkClass(isActive: boolean) {
     : `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-100`
 }
 
-const NAV = [
-  { to: '/dashboard', Icon: FiHome, label: 'Home', accent: false },
-  { to: '/investments', Icon: FiTrendingUp, label: 'Invest', accent: false },
-  { to: '/cashflow', Icon: FiActivity, label: 'Cash', accent: false },
-  { to: '/liabilities', Icon: FiCreditCard, label: 'Debts', accent: false },
-  { to: '/goals', Icon: FiFlag, label: 'Goals', accent: false },
-  { to: '/insights', Icon: FiZap, label: 'Insights', accent: true },
-  { to: '/tools', Icon: AiFillCalculator, label: 'Tools', accent: false },
-  { to: '/snapshots', Icon: FiCamera, label: 'Snaps', accent: false },
-  { to: '/reports', Icon: FiBarChart2, label: 'Reports', accent: false },
-  { to: '/settings', Icon: FiSettings, label: 'Settings', accent: false }
-]
+
 
 export function AppLayout() {
 
