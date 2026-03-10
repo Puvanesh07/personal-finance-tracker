@@ -228,7 +228,7 @@ export default function InsightsPage() {
     }
   }, [investments, liabilities, cashflows])
 
-  const { health, fire, metrics: m } = { health: metrics.health, fire: metrics.fire, metrics }
+  const { health, fire } = metrics
 
   const healthLabel = health.total >= 75 ? 'Excellent' : health.total >= 50 ? 'Fair' : 'Needs Attention'
   const healthColor = health.total >= 75 ? '#22c55e' : health.total >= 50 ? '#f59e0b' : '#ef4444'
