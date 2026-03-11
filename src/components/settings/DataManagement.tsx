@@ -7,11 +7,7 @@ import {
   FiTrash2,
   FiUpload,
 } from 'react-icons/fi';
-import {
-  exportAllSectionsAsCSV,
-  exportCSV,
-  exportExcel,
-} from '../../utils/exportUtils';
+import { exportAllSectionsAsCSV, exportExcel } from '../../utils/exportUtils';
 import { exportFullBackup, importFullBackup } from '../../utils/backup';
 import { useRef, useState } from 'react';
 
