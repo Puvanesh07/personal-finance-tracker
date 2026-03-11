@@ -396,6 +396,334 @@ async function fetchSymbolPrice(rawSymbol, nseCookie) {
   return { price: null, source: 'none', type: 'stock' };
 }
 
+// ─── ISIN → NSE Symbol Resolution ────────────────────────────────────────────
+// Uses NSE's own search API — always returns the real, current symbol.
+// Handles broker data-entry errors (e.g. Angel One printing wrong ISINs).
+//
+// GET /isin?codes=INE075A01022,INE234A01033
+// Returns: { "INE075A01022": "COLPAL", "INE234A01033": "WIPRO", ... }
+
+async function resolveIsin(isin, cookie) {
+  // Strategy 1: NSE search API — most reliable
+  try {
+    const res = await fetch(
+      `https://www.nseindia.com/api/search/autocomplete?q=${encodeURIComponent(isin)}`,
+      {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'application/json',
+          Referer: 'https://www.nseindia.com/',
+          Cookie: cookie,
+        },
+      },
+    );
+    if (res.ok) {
+      const d = await res.json();
+      const hits = d?.symbols ?? [];
+      // Find exact ISIN match first, then partial
+      const match =
+        hits.find((h) => h.isin?.toUpperCase() === isin.toUpperCase()) ??
+        hits.find((h) => h.symbol_info?.includes(isin));
+      if (match?.symbol)
+        return { symbol: match.symbol.toUpperCase(), source: 'nse_search' };
+    }
+  } catch {
+    /* try next */
+  }
+
+  // Strategy 2: NSE quote-equity with ISIN as identifier
+  try {
+    const res = await fetch(
+      `https://www.nseindia.com/api/quote-equity?symbol=${encodeURIComponent(isin)}&identifier=${encodeURIComponent(isin)}`,
+      {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'application/json',
+          Referer: 'https://www.nseindia.com/',
+          Cookie: cookie,
+        },
+      },
+    );
+    if (res.ok) {
+      const d = await res.json();
+      const sym = d?.info?.symbol ?? d?.metadata?.symbol;
+      if (sym) return { symbol: sym.toUpperCase(), source: 'nse_quote' };
+    }
+  } catch {
+    /* try next */
+  }
+
+  // Strategy 3: OpenFIGI free API — no auth needed, resolves ISIN globally
+  try {
+    const res = await fetch('https://api.openfigi.com/v3/mapping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([
+        { idType: 'ID_ISIN', idValue: isin, exchCode: 'NSI' },
+      ]),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      const ticker = d?.[0]?.data?.[0]?.ticker;
+      if (ticker) return { symbol: ticker.toUpperCase(), source: 'openfigi' };
+    }
+  } catch {
+    /* try next */
+  }
+
+  return { symbol: null, source: 'none' };
+}
+
+async function handleIsinResolution(url) {
+  const codesRaw = (url.searchParams.get('codes') ?? '').trim();
+  if (!codesRaw) {
+    return new Response(
+      JSON.stringify({ error: 'Provide ?codes=INE075A01022,INE234A01033' }),
+      {
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  const isins = codesRaw
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+  const cookie = await getNseCookie();
+
+  const results = await Promise.allSettled(
+    isins.map((isin) => resolveIsin(isin, cookie)),
+  );
+
+  const resolved = {};
+  results.forEach((result, i) => {
+    resolved[isins[i]] =
+      result.status === 'fulfilled'
+        ? result.value
+        : { symbol: null, source: 'none' };
+  });
+
+  return new Response(
+    JSON.stringify({
+      resolved,
+      count: isins.length,
+      resolvedAt: new Date().toISOString(),
+    }),
+    {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=86400', // cache 24h — ISINs don't change
+      },
+    },
+  );
+}
+
+// ─── Stock Metadata: symbol → sector, industry, cap, name ────────────────────
+// GET /meta?symbols=WIPRO,TCS,INFY
+// Returns full metadata from NSE API — no manual DB needed
+//
+// Data sources tried in order:
+//   1. NSE quote-equity  → sector, industry, company name, market cap
+//   2. NSE company info  → broader sector classification
+//   3. TickerTape        → sector, cap category fallback
+
+async function fetchNseMeta(symbol, cookie) {
+  if (!cookie) return null;
+  try {
+    const res = await fetch(
+      `https://www.nseindia.com/api/quote-equity?symbol=${encodeURIComponent(symbol)}`,
+      {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'application/json',
+          Referer: `https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(symbol)}`,
+          'X-Requested-With': 'XMLHttpRequest',
+          Cookie: cookie,
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const d = await res.json();
+
+    const info = d?.info ?? {};
+    const meta = d?.metadata ?? {};
+    const price = d?.priceInfo ?? {};
+
+    const companyName = info.companyName ?? meta.companyName ?? symbol;
+    const industry = info.industry ?? meta.industry ?? 'Unknown';
+    const sector = info.sector ?? meta.sector ?? industry;
+    const isin = info.isin ?? meta.isin ?? '';
+
+    // Market cap from price data
+    const ltp = price.lastPrice ?? price.close ?? 0;
+    const issuedCap = meta.issuedSize ?? 0;
+    const marketCap = ltp > 0 && issuedCap > 0 ? ltp * issuedCap : null;
+
+    // NSE provides pdSectorPe, pdSymbolPe — use to cross-check sector
+    const nseIndustry = meta.pdSectorInd ?? industry;
+
+    return {
+      symbol: symbol.toUpperCase(),
+      companyName,
+      sector: sector || nseIndustry || 'Unknown',
+      industry: industry || 'Unknown',
+      isin,
+      marketCap,
+      source: 'nse',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTickertapeMeta(symbol) {
+  try {
+    const res = await fetch(
+      `https://api.tickertape.in/stocks/quotes?tickers=NSE:${encodeURIComponent(symbol)}`,
+      {
+        headers: {
+          'User-Agent': UA,
+          Accept: 'application/json',
+          Origin: 'https://www.tickertape.in',
+          Referer: 'https://www.tickertape.in/',
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const d = await res.json();
+    const item = d?.data?.[0];
+    if (!item) return null;
+    return {
+      symbol: symbol.toUpperCase(),
+      companyName: item.name ?? symbol,
+      sector: item.sector ?? 'Unknown',
+      industry: item.industry ?? item.sector ?? 'Unknown',
+      isin: item.isin ?? '',
+      marketCap: item.mktCap ?? null, // in crores from tickertape
+      source: 'tickertape',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function classifyMarketCap(marketCapInr) {
+  if (!marketCapInr || marketCapInr <= 0) return 'Unknown';
+  const cr = marketCapInr / 1e7; // convert to crores
+  if (cr >= 20000) return 'Large Cap';
+  if (cr >= 5000) return 'Mid Cap';
+  return 'Small Cap';
+}
+
+async function resolveStockMeta(symbol, cookie) {
+  // Try NSE first (most complete)
+  const nse = await fetchNseMeta(symbol, cookie);
+  if (nse && nse.sector !== 'Unknown') {
+    return {
+      ...nse,
+      capCategory: classifyMarketCap(nse.marketCap),
+    };
+  }
+
+  // Fallback: TickerTape
+  const tt = await fetchTickertapeMeta(symbol);
+  if (tt) {
+    // TickerTape returns marketCap in crores already
+    const marketCapInr = tt.marketCap ? tt.marketCap * 1e7 : null;
+    return {
+      ...tt,
+      marketCap: marketCapInr,
+      capCategory: tt.marketCap
+        ? tt.marketCap >= 20000
+          ? 'Large Cap'
+          : tt.marketCap >= 5000
+            ? 'Mid Cap'
+            : 'Small Cap'
+        : 'Unknown',
+      source: 'tickertape',
+    };
+  }
+
+  // Return minimal record so caller knows symbol exists
+  return {
+    symbol: symbol.toUpperCase(),
+    companyName: symbol,
+    sector: 'Unknown',
+    industry: 'Unknown',
+    isin: '',
+    marketCap: null,
+    capCategory: 'Unknown',
+    source: 'none',
+  };
+}
+
+async function handleMetaLookup(url) {
+  const symbolsRaw = (
+    url.searchParams.get('symbols') ??
+    url.searchParams.get('symbol') ??
+    ''
+  ).trim();
+  if (!symbolsRaw) {
+    return new Response(
+      JSON.stringify({ error: 'Provide ?symbols=WIPRO,TCS,INFY' }),
+      {
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+  }
+
+  const symbols = symbolsRaw
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+  const cookie = await getNseCookie();
+
+  const results = await Promise.allSettled(
+    symbols.map((sym) => resolveStockMeta(sym, cookie)),
+  );
+
+  const meta = {};
+  results.forEach((result, i) => {
+    meta[symbols[i]] =
+      result.status === 'fulfilled'
+        ? result.value
+        : {
+            symbol: symbols[i],
+            sector: 'Unknown',
+            industry: 'Unknown',
+            capCategory: 'Unknown',
+            marketCap: null,
+            source: 'none',
+          };
+  });
+
+  return new Response(
+    JSON.stringify({
+      meta,
+      count: symbols.length,
+      fetchedAt: new Date().toISOString(),
+    }),
+    {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=86400', // cache 24h — sector/cap don't change daily
+      },
+    },
+  );
+}
+
 // ─── Main Handler ──────────────────────────────────────────────────────────────
 export default {
   async fetch(request) {
@@ -416,6 +744,18 @@ export default {
     // ── AMFI proxy ────────────────────────────────────────────────────────────
     if (url.pathname === '/amfi') {
       return handleAmfiList();
+    }
+
+    // ── ISIN → NSE Symbol resolution ─────────────────────────────────────────
+    // GET /isin?codes=INE075A01022,INE234A01033
+    if (url.pathname === '/isin') {
+      return handleIsinResolution(url);
+    }
+
+    // ── Stock metadata: sector, industry, cap ─────────────────────────────────
+    // GET /meta?symbols=WIPRO,TCS,INFY
+    if (url.pathname === '/meta') {
+      return handleMetaLookup(url);
     }
 
     // ── Live price lookup ─────────────────────────────────────────────────────
