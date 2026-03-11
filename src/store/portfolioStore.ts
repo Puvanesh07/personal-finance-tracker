@@ -41,7 +41,7 @@ type PortfolioState = {
   cashflows: CashflowEntry[];
   goals: Goal[];
   networthSnapshots: NetWorthSnapshot[];
-  latestInsight: InsightSnapshot | null; // Added
+  latestInsight: InsightSnapshot | null;
   notion: NotionConfig;
   essentials: EssentialsConfig;
 
@@ -49,6 +49,12 @@ type PortfolioState = {
   addInvestment: (
     investment: Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
+
+  // ✅ Add this right here!
+  importInvestments: (
+    drafts: any[],
+  ) => Promise<{ added: number; updated: number; skipped: number }>;
+
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
   addLiability: (
@@ -74,7 +80,6 @@ type PortfolioState = {
   recordSnapshotNow: () => Promise<void>;
   takeNetWorthSnapshot: (label?: string) => Promise<void>;
 
-  // New Action for Insights
   saveInsightSnapshot: (
     insight: Omit<InsightSnapshot, 'id' | 'userId' | 'createdAt'>,
   ) => Promise<void>;
@@ -207,6 +212,59 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await setDoc(doc(db, 'investments', withMeta.id), withMeta);
     set((s) => ({ investments: [withMeta, ...s.investments] }));
     await get().recordSnapshotIfNeeded();
+  },
+
+  // Add this to your PortfolioState type in portfolioStore.ts
+  // importInvestments: (drafts: any[]) => Promise<{ added: number; updated: number; skipped: number }>;
+
+  importInvestments: async (drafts: any[]) => {
+    const uid = get().uid;
+    if (!uid) return { added: 0, updated: 0, skipped: 0 };
+
+    const existingInvestments = get().investments;
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const draft of drafts) {
+      // 1. Find if this asset already exists (Key: Name + Type + Platform)
+      const existing = existingInvestments.find(
+        (inv) =>
+          inv.name === draft.name &&
+          inv.type === draft.type &&
+          inv.platform === draft.platform,
+      );
+
+      if (existing) {
+        // 2. Check for changes in key data points
+        const hasChanged =
+          ('quantity' in draft &&
+            draft.quantity !== (existing as any).quantity) ||
+          ('units' in draft && draft.units !== (existing as any).units) ||
+          ('buyPrice' in draft &&
+            draft.buyPrice !== (existing as any).buyPrice) ||
+          ('investedAmount' in draft &&
+            draft.investedAmount !== (existing as any).investedAmount) ||
+          ('currentPrice' in draft &&
+            draft.currentPrice !== (existing as any).currentPrice) ||
+          ('nav' in draft && draft.nav !== (existing as any).nav);
+
+        if (hasChanged) {
+          // Update existing record
+          await get().updateInvestment(existing.id, draft);
+          updated++;
+        } else {
+          // Exactly the same - skip to avoid duplicates
+          skipped++;
+        }
+      } else {
+        // 3. New asset - add it
+        await get().addInvestment(draft);
+        added++;
+      }
+    }
+
+    return { added, updated, skipped };
   },
 
   updateInvestment: async (id, patch) => {

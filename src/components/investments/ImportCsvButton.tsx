@@ -1,5 +1,3 @@
-// src/components/investments/ImportCsvButton.tsx
-
 import {
   parseCSV,
   parseZerodhaHoldingsXlsx,
@@ -13,41 +11,35 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function ImportCsvButton() {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const addInvestment = usePortfolioStore((s) => s.addInvestment);
+  const importInvestments = usePortfolioStore((s) => s.importInvestments);
   const [busy, setBusy] = useState(false);
 
   async function onPickFile(file: File) {
     setBusy(true);
     try {
       const lower = file.name.toLowerCase();
-      let ok = 0;
-      let skipped = 0;
 
       // Route to the new XLSX parser if Excel
       if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
         const drafts = await parseZerodhaHoldingsXlsx(file);
-        for (const d of drafts) {
-          await addInvestment(d);
-          ok++;
-        }
+        const result = await importInvestments(drafts);
+        toast.success(
+          `Zerodha: ${result.added} added, ${result.updated} updated, ${result.skipped} skipped.`,
+        );
       } else {
         // Fallback to legacy CSV parser
         const text = await file.text();
         const rows = parseCSV(text);
-        for (const row of rows) {
-          const draft = rowToInvestmentDraft(row);
-          if (!draft) {
-            skipped++;
-            continue;
-          }
-          await addInvestment(draft as any);
-          ok++;
-        }
-      }
 
-      toast.success(
-        `Imported ${ok} asset(s).${skipped > 0 ? ` Skipped ${skipped}.` : ''}`,
-      );
+        const drafts = rows
+          .map((row) => rowToInvestmentDraft(row))
+          .filter(Boolean); // removes nulls if rows were skipped
+
+        const result = await importInvestments(drafts as any[]);
+        toast.success(
+          `Zerodha CSV: ${result.added} added, ${result.updated} updated, ${result.skipped} skipped.`,
+        );
+      }
     } catch (e: any) {
       toast.error(e?.message ?? 'Import failed.');
     } finally {

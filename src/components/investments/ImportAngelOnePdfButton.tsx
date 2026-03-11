@@ -1,5 +1,3 @@
-// src/components/investments/ImportAngelOnePdfButton.tsx
-
 import { useRef, useState } from 'react';
 
 import { FiBriefcase } from 'react-icons/fi';
@@ -10,7 +8,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function ImportAngelOnePdfButton() {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const addInvestment = usePortfolioStore((s) => s.addInvestment);
+  const importInvestments = usePortfolioStore((s) => s.importInvestments);
   const [busy, setBusy] = useState(false);
 
   async function onPickFile(file: File) {
@@ -134,7 +132,7 @@ export function ImportAngelOnePdfButton() {
       });
 
       // ── 2. Identify Symbols and Save to Portfolio ──
-      let ok = 0;
+      const finalDrafts: any[] = [];
 
       for (const d of rawDrafts) {
         let sym = d.isin ? ISIN_TO_SYMBOL[d.isin] : undefined;
@@ -172,7 +170,7 @@ export function ImportAngelOnePdfButton() {
         }
 
         if (d.type === 'mutual_fund') {
-          await addInvestment({
+          finalDrafts.push({
             type: 'mutual_fund',
             name: d.name,
             symbol: symbol,
@@ -180,9 +178,9 @@ export function ImportAngelOnePdfButton() {
             units: d.qty,
             nav: d.currentPrice,
             investedAmount: d.investedAmount, // MFs use investedAmount directly
-          } as any);
+          });
         } else {
-          await addInvestment({
+          finalDrafts.push({
             type: 'stock',
             name: d.name,
             symbol: symbol,
@@ -191,14 +189,15 @@ export function ImportAngelOnePdfButton() {
             buyPrice: d.buyPrice,
             currentPrice: d.currentPrice,
             sector: sector,
-          } as any);
+          });
         }
-        ok++;
       }
 
-      toast.success(`Successfully imported ${ok} Angel One holding(s)!`, {
-        id: 'angel-import',
-      });
+      const result = await importInvestments(finalDrafts);
+      toast.success(
+        `Angel One: ${result.added} added, ${result.updated} updated, ${result.skipped} skipped.`,
+        { id: 'angel-import' },
+      );
     } catch (e: any) {
       toast.error(e?.message ?? 'Angel One import failed.', {
         id: 'angel-import',
