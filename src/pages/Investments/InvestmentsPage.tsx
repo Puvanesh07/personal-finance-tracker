@@ -52,6 +52,7 @@ const FILTER_CATEGORIES = [
   { id: 'ppf', label: 'PPF', type: 'other', icon: FiBox },
   { id: 'nps', label: 'NPS', type: 'other', icon: FiBox },
   { id: 'gold', label: 'Physical Gold', type: 'other', icon: FiBox },
+  { id: 'silver', label: 'Physical Silver', type: 'other', icon: FiBox },
   { id: 'real_estate', label: 'Real Estate', type: 'other', icon: FiHome },
   { id: 'crypto', label: 'Crypto', type: 'other', icon: FiMonitor },
   { id: 'other', label: 'Other Asset', type: 'other', icon: FiBox },

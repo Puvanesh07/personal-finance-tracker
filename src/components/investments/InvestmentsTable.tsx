@@ -59,6 +59,7 @@ const BULK_CATEGORIES = [
   { id: 'ppf', label: 'PPF', type: 'other', icon: FiBox },
   { id: 'nps', label: 'NPS', type: 'other', icon: FiBox },
   { id: 'gold', label: 'Physical Gold', type: 'other', icon: FiBox },
+  { id: 'silver', label: 'Physical Silver', type: 'other', icon: FiBox },
   { id: 'real_estate', label: 'Real Estate', type: 'other', icon: FiHome },
   { id: 'crypto', label: 'Crypto', type: 'other', icon: FiMonitor },
   { id: 'other', label: 'Other Asset', type: 'other', icon: FiBox },
@@ -303,6 +304,8 @@ function TypeChip({ type, assetType }: { type: string; assetType?: string }) {
         color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
       } else if (assetType === 'gold') {
         color = 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
+      } else if (assetType === 'silver') {
+        color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
       } else if (assetType === 'real_estate') {
         Icon = FiHome;
         color = 'border-orange-500/30 bg-orange-500/10 text-orange-400';

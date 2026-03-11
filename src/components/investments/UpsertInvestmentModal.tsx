@@ -52,6 +52,7 @@ type ExtendedAssetCategory =
   | 'nps'
   | 'real_estate'
   | 'gold'
+  | 'silver'
   | 'crypto'
   | 'other';
 
@@ -140,6 +141,15 @@ const ASSET_CATEGORIES = [
         color: 'text-yellow-400',
         bg: 'bg-yellow-400/10',
         desc: 'Coins, Bars, Jewelry',
+      },
+      {
+        id: 'silver',
+        label: 'Physical Silver',
+        type: 'other',
+        icon: FiBox,
+        color: 'text-slate-300',
+        bg: 'bg-slate-400/10',
+        desc: 'Coins, Bars, Ornaments',
       },
       {
         id: 'real_estate',
