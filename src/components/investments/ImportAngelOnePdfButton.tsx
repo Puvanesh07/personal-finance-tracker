@@ -1,12 +1,10 @@
 import { useRef, useState } from 'react';
 
 import { FiBriefcase } from 'react-icons/fi';
+import { ISIN_TO_SYMBOL } from '../../data/nseStockdata';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
-import { resolveIsins } from '../../services/isinService';
 import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
-
-// ← dynamic API, replaces manual ISIN_TO_SYMBOL
 
 export function ImportAngelOnePdfButton() {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -26,6 +24,7 @@ export function ImportAngelOnePdfButton() {
         let type: 'stock' | 'mutual_fund' | null = null;
         let headerIdx = -1;
 
+        // Auto-detect if it's the Equity CSV or Mutual Fund CSV based on the headers
         for (let i = 0; i < lines.length; i++) {
           if (
             lines[i].includes('Company Name') &&
@@ -45,6 +44,7 @@ export function ImportAngelOnePdfButton() {
         }
 
         if (headerIdx !== -1 && type) {
+          // Robust CSV splitting that ignores commas inside quotes
           const parseCsvLine = (line: string) =>
             line
               .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
@@ -58,6 +58,8 @@ export function ImportAngelOnePdfButton() {
           const qtyIdx = headers.indexOf(
             type === 'stock' ? 'Total Quantity' : 'Units',
           );
+
+          // Dynamic matching for volatile column names
           const ltpIdx = headers.findIndex(
             (h) => h === 'LTP' || h.toLowerCase().startsWith('nav as on'),
           );
@@ -71,28 +73,38 @@ export function ImportAngelOnePdfButton() {
           for (let i = headerIdx + 1; i < lines.length; i++) {
             if (!lines[i]) continue;
             const cols = parseCsvLine(lines[i]);
+
+            // Skip empty rows or summary rows
             if (cols.length < Math.max(nameIdx, qtyIdx, investedIdx)) continue;
+
             const name = cols[nameIdx];
             if (!name || name.includes('Total') || name.includes('Summary'))
               continue;
 
             const isin = isinIdx !== -1 ? cols[isinIdx] : '';
             const qty = Number(cols[qtyIdx]) || 0;
+
+            // Grab EXACT values from Angel One
             const rawInvested =
               investedIdx !== -1 ? Number(cols[investedIdx]) : 0;
             const rawMarketVal =
               marketValIdx !== -1 ? Number(cols[marketValIdx]) : 0;
             const rawLtp = ltpIdx !== -1 ? Number(cols[ltpIdx]) : 0;
 
+            // Only add if there is a valid quantity or invested amount
             if (qty > 0 || rawInvested > 0) {
+              // Perfect math: Calculate exact per-unit price to avoid rounding bugs
+              const buyPrice = qty > 0 ? rawInvested / qty : 0;
+              const currentPrice =
+                rawMarketVal > 0 && qty > 0 ? rawMarketVal / qty : rawLtp;
+
               rawDrafts.push({
                 type,
                 name,
                 isin,
                 qty,
-                buyPrice: qty > 0 ? rawInvested / qty : 0,
-                currentPrice:
-                  rawMarketVal > 0 && qty > 0 ? rawMarketVal / qty : rawLtp,
+                buyPrice,
+                currentPrice,
                 investedAmount: rawInvested,
               });
             }
@@ -115,78 +127,68 @@ export function ImportAngelOnePdfButton() {
         return;
       }
 
-      // ── 2. Resolve ALL ISINs dynamically via Worker → NSE API ─────────────
-      // Replaces the entire manual ISIN_TO_SYMBOL map.
-      // Worker tries: NSE search → NSE quote → OpenFIGI (3 fallbacks)
-      // Results cached in localStorage for 30 days → instant on re-import
-      toast.loading(`Resolving ${rawDrafts.length} ISINs via NSE API…`, {
-        id: 'angel-import',
-      });
-      const allIsins = rawDrafts.map((d) => d.isin).filter(Boolean);
-      const isinMap = await resolveIsins(allIsins);
-
       toast.loading(`Importing ${rawDrafts.length} assets...`, {
         id: 'angel-import',
       });
 
-      // ── 3. Build final drafts ─────────────────────────────────────────────
+      // ── 2. Identify Symbols and Save to Portfolio ──
       const finalDrafts: any[] = [];
 
       for (const d of rawDrafts) {
-        // Symbol from NSE API — always correct, not overrideable
-        let symbol = d.isin
-          ? (isinMap[d.isin.toUpperCase()] ?? undefined)
-          : undefined;
-
-        // Fallback only if NSE API couldn't resolve (rare — e.g. delisted)
-        if (!symbol) {
+        let sym = d.isin ? ISIN_TO_SYMBOL[d.isin] : undefined;
+        if (!sym) {
           const cleaned = d.name
             .replace(/\b(Ltd|Limited|Corp|Corporation|Inc|Company)\b/gi, '')
             .trim();
-          symbol = cleaned
+          sym = cleaned
             .split(' ')
             .slice(0, 2)
             .join('')
             .toUpperCase()
             .replace(/[^A-Z0-9]/g, '');
-          console.warn(
-            `[AngelOneImport] ISIN ${d.isin} unresolved for "${d.name}" — name fallback: ${symbol}`,
-          );
         }
 
-        // Get sector from static DB — but NEVER let it override the NSE-resolved symbol
-        let sector: string | undefined = undefined;
-        try {
-          const meta = await fetchStockMetadata({
-            symbol,
-            isin: d.isin,
-            name: d.name,
-          });
-          if (meta?.sector && meta.sector !== 'Unknown') sector = meta.sector;
-        } catch {
-          /* silent */
+        let symbol = sym;
+        let sector = undefined;
+
+        if (symbol) {
+          try {
+            const meta = await fetchStockMetadata({
+              symbol,
+              isin: d.isin,
+              name: d.name,
+            });
+            if (meta) {
+              if (meta.sector && meta.sector !== 'Unknown')
+                sector = meta.sector;
+              if (meta.symbol && meta.symbol !== 'Unknown')
+                symbol = meta.symbol;
+            }
+          } catch (e) {
+            // Silent catch
+          }
         }
 
         if (d.type === 'mutual_fund') {
           finalDrafts.push({
             type: 'mutual_fund',
             name: d.name,
-            symbol,
+            symbol: symbol,
             platform: 'angel_one',
             units: d.qty,
             nav: d.currentPrice,
-            investedAmount: d.investedAmount,
+            investedAmount: d.investedAmount, // MFs use investedAmount directly
           });
         } else {
           finalDrafts.push({
             type: 'stock',
             name: d.name,
-            symbol,
+            symbol: symbol,
             platform: 'angel_one',
             quantity: d.qty,
             buyPrice: d.buyPrice,
             currentPrice: d.currentPrice,
-            sector,
+            sector: sector,
           });
         }
       }

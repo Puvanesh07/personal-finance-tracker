@@ -417,6 +417,15 @@ function PriceCell({
 }
 
 // ── Helper: build the symbol string for each investment type ───────────────
+//
+// Return value meanings:
+//   "WIPRO"          → NSE stock, ready to fetch
+//   "US:AAPL"        → US stock, ready to fetch
+//   "MF:119551"      → MF with known numeric scheme code, ready to fetch
+//   "MF_NAME:HDFC…"  → MF with only a name — resolved via AMFI lookup at runtime
+//   "GOLD" / "SILVER"→ commodity, ready to fetch
+//   null             → not supported / skip
+
 function getLivePriceSymbol(inv: any): string | null {
   const type = inv.type;
   const assetType = (inv.assetType || '').toLowerCase();
@@ -426,15 +435,19 @@ function getLivePriceSymbol(inv: any): string | null {
   }
 
   if (type === 'mutual_fund') {
+    // Already have a numeric scheme code → use it directly
     if (inv.schemeCode && /^\d{5,6}$/.test(String(inv.schemeCode).trim())) {
       return `MF:${inv.schemeCode}`;
     }
     if (inv.amfiCode && /^\d{5,6}$/.test(String(inv.amfiCode).trim())) {
       return `MF:${inv.amfiCode}`;
     }
+    // symbol field might be a numeric code too
     if (inv.symbol && /^\d{5,6}$/.test(String(inv.symbol).trim())) {
       return `MF:${inv.symbol}`;
     }
+    // Fall back to name-based lookup — prefix with MF_NAME: so the
+    // refresh handler knows it needs AMFI resolution
     const name = inv.name || inv.symbol;
     return name ? `MF_NAME:${name}` : null;
   }
@@ -449,15 +462,6 @@ function getLivePriceSymbol(inv: any): string | null {
 
   return null;
 }
-
-// ── Valid cap category values ──────────────────────────────────────────────
-const KNOWN_CAPS = [
-  'Large Cap',
-  'Mid Cap',
-  'Small Cap',
-  'Micro Cap',
-  'Large & Mid Cap',
-];
 
 export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
@@ -476,6 +480,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   >({});
 
   const handleRefreshLivePrices = async () => {
+    // Collect all assets that have a live price symbol
     const liveAssets = investments
       .map((inv) => ({ inv, sym: getLivePriceSymbol(inv) }))
       .filter(({ sym }) => sym !== null) as { inv: any; sym: string }[];
@@ -492,6 +497,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     setRefreshError(null);
 
     try {
+      // ── Resolve MF_NAME: entries → real AMFI scheme codes ─────────────
       const mfNameAssets = liveAssets.filter(({ sym }) =>
         sym.startsWith('MF_NAME:'),
       );
@@ -500,6 +506,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         const names = mfNameAssets.map(({ sym }) =>
           sym.slice('MF_NAME:'.length),
         );
+        console.log(
+          `[LivePrice] Resolving ${names.length} MF name(s) via AMFI…`,
+        );
+
         const resolved = await resolveAmfiCodes(names);
 
         for (const asset of mfNameAssets) {
@@ -507,15 +517,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           const code = resolved[name];
           if (code) {
             asset.sym = `MF:${code}`;
+            // Persist the resolved schemeCode so the next refresh skips AMFI lookup
             updateInvestment(asset.inv.id, { schemeCode: code } as any).catch(
               () => {},
             );
           } else {
-            asset.sym = '';
+            console.warn(
+              `[LivePrice] Could not resolve AMFI code for: "${name}"`,
+            );
+            asset.sym = ''; // mark unresolvable — filtered out below
           }
         }
       }
 
+      // Drop unresolvable entries
       const fetchableAssets = liveAssets.filter(({ sym }) => sym.length > 0);
 
       if (fetchableAssets.length === 0) {
@@ -526,6 +541,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         return;
       }
 
+      // ── Fetch live prices ──────────────────────────────────────────────
       const symbols = [...new Set(fetchableAssets.map((a) => a.sym))];
       setFetchProgress({ done: 0, total: symbols.length });
       const result = await fetchLivePrices(symbols, (done, total) => {
@@ -583,6 +599,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         }),
       );
 
+      // Clear flash after 2 seconds
       setTimeout(() => setFlashMap({}), 2000);
 
       const updatedCount = Object.keys(newFlash).length;
@@ -595,58 +612,40 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       if (failedSymbols.length > 0 && updatedCount === 0) {
         setRefreshError(`Could not fetch: ${failedSymbols.join(', ')}`);
         setTimeout(() => setRefreshError(null), 5000);
+      } else if (updatedCount > 0) {
+        console.log(`[LivePrice] Updated ${updatedCount} assets`);
       }
     } catch (e: any) {
       setRefreshError('Failed to fetch live prices. Please try again.');
       setTimeout(() => setRefreshError(null), 4000);
+      console.error('[InvestmentsTable] refreshLivePrices failed:', e);
     } finally {
       setFetchProgress(null);
       setRefreshing(false);
     }
   };
 
-  // ── Cap classification: load from store first, then fetch from API ─────
   const [extendedData, setExtendedData] = useState<
     Record<string, { cap?: string }>
   >({});
 
-  // Tracks symbols already dispatched this session to avoid duplicate API calls
-  const fetchedSymbols = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     investments.forEach(async (inv) => {
-      if (inv.type !== 'stock' || !inv.symbol) return;
-
-      // ── Priority 1: investment already has a valid cap stored in the DB ──
-      const storedCap = inv.marketCap as string | undefined;
-      if (storedCap && KNOWN_CAPS.includes(storedCap)) {
-        setExtendedData((prev) => {
-          if (prev[inv.id]?.cap === storedCap) return prev; // no-op if already set
-          return { ...prev, [inv.id]: { cap: storedCap } };
-        });
-        return; // nothing more to do — skip API call
-      }
-
-      // ── Priority 2: already fetched this symbol this session ──────────
-      const symbolKey = inv.symbol.toUpperCase();
-      if (fetchedSymbols.current.has(symbolKey)) return;
-      fetchedSymbols.current.add(symbolKey);
-
-      // ── Priority 3: fetch from Worker → NSE API ───────────────────────
-      try {
-        const meta = await fetchStockMetadata({ symbol: inv.symbol });
-        const cap = meta?.marketCapCategory;
-        if (cap && cap !== 'Unknown') {
-          // Show in UI immediately
-          setExtendedData((prev) => ({ ...prev, [inv.id]: { cap } }));
-          // Persist to store so next page load skips the API call entirely
-          updateInvestment(inv.id, { marketCap: cap } as any).catch(() => {});
+      if (inv.type === 'stock' && inv.symbol && !extendedData[inv.id]) {
+        try {
+          const meta = await fetchStockMetadata({ symbol: inv.symbol });
+          if (meta?.marketCapCategory) {
+            setExtendedData((prev) => ({
+              ...prev,
+              [inv.id]: { cap: meta.marketCapCategory },
+            }));
+          }
+        } catch (e) {
+          /* silent fail */
         }
-      } catch {
-        /* silent — chip just won't show */
       }
     });
-  }, [investments, updateInvestment]);
+  }, [investments]);
 
   const [edit, setEdit] = useState<any | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
@@ -667,13 +666,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               ? inv.units
               : null;
 
-        // Resolve cap: stored value on inv takes priority, then extendedData from API
-        const storedCap = inv.marketCap as string | undefined;
-        const resolvedCap =
-          storedCap && KNOWN_CAPS.includes(storedCap)
-            ? storedCap
-            : extendedData[inv.id]?.cap;
-
         return {
           inv,
           invested: investedValue(inv),
@@ -685,7 +677,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   investedValue(inv)) *
                 100
               : 0,
-          marketCap: resolvedCap,
+          marketCap: inv.marketCap || extendedData[inv.id]?.cap,
           qty,
         };
       }),
@@ -775,10 +767,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     if (sector !== undefined) patch.sector = sector;
     if (cap !== undefined) patch.marketCap = cap;
     await updateInvestment(id, patch);
-    // Also update local extendedData so chip refreshes immediately without reload
-    if (cap) {
-      setExtendedData((prev) => ({ ...prev, [id]: { cap } }));
-    }
     setInlineEditId(null);
   };
 
@@ -803,6 +791,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </h2>
         </div>
 
+        {/* ── Refresh Live Price Button ── */}
         <div className='flex items-center gap-3 flex-wrap'>
           {lastUpdated && !refreshError && (
             <span className='text-[10px] font-semibold text-slate-500 hidden sm:block'>
@@ -839,6 +828,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             </span>
           </button>
 
+          {/* Progress bar — only shown when refreshing large portfolios */}
           {refreshing && fetchProgress && fetchProgress.total > 20 && (
             <div className='w-full mt-1.5'>
               <div className='h-1 w-full bg-slate-800 rounded-full overflow-hidden'>
@@ -857,7 +847,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         </div>
       </div>
 
-      {/* ── Legend ── */}
+      {/* ── Legend: what gets refreshed ── */}
       <div className='flex flex-wrap gap-2 px-1 mb-1'>
         {[
           {
