@@ -18,9 +18,11 @@ export type BaseInvestment = {
   notes?: string;
   createdAt: string; // ISO datetime
   updatedAt: string; // ISO datetime
+  userId?: string; // Firestore owner
 };
 
-// Add this to your existing types
+// ── Insight Snapshot ───────────────────────────────────────────────────────
+
 export type InsightSnapshot = {
   id: string;
   userId: string;
@@ -33,7 +35,8 @@ export type InsightSnapshot = {
   rebalanceRequired: boolean;
 };
 
-// Add these to your existing types
+// ── Financial Goal (extended) ──────────────────────────────────────────────
+
 export interface FinancialGoal {
   id: string;
   name: string;
@@ -44,10 +47,12 @@ export interface FinancialGoal {
   userId: string;
 }
 
+// ── Insight Metrics & Cards ────────────────────────────────────────────────
+
 export interface InsightMetrics {
   healthScore: number;
   savingsRate: number;
-  emergencyRunway: number; // in months
+  emergencyRunway: number; // months
   debtToAssetRatio: number;
   netWorth: number;
   equityAllocation: number;
@@ -62,12 +67,15 @@ export interface FinancialInsight {
   icon: 'safety' | 'debt' | 'growth' | 'diversification';
 }
 
+// ── Investment Subtypes ────────────────────────────────────────────────────
+
 export type StockInvestment = BaseInvestment & {
   type: 'stock';
   quantity: number;
   buyPrice: number;
   currentPrice: number;
   sector?: string;
+  marketCap?: string; // e.g. 'Large Cap' | 'Mid Cap' | 'Small Cap' | 'Micro Cap'
 };
 
 export type MutualFundInvestment = BaseInvestment & {
@@ -75,6 +83,8 @@ export type MutualFundInvestment = BaseInvestment & {
   units: number;
   nav: number;
   investedAmount: number;
+  schemeCode?: string; // AMFI scheme code — auto-resolved on first live price refresh
+  amfiCode?: string; // alias for schemeCode (legacy support)
 };
 
 export type BondInvestment = BaseInvestment & {
@@ -105,9 +115,11 @@ export type OtherInvestment = BaseInvestment & {
     | 'real_estate'
     | 'ppf'
     | 'nps'
+    | 'international_equity' // ← added: US/global stocks via INDmoney etc.
     | 'other';
   investedAmount: number;
   currentValue: number;
+  currentPrice?: number; // live price for gold / silver / intl equity
 };
 
 export type Investment =
@@ -117,6 +129,8 @@ export type Investment =
   | FixedDepositInvestment
   | OtherInvestment;
 
+// ── Settings ───────────────────────────────────────────────────────────────
+
 export type NotionConfig = {
   token?: string;
   databaseId?: string;
@@ -124,11 +138,33 @@ export type NotionConfig = {
   lastSyncAt?: string;
 };
 
+export type EssentialsConfig = {
+  termInsuranceCover?: number;
+  healthCover?: number;
+  emergencyFundTarget?: number;
+  emergencyFundCurrent?: number;
+};
+
+// ── Snapshots ──────────────────────────────────────────────────────────────
+
 export type PortfolioSnapshot = {
   id: string;
   date: ISODateString;
   totalValue: number;
+  userId?: string;
 };
+
+export type NetWorthSnapshot = {
+  id: string;
+  userId: string;
+  createdAt: string;
+  label?: string;
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+};
+
+// ── Liabilities ────────────────────────────────────────────────────────────
 
 export type LiabilityType = 'loan' | 'credit_card' | 'other';
 
@@ -143,20 +179,26 @@ export type Liability = {
   endDate?: ISODateString;
   createdAt: string;
   updatedAt: string;
+  userId?: string;
 };
+
+// ── Cashflow ───────────────────────────────────────────────────────────────
 
 export type CashflowType = 'income' | 'expense';
 
 export type CashflowEntry = {
   id: string;
   type: CashflowType;
-  date: ISODateString; // entry date
+  date: ISODateString;
   category: string;
   amount: number;
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  userId?: string;
 };
+
+// ── Goals ──────────────────────────────────────────────────────────────────
 
 export type Goal = {
   id: string;
@@ -166,21 +208,5 @@ export type Goal = {
   dueDate?: ISODateString;
   createdAt: string;
   updatedAt: string;
-};
-
-export type EssentialsConfig = {
-  termInsuranceCover?: number;
-  healthCover?: number;
-  emergencyFundTarget?: number;
-  emergencyFundCurrent?: number;
-};
-
-export type NetWorthSnapshot = {
-  id: string;
-  userId: string; // ✅ add this
-  createdAt: string;
-  label?: string;
-  totalAssets: number;
-  totalLiabilities: number;
-  netWorth: number;
+  userId?: string;
 };

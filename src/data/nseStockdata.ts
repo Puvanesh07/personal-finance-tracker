@@ -3370,7 +3370,9 @@ export const ISIN_TO_SYMBOL: Record<string, string> = {
   INE016E01012: 'DABUR',
   INE102D01028: 'GODREJCP',
   INE196A01026: 'MARICO',
-  INE075A01022: 'COLPAL',
+  INE075A01022: 'WIPRO', // ⚠️ Angel One statement bug — this ISIN is actually COLPAL but AO printed it against Wipro
+  INE053F01010: 'IRFC', // IRFC — missing from map
+  // INE155A01022: 'ASHOKLEY', // TMP: ASHOKLEY is a typo in AO CSV, actual stock is Ashok Leyland
   INE355A01028: 'EMAMILTD',
   INE885A01032: 'JYOTHYLAB',
   INE036A01022: 'VBL',
@@ -3521,25 +3523,25 @@ export const ISIN_TO_SYMBOL: Record<string, string> = {
   // ── User Portfolio ISINs (statement 2026-03-11) ─────────────────────────
   INE064C01022: 'TRIDENT',
   INE302A01020: 'EXIDEIND',
-  INE0FS801015: 'MOTHERSONWIRING',
+  INE0FS801015: 'MSWIL', // Motherson Wiring — correct NSE symbol
   INE202E01016: 'IREDA',
-  INE718H01014: 'AUTOLINEINDS',
+  INE718H01014: 'AUTOLINE', // Autoline Industries — correct NSE symbol
   INE848E01016: 'NHPC',
   INE548A01028: 'HFCL',
-  INE069I01010: 'INDBULREALTY',
-  INE608A01012: 'PUNSINDBANK',
+  INE069I01010: 'IBREALTY', // Indiabulls Real Estate — correct NSE symbol
+  INE608A01012: 'PSB', // Punjab & Sind Bank — correct NSE symbol
   INE415G01027: 'RVNL',
-  INE435C01024: 'TEXMACHRAIL',
+  INE435C01024: 'TEXRAIL', // Texmaco Rail — correct NSE symbol
   INE821I01022: 'IRB',
   INE343B01030: 'RAJESHEXPO',
   INE565A01014: 'IOB',
-  INE0NNS01018: 'NMDCSTEEL',
-  INE247D01039: 'JINDALWORLDWIDE',
-  INF204KB14I2: 'NIPNIFTYBEES',
-  INE501W01021: 'SINTEXPLAST',
+  INE0NNS01018: 'NSLNISP', // NMDC Steel — correct NSE symbol
+  INE247D01039: 'JINDALWORLDW', // Jindal Worldwide — correct NSE symbol
+  INF204KB14I2: 'NIFTYBEES', // Nippon Nifty BeES ETF — correct NSE symbol
+  INE501W01021: 'SINTEXPLAST', // Delisted — kept for record, price will return null
   INE631A01022: 'SHANTIGEAR',
   INE758E01017: 'JIOFIN',
-  INF204KB15V2: 'NIPNIFTYIT',
+  INF204KB15V2: 'NIFTYIT', // Nippon Nifty IT ETF — correct NSE symbol
   INE872J01023: 'DEVYANI',
   INE095N01031: 'NBCC',
   INF1J2R01015: 'AONETOTAL',
@@ -3548,9 +3550,9 @@ export const ISIN_TO_SYMBOL: Record<string, string> = {
   INE087H01022: 'RENUKA',
   INE718I01012: 'JSWCEMENT',
   INE141K01013: 'TEXMOPIPES',
-  INE900B01029: 'KABRAEXTRUSION',
+  INE900B01029: 'KABRAEXTRU', // Kabra Extrusion — correct NSE symbol
   INE0V9Q01010: 'LOTUSDEV',
-  INE1YPB01014: 'ALLCARGOGLOBAL',
+  INE1YPB01014: 'ALLCARGO', // AllCargo Logistics — correct NSE symbol
   // Mutual Fund ISINs
   INF179KA1RW5: 'HDFCSMALLCAP',
   INF204K01XI3: 'NIPLARGECAMP',

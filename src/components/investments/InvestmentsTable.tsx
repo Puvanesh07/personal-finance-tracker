@@ -32,6 +32,7 @@ import { createPortal } from 'react-dom';
 import { fetchLivePrices } from '../../services/livePriceService';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { formatINR } from '../../utils/format';
+import { resolveAmfiCodes } from '../../services/amfiLookupService';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -365,13 +366,12 @@ function PriceCell({
   inv: any;
   flashState: 'up' | 'down' | 'none';
 }) {
-  // Show live price for all supported asset types
   let price: number | null = null;
   let label = '';
 
   if (inv.type === 'stock') {
     price = inv.currentPrice ?? null;
-    label = ''; // plain price
+    label = '';
   } else if (inv.type === 'mutual_fund') {
     price = inv.nav ?? null;
     label = 'NAV';
@@ -400,7 +400,6 @@ function PriceCell({
         ? 'animate-pulse text-rose-300 bg-rose-500/20 rounded px-1'
         : '';
 
-  // US stocks show $ symbol
   const at = (inv.assetType || '').toLowerCase();
   const isUS = inv.type === 'other' && at === 'international_equity';
 
@@ -418,28 +417,45 @@ function PriceCell({
 }
 
 // ── Helper: build the symbol string for each investment type ───────────────
+//
+// Return value meanings:
+//   "WIPRO"          → NSE stock, ready to fetch
+//   "US:AAPL"        → US stock, ready to fetch
+//   "MF:119551"      → MF with known numeric scheme code, ready to fetch
+//   "MF_NAME:HDFC…"  → MF with only a name — resolved via AMFI lookup at runtime
+//   "GOLD" / "SILVER"→ commodity, ready to fetch
+//   null             → not supported / skip
+
 function getLivePriceSymbol(inv: any): string | null {
   const type = inv.type;
   const assetType = (inv.assetType || '').toLowerCase();
 
   if (type === 'stock') {
-    // NSE stock — symbol field e.g. "WIPRO"
     return inv.symbol ? inv.symbol.toUpperCase() : null;
   }
 
   if (type === 'mutual_fund') {
-    // MF:schemeCode e.g. "MF:119551"  OR  MF:Fund Name
-    if (inv.schemeCode) return `MF:${inv.schemeCode}`;
-    if (inv.symbol) return `MF:${inv.symbol}`;
-    if (inv.amfiCode) return `MF:${inv.amfiCode}`;
-    return null;
+    // Already have a numeric scheme code → use it directly
+    if (inv.schemeCode && /^\d{5,6}$/.test(String(inv.schemeCode).trim())) {
+      return `MF:${inv.schemeCode}`;
+    }
+    if (inv.amfiCode && /^\d{5,6}$/.test(String(inv.amfiCode).trim())) {
+      return `MF:${inv.amfiCode}`;
+    }
+    // symbol field might be a numeric code too
+    if (inv.symbol && /^\d{5,6}$/.test(String(inv.symbol).trim())) {
+      return `MF:${inv.symbol}`;
+    }
+    // Fall back to name-based lookup — prefix with MF_NAME: so the
+    // refresh handler knows it needs AMFI resolution
+    const name = inv.name || inv.symbol;
+    return name ? `MF_NAME:${name}` : null;
   }
 
   if (type === 'other') {
     if (assetType === 'gold') return 'GOLD';
     if (assetType === 'silver') return 'SILVER';
     if (assetType === 'international_equity') {
-      // US stock — symbol field e.g. "AAPL"
       return inv.symbol ? `US:${inv.symbol.toUpperCase()}` : null;
     }
   }
@@ -453,6 +469,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   // ── Live Price State ───────────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchProgress, setFetchProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [flashMap, setFlashMap] = useState<
@@ -477,14 +497,61 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     setRefreshError(null);
 
     try {
-      // Deduplicate symbols
-      const symbols = [...new Set(liveAssets.map((a) => a.sym))];
-      const result = await fetchLivePrices(symbols);
+      // ── Resolve MF_NAME: entries → real AMFI scheme codes ─────────────
+      const mfNameAssets = liveAssets.filter(({ sym }) =>
+        sym.startsWith('MF_NAME:'),
+      );
+
+      if (mfNameAssets.length > 0) {
+        const names = mfNameAssets.map(({ sym }) =>
+          sym.slice('MF_NAME:'.length),
+        );
+        console.log(
+          `[LivePrice] Resolving ${names.length} MF name(s) via AMFI…`,
+        );
+
+        const resolved = await resolveAmfiCodes(names);
+
+        for (const asset of mfNameAssets) {
+          const name = asset.sym.slice('MF_NAME:'.length);
+          const code = resolved[name];
+          if (code) {
+            asset.sym = `MF:${code}`;
+            // Persist the resolved schemeCode so the next refresh skips AMFI lookup
+            updateInvestment(asset.inv.id, { schemeCode: code } as any).catch(
+              () => {},
+            );
+          } else {
+            console.warn(
+              `[LivePrice] Could not resolve AMFI code for: "${name}"`,
+            );
+            asset.sym = ''; // mark unresolvable — filtered out below
+          }
+        }
+      }
+
+      // Drop unresolvable entries
+      const fetchableAssets = liveAssets.filter(({ sym }) => sym.length > 0);
+
+      if (fetchableAssets.length === 0) {
+        setRefreshError(
+          'Could not resolve any MF scheme codes. Check fund names or add scheme codes manually.',
+        );
+        setTimeout(() => setRefreshError(null), 6000);
+        return;
+      }
+
+      // ── Fetch live prices ──────────────────────────────────────────────
+      const symbols = [...new Set(fetchableAssets.map((a) => a.sym))];
+      setFetchProgress({ done: 0, total: symbols.length });
+      const result = await fetchLivePrices(symbols, (done, total) => {
+        setFetchProgress({ done, total });
+      });
 
       const newFlash: Record<string, 'up' | 'down' | 'none'> = {};
       const updates: Promise<void>[] = [];
 
-      for (const { inv, sym } of liveAssets) {
+      for (const { inv, sym } of fetchableAssets) {
         const fetched = result.prices[sym.toUpperCase()];
         if (!fetched || fetched.price === null) continue;
 
@@ -492,7 +559,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         const type = inv.type;
         const assetType = (inv.assetType || '').toLowerCase();
 
-        // Determine old price and which field to update
         let oldPrice = 0;
         let patch: Record<string, any> = {};
 
@@ -503,10 +569,11 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           oldPrice = inv.nav ?? 0;
           patch = { nav: newPrice };
         } else if (type === 'other') {
-          if (assetType === 'gold' || assetType === 'silver') {
-            oldPrice = inv.currentPrice ?? 0;
-            patch = { currentPrice: newPrice };
-          } else if (assetType === 'international_equity') {
+          if (
+            assetType === 'gold' ||
+            assetType === 'silver' ||
+            assetType === 'international_equity'
+          ) {
             oldPrice = inv.currentPrice ?? 0;
             patch = { currentPrice: newPrice };
           }
@@ -524,6 +591,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       await Promise.allSettled(updates);
 
       setFlashMap(newFlash);
+      setFetchProgress(null);
       setLastUpdated(
         new Date().toLocaleTimeString('en-IN', {
           hour: '2-digit',
@@ -545,7 +613,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         setRefreshError(`Could not fetch: ${failedSymbols.join(', ')}`);
         setTimeout(() => setRefreshError(null), 5000);
       } else if (updatedCount > 0) {
-        // Success — show count
         console.log(`[LivePrice] Updated ${updatedCount} assets`);
       }
     } catch (e: any) {
@@ -553,6 +620,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       setTimeout(() => setRefreshError(null), 4000);
       console.error('[InvestmentsTable] refreshLivePrices failed:', e);
     } finally {
+      setFetchProgress(null);
       setRefreshing(false);
     }
   };
@@ -751,8 +819,31 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             ) : (
               <FiZap size={13} />
             )}
-            <span>{refreshing ? 'Fetching...' : 'Refresh Live Price'}</span>
+            <span>
+              {refreshing && fetchProgress
+                ? `Fetching ${fetchProgress.done}/${fetchProgress.total}…`
+                : refreshing
+                  ? 'Preparing…'
+                  : 'Refresh Live Price'}
+            </span>
           </button>
+
+          {/* Progress bar — only shown when refreshing large portfolios */}
+          {refreshing && fetchProgress && fetchProgress.total > 20 && (
+            <div className='w-full mt-1.5'>
+              <div className='h-1 w-full bg-slate-800 rounded-full overflow-hidden'>
+                <div
+                  className='h-1 bg-emerald-500 rounded-full transition-all duration-300'
+                  style={{
+                    width: `${Math.round((fetchProgress.done / fetchProgress.total) * 100)}%`,
+                  }}
+                />
+              </div>
+              <p className='text-[9px] text-slate-500 font-semibold mt-0.5 text-right'>
+                {Math.round((fetchProgress.done / fetchProgress.total) * 100)}%
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

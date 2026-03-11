@@ -149,6 +149,8 @@ export function ImportAngelOnePdfButton() {
         }
 
         let symbol = sym;
+        // Track whether symbol came from ISIN lookup (trusted) or name fallback (untrusted)
+        const symbolFromIsin = !!(d.isin && ISIN_TO_SYMBOL[d.isin]);
         let sector = undefined;
 
         if (symbol) {
@@ -161,7 +163,9 @@ export function ImportAngelOnePdfButton() {
             if (meta) {
               if (meta.sector && meta.sector !== 'Unknown')
                 sector = meta.sector;
-              if (meta.symbol && meta.symbol !== 'Unknown')
+              // Only override symbol if it did NOT come from a trusted ISIN lookup
+              // This prevents e.g. WIPRO being overwritten by COLPAL via metadata
+              if (!symbolFromIsin && meta.symbol && meta.symbol !== 'Unknown')
                 symbol = meta.symbol;
             }
           } catch (e) {
