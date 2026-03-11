@@ -279,6 +279,7 @@ function RichAssetDropdown({
               left: pos.left,
               width: pos.width,
               zIndex: 99999,
+              animation: 'none',
             }}
             className='overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200'
           >
@@ -372,8 +373,6 @@ function CalendarPicker({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 280;
-
-    // The calendar height is roughly 340px
     const panelH = panelRef.current ? panelRef.current.offsetHeight : 340;
 
     const rawLeft = r.left + window.scrollX;
@@ -382,11 +381,9 @@ function CalendarPicker({
       window.innerWidth + window.scrollX - panelW - 16,
     );
 
-    // Smart Upward/Downward Positioning logic
     const spaceBelow = window.innerHeight - r.bottom;
     let top = r.bottom + 8 + window.scrollY;
 
-    // Flip upwards if there's no space below but enough space above!
     if (spaceBelow < panelH && r.top > spaceBelow) {
       top = r.top - panelH - 8 + window.scrollY;
     }
@@ -394,7 +391,6 @@ function CalendarPicker({
     setPos({ top, left: Math.max(8, clampedLeft) });
   }, []);
 
-  // Update position slightly after opening to capture true DOM height
   useEffect(() => {
     if (open) {
       updatePos();
@@ -463,8 +459,9 @@ function CalendarPicker({
               left: pos.left,
               zIndex: 99999,
               width: 280,
+              animation: 'none',
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200'
+            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
             <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
               <button
@@ -771,8 +768,9 @@ export function UpsertInvestmentModal(props: Props) {
       onClose={props.onClose}
       title={props.mode === 'create' ? 'Add New Asset' : 'Edit Asset Details'}
     >
-      <div className='grid grid-cols-1 gap-6'>
-        <div>
+      {/* Scrollable Form Body Container - Max Height Only on Mobile */}
+      <div className='flex flex-col max-h-[60vh] md:max-h-none'>
+        <div className='mb-6 shrink-0'>
           <label className={labelCls}>Asset Category</label>
           <RichAssetDropdown
             value={state.uiCategory}
@@ -785,7 +783,9 @@ export function UpsertInvestmentModal(props: Props) {
             }}
           />
         </div>
-        <div className='rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-5'>
+
+        {/* Inner Content Scrolls on Mobile, Native size on Desktop */}
+        <div className='overflow-y-auto md:overflow-visible custom-scrollbar pr-2 -mr-2 md:pr-0 md:mr-0 rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-5'>
           <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
             <div>
               <label className={labelCls}>Asset Name</label>
@@ -814,6 +814,7 @@ export function UpsertInvestmentModal(props: Props) {
               />
             </div>
           </div>
+
           {(state.type === 'stock' || state.type === 'mutual_fund') && (
             <div>
               <label className={labelCls}>Symbol / Ticker</label>
@@ -830,6 +831,7 @@ export function UpsertInvestmentModal(props: Props) {
               />
             </div>
           )}
+
           {state.type === 'stock' && (
             <div>
               <div className='mb-1.5 flex items-center justify-between ml-1'>
@@ -863,6 +865,7 @@ export function UpsertInvestmentModal(props: Props) {
               )}
             </div>
           )}
+
           {state.type === 'stock' && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
@@ -900,6 +903,7 @@ export function UpsertInvestmentModal(props: Props) {
               </div>
             </div>
           )}
+
           {state.type === 'mutual_fund' && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
@@ -931,12 +935,16 @@ export function UpsertInvestmentModal(props: Props) {
                   className={inputCls}
                   value={state.investedAmount}
                   onChange={(e) =>
-                    setState((s) => ({ ...s, investedAmount: e.target.value }))
+                    setState((s) => ({
+                      ...s,
+                      investedAmount: e.target.value,
+                    }))
                   }
                 />
               </div>
             </div>
           )}
+
           {(state.type === 'bond' || state.type === 'fixed_deposit') && (
             <>
               {state.type === 'fixed_deposit' && (
@@ -974,7 +982,10 @@ export function UpsertInvestmentModal(props: Props) {
                     className={inputCls}
                     value={state.interestRate}
                     onChange={(e) =>
-                      setState((s) => ({ ...s, interestRate: e.target.value }))
+                      setState((s) => ({
+                        ...s,
+                        interestRate: e.target.value,
+                      }))
                     }
                   />
                 </div>
@@ -1013,6 +1024,7 @@ export function UpsertInvestmentModal(props: Props) {
               </div>
             </>
           )}
+
           {state.type === 'other' && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
               <div>
@@ -1022,7 +1034,10 @@ export function UpsertInvestmentModal(props: Props) {
                   className={inputCls}
                   value={state.investedAmount}
                   onChange={(e) =>
-                    setState((s) => ({ ...s, investedAmount: e.target.value }))
+                    setState((s) => ({
+                      ...s,
+                      investedAmount: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1040,7 +1055,9 @@ export function UpsertInvestmentModal(props: Props) {
             </div>
           )}
         </div>
-        <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
+
+        {/* Fixed Footer Buttons */}
+        <div className='mt-6 shrink-0 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
           <button
             type='button'
             className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200'

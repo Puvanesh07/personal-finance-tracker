@@ -72,7 +72,6 @@ function formatPlatformName(platformStr?: string) {
   if (str === 'indmoney') return 'INDmoney';
   if (str === 'upstox') return 'Upstox';
   if (str === 'manual') return 'Direct';
-  // Capitalize first letter of each word for unknown platforms
   return str
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -391,18 +390,30 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   const rows = useMemo(
     () =>
-      investments.map((inv) => ({
-        inv,
-        invested: investedValue(inv),
-        current: currentValue(inv),
-        pl: currentValue(inv) - investedValue(inv),
-        plPct:
-          investedValue(inv) > 0
-            ? ((currentValue(inv) - investedValue(inv)) / investedValue(inv)) *
-              100
-            : 0,
-        marketCap: inv.marketCap || extendedData[inv.id]?.cap,
-      })),
+      investments.map((inv) => {
+        // Extract Quantity safely depending on asset type
+        const qty =
+          inv.type === 'stock'
+            ? inv.quantity
+            : inv.type === 'mutual_fund'
+              ? inv.units
+              : null;
+
+        return {
+          inv,
+          invested: investedValue(inv),
+          current: currentValue(inv),
+          pl: currentValue(inv) - investedValue(inv),
+          plPct:
+            investedValue(inv) > 0
+              ? ((currentValue(inv) - investedValue(inv)) /
+                  investedValue(inv)) *
+                100
+              : 0,
+          marketCap: inv.marketCap || extendedData[inv.id]?.cap,
+          qty,
+        };
+      }),
     [investments, extendedData],
   );
 
@@ -528,18 +539,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </button>
         </div>
 
-        {rows.map(({ inv, current, pl, plPct, marketCap }) => {
+        {rows.map(({ inv, current, pl, plPct, marketCap, qty }) => {
           const isSelected = selectedIds.includes(inv.id);
           return (
             <div
               key={inv.id}
               className={`border p-4 rounded-2xl flex flex-col gap-4 transition-colors ${isSelected ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-900/50 border-slate-800'}`}
             >
-              <div className='flex justify-between items-start'>
-                <div className='flex items-start gap-3 max-w-[75%]'>
+              <div className='flex justify-between items-start gap-3'>
+                <div className='flex items-start gap-3 min-w-0 flex-1'>
                   <button
                     onClick={() => toggleRow(inv.id)}
-                    className='mt-0.5 text-slate-400 hover:text-emerald-400 transition-colors'
+                    className='mt-0.5 text-slate-400 hover:text-emerald-400 transition-colors shrink-0'
                   >
                     {isSelected ? (
                       <FiCheckSquare size={18} className='text-emerald-500' />
@@ -547,21 +558,24 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <FiSquare size={18} />
                     )}
                   </button>
-                  <div className='flex flex-col gap-1.5 relative'>
-                    <div>
+                  <div className='flex flex-col gap-1.5 relative min-w-0 flex-1'>
+                    <div className='min-w-0'>
                       <h3
                         className='font-bold text-slate-50 truncate text-sm'
                         title={inv.name}
                       >
                         {inv.name}
                       </h3>
-                      <div className='flex items-center gap-2 mt-1'>
+                      <div className='flex items-center flex-wrap gap-2 mt-1'>
                         <TypeChip
                           type={inv.type}
                           assetType={(inv as any).assetType}
                         />
                         <span className='text-[10px] text-slate-500 font-bold uppercase tracking-wide'>
                           {formatPlatformName(inv.platform)}
+                          {qty !== null && qty !== undefined
+                            ? ` • QTY: ${Number(qty).toLocaleString('en-IN', { maximumFractionDigits: 4 })}`
+                            : ''}
                         </span>
                       </div>
                     </div>
@@ -593,7 +607,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     )}
                   </div>
                 </div>
-                <div className='flex gap-1.5'>
+                <div className='flex gap-1.5 shrink-0'>
                   <button
                     onClick={() => setEdit(inv)}
                     className='p-2 text-slate-400 bg-slate-800 rounded-lg transition-colors hover:text-white'
@@ -658,6 +672,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='px-4 py-4 w-64'>Asset Name</th>
                 <th className='px-4 py-4'>Broker</th>
                 <th className='px-4 py-4'>Classification</th>
+                <th className='px-4 py-4 text-right'>Qty</th>
                 <th className='px-6 py-4 text-right'>Invested</th>
                 <th className='px-6 py-4 text-right'>Current Val</th>
                 <th className='px-6 py-4 text-right'>P/L (%)</th>
@@ -665,131 +680,140 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-800/60'>
-              {rows.map(({ inv, invested, current, pl, plPct, marketCap }) => {
-                const isSelected = selectedIds.includes(inv.id);
-                return (
-                  <tr
-                    key={inv.id}
-                    className={`transition-colors group ${isSelected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/40'}`}
-                  >
-                    <td className='px-4 py-4 text-center'>
-                      <button
-                        onClick={() => toggleRow(inv.id)}
-                        className='text-slate-400 hover:text-emerald-400 transition-colors pt-1'
-                      >
-                        {isSelected ? (
-                          <FiCheckSquare
-                            size={16}
-                            className='text-emerald-500'
-                          />
-                        ) : (
-                          <FiSquare size={16} />
-                        )}
-                      </button>
-                    </td>
-                    <td className='px-4 py-4'>
-                      <div className='flex flex-col gap-1.5'>
-                        <div
-                          className='font-bold text-slate-100 truncate max-w-[220px]'
-                          title={inv.name}
-                        >
-                          {inv.name}
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <TypeChip
-                            type={inv.type}
-                            assetType={(inv as any).assetType}
-                          />
-                          {inv.symbol && (
-                            <span className='text-[10px] font-bold text-slate-500'>
-                              {inv.symbol}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className='px-4 py-4'>
-                      <span className='inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-widest border border-slate-700/50'>
-                        {formatPlatformName(inv.platform)}
-                      </span>
-                    </td>
-                    <td className='px-4 py-4 relative group/class'>
-                      {inv.type === 'stock' ? (
-                        <div
-                          className='flex flex-wrap gap-1.5 cursor-pointer min-h-[24px] items-center'
-                          onClick={() =>
-                            setInlineEditId(
-                              inlineEditId === inv.id ? null : inv.id,
-                            )
-                          }
-                        >
-                          <SectorChip sector={inv.sector} />
-                          <MarketCapChip cap={marketCap} />
-
-                          {!inv.sector && !marketCap && (
-                            <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover/class:border-emerald-500/50 group-hover/class:text-emerald-400 transition-colors'>
-                              <FiTag size={10} /> Add
-                            </span>
-                          )}
-                          {(inv.sector || marketCap) && (
-                            <FiEdit2
-                              size={12}
-                              className='text-slate-500 opacity-0 group-hover/class:opacity-100 transition-opacity ml-1'
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <span className='text-xs text-slate-600 font-medium'>
-                          —
-                        </span>
-                      )}
-
-                      {inlineEditId === inv.id && (
-                        <ClassificationPopover
-                          inv={inv}
-                          currentCap={marketCap}
-                          onClose={() => setInlineEditId(null)}
-                          onSave={handleSaveClassification}
-                        />
-                      )}
-                    </td>
-                    <td className='px-6 py-4 text-right text-slate-300 font-medium tabular-nums'>
-                      {formatINR(invested)}
-                    </td>
-                    <td className='px-6 py-4 text-right font-bold text-white tabular-nums'>
-                      {formatINR(current)}
-                    </td>
-                    <td
-                      className={`px-6 py-4 text-right tabular-nums ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+              {rows.map(
+                ({ inv, invested, current, pl, plPct, marketCap, qty }) => {
+                  const isSelected = selectedIds.includes(inv.id);
+                  return (
+                    <tr
+                      key={inv.id}
+                      className={`transition-colors group ${isSelected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/40'}`}
                     >
-                      <div className='font-bold'>
-                        {pl >= 0 ? '+' : ''}
-                        {formatINR(pl)}
-                      </div>
-                      <div className='text-[10px] font-semibold opacity-80 mt-0.5'>
-                        {pl >= 0 ? '+' : ''}
-                        {plPct.toFixed(2)}%
-                      </div>
-                    </td>
-                    <td className='px-4 py-4'>
-                      <div className='flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+                      <td className='px-4 py-4 text-center'>
                         <button
-                          onClick={() => setEdit(inv)}
-                          className='p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors'
+                          onClick={() => toggleRow(inv.id)}
+                          className='text-slate-400 hover:text-emerald-400 transition-colors pt-1'
                         >
-                          <FiEdit2 size={14} />
+                          {isSelected ? (
+                            <FiCheckSquare
+                              size={16}
+                              className='text-emerald-500'
+                            />
+                          ) : (
+                            <FiSquare size={16} />
+                          )}
                         </button>
-                        <button
-                          onClick={() => setDeleteId(inv.id)}
-                          className='p-2 hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-400 transition-colors'
-                        >
-                          <FiTrash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className='px-4 py-4'>
+                        <div className='flex flex-col gap-1.5'>
+                          <div
+                            className='font-bold text-slate-100 truncate max-w-[220px]'
+                            title={inv.name}
+                          >
+                            {inv.name}
+                          </div>
+                          <div className='flex items-center gap-2'>
+                            <TypeChip
+                              type={inv.type}
+                              assetType={(inv as any).assetType}
+                            />
+                            {inv.symbol && (
+                              <span className='text-[10px] font-bold text-slate-500'>
+                                {inv.symbol}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className='px-4 py-4'>
+                        <span className='inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-widest border border-slate-700/50'>
+                          {formatPlatformName(inv.platform)}
+                        </span>
+                      </td>
+                      <td className='px-4 py-4 relative group/class'>
+                        {inv.type === 'stock' ? (
+                          <div
+                            className='flex flex-wrap gap-1.5 cursor-pointer min-h-[24px] items-center'
+                            onClick={() =>
+                              setInlineEditId(
+                                inlineEditId === inv.id ? null : inv.id,
+                              )
+                            }
+                          >
+                            <SectorChip sector={inv.sector} />
+                            <MarketCapChip cap={marketCap} />
+
+                            {!inv.sector && !marketCap && (
+                              <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover/class:border-emerald-500/50 group-hover/class:text-emerald-400 transition-colors'>
+                                <FiTag size={10} /> Add
+                              </span>
+                            )}
+                            {(inv.sector || marketCap) && (
+                              <FiEdit2
+                                size={12}
+                                className='text-slate-500 opacity-0 group-hover/class:opacity-100 transition-opacity ml-1'
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <span className='text-xs text-slate-600 font-medium'>
+                            —
+                          </span>
+                        )}
+
+                        {inlineEditId === inv.id && (
+                          <ClassificationPopover
+                            inv={inv}
+                            currentCap={marketCap}
+                            onClose={() => setInlineEditId(null)}
+                            onSave={handleSaveClassification}
+                          />
+                        )}
+                      </td>
+                      <td className='px-4 py-4 text-right text-slate-300 font-medium tabular-nums'>
+                        {qty !== null && qty !== undefined
+                          ? Number(qty).toLocaleString('en-IN', {
+                              maximumFractionDigits: 4,
+                            })
+                          : '—'}
+                      </td>
+                      <td className='px-6 py-4 text-right text-slate-300 font-medium tabular-nums'>
+                        {formatINR(invested)}
+                      </td>
+                      <td className='px-6 py-4 text-right font-bold text-white tabular-nums'>
+                        {formatINR(current)}
+                      </td>
+                      <td
+                        className={`px-6 py-4 text-right tabular-nums ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                      >
+                        <div className='font-bold'>
+                          {pl >= 0 ? '+' : ''}
+                          {formatINR(pl)}
+                        </div>
+                        <div className='text-[10px] font-semibold opacity-80 mt-0.5'>
+                          {pl >= 0 ? '+' : ''}
+                          {plPct.toFixed(2)}%
+                        </div>
+                      </td>
+                      <td className='px-4 py-4'>
+                        <div className='flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <button
+                            onClick={() => setEdit(inv)}
+                            className='p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors'
+                          >
+                            <FiEdit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(inv.id)}
+                            className='p-2 hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-400 transition-colors'
+                          >
+                            <FiTrash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                },
+              )}
             </tbody>
           </table>
         </div>
