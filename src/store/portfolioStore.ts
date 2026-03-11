@@ -18,6 +18,7 @@ import {
   query,
   setDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { create } from 'zustand';
@@ -420,18 +421,49 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   },
 
   clearAllData: async () => {
-    set({
-      uid: null,
-      investments: [],
-      snapshots: [],
-      liabilities: [],
-      cashflows: [],
-      goals: [],
-      networthSnapshots: [],
-      latestInsight: null,
-      notion: DEFAULT_NOTION,
-      essentials: DEFAULT_ESSENTIALS,
-    });
+    const uid = get().uid;
+    if (!uid) return;
+
+    const batch = writeBatch(db);
+    const collections = [
+      'investments',
+      'liabilities',
+      'cashflows',
+      'goals',
+      'snapshots',
+      'networthSnapshots',
+      'insights',
+    ];
+
+    try {
+      // 1. Delete all user-specific documents from cloud collections
+      for (const colName of collections) {
+        const q = query(collection(db, colName), where('userId', '==', uid));
+        const snap = await getDocs(q);
+        snap.docs.forEach((doc) => batch.delete(doc.ref));
+      }
+
+      // 2. Delete specific user settings doc
+      batch.delete(doc(db, 'settings', uid));
+
+      await batch.commit();
+
+      // 3. Reset local state
+      set({
+        investments: [],
+        snapshots: [],
+        liabilities: [],
+        cashflows: [],
+        goals: [],
+        networthSnapshots: [],
+        latestInsight: null,
+        notion: { enabled: false },
+        essentials: {},
+      });
+    } catch (error) {
+      console.error('Cloud wipe failed:', error);
+      throw error;
+    }
   },
 
   setNotionConfig: async (patch) => {

@@ -1,7 +1,3 @@
-// src/utils/backup.ts
-import { saveAs } from 'file-saver'
-import { collection, getDocs, writeBatch, doc, getDoc } from 'firebase/firestore'
-import { db } from '../services/firebase'
 import type {
   CashflowEntry,
   EssentialsConfig,
@@ -11,39 +7,69 @@ import type {
   NetWorthSnapshot,
   NotionConfig,
   PortfolioSnapshot,
-} from '../types/investmentTypes'
-import type { SettingsRecord } from '../store/portfolioStore'
+} from '../types/investmentTypes';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
+
+import type { SettingsRecord } from '../store/portfolioStore';
+import { db } from '../services/firebase';
+// src/utils/backup.ts
+import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1
-  createdAt: string
-  investments: Investment[]
-  liabilities: Liability[]
-  cashflows: CashflowEntry[]
-  goals: Goal[]
-  snapshots: PortfolioSnapshot[]
-  networthSnapshots: NetWorthSnapshot[]
-  notion: NotionConfig
-  essentials: EssentialsConfig
+  version: 1;
+  createdAt: string;
+  investments: Investment[];
+  liabilities: Liability[];
+  cashflows: CashflowEntry[];
+  goals: Goal[];
+  snapshots: PortfolioSnapshot[];
+  networthSnapshots: NetWorthSnapshot[];
+  notion: NotionConfig;
+  essentials: EssentialsConfig;
+};
+
+// Helper to fetch only data belonging to the current user
+async function fetchUserCollection<T>(
+  colName: string,
+  uid: string,
+): Promise<T[]> {
+  const q = query(collection(db, colName), where('userId', '==', uid));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as T);
 }
 
-async function fetchAll<T>(colName: string): Promise<T[]> {
-  const snap = await getDocs(collection(db, colName))
-  return snap.docs.map(d => d.data() as T)
-}
+export async function exportFullBackup(uid: string) {
+  if (!uid) throw new Error('You must be logged in to export data.');
 
-export async function exportFullBackup() {
-  const [investments, liabilities, cashflows, goals, snapshots, networthSnapshots] = await Promise.all([
-    fetchAll<Investment>('investments'),
-    fetchAll<Liability>('liabilities'),
-    fetchAll<CashflowEntry>('cashflows'),
-    fetchAll<Goal>('goals'),
-    fetchAll<PortfolioSnapshot>('snapshots'),
-    fetchAll<NetWorthSnapshot>('networthSnapshots'),
-  ])
+  const [
+    investments,
+    liabilities,
+    cashflows,
+    goals,
+    snapshots,
+    networthSnapshots,
+  ] = await Promise.all([
+    fetchUserCollection<Investment>('investments', uid),
+    fetchUserCollection<Liability>('liabilities', uid),
+    fetchUserCollection<CashflowEntry>('cashflows', uid),
+    fetchUserCollection<Goal>('goals', uid),
+    fetchUserCollection<PortfolioSnapshot>('snapshots', uid),
+    fetchUserCollection<NetWorthSnapshot>('networthSnapshots', uid),
+  ]);
 
-  const settingsDoc = await getDoc(doc(db, 'settings', 'settings'))
-  const settings = settingsDoc.exists() ? (settingsDoc.data() as SettingsRecord) : null
+  // Settings are stored with the UID as the document ID
+  const settingsDoc = await getDoc(doc(db, 'settings', uid));
+  const settings = settingsDoc.exists()
+    ? (settingsDoc.data() as SettingsRecord)
+    : null;
 
   const payload: BackupPayload = {
     version: 1,
@@ -56,39 +82,47 @@ export async function exportFullBackup() {
     networthSnapshots,
     notion: settings?.notion ?? { enabled: false },
     essentials: settings?.essentials ?? {},
-  }
+  };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: 'application/json;charset=utf-8',
-  })
-  saveAs(blob, 'personal-finance-backup.json')
+  });
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  saveAs(blob, `finance-backup-${dateStr}.json`);
 }
 
-export async function importFullBackup(jsonText: string) {
-  const parsed = JSON.parse(jsonText) as BackupPayload
-  if (!parsed || parsed.version !== 1) throw new Error('Unsupported backup format or version.')
+export async function importFullBackup(jsonText: string, uid: string) {
+  if (!uid) throw new Error('User context missing. Please log in again.');
 
-  const batch = writeBatch(db)
+  const parsed = JSON.parse(jsonText) as BackupPayload;
+  if (!parsed || parsed.version !== 1)
+    throw new Error('Unsupported backup format.');
 
-  // Function to add an array of items to the batch
+  const batch = writeBatch(db);
+
   const addToBatch = (colName: string, items: any[]) => {
-    items.forEach(item => {
-      batch.set(doc(db, colName, item.id), item)
-    })
-  }
+    if (!items) return;
+    items.forEach((item) => {
+      // Ensure the imported data is assigned to the current user
+      const dataWithUid = { ...item, userId: uid };
+      batch.set(doc(db, colName, item.id), dataWithUid);
+    });
+  };
 
-  addToBatch('investments', parsed.investments)
-  addToBatch('liabilities', parsed.liabilities)
-  addToBatch('cashflows', parsed.cashflows)
-  addToBatch('goals', parsed.goals)
-  addToBatch('snapshots', parsed.snapshots)
-  addToBatch('networthSnapshots', parsed.networthSnapshots)
+  addToBatch('investments', parsed.investments);
+  addToBatch('liabilities', parsed.liabilities);
+  addToBatch('cashflows', parsed.cashflows);
+  addToBatch('goals', parsed.goals);
+  addToBatch('snapshots', parsed.snapshots);
+  addToBatch('networthSnapshots', parsed.networthSnapshots);
 
-  batch.set(doc(db, 'settings', 'settings'), {
-    id: 'settings',
+  // Restore settings
+  batch.set(doc(db, 'settings', uid), {
+    id: uid,
     notion: parsed.notion ?? { enabled: false },
     essentials: parsed.essentials ?? {},
-  })
+  });
 
-  await batch.commit()
+  await batch.commit();
 }
