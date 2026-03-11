@@ -13,6 +13,7 @@ import {
   FiList,
   FiMonitor,
   FiPieChart,
+  FiRefreshCw,
   FiSearch,
   FiShield,
   FiSquare,
@@ -20,6 +21,7 @@ import {
   FiTrash2,
   FiTrendingUp,
   FiX,
+  FiZap,
 } from 'react-icons/fi';
 import { currentValue, investedValue } from '../../utils/calculations';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
+import { fetchLivePrices } from '../../services/livePriceService';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { formatINR } from '../../utils/format';
 import { todayISO } from '../../utils/dateUtils';
@@ -351,11 +354,205 @@ function MarketCapChip({ cap }: { cap?: string }) {
   );
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// ── Live Price Flash Cell ──────────────────────────────────────────────────
+function PriceCell({
+  inv,
+  flashState,
+}: {
+  inv: any;
+  flashState: 'up' | 'down' | 'none';
+}) {
+  // Show live price for all supported asset types
+  let price: number | null = null;
+  let label = '';
+
+  if (inv.type === 'stock') {
+    price = inv.currentPrice ?? null;
+    label = ''; // plain price
+  } else if (inv.type === 'mutual_fund') {
+    price = inv.nav ?? null;
+    label = 'NAV';
+  } else if (inv.type === 'other') {
+    const at = (inv.assetType || '').toLowerCase();
+    if (at === 'international_equity') {
+      price = inv.currentPrice ?? null;
+      label = 'USD';
+    } else if (at === 'gold') {
+      price = inv.currentPrice ?? null;
+      label = '/10g';
+    } else if (at === 'silver') {
+      price = inv.currentPrice ?? null;
+      label = '/kg';
+    }
+  }
+
+  if (price === null || price === undefined) {
+    return <span className='text-slate-600 text-xs font-medium'>—</span>;
+  }
+
+  const flashClass =
+    flashState === 'up'
+      ? 'animate-pulse text-emerald-300 bg-emerald-500/20 rounded px-1'
+      : flashState === 'down'
+        ? 'animate-pulse text-rose-300 bg-rose-500/20 rounded px-1'
+        : '';
+
+  // US stocks show $ symbol
+  const at = (inv.assetType || '').toLowerCase();
+  const isUS = inv.type === 'other' && at === 'international_equity';
+
+  return (
+    <span
+      className={`tabular-nums font-semibold transition-all duration-500 text-xs ${flashClass}`}
+    >
+      {isUS ? '$' : '₹'}
+      {Number(price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+      {label && (
+        <span className='text-[9px] text-slate-400 ml-0.5'>{label}</span>
+      )}
+    </span>
+  );
+}
+
+// ── Helper: build the symbol string for each investment type ───────────────
+function getLivePriceSymbol(inv: any): string | null {
+  const type = inv.type;
+  const assetType = (inv.assetType || '').toLowerCase();
+
+  if (type === 'stock') {
+    // NSE stock — symbol field e.g. "WIPRO"
+    return inv.symbol ? inv.symbol.toUpperCase() : null;
+  }
+
+  if (type === 'mutual_fund') {
+    // MF:schemeCode e.g. "MF:119551"  OR  MF:Fund Name
+    if (inv.schemeCode) return `MF:${inv.schemeCode}`;
+    if (inv.symbol) return `MF:${inv.symbol}`;
+    if (inv.amfiCode) return `MF:${inv.amfiCode}`;
+    return null;
+  }
+
+  if (type === 'other') {
+    if (assetType === 'gold') return 'GOLD';
+    if (assetType === 'silver') return 'SILVER';
+    if (assetType === 'international_equity') {
+      // US stock — symbol field e.g. "AAPL"
+      return inv.symbol ? `US:${inv.symbol.toUpperCase()}` : null;
+    }
+  }
+
+  return null;
+}
 
 export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
   const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
+
+  // ── Live Price State ───────────────────────────────────────────────────
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [flashMap, setFlashMap] = useState<
+    Record<string, 'up' | 'down' | 'none'>
+  >({});
+
+  const handleRefreshLivePrices = async () => {
+    // Collect all assets that have a live price symbol
+    const liveAssets = investments
+      .map((inv) => ({ inv, sym: getLivePriceSymbol(inv) }))
+      .filter(({ sym }) => sym !== null) as { inv: any; sym: string }[];
+
+    if (liveAssets.length === 0) {
+      setRefreshError(
+        'No assets with live price support found. Add NSE symbol / MF scheme code / US ticker to your assets.',
+      );
+      setTimeout(() => setRefreshError(null), 5000);
+      return;
+    }
+
+    setRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      // Deduplicate symbols
+      const symbols = [...new Set(liveAssets.map((a) => a.sym))];
+      const result = await fetchLivePrices(symbols);
+
+      const newFlash: Record<string, 'up' | 'down' | 'none'> = {};
+      const updates: Promise<void>[] = [];
+
+      for (const { inv, sym } of liveAssets) {
+        const fetched = result.prices[sym.toUpperCase()];
+        if (!fetched || fetched.price === null) continue;
+
+        const newPrice = fetched.price;
+        const type = inv.type;
+        const assetType = (inv.assetType || '').toLowerCase();
+
+        // Determine old price and which field to update
+        let oldPrice = 0;
+        let patch: Record<string, any> = {};
+
+        if (type === 'stock') {
+          oldPrice = inv.currentPrice ?? 0;
+          patch = { currentPrice: newPrice };
+        } else if (type === 'mutual_fund') {
+          oldPrice = inv.nav ?? 0;
+          patch = { nav: newPrice };
+        } else if (type === 'other') {
+          if (assetType === 'gold' || assetType === 'silver') {
+            oldPrice = inv.currentPrice ?? 0;
+            patch = { currentPrice: newPrice };
+          } else if (assetType === 'international_equity') {
+            oldPrice = inv.currentPrice ?? 0;
+            patch = { currentPrice: newPrice };
+          }
+        }
+
+        if (
+          Object.keys(patch).length > 0 &&
+          Math.abs(newPrice - oldPrice) > 0.001
+        ) {
+          newFlash[inv.id] = newPrice > oldPrice ? 'up' : 'down';
+          updates.push(updateInvestment(inv.id, patch));
+        }
+      }
+
+      await Promise.allSettled(updates);
+
+      setFlashMap(newFlash);
+      setLastUpdated(
+        new Date().toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      );
+
+      // Clear flash after 2 seconds
+      setTimeout(() => setFlashMap({}), 2000);
+
+      const updatedCount = Object.keys(newFlash).length;
+      const failedSymbols = symbols.filter(
+        (s) =>
+          !result.prices[s.toUpperCase()] ||
+          result.prices[s.toUpperCase()].price === null,
+      );
+
+      if (failedSymbols.length > 0 && updatedCount === 0) {
+        setRefreshError(`Could not fetch: ${failedSymbols.join(', ')}`);
+        setTimeout(() => setRefreshError(null), 5000);
+      } else if (updatedCount > 0) {
+        // Success — show count
+        console.log(`[LivePrice] Updated ${updatedCount} assets`);
+      }
+    } catch (e: any) {
+      setRefreshError('Failed to fetch live prices. Please try again.');
+      setTimeout(() => setRefreshError(null), 4000);
+      console.error('[InvestmentsTable] refreshLivePrices failed:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const [extendedData, setExtendedData] = useState<
     Record<string, { cap?: string }>
@@ -391,7 +588,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const rows = useMemo(
     () =>
       investments.map((inv) => {
-        // Extract Quantity safely depending on asset type
         const qty =
           inv.type === 'stock'
             ? inv.quantity
@@ -514,16 +710,83 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   return (
     <div className='space-y-3 relative'>
-      {/* ── Dynamic Asset Count Header ── */}
-      <div className='flex items-center gap-2 mb-2 px-1'>
-        <FiList className='h-4 w-4 text-emerald-500' />
-        <h2 className='text-xs font-bold uppercase tracking-widest text-slate-400'>
-          Showing <span className='text-white'>{rows.length}</span> Asset
-          {rows.length !== 1 ? 's' : ''}
-        </h2>
+      {/* ── Header ── */}
+      <div className='flex items-center justify-between mb-2 px-1 flex-wrap gap-3'>
+        <div className='flex items-center gap-2'>
+          <FiList className='h-4 w-4 text-emerald-500' />
+          <h2 className='text-xs font-bold uppercase tracking-widest text-slate-400'>
+            Showing <span className='text-white'>{rows.length}</span> Asset
+            {rows.length !== 1 ? 's' : ''}
+          </h2>
+        </div>
+
+        {/* ── Refresh Live Price Button ── */}
+        <div className='flex items-center gap-3 flex-wrap'>
+          {lastUpdated && !refreshError && (
+            <span className='text-[10px] font-semibold text-slate-500 hidden sm:block'>
+              Updated {lastUpdated}
+            </span>
+          )}
+          {refreshError && (
+            <span className='text-[10px] font-semibold text-rose-400 max-w-[220px] text-right leading-tight'>
+              {refreshError}
+            </span>
+          )}
+          <button
+            onClick={handleRefreshLivePrices}
+            disabled={refreshing}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all border shadow-lg
+              ${
+                refreshing
+                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:shadow-emerald-500/20 active:scale-95'
+              }`}
+            title='Fetch latest prices for Stocks, MF NAV, Gold, Silver, US Stocks'
+          >
+            {refreshing ? (
+              <FiRefreshCw size={13} className='animate-spin' />
+            ) : (
+              <FiZap size={13} />
+            )}
+            <span>{refreshing ? 'Fetching...' : 'Refresh Live Price'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* MOBILE VIEW: Card List */}
+      {/* ── Legend: what gets refreshed ── */}
+      <div className='flex flex-wrap gap-2 px-1 mb-1'>
+        {[
+          {
+            label: 'NSE Stocks',
+            color: 'text-emerald-400',
+            dot: 'bg-emerald-500',
+          },
+          {
+            label: 'Mutual Funds',
+            color: 'text-indigo-400',
+            dot: 'bg-indigo-500',
+          },
+          {
+            label: 'Gold/Silver',
+            color: 'text-yellow-400',
+            dot: 'bg-yellow-500',
+          },
+          { label: 'US Stocks', color: 'text-blue-400', dot: 'bg-blue-500' },
+        ].map((item) => (
+          <span
+            key={item.label}
+            className={`flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider ${item.color}`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${item.dot}`} />
+            {item.label}
+          </span>
+        ))}
+        <span className='text-[9px] text-slate-600 font-medium'>
+          auto-updated on refresh
+        </span>
+      </div>
+
+      {/* MOBILE VIEW */}
       <div className='flex flex-col gap-3 md:hidden'>
         <div className='flex items-center gap-3 px-2 py-1'>
           <button
@@ -633,6 +896,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   <p className='text-base font-bold text-white mt-0.5'>
                     {formatINR(current)}
                   </p>
+                  <PriceCell
+                    inv={inv}
+                    flashState={flashMap[inv.id] ?? 'none'}
+                  />
                 </div>
                 <div className='text-right'>
                   <p className='text-[10px] text-slate-500 font-bold uppercase tracking-wider'>
@@ -651,7 +918,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         })}
       </div>
 
-      {/* DESKTOP VIEW: Table */}
+      {/* DESKTOP VIEW */}
       <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
         <div className='overflow-x-auto pb-2'>
           <table className='w-full text-left text-sm'>
@@ -675,6 +942,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='px-4 py-4 text-right'>Qty</th>
                 <th className='px-6 py-4 text-right'>Invested</th>
                 <th className='px-6 py-4 text-right'>Current Val</th>
+                <th className='px-6 py-4 text-right'>Live Price</th>
                 <th className='px-6 py-4 text-right'>P/L (%)</th>
                 <th className='px-4 py-4 text-center'>Actions</th>
               </tr>
@@ -741,7 +1009,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           >
                             <SectorChip sector={inv.sector} />
                             <MarketCapChip cap={marketCap} />
-
                             {!inv.sector && !marketCap && (
                               <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover/class:border-emerald-500/50 group-hover/class:text-emerald-400 transition-colors'>
                                 <FiTag size={10} /> Add
@@ -759,7 +1026,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             —
                           </span>
                         )}
-
                         {inlineEditId === inv.id && (
                           <ClassificationPopover
                             inv={inv}
@@ -781,6 +1047,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       </td>
                       <td className='px-6 py-4 text-right font-bold text-white tabular-nums'>
                         {formatINR(current)}
+                      </td>
+                      <td className='px-6 py-4 text-right tabular-nums'>
+                        <PriceCell
+                          inv={inv}
+                          flashState={flashMap[inv.id] ?? 'none'}
+                        />
                       </td>
                       <td
                         className={`px-6 py-4 text-right tabular-nums ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
@@ -849,14 +1121,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           <button
             onClick={() => setSelectedIds([])}
             className='p-1 text-slate-400 hover:text-white transition-colors'
-            title='Clear selection'
           >
             <FiX size={18} />
           </button>
         </div>
       )}
 
-      {/* INDIVIDUAL EDIT MODAL */}
+      {/* MODALS */}
       {edit && (
         <UpsertInvestmentModal
           open={!!edit}
@@ -866,7 +1137,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         />
       )}
 
-      {/* INDIVIDUAL DELETE CONFIRMATION MODAL */}
       <Modal
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
@@ -894,7 +1164,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         </div>
       </Modal>
 
-      {/* BULK DELETE CONFIRMATION MODAL */}
       <Modal
         open={bulkDeleteOpen}
         onClose={() => setBulkDeleteOpen(false)}
@@ -927,7 +1196,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         </div>
       </Modal>
 
-      {/* BULK EDIT CATEGORY MODAL */}
       <Modal
         open={bulkEditOpen}
         onClose={() => setBulkEditOpen(false)}
