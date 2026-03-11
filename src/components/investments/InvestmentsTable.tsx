@@ -571,7 +571,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           type={inv.type}
                           assetType={(inv as any).assetType}
                         />
-                        <span className='text-[10px] text-slate-500 font-bold uppercase tracking-wide'>
+                        <span className='text-[10px] text-slate-500 font-bold uppercase tracking-wide whitespace-nowrap'>
                           {formatPlatformName(inv.platform)}
                           {qty !== null && qty !== undefined
                             ? ` • QTY: ${Number(qty).toLocaleString('en-IN', { maximumFractionDigits: 4 })}`
@@ -670,7 +670,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
                 <th className='px-4 py-4 w-64'>Asset Name</th>
-                <th className='px-4 py-4'>Broker</th>
+                <th className='px-4 py-4 whitespace-nowrap'>Broker</th>
                 <th className='px-4 py-4'>Classification</th>
                 <th className='px-4 py-4 text-right'>Qty</th>
                 <th className='px-6 py-4 text-right'>Invested</th>
@@ -725,7 +725,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         </div>
                       </td>
                       <td className='px-4 py-4'>
-                        <span className='inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-widest border border-slate-700/50'>
+                        <span className='inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-widest border border-slate-700/50 whitespace-nowrap'>
                           {formatPlatformName(inv.platform)}
                         </span>
                       </td>
