@@ -1,3 +1,5 @@
+// src/components/goals/UpsertGoalModal.tsx (or your respective path)
+
 import {
   FiCalendar,
   FiChevronDown,
@@ -27,7 +29,7 @@ import { Modal } from '../ui/Modal';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-// ── Calendar Picker ────────────────────────────────────────────────────────
+// ── Smart Calendar Picker ──────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -60,22 +62,34 @@ function CalendarPicker({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 280;
-    const panelH = 320;
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top =
-      spaceBelow > panelH
-        ? r.bottom + 8 + window.scrollY
-        : r.top - panelH - 8 + window.scrollY;
+
+    // Dynamically grab actual rendered height, or fallback to ~340px
+    const panelH = panelRef.current ? panelRef.current.offsetHeight : 340;
+
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 16,
     );
+
+    // Smart Upward/Downward Positioning logic
+    const spaceBelow = window.innerHeight - r.bottom;
+    let top = r.bottom + 8 + window.scrollY;
+
+    // Flip upwards if there's no space below but enough space above!
+    if (spaceBelow < panelH && r.top > spaceBelow) {
+      top = r.top - panelH - 8 + window.scrollY;
+    }
+
     setPos({ top, left: Math.max(8, clampedLeft) });
   }, []);
 
+  // Update position slightly after opening to capture true DOM height
   useEffect(() => {
-    if (open) updatePos();
+    if (open) {
+      updatePos();
+      setTimeout(updatePos, 10);
+    }
   }, [open, updatePos]);
 
   useEffect(() => {
@@ -141,11 +155,11 @@ function CalendarPicker({
               position: 'absolute',
               top: pos.top,
               left: pos.left,
-              zIndex: 9999,
+              zIndex: 99999, // Super high z-index to stay above modals
               width: 280,
               animation: 'none',
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200'
           >
             {/* Month nav */}
             <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
@@ -378,7 +392,7 @@ export function UpsertGoalModal(props: Props) {
           >
             {saving ? (
               <>
-                <FiSave className='h-4 w-4' />
+                <FiSave className='h-4 w-4 animate-pulse' />
                 <span>Saving…</span>
               </>
             ) : props.mode === 'create' ? (

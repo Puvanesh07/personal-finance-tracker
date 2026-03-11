@@ -192,16 +192,26 @@ function RichAssetDropdown({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 340;
+
+    // Use actual height if rendered, else default max-height
+    const panelH = panelRef.current ? panelRef.current.offsetHeight : 400;
+
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 16,
     );
-    setPos({
-      top: r.bottom + 8 + window.scrollY,
-      left: Math.max(8, clampedLeft),
-      width: panelW,
-    });
+
+    // Smart Upward Positioning logic
+    const spaceBelow = window.innerHeight - r.bottom;
+    let top = r.bottom + 8 + window.scrollY;
+
+    // If space below is not enough, and there's more space above, open upwards
+    if (spaceBelow < panelH && r.top > spaceBelow) {
+      top = r.top - panelH - 8 + window.scrollY;
+    }
+
+    setPos({ top, left: Math.max(8, clampedLeft), width: panelW });
   }, []);
 
   useEffect(() => {
@@ -268,10 +278,9 @@ function RichAssetDropdown({
               top: pos.top,
               left: pos.left,
               width: pos.width,
-              zIndex: 9999,
-              animation: 'none',
+              zIndex: 99999,
             }}
-            className='overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl'
+            className='overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200'
           >
             <div className='max-h-[400px] overflow-y-auto custom-scrollbar p-2'>
               {ASSET_CATEGORIES.map((group, gIdx) => (
@@ -334,7 +343,7 @@ function RichAssetDropdown({
   );
 }
 
-// ── Calendar Picker ────────────────────────────────────────────────────────
+// ── Smart Calendar Picker ────────────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -363,19 +372,34 @@ function CalendarPicker({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 280;
+
+    // The calendar height is roughly 340px
+    const panelH = panelRef.current ? panelRef.current.offsetHeight : 340;
+
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 16,
     );
-    setPos({
-      top: r.bottom + 8 + window.scrollY,
-      left: Math.max(8, clampedLeft),
-    });
+
+    // Smart Upward/Downward Positioning logic
+    const spaceBelow = window.innerHeight - r.bottom;
+    let top = r.bottom + 8 + window.scrollY;
+
+    // Flip upwards if there's no space below but enough space above!
+    if (spaceBelow < panelH && r.top > spaceBelow) {
+      top = r.top - panelH - 8 + window.scrollY;
+    }
+
+    setPos({ top, left: Math.max(8, clampedLeft) });
   }, []);
 
+  // Update position slightly after opening to capture true DOM height
   useEffect(() => {
-    if (open) updatePos();
+    if (open) {
+      updatePos();
+      setTimeout(updatePos, 10);
+    }
   }, [open, updatePos]);
 
   useEffect(() => {
@@ -437,11 +461,10 @@ function CalendarPicker({
               position: 'absolute',
               top: pos.top,
               left: pos.left,
-              zIndex: 9999,
+              zIndex: 99999,
               width: 280,
-              animation: 'none',
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200'
           >
             <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
               <button
@@ -593,14 +616,12 @@ export function UpsertInvestmentModal(props: Props) {
       base.platform = String(inv.platform ?? 'manual');
       base.sector = inv.type === 'stock' ? (inv.sector ?? '') : '';
 
-      // Reverse map backend type to UI Category
       if (inv.type === 'stock') base.uiCategory = 'stock';
       if (inv.type === 'mutual_fund') base.uiCategory = 'mutual_fund';
       if (inv.type === 'fixed_deposit') base.uiCategory = 'fixed_deposit';
       if (inv.type === 'bond') base.uiCategory = 'bond';
-      if (inv.type === 'other') {
+      if (inv.type === 'other')
         base.uiCategory = (inv.assetType as ExtendedAssetCategory) || 'other';
-      }
 
       if (inv.type === 'stock') {
         base.quantity = String(inv.quantity);
@@ -733,7 +754,6 @@ export function UpsertInvestmentModal(props: Props) {
       props.mode === 'create'
         ? await addInvestment(payload)
         : await updateInvestment(props.investment.id, payload);
-
       props.onClose();
     } finally {
       setSaving(false);
@@ -752,7 +772,6 @@ export function UpsertInvestmentModal(props: Props) {
       title={props.mode === 'create' ? 'Add New Asset' : 'Edit Asset Details'}
     >
       <div className='grid grid-cols-1 gap-6'>
-        {/* Rich Investment Type Dropdown - NOW VISIBLE IN EDIT MODE */}
         <div>
           <label className={labelCls}>Asset Category</label>
           <RichAssetDropdown
@@ -766,10 +785,7 @@ export function UpsertInvestmentModal(props: Props) {
             }}
           />
         </div>
-
-        {/* Dynamic Fields Container */}
         <div className='rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-5'>
-          {/* Name + Platform */}
           <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
             <div>
               <label className={labelCls}>Asset Name</label>
@@ -798,8 +814,6 @@ export function UpsertInvestmentModal(props: Props) {
               />
             </div>
           </div>
-
-          {/* Symbol */}
           {(state.type === 'stock' || state.type === 'mutual_fund') && (
             <div>
               <label className={labelCls}>Symbol / Ticker</label>
@@ -816,8 +830,6 @@ export function UpsertInvestmentModal(props: Props) {
               />
             </div>
           )}
-
-          {/* Sector + Auto-detect */}
           {state.type === 'stock' && (
             <div>
               <div className='mb-1.5 flex items-center justify-between ml-1'>
@@ -851,8 +863,6 @@ export function UpsertInvestmentModal(props: Props) {
               )}
             </div>
           )}
-
-          {/* Stock Quantities */}
           {state.type === 'stock' && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
@@ -890,8 +900,6 @@ export function UpsertInvestmentModal(props: Props) {
               </div>
             </div>
           )}
-
-          {/* Mutual Fund */}
           {state.type === 'mutual_fund' && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
@@ -929,8 +937,6 @@ export function UpsertInvestmentModal(props: Props) {
               </div>
             </div>
           )}
-
-          {/* Bond / FD */}
           {(state.type === 'bond' || state.type === 'fixed_deposit') && (
             <>
               {state.type === 'fixed_deposit' && (
@@ -1007,8 +1013,6 @@ export function UpsertInvestmentModal(props: Props) {
               </div>
             </>
           )}
-
-          {/* Other / Alternatives (Gold, Real Estate, PPF, NPS) */}
           {state.type === 'other' && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
               <div>
@@ -1036,8 +1040,6 @@ export function UpsertInvestmentModal(props: Props) {
             </div>
           )}
         </div>
-
-        {/* Footer */}
         <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
           <button
             type='button'
