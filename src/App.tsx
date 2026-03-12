@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AccountsPage } from './pages/Accounts/AccountsPage';
@@ -9,24 +11,19 @@ import { GoalsPage } from './pages/Goals/GoalsPage';
 import InsightsPage from './pages/Insights/InsightsPage';
 import { InvestmentsPage } from './pages/Investments/InvestmentsPage';
 import { LiabilitiesPage } from './pages/Liabilities/LiabilitiesPage';
-import { Loader } from './components/loader/Loader';
 import { ReportsPage } from './pages/Reports/ReportsPage';
 import { SettingsPage } from './pages/Settings/SettingsPage';
 import { SnapshotsPage } from './pages/Snapshots/SnapshotsPage';
-import { Toaster } from 'react-hot-toast'; // <-- Add this import
+import { Toaster } from 'react-hot-toast';
 import { ToolsPage } from './Tools/ToolsPage';
-import { usePortfolioStore } from './store/portfolioStore';
+
+// ✅ Removed: const ready = usePortfolioStore(s => s.ready)
+// ✅ Removed: if (!ready) return <Loader />
+// Loading is now handled entirely inside AuthWrapper — no double-loader race condition
 
 export default function App() {
-  const ready = usePortfolioStore((s) => s.ready);
-
-  if (!ready) {
-    return <Loader />;
-  }
-
   return (
     <>
-      {/* Add the Toaster here */}
       <Toaster position='bottom-right' />
 
       <Routes>

@@ -23,7 +23,6 @@ import { GiWheat } from 'react-icons/gi';
 import { Modal } from '../ui/Modal';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
-import { useAutoLogout } from '../../hooks/useAutoLogout';
 
 function desktopLinkClass(isActive: boolean) {
   const base =
@@ -38,12 +37,10 @@ export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
-  // ✅ Auto logout after 10 minutes of inactivity
-  useAutoLogout();
-
   const confirmLogout = async () => {
     await signOut(auth);
     setLogoutOpen(false);
+    window.location.href = '/';
   };
 
   useEffect(() => {

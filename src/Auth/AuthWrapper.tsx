@@ -1,54 +1,57 @@
-// src/components/auth/AuthWrapper.tsx
+// src/Auth/AuthWrapper.tsx
 
 import { useEffect, useState } from 'react';
 
-import AuthPage from '../../src/Auth/AuthPage';
-import { Loader } from '../../src/components/loader/Loader';
-import { auth } from '../../src/services/firebase';
+import AuthPage from './AuthPage';
+import { Loader } from '../components/loader/Loader';
+import { auth } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { useAgriStore } from '../../src/store/agricultureStore';
-import { usePortfolioStore } from '../../src/store/portfolioStore';
+import { useAgriStore } from '../store/agricultureStore';
+import { useAutoLogout } from '../hooks/useAutoLogout';
+import { usePortfolioStore } from '../store/portfolioStore';
 
 export default function AuthWrapper({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // These functions connect to your updated store below
   const hydrate = usePortfolioStore((s) => s.hydrate);
   const clearAllData = usePortfolioStore((s) => s.clearAllData);
   const hydrateAgri = useAgriStore((s) => s.hydrate);
   const clearAgri = useAgriStore((s) => s.clearAll);
 
+  // ✅ Mounted here — above the router — so it NEVER resets on route changes
+  useAutoLogout();
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // Pass the user ID to the database!
-        await hydrate(currentUser.uid);
-        await hydrateAgri(currentUser.uid);
+    // onAuthStateChanged fires once on load with the persisted session
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setIsLoggedIn(true);
+        // Hydrate store — ready flag is set inside hydrate()
+        await hydrate(user.uid);
+        await hydrateAgri(user.uid);
       } else {
+        setIsLoggedIn(false);
         clearAllData();
         clearAgri();
       }
-      setLoading(false);
+      // Always mark auth as checked so we stop showing the loader
+      setAuthChecked(true);
     });
 
     return () => unsubscribe();
-  }, [hydrate, clearAllData]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) {
-    return <Loader />;
-  }
+  // Still waiting for Firebase to confirm auth state
+  if (!authChecked) return <Loader />;
 
-  // If not logged in, show the Google Sign In page
-  if (!user) {
-    return <AuthPage />;
-  }
+  // Firebase confirmed: not logged in
+  if (!isLoggedIn) return <AuthPage />;
 
-  // If logged in, show the actual Finance Tracker app
+  // Firebase confirmed: logged in, data hydrated
   return <>{children}</>;
 }
