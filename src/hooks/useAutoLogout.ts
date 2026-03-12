@@ -65,9 +65,8 @@ export function useAutoLogout() {
       scheduleLogout();
     };
 
-    if (!localStorage.getItem(LAST_ACTIVE_KEY)) {
-      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
-    }
+    // Always reset on mount/refresh — a page load counts as activity
+    localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
 
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     events.forEach((e) =>
