@@ -3,8 +3,9 @@
 import type {
   AgriExpenseCategory,
   CoconutRecord,
+  CoconutSellMethod,
   CropCycle,
-  Livestock,
+  LivestockEventType,
   LivestockType,
   Season,
 } from '../../types/investmentTypes';
@@ -23,11 +24,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { FiCheck, FiChevronDown } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -95,7 +98,140 @@ const inputCls =
   'w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
 const labelCls =
   'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1';
-const selectCls = inputCls;
+// ─── AgriDropdown — custom styled dropdown matching app UI ───────────────────
+
+type DropdownOption = { value: string; label: string; emoji?: string };
+
+function AgriDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select…',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: DropdownOption[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+
+  const selected = options.find((o) => o.value === value);
+
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    const panelW = Math.max(r.width, 180);
+    const rawLeft = r.left + window.scrollX;
+    const clamped = Math.min(
+      rawLeft,
+      window.innerWidth + window.scrollX - panelW - 8,
+    );
+    // flip above if not enough space below
+    const spaceBelow = window.innerHeight - r.bottom;
+    const maxPanelH = Math.min(options.length * 44 + 16, 260);
+    const top =
+      spaceBelow > maxPanelH
+        ? r.bottom + 6 + window.scrollY
+        : r.top - maxPanelH - 6 + window.scrollY;
+    setPos({ top, left: Math.max(8, clamped), width: panelW });
+  }, [options.length]);
+
+  useEffect(() => {
+    if (open) updatePos();
+  }, [open, updatePos]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onMouse = (e: MouseEvent) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      )
+        setOpen(false);
+    };
+    document.addEventListener('mousedown', onMouse);
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      document.removeEventListener('mousedown', onMouse);
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open, updatePos]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-all duration-200 ${
+          open
+            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_12px_rgba(16,185,129,0.12)] text-slate-100'
+            : 'border-slate-700 bg-slate-800 text-slate-100 hover:border-slate-600'
+        }`}
+      >
+        <span className='truncate'>
+          {selected ? (
+            `${selected.emoji ? selected.emoji + ' ' : ''}${selected.label}`
+          ) : (
+            <span className='text-slate-500'>{placeholder}</span>
+          )}
+        </span>
+        <FiChevronDown
+          className={`ml-2 h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+        />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              position: 'absolute',
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+              zIndex: 9999,
+            }}
+            className='overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl'
+          >
+            <div className='flex max-h-64 flex-col overflow-y-auto p-1.5'>
+              {options.map((opt) => (
+                <button
+                  key={opt.value}
+                  type='button'
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all text-left ${
+                    value === opt.value
+                      ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <span>
+                    {opt.emoji ? opt.emoji + ' ' : ''}
+                    {opt.label}
+                  </span>
+                  {value === opt.value && (
+                    <FiCheck className='h-4 w-4 shrink-0 text-emerald-400' />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
 
 function SummaryCard({
   icon,
@@ -188,10 +324,10 @@ function OverviewTab() {
   const {
     cropCycles,
     agriExpenses,
-    livestock,
     milkRecords,
     fields,
     coconutRecords,
+    livestockEvents,
   } = useAgriStore();
 
   const cropIncome = cropCycles.reduce((s, c) => s + c.harvestIncome, 0);
@@ -205,10 +341,25 @@ function OverviewTab() {
     agriExpenses.reduce((s, e) => s + e.amount, 0) +
     coconutRecords.reduce((s, c) => s + c.investmentAmount, 0);
   const totalProfit = totalIncome - totalExpenses;
-  const livestockValue = livestock.reduce(
-    (s, l) => s + l.currentValue * l.count,
-    0,
-  );
+
+  // Calculate total animals from events
+  const totalAnimalCount = (
+    ['goat', 'cow', 'buffalo', 'sheep', 'poultry', 'other'] as const
+  ).reduce((total, type) => {
+    const count = livestockEvents
+      .filter((e) => e.animalType === type)
+      .reduce((n, e) => {
+        if (e.eventType === 'purchase' || e.eventType === 'birth')
+          return n + e.count;
+        if (e.eventType === 'sale' || e.eventType === 'death')
+          return n - e.count;
+        return n;
+      }, 0);
+    return total + Math.max(0, count);
+  }, 0);
+  const livestockSaleIncome = livestockEvents
+    .filter((e) => e.eventType === 'sale')
+    .reduce((s, e) => s + (e.price ?? 0), 0);
 
   // Profit by source (crops, milk, coconut)
   const profitBySource = [
@@ -303,10 +454,10 @@ function OverviewTab() {
         />
         <SummaryCard
           icon='🐄'
-          label='Livestock Value'
-          value={formatINR(livestockValue)}
+          label='Livestock Sale Income'
+          value={formatINR(livestockSaleIncome)}
           color='#f59e0b'
-          sub={`${livestock.reduce((s, l) => s + l.count, 0)} animals`}
+          sub={`${totalAnimalCount} animals now`}
         />
       </div>
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
@@ -849,18 +1000,14 @@ function CropsTab() {
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
             <label className={labelCls}>Field</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={cField}
-              onChange={(e) => setCField(e.target.value)}
-            >
-              <option value=''>— Select Field —</option>
-              {fields.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+              onChange={setCField}
+              options={[
+                { value: '', label: '— Select Field —' },
+                ...fields.map((f) => ({ value: f.id, label: f.name })),
+              ]}
+            />
           </div>
           <div>
             <label className={labelCls}>Crop Name *</label>
@@ -873,17 +1020,15 @@ function CropsTab() {
           </div>
           <div>
             <label className={labelCls}>Season</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={cSeasonVal}
-              onChange={(e) => setCSeasonVal(e.target.value as Season)}
-            >
-              {SEASONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setCSeasonVal(v as Season)}
+              options={SEASONS.map((s) => ({
+                value: s.value,
+                label: s.label,
+                emoji: s.emoji,
+              }))}
+            />
           </div>
           <div>
             <label className={labelCls}>Start Date *</label>
@@ -929,18 +1074,14 @@ function CropsTab() {
           </div>
           <div>
             <label className={labelCls}>Bank Account</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={cAccount}
-              onChange={(e) => setCAccount(e.target.value)}
-            >
-              <option value=''>— Cash —</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setCAccount}
+              options={[
+                { value: '', label: '— Cash —' },
+                ...accounts.map((a) => ({ value: a.id, label: a.name })),
+              ]}
+            />
           </div>
           <div className='sm:col-span-2'>
             <label className={labelCls}>Notes</label>
@@ -1140,32 +1281,28 @@ function ExpensesTab() {
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
             <label className={labelCls}>Crop Cycle</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={eCrop}
-              onChange={(e) => setECrop(e.target.value)}
-            >
-              <option value=''>— General / No Crop —</option>
-              {cropCycles.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.cropName} ({c.fieldName ?? 'No field'})
-                </option>
-              ))}
-            </select>
+              onChange={setECrop}
+              options={[
+                { value: '', label: '— General / No Crop —' },
+                ...cropCycles.map((c) => ({
+                  value: c.id,
+                  label: `${c.cropName} (${c.fieldName ?? 'No field'})`,
+                })),
+              ]}
+            />
           </div>
           <div>
             <label className={labelCls}>Category *</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={eCat}
-              onChange={(e) => setECat(e.target.value as AgriExpenseCategory)}
-            >
-              {EXPENSE_CATS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setECat(v as AgriExpenseCategory)}
+              options={EXPENSE_CATS.map((c) => ({
+                value: c.value,
+                label: c.label,
+              }))}
+            />
           </div>
           <div>
             <label className={labelCls}>Amount (₹) *</label>
@@ -1186,18 +1323,14 @@ function ExpensesTab() {
           </div>
           <div>
             <label className={labelCls}>Paid From Account</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={eAccount}
-              onChange={(e) => setEAccount(e.target.value)}
-            >
-              <option value=''>— Cash —</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setEAccount}
+              options={[
+                { value: '', label: '— Cash —' },
+                ...accounts.map((a) => ({ value: a.id, label: a.name })),
+              ]}
+            />
           </div>
           <div>
             <label className={labelCls}>Notes</label>
@@ -1231,135 +1364,355 @@ function ExpensesTab() {
   );
 }
 
-// ─── Livestock Tab ────────────────────────────────────────────────────────────
-
 function LivestockTab() {
-  const { livestock, addLivestock, updateLivestock, deleteLivestock } =
+  const { livestockEvents, addLivestockEvent, deleteLivestockEvent } =
     useAgriStore();
-  const { accounts } = usePortfolioStore();
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<Livestock | null>(null);
-  const [lType, setLType] = useState<LivestockType>('cow');
-  const [lName, setLName] = useState('');
-  const [lCount, setLCount] = useState('1');
-  const [lCost, setLCost] = useState('0');
-  const [lValue, setLValue] = useState('0');
-  const [lDate, setLDate] = useState(new Date().toISOString().split('T')[0]);
-  const [lNotes, setLNotes] = useState('');
-  const [lAccount, setLAccount] = useState('');
+  const { accounts, addCashflow } = usePortfolioStore();
 
-  function reset(l?: Livestock) {
-    setLType(l?.type ?? 'cow');
-    setLName(l?.name ?? '');
-    setLCount(String(l?.count ?? 1));
-    setLCost(String(l?.purchaseCost ?? 0));
-    setLValue(String(l?.currentValue ?? 0));
-    setLDate(l?.purchaseDate ?? new Date().toISOString().split('T')[0]);
-    setLNotes(l?.notes ?? '');
-    setLAccount('');
+  const [showModal, setShowModal] = useState(false);
+  const [animalType, setAnimalType] = useState<LivestockType>('goat');
+  const [eventType, setEventType] = useState<LivestockEventType>('purchase');
+  const [evCount, setEvCount] = useState('1');
+  const [evPrice, setEvPrice] = useState('0');
+  const [evAccount, setEvAccount] = useState('');
+  const [evDate, setEvDate] = useState(new Date().toISOString().split('T')[0]);
+  const [evNotes, setEvNotes] = useState('');
+  const [filterAnimal, setFilterAnimal] = useState<LivestockType | 'all'>(
+    'all',
+  );
+
+  function resetForm() {
+    setAnimalType('goat');
+    setEventType('purchase');
+    setEvCount('1');
+    setEvPrice('0');
+    setEvAccount('');
+    setEvDate(new Date().toISOString().split('T')[0]);
+    setEvNotes('');
   }
+
+  // Calculate current count per animal type from events
+  function calcCount(type: LivestockType) {
+    return livestockEvents
+      .filter((e) => e.animalType === type)
+      .reduce((total, e) => {
+        if (e.eventType === 'purchase' || e.eventType === 'birth')
+          return total + e.count;
+        if (e.eventType === 'sale' || e.eventType === 'death')
+          return total - e.count;
+        return total;
+      }, 0);
+  }
+
+  const goatCount = calcCount('goat');
+  const cowCount = calcCount('cow');
+  const buffaloCount = calcCount('buffalo');
+  const sheepCount = calcCount('sheep');
+  const poultryCount = calcCount('poultry');
+
+  const animalCounts: Record<LivestockType, number> = {
+    goat: goatCount,
+    cow: cowCount,
+    buffalo: buffaloCount,
+    sheep: sheepCount,
+    poultry: poultryCount,
+    other: calcCount('other'),
+  };
+
+  // Total income/expense from events
+  const totalSaleIncome = livestockEvents
+    .filter((e) => e.eventType === 'sale')
+    .reduce((s, e) => s + (e.price ?? 0), 0);
+  const totalPurchaseCost = livestockEvents
+    .filter((e) => e.eventType === 'purchase')
+    .reduce((s, e) => s + (e.price ?? 0), 0);
 
   async function save() {
-    const payload = {
-      type: lType,
-      name: lName.trim() || undefined,
-      count: parseInt(lCount) || 1,
-      purchaseCost: parseFloat(lCost) || 0,
-      currentValue: parseFloat(lValue) || 0,
-      purchaseDate: lDate,
-      notes: lNotes.trim() || undefined,
-      accountId: lAccount || undefined,
-    };
-    if (editing) {
-      await updateLivestock(editing.id, payload);
-      toast.success('Updated');
-    } else {
-      await addLivestock(payload);
-      toast.success('Livestock added');
+    const count = parseInt(evCount) || 1;
+    const price = parseFloat(evPrice) || 0;
+
+    if (count <= 0) {
+      toast.error('Count must be at least 1');
+      return;
     }
+
+    // Validate count doesn't go negative
+    if (eventType === 'sale' || eventType === 'death') {
+      const current = calcCount(animalType);
+      if (count > current) {
+        toast.error(
+          `Only ${current} ${animalType}(s) available. Cannot ${eventType} ${count}.`,
+        );
+        return;
+      }
+    }
+
+    await addLivestockEvent({
+      animalType,
+      eventType,
+      count,
+      price: price > 0 ? price : undefined,
+      accountId: evAccount || undefined,
+      notes: evNotes.trim() || undefined,
+      date: evDate,
+    });
+
+    // Link to cashflow
+    if (eventType === 'purchase' && price > 0) {
+      await addCashflow({
+        type: 'expense',
+        category: 'Livestock Purchase',
+        amount: price,
+        date: evDate,
+        notes: `Bought ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
+        accountId: evAccount || undefined,
+      });
+    } else if (eventType === 'sale' && price > 0) {
+      await addCashflow({
+        type: 'income',
+        category: 'Livestock Sale',
+        amount: price,
+        date: evDate,
+        notes: `Sold ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
+        accountId: evAccount || undefined,
+      });
+    }
+
+    toast.success(
+      `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} recorded!`,
+    );
     setShowModal(false);
+    resetForm();
   }
 
-  const totalValue = livestock.reduce(
-    (s, l) => s + l.currentValue * l.count,
-    0,
-  );
-  const totalCount = livestock.reduce((s, l) => s + l.count, 0);
+  const EVENT_LABELS: Record<
+    LivestockEventType,
+    { label: string; emoji: string; color: string }
+  > = {
+    purchase: { label: 'Purchase', emoji: '🛒', color: '#f59e0b' },
+    birth: { label: 'Birth', emoji: '🍼', color: '#22c55e' },
+    sale: { label: 'Sale', emoji: '💰', color: '#3b82f6' },
+    death: { label: 'Death', emoji: '💀', color: '#ef4444' },
+  };
+
+  const filteredEvents =
+    filterAnimal === 'all'
+      ? livestockEvents
+      : livestockEvents.filter((e) => e.animalType === filterAnimal);
+
+  // Population chart data
+  const populationData = useMemo(() => {
+    const types: LivestockType[] = [
+      'goat',
+      'cow',
+      'buffalo',
+      'sheep',
+      'poultry',
+    ];
+    return types
+      .map((t) => ({
+        name: LIVESTOCK_TYPES.find((x) => x.value === t)?.emoji + ' ' + t,
+        count: calcCount(t),
+      }))
+      .filter((d) => d.count > 0);
+  }, [livestockEvents]);
 
   return (
     <div className='flex flex-col gap-6'>
-      <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
-        <div className='flex items-center justify-between mb-4'>
-          <div>
-            <div className='text-sm font-bold text-slate-100'>🐄 Livestock</div>
-            {totalCount > 0 && (
-              <div className='text-xs text-slate-400 mt-0.5'>
-                {totalCount} animals · Total value {formatINR(totalValue)}
-              </div>
-            )}
+      {/* Summary Cards */}
+      <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+        <SummaryCard
+          icon='🐐'
+          label='Goats'
+          value={String(goatCount)}
+          sub='current count'
+          color='#f59e0b'
+        />
+        <SummaryCard
+          icon='🐄'
+          label='Cows'
+          value={String(cowCount)}
+          sub='current count'
+          color='#22c55e'
+        />
+        <SummaryCard
+          icon='💰'
+          label='Sale Income'
+          value={formatINR(totalSaleIncome)}
+          sub='from all sales'
+          color='#3b82f6'
+        />
+        <SummaryCard
+          icon='🛒'
+          label='Purchase Cost'
+          value={formatINR(totalPurchaseCost)}
+          sub='total spent'
+          color='#a78bfa'
+        />
+      </div>
+
+      {/* All animal counts */}
+      {Object.entries(animalCounts).some(([, v]) => v > 0) && (
+        <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
+          <div className='text-xs font-bold uppercase tracking-wider text-slate-400 mb-3'>
+            🐾 Current Animal Population
           </div>
-          <button
-            onClick={() => {
-              setEditing(null);
-              reset();
-              setShowModal(true);
-            }}
-            className='px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700'
-          >
-            + Add Animal
-          </button>
-        </div>
-        {livestock.length === 0 ? (
-          <p className='text-xs text-slate-500 text-center py-4'>
-            No livestock added yet.
-          </p>
-        ) : (
-          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3'>
-            {livestock.map((l) => {
-              const meta = LIVESTOCK_TYPES.find((t) => t.value === l.type);
+          <div className='flex flex-wrap gap-3'>
+            {LIVESTOCK_TYPES.map((t) => {
+              const count = animalCounts[t.value];
+              if (count <= 0) return null;
               return (
                 <div
-                  key={l.id}
-                  className='rounded-xl bg-slate-800 p-3 flex flex-col gap-2'
+                  key={t.value}
+                  className='flex items-center gap-2 bg-slate-800 rounded-xl px-4 py-2'
                 >
-                  <div className='flex items-center gap-2'>
-                    <span className='text-2xl'>{meta?.emoji}</span>
-                    <div>
-                      <div className='font-bold text-slate-100 text-sm'>
-                        {l.name || meta?.label}
-                      </div>
-                      <div className='text-xs text-slate-400'>
-                        {l.count} animal{l.count > 1 ? 's' : ''}
-                      </div>
+                  <span className='text-2xl'>{t.emoji}</span>
+                  <div>
+                    <div className='text-xs text-slate-400'>{t.label}</div>
+                    <div className='text-lg font-bold text-slate-100 font-mono'>
+                      {count}
                     </div>
                   </div>
-                  <div className='grid grid-cols-2 gap-1 text-xs'>
-                    <div>
-                      <span className='text-slate-500'>Bought: </span>
-                      <span className='text-slate-300'>
-                        {formatINR(l.purchaseCost)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Population bar chart */}
+      {populationData.length > 0 && (
+        <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
+          <div className='text-xs font-bold uppercase tracking-wider text-slate-400 mb-3'>
+            📊 Population Chart
+          </div>
+          <ResponsiveContainer width='100%' height={180}>
+            <BarChart
+              data={populationData}
+              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray='3 3' stroke='#1e293b' />
+              <XAxis dataKey='name' tick={{ fill: '#94a3b8', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{
+                  background: '#0f172a',
+                  border: '1px solid #1e293b',
+                  borderRadius: 8,
+                }}
+                labelStyle={{ color: '#94a3b8' }}
+                itemStyle={{ color: '#22c55e' }}
+              />
+              <Bar dataKey='count' fill='#22c55e' radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Event History */}
+      <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
+        <div className='flex items-center justify-between mb-4 flex-wrap gap-2'>
+          <div>
+            <div className='text-sm font-bold text-slate-100'>
+              📋 Event History
+            </div>
+            <div className='text-xs text-slate-400 mt-0.5'>
+              {filteredEvents.length} events
+            </div>
+          </div>
+          <div className='flex gap-2 flex-wrap'>
+            <AgriDropdown
+              value={filterAnimal}
+              onChange={(v) => setFilterAnimal(v as LivestockType | 'all')}
+              options={[
+                { value: 'all', label: 'All Animals' },
+                ...LIVESTOCK_TYPES.map((t) => ({
+                  value: t.value,
+                  label: t.label,
+                  emoji: t.emoji,
+                })),
+              ]}
+            />
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className='px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700'
+            >
+              + Add Event
+            </button>
+          </div>
+        </div>
+
+        {filteredEvents.length === 0 ? (
+          <p className='text-xs text-slate-500 text-center py-6'>
+            No events recorded yet. Add a purchase or birth to get started.
+          </p>
+        ) : (
+          <div className='flex flex-col gap-2'>
+            {filteredEvents.map((ev) => {
+              const meta = LIVESTOCK_TYPES.find(
+                (t) => t.value === ev.animalType,
+              );
+              const evMeta = EVENT_LABELS[ev.eventType];
+              const isIncome = ev.eventType === 'sale';
+              const isExpense = ev.eventType === 'purchase';
+              return (
+                <div
+                  key={ev.id}
+                  className='flex items-center gap-3 rounded-xl bg-slate-800 px-4 py-3'
+                  style={{ borderLeft: `3px solid ${evMeta.color}` }}
+                >
+                  <div className='text-xl'>{meta?.emoji}</div>
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-2 flex-wrap'>
+                      <span
+                        className='text-xs font-bold px-2 py-0.5 rounded-full'
+                        style={{
+                          background: evMeta.color + '22',
+                          color: evMeta.color,
+                        }}
+                      >
+                        {evMeta.emoji} {evMeta.label}
+                      </span>
+                      <span className='text-sm font-bold text-slate-100'>
+                        {ev.count} {meta?.label}
+                        {ev.eventType === 'purchase' ||
+                        ev.eventType === 'birth' ? (
+                          <span className='text-emerald-400 ml-1'>
+                            +{ev.count}
+                          </span>
+                        ) : (
+                          <span className='text-red-400 ml-1'>-{ev.count}</span>
+                        )}
                       </span>
                     </div>
-                    <div>
-                      <span className='text-slate-500'>Value: </span>
-                      <span className='text-emerald-400'>
-                        {formatINR(l.currentValue * l.count)}
-                      </span>
+                    <div className='flex items-center gap-3 mt-1 flex-wrap'>
+                      <span className='text-xs text-slate-500'>{ev.date}</span>
+                      {ev.price !== undefined && ev.price > 0 && (
+                        <span
+                          className={`text-xs font-bold ${isIncome ? 'text-emerald-400' : isExpense ? 'text-red-400' : 'text-slate-400'}`}
+                        >
+                          {isIncome ? '+' : isExpense ? '-' : ''}
+                          {formatINR(ev.price)}
+                        </span>
+                      )}
+                      {ev.accountId && (
+                        <span className='text-xs text-slate-500'>
+                          🏦{' '}
+                          {accounts.find((a) => a.id === ev.accountId)?.name ??
+                            ev.accountId}
+                        </span>
+                      )}
+                      {ev.notes && (
+                        <span className='text-xs text-slate-500 italic'>
+                          {ev.notes}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className='flex gap-1'>
-                    <button
-                      onClick={() => {
-                        setEditing(l);
-                        reset(l);
-                        setShowModal(true);
-                      }}
-                      className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
-                    >
-                      Edit
-                    </button>
-                    <DeleteBtn onDelete={() => deleteLivestock(l.id)} />
-                  </div>
+                  <DeleteBtn onDelete={() => deleteLivestockEvent(ev.id)} />
                 </div>
               );
             })}
@@ -1367,91 +1720,100 @@ function LivestockTab() {
         )}
       </div>
 
+      {/* Add Event Modal */}
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title={editing ? 'Edit Livestock' : 'Add Livestock'}
+        title='Add Livestock Event'
       >
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
             <label className={labelCls}>Animal Type</label>
-            <select
-              className={selectCls}
-              value={lType}
-              onChange={(e) => setLType(e.target.value as LivestockType)}
-            >
-              {LIVESTOCK_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.emoji} {t.label}
-                </option>
-              ))}
-            </select>
+            <AgriDropdown
+              value={animalType}
+              onChange={(v) => setAnimalType(v as LivestockType)}
+              options={LIVESTOCK_TYPES.map((t) => ({
+                value: t.value,
+                label: t.label,
+                emoji: t.emoji,
+              }))}
+            />
           </div>
           <div>
-            <label className={labelCls}>Name (Optional)</label>
-            <input
-              className={inputCls}
-              value={lName}
-              onChange={(e) => setLName(e.target.value)}
-              placeholder='e.g. Lakshmi'
+            <label className={labelCls}>Event Type</label>
+            <AgriDropdown
+              value={eventType}
+              onChange={(v) => setEventType(v as LivestockEventType)}
+              options={[
+                { value: 'purchase', label: 'Purchase (Buy)', emoji: '🛒' },
+                { value: 'birth', label: 'Birth', emoji: '🍼' },
+                { value: 'sale', label: 'Sale (Sell)', emoji: '💰' },
+                { value: 'death', label: 'Death', emoji: '💀' },
+              ]}
             />
           </div>
           <div>
             <label className={labelCls}>Count</label>
             <NumericInput
               className={inputCls}
-              value={lCount}
-              onChange={setLCount}
+              value={evCount}
+              onChange={setEvCount}
               allowDecimal={false}
             />
+            {(eventType === 'sale' || eventType === 'death') && (
+              <div className='text-xs text-amber-400 mt-1'>
+                Current {animalType} count: {animalCounts[animalType]}
+              </div>
+            )}
           </div>
           <div>
-            <label className={labelCls}>Purchase Cost (₹ total)</label>
+            <label className={labelCls}>
+              {eventType === 'purchase'
+                ? 'Purchase Price (₹ total)'
+                : eventType === 'sale'
+                  ? 'Sale Price (₹ total)'
+                  : 'Price (optional)'}
+            </label>
             <NumericInput
               className={inputCls}
-              value={lCost}
-              onChange={setLCost}
+              value={evPrice}
+              onChange={setEvPrice}
             />
+            {(eventType === 'birth' || eventType === 'death') && (
+              <div className='text-xs text-slate-500 mt-1'>
+                No cash flow for birth/death
+              </div>
+            )}
           </div>
           <div>
-            <label className={labelCls}>Current Value (₹ per animal)</label>
-            <NumericInput
-              className={inputCls}
-              value={lValue}
-              onChange={setLValue}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Purchase Date</label>
+            <label className={labelCls}>Date</label>
             <input
               type='date'
               className={inputCls}
-              value={lDate}
-              onChange={(e) => setLDate(e.target.value)}
+              value={evDate}
+              onChange={(e) => setEvDate(e.target.value)}
             />
           </div>
-          <div>
-            <label className={labelCls}>Bank Account</label>
-            <select
-              className={selectCls}
-              value={lAccount}
-              onChange={(e) => setLAccount(e.target.value)}
-            >
-              <option value=''>— Cash —</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {(eventType === 'purchase' || eventType === 'sale') && (
+            <div>
+              <label className={labelCls}>Bank Account</label>
+              <AgriDropdown
+                value={evAccount}
+                onChange={setEvAccount}
+                options={[
+                  { value: '', label: '— Cash —' },
+                  ...accounts.map((a) => ({ value: a.id, label: a.name })),
+                ]}
+              />
+            </div>
+          )}
           <div className='sm:col-span-2'>
-            <label className={labelCls}>Notes</label>
+            <label className={labelCls}>Notes (Optional)</label>
             <input
               className={inputCls}
-              value={lNotes}
-              onChange={(e) => setLNotes(e.target.value)}
-              placeholder='Optional'
+              value={evNotes}
+              onChange={(e) => setEvNotes(e.target.value)}
+              placeholder='e.g. Sold to neighbour, Born twins...'
             />
           </div>
         </div>
@@ -1466,7 +1828,7 @@ function LivestockTab() {
             onClick={save}
             className='px-5 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700'
           >
-            Save
+            Save Event
           </button>
         </div>
       </Modal>
@@ -1701,18 +2063,14 @@ function MilkTab() {
           </div>
           <div>
             <label className={labelCls}>Income to Account</label>
-            <select
-              className={selectCls}
+            <AgriDropdown
               value={mAccount}
-              onChange={(e) => setMAccount(e.target.value)}
-            >
-              <option value=''>— Cash —</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setMAccount}
+              options={[
+                { value: '', label: '— Cash —' },
+                ...accounts.map((a) => ({ value: a.id, label: a.name })),
+              ]}
+            />
           </div>
         </div>
         <p className='text-[10px] text-emerald-400 mt-3'>
@@ -1740,93 +2098,140 @@ function MilkTab() {
 // ─── Coconut Tab ──────────────────────────────────────────────────────────────
 
 function CoconutTab() {
-  const { coconutRecords, addCoconutRecord, deleteCoconutRecord } =
-    useAgriStore();
+  const {
+    coconutRecords,
+    addCoconutRecord,
+    updateCoconutRecord,
+    deleteCoconutRecord,
+  } = useAgriStore();
   const { accounts, addCashflow } = usePortfolioStore();
+
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CoconutRecord | null>(null);
 
+  // ── Form fields ────────────────────────────────────────────────────────────
   const [cDate, setCDate] = useState(new Date().toISOString().split('T')[0]);
   const [cTrees, setCTrees] = useState('0');
-  const [cPerTree, setCPerTree] = useState('0');
-  const [cMinPrice, setCMinPrice] = useState('0');
-  const [cMaxPrice, setCMaxPrice] = useState('0');
+  const [cTotalNuts, setCTotalNuts] = useState('0'); // ← direct total count
+  const [cPrice, setCPrice] = useState('0'); // ← single price/coconut
   const [cInvest, setCInvest] = useState('0');
   const [cDuration, setCDuration] = useState('3');
   const [cNotes, setCNotes] = useState('');
   const [cAccount, setCAccount] = useState('');
+  const [sellMethod, setSellMethod] = useState<CoconutSellMethod>('by_count');
+  // ton-mode
+  const [cKgPerNut, setCKgPerNut] = useState('1');
+  const [cPricePerTon, setCPricePerTon] = useState('0');
+  const [cTotalTons, setCTotalTons] = useState(''); // manual override
 
-  const trees = parseFloat(cTrees) || 0;
-  const perTree = parseFloat(cPerTree) || 0;
-  const minP = parseFloat(cMinPrice) || 0;
-  const maxP = parseFloat(cMaxPrice) || 0;
-  const totalCoconuts = trees * perTree;
-  const avgPrice = minP > 0 && maxP > 0 ? (minP + maxP) / 2 : maxP || minP;
-  const estimatedIncome = totalCoconuts * avgPrice;
+  // ── Live calculations ──────────────────────────────────────────────────────
+  const trees = parseInt(cTrees) || 0;
+  const totalNuts = parseInt(cTotalNuts) || 0;
+  const price = parseFloat(cPrice) || 0;
   const invest = parseFloat(cInvest) || 0;
+  const kgPerNut = parseFloat(cKgPerNut) || 1;
+  const pPerTon = parseFloat(cPricePerTon) || 0;
+
+  // tons: if user typed manually use that, otherwise auto-calculate
+  const autoTons = (totalNuts * kgPerNut) / 1000;
+  const totalTons =
+    cTotalTons.trim() !== '' ? parseFloat(cTotalTons) || 0 : autoTons;
+
+  const estimatedIncome =
+    sellMethod === 'by_count' ? totalNuts * price : totalTons * pPerTon;
   const estimatedProfit = estimatedIncome - invest;
 
+  // ── Reset ──────────────────────────────────────────────────────────────────
   function resetForm(r?: CoconutRecord) {
     setCDate(r?.date ?? new Date().toISOString().split('T')[0]);
     setCTrees(String(r?.numberOfTrees ?? 0));
-    setCPerTree(String(r?.coconutPerTree ?? 0));
-    setCMinPrice(String(r?.minPrice ?? 0));
-    setCMaxPrice(String(r?.maxPrice ?? 0));
+    setCTotalNuts(String(r?.totalCoconuts ?? 0));
+    setCPrice(String(r?.pricePerCoconut ?? 0));
     setCInvest(String(r?.investmentAmount ?? 0));
     setCDuration(String(r?.durationMonths ?? 3));
     setCNotes(r?.notes ?? '');
     setCAccount(r?.accountId ?? '');
+    setSellMethod(r?.sellMethod ?? 'by_count');
+    setCKgPerNut(String(r?.weightKgPerCoconut ?? 1));
+    setCPricePerTon(String(r?.pricePerTon ?? 0));
+    setCTotalTons(r?.totalTons !== undefined ? String(r.totalTons) : '');
   }
 
+  // ── Save ───────────────────────────────────────────────────────────────────
   async function save() {
-    if (trees <= 0 || perTree <= 0) {
-      toast.error('Enter number of trees and coconuts per tree');
+    if (totalNuts <= 0) {
+      toast.error('Enter total number of coconuts');
       return;
     }
-    const record = {
+    if (sellMethod === 'by_count' && price <= 0) {
+      toast.error('Enter price per coconut');
+      return;
+    }
+    if (sellMethod === 'by_ton' && pPerTon <= 0) {
+      toast.error('Enter price per ton');
+      return;
+    }
+
+    const record: Omit<
+      CoconutRecord,
+      'id' | 'userId' | 'createdAt' | 'updatedAt'
+    > = {
       date: cDate,
       numberOfTrees: trees,
-      coconutPerTree: perTree,
-      totalCoconuts,
-      minPrice: minP,
-      maxPrice: maxP,
-      avgPrice,
-      investmentAmount: invest,
+      totalCoconuts: totalNuts,
+      sellMethod,
+      pricePerCoconut: sellMethod === 'by_count' ? price : undefined,
+      weightKgPerCoconut: sellMethod === 'by_ton' ? kgPerNut : undefined,
+      totalTons: sellMethod === 'by_ton' ? totalTons : undefined,
+      pricePerTon: sellMethod === 'by_ton' ? pPerTon : undefined,
       harvestIncome: estimatedIncome,
+      investmentAmount: invest,
       durationMonths: parseInt(cDuration) || 3,
       notes: cNotes.trim() || undefined,
       accountId: cAccount || undefined,
     };
-    await addCoconutRecord(record);
-    if (estimatedIncome > 0) {
-      await pushToCashflow(
-        'income',
-        'Coconut Sale',
-        estimatedIncome,
-        cDate,
-        cAccount || undefined,
-        `Coconut harvest: ${totalCoconuts} coconuts @ ₹${avgPrice.toFixed(0)}/pc`,
-        addCashflow,
+
+    if (editing) {
+      await updateCoconutRecord(editing.id, record);
+      toast.success(`Harvest updated · ${formatINR(estimatedIncome)}`);
+    } else {
+      await addCoconutRecord(record);
+      if (estimatedIncome > 0) {
+        const note =
+          sellMethod === 'by_count'
+            ? `Coconut harvest: ${totalNuts} coconuts × ₹${price}/pc`
+            : `Coconut harvest: ${totalTons.toFixed(3)} tons × ₹${pPerTon.toLocaleString('en-IN')}/ton`;
+        await pushToCashflow(
+          'income',
+          'Coconut Sale',
+          estimatedIncome,
+          cDate,
+          cAccount || undefined,
+          note,
+          addCashflow,
+        );
+      }
+      if (invest > 0) {
+        await pushToCashflow(
+          'expense',
+          'Coconut Farm Expense',
+          invest,
+          cDate,
+          cAccount || undefined,
+          'Coconut farm investment',
+          addCashflow,
+        );
+      }
+      toast.success(
+        `Harvest recorded · ${formatINR(estimatedIncome)} synced to Cashflow ✓`,
       );
     }
-    if (invest > 0) {
-      await pushToCashflow(
-        'expense',
-        'Coconut Farm Expense',
-        invest,
-        cDate,
-        cAccount || undefined,
-        'Coconut farm investment',
-        addCashflow,
-      );
-    }
-    toast.success(
-      `Coconut harvest recorded · ${formatINR(estimatedIncome)} synced to Cashflow ✓`,
-    );
     setShowModal(false);
+    setEditing(null);
     resetForm();
   }
 
+  // ── Summary stats ──────────────────────────────────────────────────────────
   const totalTrees =
     coconutRecords.length > 0 ? coconutRecords[0].numberOfTrees : 0;
   const totalIncome = coconutRecords.reduce((s, c) => s + c.harvestIncome, 0);
@@ -1839,7 +2244,6 @@ function CoconutTab() {
     0,
   );
 
-  // Chart data
   const chartData = coconutRecords
     .slice()
     .reverse()
@@ -1852,14 +2256,14 @@ function CoconutTab() {
 
   return (
     <div className='flex flex-col gap-6'>
-      {/* Summary */}
+      {/* ── Summary cards ── */}
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         <SummaryCard
           icon='🌴'
           label='Trees'
           value={String(totalTrees)}
           color='#f59e0b'
-          sub='as of last harvest'
+          sub='last harvest'
         />
         <SummaryCard
           icon='🥥'
@@ -1881,6 +2285,7 @@ function CoconutTab() {
         />
       </div>
 
+      {/* ── Charts ── */}
       {chartData.length > 0 && (
         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
           <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
@@ -1889,6 +2294,7 @@ function CoconutTab() {
             </div>
             <ResponsiveContainer width='100%' height={180}>
               <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray='3 3' stroke='#1e293b' />
                 <XAxis
                   dataKey='date'
                   tick={{ fill: '#94a3b8', fontSize: 9 }}
@@ -1917,6 +2323,7 @@ function CoconutTab() {
             </div>
             <ResponsiveContainer width='100%' height={180}>
               <BarChart data={chartData} barGap={4}>
+                <CartesianGrid strokeDasharray='3 3' stroke='#1e293b' />
                 <XAxis
                   dataKey='date'
                   tick={{ fill: '#94a3b8', fontSize: 9 }}
@@ -1953,7 +2360,7 @@ function CoconutTab() {
         </div>
       )}
 
-      {/* Records table */}
+      {/* ── Records table ── */}
       <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
         <div className='flex items-center justify-between mb-4'>
           <div>
@@ -1961,7 +2368,7 @@ function CoconutTab() {
               🌴 Coconut Harvests
             </div>
             <div className='text-[10px] text-slate-500 mt-0.5'>
-              Income auto-synced to Cashflow & Bank Account
+              Income auto-synced to Cashflow &amp; Bank Account
             </div>
           </div>
           <button
@@ -1975,6 +2382,7 @@ function CoconutTab() {
             + Add Harvest
           </button>
         </div>
+
         {coconutRecords.length === 0 ? (
           <p className='text-xs text-slate-500 text-center py-6'>
             No coconut harvests recorded yet.
@@ -1987,18 +2395,18 @@ function CoconutTab() {
                   {[
                     'Date',
                     'Trees',
-                    'Per Tree',
-                    'Total',
-                    'Avg Price',
-                    'Investment',
+                    'Total Coconuts',
+                    'Method',
+                    'Price',
                     'Income',
+                    'Investment',
                     'Profit',
                     'Account',
                     '',
                   ].map((h) => (
                     <th
                       key={h}
-                      className='px-3 py-2 text-left font-bold uppercase tracking-wider'
+                      className='px-3 py-2 text-left font-bold uppercase tracking-wider whitespace-nowrap'
                     >
                       {h}
                     </th>
@@ -2008,29 +2416,38 @@ function CoconutTab() {
               <tbody>
                 {coconutRecords.map((c) => {
                   const profit = c.harvestIncome - c.investmentAmount;
+                  const isByTon = c.sellMethod === 'by_ton';
                   return (
                     <tr
                       key={c.id}
                       className='border-b border-slate-800/50 hover:bg-slate-800/30'
                     >
-                      <td className='px-3 py-2 text-slate-300'>{c.date}</td>
+                      <td className='px-3 py-2 text-slate-300 whitespace-nowrap'>
+                        {c.date}
+                      </td>
                       <td className='px-3 py-2 text-amber-400 font-bold'>
                         {c.numberOfTrees} 🌴
                       </td>
-                      <td className='px-3 py-2 text-slate-400'>
-                        {c.coconutPerTree}
+                      <td className='px-3 py-2 text-slate-100 font-bold'>
+                        {c.totalCoconuts.toLocaleString('en-IN')}
                       </td>
-                      <td className='px-3 py-2 text-slate-300 font-bold'>
-                        {c.totalCoconuts}
+                      <td className='px-3 py-2'>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isByTon ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}
+                        >
+                          {isByTon ? '⚖️ Ton' : '🥥 Count'}
+                        </span>
                       </td>
-                      <td className='px-3 py-2 text-slate-400'>
-                        ₹{c.avgPrice.toFixed(0)}
-                      </td>
-                      <td className='px-3 py-2 text-red-400'>
-                        {formatINR(c.investmentAmount)}
+                      <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
+                        {isByTon
+                          ? `${(c.totalTons ?? 0).toFixed(2)}T × ₹${(c.pricePerTon ?? 0).toLocaleString('en-IN')}`
+                          : `${c.totalCoconuts.toLocaleString('en-IN')} × ₹${c.pricePerCoconut ?? 0}`}
                       </td>
                       <td className='px-3 py-2 text-green-400 font-bold'>
                         {formatINR(c.harvestIncome)}
+                      </td>
+                      <td className='px-3 py-2 text-red-400'>
+                        {formatINR(c.investmentAmount)}
                       </td>
                       <td
                         className='px-3 py-2 font-bold'
@@ -2043,7 +2460,21 @@ function CoconutTab() {
                           '—'}
                       </td>
                       <td className='px-3 py-2'>
-                        <DeleteBtn onDelete={() => deleteCoconutRecord(c.id)} />
+                        <div className='flex gap-1'>
+                          <button
+                            onClick={() => {
+                              setEditing(c);
+                              resetForm(c);
+                              setShowModal(true);
+                            }}
+                            className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
+                          >
+                            Edit
+                          </button>
+                          <DeleteBtn
+                            onDelete={() => deleteCoconutRecord(c.id)}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -2054,141 +2485,305 @@ function CoconutTab() {
         )}
       </div>
 
-      {/* Add Modal */}
+      {/* ── Add / Edit Modal ── */}
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
-        title={editing ? 'Edit Harvest' : 'Add Coconut Harvest'}
+        onClose={() => {
+          setShowModal(false);
+          setEditing(null);
+        }}
+        title={editing ? '✏️ Edit Coconut Harvest' : '+ Add Coconut Harvest'}
       >
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+        <div className='flex flex-col gap-4'>
+          {/* Sell Method Toggle */}
           <div>
-            <label className={labelCls}>Harvest Date *</label>
-            <input
-              type='date'
-              className={inputCls}
-              value={cDate}
-              onChange={(e) => setCDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Number of Trees *</label>
-            <NumericInput
-              className={inputCls}
-              value={cTrees}
-              onChange={setCTrees}
-              allowDecimal={false}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Avg Coconuts per Tree *</label>
-            <NumericInput
-              className={inputCls}
-              value={cPerTree}
-              onChange={setCPerTree}
-              allowDecimal={false}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Harvest Duration (months)</label>
-            <NumericInput
-              className={inputCls}
-              value={cDuration}
-              onChange={setCDuration}
-              allowDecimal={false}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Min Price (₹/coconut)</label>
-            <NumericInput
-              className={inputCls}
-              value={cMinPrice}
-              onChange={setCMinPrice}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Max Price (₹/coconut)</label>
-            <NumericInput
-              className={inputCls}
-              value={cMaxPrice}
-              onChange={setCMaxPrice}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Investment (₹)</label>
-            <NumericInput
-              className={inputCls}
-              value={cInvest}
-              onChange={setCInvest}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Income to Account</label>
-            <select
-              className={selectCls}
-              value={cAccount}
-              onChange={(e) => setCAccount(e.target.value)}
-            >
-              <option value=''>— Cash —</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className='sm:col-span-2'>
-            <label className={labelCls}>Notes</label>
-            <input
-              className={inputCls}
-              value={cNotes}
-              onChange={(e) => setCNotes(e.target.value)}
-              placeholder='Optional'
-            />
-          </div>
-        </div>
-
-        {/* Live preview */}
-        {trees > 0 && perTree > 0 && (
-          <div className='mt-4 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 grid grid-cols-3 gap-3 text-center'>
-            <div>
-              <div className='text-xs text-slate-400'>Total Coconuts</div>
-              <div className='text-lg font-bold text-amber-400'>
-                {totalCoconuts}
-              </div>
-            </div>
-            <div>
-              <div className='text-xs text-slate-400'>Est. Income</div>
-              <div className='text-lg font-bold text-green-400'>
-                {formatINR(estimatedIncome)}
-              </div>
-            </div>
-            <div>
-              <div className='text-xs text-slate-400'>Est. Profit</div>
-              <div
-                className='text-lg font-bold'
-                style={{ color: estimatedProfit >= 0 ? '#22c55e' : '#ef4444' }}
+            <label className={labelCls}>Selling Method</label>
+            <div className='flex gap-2 mt-1'>
+              <button
+                type='button'
+                onClick={() => setSellMethod('by_count')}
+                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-colors ${
+                  sellMethod === 'by_count'
+                    ? 'bg-amber-600 border-amber-600 text-white'
+                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                }`}
               >
-                {formatINR(estimatedProfit)}
-              </div>
+                🥥 By Count
+                <div className='font-normal opacity-75 mt-0.5'>
+                  coconuts × ₹/piece
+                </div>
+              </button>
+              <button
+                type='button'
+                onClick={() => setSellMethod('by_ton')}
+                className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-colors ${
+                  sellMethod === 'by_ton'
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                }`}
+              >
+                ⚖️ By Ton
+                <div className='font-normal opacity-75 mt-0.5'>
+                  tons × ₹/ton
+                </div>
+              </button>
             </div>
           </div>
-        )}
-        <p className='text-[10px] text-emerald-400 mt-3'>
-          ✓ Income will auto-sync to Cashflow & credit to selected account
-        </p>
-        <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-800'>
-          <button
-            onClick={() => setShowModal(false)}
-            className='px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 text-sm font-bold'
-          >
-            Cancel
-          </button>
-          <button
-            onClick={save}
-            className='px-5 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700'
-          >
-            Save Harvest
-          </button>
+
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div>
+              <label className={labelCls}>Harvest Date *</label>
+              <input
+                type='date'
+                className={inputCls}
+                value={cDate}
+                onChange={(e) => setCDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Harvest Duration (months)</label>
+              <NumericInput
+                className={inputCls}
+                value={cDuration}
+                onChange={setCDuration}
+                allowDecimal={false}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Number of Trees</label>
+              <NumericInput
+                className={inputCls}
+                value={cTrees}
+                onChange={setCTrees}
+                allowDecimal={false}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Total Coconuts *</label>
+              <NumericInput
+                className={inputCls}
+                value={cTotalNuts}
+                onChange={setCTotalNuts}
+                allowDecimal={false}
+              />
+              <div className='text-[10px] text-slate-500 mt-1'>
+                Enter the actual total count directly (e.g. 4000)
+              </div>
+            </div>
+
+            {/* ── By Count pricing ── */}
+            {sellMethod === 'by_count' && (
+              <div className='sm:col-span-2'>
+                <label className={labelCls}>Price per Coconut (₹) *</label>
+                <NumericInput
+                  className={inputCls}
+                  value={cPrice}
+                  onChange={setCPrice}
+                />
+                {totalNuts > 0 && price > 0 && (
+                  <div className='text-[10px] text-amber-400 mt-1'>
+                    {totalNuts.toLocaleString('en-IN')} × ₹{price} ={' '}
+                    <strong>{formatINR(estimatedIncome)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── By Ton pricing ── */}
+            {sellMethod === 'by_ton' && (
+              <>
+                <div>
+                  <label className={labelCls}>Weight per Coconut (kg)</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={cKgPerNut}
+                    onChange={setCKgPerNut}
+                  />
+                  {totalNuts > 0 && (
+                    <div className='text-[10px] text-blue-400 mt-1'>
+                      Auto: {totalNuts} × {kgPerNut} kg ={' '}
+                      {(totalNuts * kgPerNut).toFixed(0)} kg ={' '}
+                      {autoTons.toFixed(3)} tons
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className={labelCls}>Total Tons (override)</label>
+                  <input
+                    className={inputCls}
+                    value={cTotalTons}
+                    onChange={(e) => setCTotalTons(e.target.value)}
+                    placeholder={`Auto: ${autoTons.toFixed(3)}`}
+                    type='number'
+                    step='0.001'
+                  />
+                  <div className='text-[10px] text-slate-500 mt-1'>
+                    Leave blank to use auto-calculation
+                  </div>
+                </div>
+                <div className='sm:col-span-2'>
+                  <label className={labelCls}>Price per Ton (₹) *</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={cPricePerTon}
+                    onChange={setCPricePerTon}
+                  />
+                  {totalTons > 0 && pPerTon > 0 && (
+                    <div className='text-[10px] text-blue-400 mt-1'>
+                      {totalTons.toFixed(3)} tons × ₹
+                      {pPerTon.toLocaleString('en-IN')} ={' '}
+                      <strong>{formatINR(estimatedIncome)}</strong>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className={labelCls}>Investment / Cost (₹)</label>
+              <NumericInput
+                className={inputCls}
+                value={cInvest}
+                onChange={setCInvest}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Income to Account</label>
+              <AgriDropdown
+                value={cAccount}
+                onChange={setCAccount}
+                options={[
+                  { value: '', label: '— Cash —' },
+                  ...accounts.map((a) => ({ value: a.id, label: a.name })),
+                ]}
+              />
+            </div>
+            <div className='sm:col-span-2'>
+              <label className={labelCls}>Notes</label>
+              <input
+                className={inputCls}
+                value={cNotes}
+                onChange={(e) => setCNotes(e.target.value)}
+                placeholder='Optional'
+              />
+            </div>
+          </div>
+
+          {/* ── Live Calculation Preview ── */}
+          {totalNuts > 0 && estimatedIncome > 0 && (
+            <div
+              className='rounded-xl border border-amber-500/20 p-4'
+              style={{ background: 'rgba(245,158,11,0.05)' }}
+            >
+              <div className='text-xs font-bold uppercase tracking-wider text-amber-400 mb-3'>
+                📊 Calculation Preview
+              </div>
+              <div className='space-y-1 text-xs font-mono text-slate-300'>
+                {sellMethod === 'by_count' ? (
+                  <div className='flex justify-between'>
+                    <span className='text-slate-500'>
+                      {totalNuts.toLocaleString('en-IN')} coconuts × ₹{price}
+                    </span>
+                    <strong className='text-green-400'>
+                      {formatINR(estimatedIncome)}
+                    </strong>
+                  </div>
+                ) : (
+                  <>
+                    <div className='flex justify-between'>
+                      <span className='text-slate-500'>
+                        {totalNuts.toLocaleString('en-IN')} coconuts ×{' '}
+                        {kgPerNut} kg
+                      </span>
+                      <span className='text-blue-400'>
+                        {(totalNuts * kgPerNut).toFixed(0)} kg
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-slate-500'>
+                        {(totalNuts * kgPerNut).toFixed(0)} kg ÷ 1000
+                      </span>
+                      <span className='text-blue-400'>
+                        {totalTons.toFixed(3)} tons
+                      </span>
+                    </div>
+                    <div className='flex justify-between'>
+                      <span className='text-slate-500'>
+                        {totalTons.toFixed(3)} tons × ₹
+                        {pPerTon.toLocaleString('en-IN')}
+                      </span>
+                      <strong className='text-green-400'>
+                        {formatINR(estimatedIncome)}
+                      </strong>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className='mt-3 pt-3 border-t border-slate-700/60 grid grid-cols-3 gap-2 text-center'>
+                <div>
+                  <div className='text-[10px] text-slate-500 uppercase'>
+                    Coconuts
+                  </div>
+                  <div className='text-sm font-bold text-amber-400 font-mono'>
+                    {totalNuts.toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div>
+                  <div className='text-[10px] text-slate-500 uppercase'>
+                    Income
+                  </div>
+                  <div className='text-sm font-bold text-green-400 font-mono'>
+                    {formatINR(estimatedIncome)}
+                  </div>
+                </div>
+                <div>
+                  <div className='text-[10px] text-slate-500 uppercase'>
+                    Profit
+                  </div>
+                  <div
+                    className='text-sm font-bold font-mono'
+                    style={{
+                      color: estimatedProfit >= 0 ? '#22c55e' : '#ef4444',
+                    }}
+                  >
+                    {formatINR(estimatedProfit)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {editing ? (
+            <p className='text-[10px] text-blue-400'>
+              ✏️ Updating record only. Adjust cashflow entries separately if
+              needed.
+            </p>
+          ) : (
+            <p className='text-[10px] text-emerald-400'>
+              ✓ Income &amp; expense will auto-sync to Cashflow &amp; selected
+              account.
+            </p>
+          )}
+
+          <div className='flex justify-end gap-2 pt-2 border-t border-slate-800'>
+            <button
+              type='button'
+              onClick={() => {
+                setShowModal(false);
+                setEditing(null);
+              }}
+              className='px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 text-sm font-bold'
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              onClick={save}
+              className={`px-5 py-2 rounded-xl text-white text-sm font-bold ${editing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+            >
+              {editing ? 'Update Harvest' : 'Save Harvest'}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

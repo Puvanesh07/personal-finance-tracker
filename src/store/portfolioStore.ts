@@ -436,7 +436,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
 
-    const batch = writeBatch(db);
     const collections = [
       'investments',
       'liabilities',
@@ -452,22 +451,31 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriLivestock',
       'agriMilkRecords',
       'agriCoconut',
+      'agriLivestockEvents',
     ];
 
     try {
-      // 1. Delete all user-specific documents from cloud collections
+      // Delete per-collection in separate batches to avoid 500-op Firestore limit
       for (const colName of collections) {
         const q = query(collection(db, colName), where('userId', '==', uid));
         const snap = await getDocs(q);
-        snap.docs.forEach((doc) => batch.delete(doc.ref));
+        if (snap.empty) continue;
+
+        // chunk into 499-doc batches
+        const refs = snap.docs.map((d) => d.ref);
+        for (let i = 0; i < refs.length; i += 499) {
+          const batch = writeBatch(db);
+          refs.slice(i, i + 499).forEach((ref) => batch.delete(ref));
+          await batch.commit();
+        }
       }
 
-      // 2. Delete specific user settings doc
-      batch.delete(doc(db, 'settings', uid));
+      // Delete settings doc
+      const settingsBatch = writeBatch(db);
+      settingsBatch.delete(doc(db, 'settings', uid));
+      await settingsBatch.commit();
 
-      await batch.commit();
-
-      // 3. Reset local state
+      // Reset local portfolio state
       set({
         investments: [],
         snapshots: [],

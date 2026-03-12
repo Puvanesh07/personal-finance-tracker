@@ -71,7 +71,7 @@ export function exportCSV(data: any[], filename = 'data.csv') {
 }
 
 // ── Export all sections as separate CSV files ────────────────────────────────
-export function exportAllSectionsAsCSV(state: any) {
+export function exportAllSectionsAsCSV(state: any, agriState?: any) {
   const accounts: Account[] = state.accounts ?? [];
 
   if (state.investments?.length) {
@@ -107,6 +107,92 @@ export function exportAllSectionsAsCSV(state: any) {
   }
   if (accounts.length) {
     exportCSV(toFlatAccountRows(accounts), 'accounts.csv');
+  }
+
+  // ── Agriculture CSV exports ─────────────────────────────────────────────
+  if (agriState) {
+    if (agriState.fields?.length) {
+      exportCSV(
+        agriState.fields.map((f: any) => ({
+          Name: f.name,
+          'Area (Acres)': f.areAcres,
+          Location: f.location ?? '',
+          'Soil Type': f.soilType ?? '',
+          'Created At': f.createdAt,
+        })),
+        'agri-fields.csv',
+      );
+    }
+    if (agriState.cropCycles?.length) {
+      exportCSV(
+        agriState.cropCycles.map((c: any) => ({
+          'Crop Name': c.cropName,
+          Field: c.fieldId ?? '',
+          Season: c.season,
+          'Start Date': c.startDate,
+          'End Date': c.endDate ?? '',
+          'Invested Amount': c.investedAmount,
+          'Harvest Income': c.harvestIncome,
+          'Profit/Loss': c.harvestIncome - c.investedAmount,
+          Notes: c.notes ?? '',
+        })),
+        'agri-crops.csv',
+      );
+    }
+    if (agriState.agriExpenses?.length) {
+      exportCSV(
+        agriState.agriExpenses.map((e: any) => ({
+          Date: e.date,
+          Category: e.category,
+          Amount: e.amount,
+          Notes: e.notes ?? '',
+        })),
+        'agri-expenses.csv',
+      );
+    }
+    if (agriState.livestockEvents?.length) {
+      exportCSV(
+        agriState.livestockEvents.map((e: any) => ({
+          Date: e.date,
+          Animal: e.animalType,
+          'Event Type': e.eventType,
+          Count: e.count,
+          Price: e.price ?? '',
+          Notes: e.notes ?? '',
+        })),
+        'agri-livestock-events.csv',
+      );
+    }
+    if (agriState.milkRecords?.length) {
+      exportCSV(
+        agriState.milkRecords.map((m: any) => ({
+          Date: m.date,
+          Liters: m.liters,
+          'Price/Liter': m.pricePerLiter,
+          Income: m.liters * m.pricePerLiter,
+          'Sold To': m.soldTo ?? '',
+        })),
+        'agri-milk.csv',
+      );
+    }
+    if (agriState.coconutRecords?.length) {
+      exportCSV(
+        agriState.coconutRecords.map((c: any) => ({
+          Date: c.date,
+          Trees: c.numberOfTrees,
+          'Total Coconuts': c.totalCoconuts,
+          'Sell Method': c.sellMethod,
+          'Price/Coconut': c.pricePerCoconut ?? '',
+          'Total Tons': c.totalTons ?? '',
+          'Price/Ton': c.pricePerTon ?? '',
+          Income: c.harvestIncome,
+          Investment: c.investmentAmount,
+          Profit: c.harvestIncome - c.investmentAmount,
+          Notes: c.notes ?? '',
+        })),
+        'agri-coconut.csv',
+      );
+    }
   }
 }
 

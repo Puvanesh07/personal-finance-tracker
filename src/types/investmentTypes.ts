@@ -320,20 +320,43 @@ export type MilkRecord = {
   updatedAt: string;
 };
 
+// ── Livestock Event Tracking ──────────────────────────────────────────────────
+export type LivestockEventType = 'purchase' | 'birth' | 'sale' | 'death';
+
+export type LivestockEvent = {
+  id: string;
+  animalType: LivestockType;
+  eventType: LivestockEventType;
+  count: number;
+  price?: number; // total price (for purchase/sale)
+  accountId?: string; // linked bank account
+  notes?: string;
+  date: string; // YYYY-MM-DD
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CoconutSellMethod = 'by_count' | 'by_ton';
+
 export type CoconutRecord = {
   id: string;
-  date: string; // YYYY-MM-DD (harvest date)
-  numberOfTrees: number;
-  coconutPerTree: number; // avg coconuts per tree this harvest
-  totalCoconuts: number; // numberOfTrees * coconutPerTree
-  minPrice: number;
-  maxPrice: number;
-  avgPrice: number; // (min+max)/2, used for income calc
-  investmentAmount: number; // fertilizer/labor cost
-  harvestIncome: number; // totalCoconuts * avgPrice
-  durationMonths: number; // harvest interval in months
+  date: string; // YYYY-MM-DD
+  numberOfTrees: number; // kept for reference / display
+  totalCoconuts: number; // entered directly by user
+  sellMethod: CoconutSellMethod;
+  // by_count fields
+  pricePerCoconut?: number; // single price per coconut
+  // by_ton fields
+  totalTons?: number; // entered directly or auto from coconuts x kg
+  weightKgPerCoconut?: number;
+  pricePerTon?: number;
+  // income / cost
+  harvestIncome: number; // auto-calculated
+  investmentAmount: number;
+  durationMonths: number;
   notes?: string;
-  accountId?: string; // income credited to
+  accountId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;

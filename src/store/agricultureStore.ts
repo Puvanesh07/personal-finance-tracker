@@ -5,7 +5,7 @@ import type {
   CoconutRecord,
   CropCycle,
   Field,
-  Livestock,
+  LivestockEvent,
   MilkRecord,
 } from '../types/investmentTypes';
 import {
@@ -43,9 +43,9 @@ type AgriState = {
   fields: Field[];
   cropCycles: CropCycle[];
   agriExpenses: AgriExpense[];
-  livestock: Livestock[];
   milkRecords: MilkRecord[];
   coconutRecords: CoconutRecord[];
+  livestockEvents: LivestockEvent[];
 
   hydrate: (uid: string) => Promise<void>;
   clearAll: () => void;
@@ -68,12 +68,6 @@ type AgriState = {
   updateAgriExpense: (id: string, patch: Partial<AgriExpense>) => Promise<void>;
   deleteAgriExpense: (id: string) => Promise<void>;
 
-  addLivestock: (
-    l: Omit<Livestock, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
-  ) => Promise<void>;
-  updateLivestock: (id: string, patch: Partial<Livestock>) => Promise<void>;
-  deleteLivestock: (id: string) => Promise<void>;
-
   addMilkRecord: (
     m: Omit<MilkRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -88,6 +82,12 @@ type AgriState = {
     patch: Partial<CoconutRecord>,
   ) => Promise<void>;
   deleteCoconutRecord: (id: string) => Promise<void>;
+
+  // Livestock Event actions (event-based tracking: purchase/birth/sale/death)
+  addLivestockEvent: (
+    e: Omit<LivestockEvent, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
+  ) => Promise<void>;
+  deleteLivestockEvent: (id: string) => Promise<void>;
 };
 
 export const useAgriStore = create<AgriState>((set, get) => ({
@@ -96,25 +96,25 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   fields: [],
   cropCycles: [],
   agriExpenses: [],
-  livestock: [],
   milkRecords: [],
   coconutRecords: [],
+  livestockEvents: [],
 
   hydrate: async (uid) => {
     const [
       fields,
       cropCycles,
       agriExpenses,
-      livestock,
       milkRecords,
       coconutRecords,
+      livestockEvents,
     ] = await Promise.all([
       fetchCol<Field>('agriFields', uid),
       fetchCol<CropCycle>('agriCropCycles', uid),
       fetchCol<AgriExpense>('agriExpenses', uid),
-      fetchCol<Livestock>('agriLivestock', uid),
       fetchCol<MilkRecord>('agriMilkRecords', uid),
       fetchCol<CoconutRecord>('agriCoconut', uid),
+      fetchCol<LivestockEvent>('agriLivestockEvents', uid),
     ]);
     set({
       uid,
@@ -124,26 +124,27 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         b.startDate.localeCompare(a.startDate),
       ),
       agriExpenses: agriExpenses.sort((a, b) => b.date.localeCompare(a.date)),
-      livestock: livestock.sort((a, b) =>
-        b.createdAt.localeCompare(a.createdAt),
-      ),
       milkRecords: milkRecords.sort((a, b) => b.date.localeCompare(a.date)),
       coconutRecords: coconutRecords.sort((a, b) =>
+        b.date.localeCompare(a.date),
+      ),
+      livestockEvents: livestockEvents.sort((a, b) =>
         b.date.localeCompare(a.date),
       ),
     });
   },
 
+  // ready: true keeps the page showing empty state instead of infinite spinner
   clearAll: () =>
     set({
       fields: [],
       cropCycles: [],
       agriExpenses: [],
-      livestock: [],
       milkRecords: [],
       coconutRecords: [],
-      ready: false,
-      uid: null,
+      livestockEvents: [],
+      ready: true,
+      uid: get().uid,
     }),
 
   // ── Fields ────────────────────────────────────────────────────────────────
@@ -204,7 +205,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     set((s) => ({ cropCycles: s.cropCycles.filter((x) => x.id !== id) }));
   },
 
-  // ── Expenses ──────────────────────────────────────────────────────────────
+  // ── Agri Expenses ─────────────────────────────────────────────────────────
   addAgriExpense: async (e) => {
     const uid = get().uid!;
     const now = new Date().toISOString();
@@ -236,36 +237,6 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   deleteAgriExpense: async (id) => {
     await deleteDoc(doc(db, 'agriExpenses', id));
     set((s) => ({ agriExpenses: s.agriExpenses.filter((x) => x.id !== id) }));
-  },
-
-  // ── Livestock ─────────────────────────────────────────────────────────────
-  addLivestock: async (l) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
-    const raw: Livestock = clean({
-      ...l,
-      id: agriId('lvs'),
-      userId: uid,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await setDoc(doc(db, 'agriLivestock', raw.id), raw);
-    set((s) => ({ livestock: [raw, ...s.livestock] }));
-  },
-  updateLivestock: async (id, patch) => {
-    const raw: Livestock = clean({
-      ...get().livestock.find((x) => x.id === id)!,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    await setDoc(doc(db, 'agriLivestock', id), raw);
-    set((s) => ({
-      livestock: s.livestock.map((x) => (x.id === id ? raw : x)),
-    }));
-  },
-  deleteLivestock: async (id) => {
-    await deleteDoc(doc(db, 'agriLivestock', id));
-    set((s) => ({ livestock: s.livestock.filter((x) => x.id !== id) }));
   },
 
   // ── Milk Records ──────────────────────────────────────────────────────────
@@ -335,6 +306,31 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     await deleteDoc(doc(db, 'agriCoconut', id));
     set((s) => ({
       coconutRecords: s.coconutRecords.filter((x) => x.id !== id),
+    }));
+  },
+
+  // ── Livestock Events ──────────────────────────────────────────────────────
+  addLivestockEvent: async (e) => {
+    const uid = get().uid!;
+    const now = new Date().toISOString();
+    const raw: LivestockEvent = clean({
+      ...e,
+      id: agriId('lve'),
+      userId: uid,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await setDoc(doc(db, 'agriLivestockEvents', raw.id), raw);
+    set((s) => ({
+      livestockEvents: [raw, ...s.livestockEvents].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      ),
+    }));
+  },
+  deleteLivestockEvent: async (id) => {
+    await deleteDoc(doc(db, 'agriLivestockEvents', id));
+    set((s) => ({
+      livestockEvents: s.livestockEvents.filter((x) => x.id !== id),
     }));
   },
 }));

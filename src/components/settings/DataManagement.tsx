@@ -14,23 +14,27 @@ import { useRef, useState } from 'react';
 import { Card } from '../ui/Card';
 import { Modal } from '../ui/Modal';
 import toast from 'react-hot-toast';
+import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function DataManagement() {
   const state = usePortfolioStore();
   const { investments, clearAllData, hydrate, uid } = state;
+  const agriState = useAgriStore();
+  const agriHydrate = agriState.hydrate;
+  const agriClear = agriState.clearAll;
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
 
-  // ── Clear all data ──────────────────────────────────────────────────────
   const handleClearData = async () => {
     if (confirmText.trim().toLowerCase() !== 'delete') return;
     setBusy(true);
     try {
       await clearAllData();
+      agriClear();
       toast.success('All data cleared from the cloud.');
       setConfirmOpen(false);
       setConfirmText('');
@@ -41,14 +45,13 @@ export function DataManagement() {
     }
   };
 
-  // ── Export JSON backup ──────────────────────────────────────────────────
   const handleExportBackup = async () => {
     if (!uid) return toast.error('Session expired. Please log in again.');
     setBusy(true);
     try {
       await exportFullBackup(uid);
       toast.success(
-        'Backup downloaded — includes investments, cashflows, accounts, goals, liabilities & settings.',
+        'Backup downloaded — includes all finance & agriculture data.',
       );
     } catch (err: any) {
       toast.error(err.message || 'Backup generation failed.');
@@ -57,7 +60,6 @@ export function DataManagement() {
     }
   };
 
-  // ── Import JSON backup ──────────────────────────────────────────────────
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uid) return;
@@ -65,7 +67,8 @@ export function DataManagement() {
     try {
       const text = await file.text();
       await importFullBackup(text, uid);
-      await hydrate(uid); // re-sync local Zustand state from Firebase
+      await hydrate(uid);
+      await agriHydrate(uid);
       toast.success('Backup imported and synced with Firebase successfully.');
     } catch (err: any) {
       toast.error(err.message || 'Import failed — check JSON format.');
@@ -75,9 +78,8 @@ export function DataManagement() {
     }
   };
 
-  // ── CSV all sections ────────────────────────────────────────────────────
   const handleExportCSV = () => {
-    const sections = [
+    const finSections = [
       state.investments?.length && 'Investments',
       state.liabilities?.length && 'Liabilities',
       state.cashflows?.length && 'Cashflows',
@@ -85,12 +87,22 @@ export function DataManagement() {
       (state.accounts ?? []).length && 'Accounts',
     ].filter(Boolean);
 
-    if (!sections.length) {
+    const agriSections = [
+      agriState.fields?.length && 'Fields',
+      agriState.cropCycles?.length && 'Crops',
+      agriState.agriExpenses?.length && 'Agri Expenses',
+      agriState.livestockEvents?.length && 'Livestock Events',
+      agriState.milkRecords?.length && 'Milk Records',
+      agriState.coconutRecords?.length && 'Coconut Records',
+    ].filter(Boolean);
+
+    const allSections = [...finSections, ...agriSections];
+    if (!allSections.length) {
       toast.error('Nothing to export — add some data first.');
       return;
     }
-    exportAllSectionsAsCSV(state);
-    toast.success(`Downloading: ${sections.join(', ')}`);
+    exportAllSectionsAsCSV(state, agriState);
+    toast.success(`Downloading CSVs: ${allSections.join(', ')}`);
   };
 
   return (
@@ -106,14 +118,18 @@ export function DataManagement() {
         <div className='flex flex-col gap-6'>
           <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
 
-          {/* ── CSV Exports ─────────────────────────────────────────────── */}
+          {/* CSV Exports */}
           <div className='flex flex-col gap-3'>
             <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
               CSV Exports
             </div>
             <p className='text-xs text-slate-500 dark:text-slate-400'>
-              Downloads separate CSV files for: investments, liabilities,
-              cashflows, goals and accounts.
+              Downloads separate CSV files for investments, liabilities,
+              cashflows, goals, accounts and{' '}
+              <strong className='text-slate-600 dark:text-slate-300'>
+                all agriculture data
+              </strong>{' '}
+              (fields, crops, expenses, livestock events, milk, coconut).
             </p>
             <div className='flex flex-col xl:flex-row gap-2'>
               <button
@@ -137,7 +153,7 @@ export function DataManagement() {
 
           <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
 
-          {/* ── JSON Backup ─────────────────────────────────────────────── */}
+          {/* JSON Backup */}
           <div className='flex flex-col gap-3'>
             <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
               Full System Backup (JSON)
@@ -148,9 +164,12 @@ export function DataManagement() {
               <strong className='text-slate-600 dark:text-slate-300'>
                 accounts
               </strong>
-              , snapshots and settings.
+              , snapshots, settings and{' '}
+              <strong className='text-slate-600 dark:text-slate-300'>
+                all agriculture data
+              </strong>{' '}
+              (fields, crops, livestock events, milk, coconut).
             </p>
-
             <div className='flex flex-col xl:flex-row gap-2'>
               <button
                 disabled={busy}
@@ -160,7 +179,6 @@ export function DataManagement() {
                 <FiDownload className='h-4 w-4' />
                 {busy ? 'Exporting…' : 'Export JSON Backup'}
               </button>
-
               <input
                 ref={fileInputRef}
                 type='file'
@@ -168,7 +186,6 @@ export function DataManagement() {
                 className='hidden'
                 onChange={handleImportFile}
               />
-
               <button
                 className='flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200/80 bg-indigo-50/50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400'
                 onClick={() => fileInputRef.current?.click()}
@@ -180,7 +197,7 @@ export function DataManagement() {
             </div>
           </div>
 
-          {/* ── Danger Zone ─────────────────────────────────────────────── */}
+          {/* Danger Zone */}
           <div className='mt-2 rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10'>
             <div className='flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400'>
               <FiAlertOctagon className='h-5 w-5' />
@@ -189,8 +206,8 @@ export function DataManagement() {
             <p className='mt-2 text-xs text-rose-600 dark:text-rose-400'>
               Permanently wipes <strong>all</strong> your data from Firebase —
               investments, liabilities, cashflows, goals,{' '}
-              <strong>accounts</strong>, snapshots and settings. This cannot be
-              undone.
+              <strong>accounts</strong>, snapshots, settings and all agriculture
+              data. This cannot be undone.
             </p>
             <button
               disabled={busy}
@@ -207,7 +224,6 @@ export function DataManagement() {
         </div>
       </Card>
 
-      {/* ── Confirm Delete Modal ─────────────────────────────────────────── */}
       <Modal
         open={confirmOpen}
         onClose={() => !busy && setConfirmOpen(false)}
@@ -227,9 +243,12 @@ export function DataManagement() {
             <li>All Accounts (bank &amp; credit)</li>
             <li>All Snapshots &amp; Net Worth history</li>
             <li>All Insights history</li>
+            <li>
+              All Agriculture data (fields, crops, livestock events, milk,
+              coconut)
+            </li>
             <li>Settings (Essentials, Notion)</li>
           </ul>
-
           <div className='rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10 p-3'>
             <p className='text-xs font-bold text-rose-700 dark:text-rose-400 mb-2'>
               Type <span className='font-mono'>delete</span> to confirm:
@@ -242,7 +261,6 @@ export function DataManagement() {
               autoComplete='off'
             />
           </div>
-
           <div className='flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800'>
             <button
               disabled={busy}

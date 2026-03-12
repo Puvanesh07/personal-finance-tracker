@@ -1,11 +1,18 @@
 // src/utils/backup.ts
 import type {
   Account,
+  AgriExpense,
   CashflowEntry,
+  CoconutRecord,
+  CropCycle,
   EssentialsConfig,
+  Field,
   Goal,
   Investment,
   Liability,
+  Livestock,
+  LivestockEvent,
+  MilkRecord,
   NetWorthSnapshot,
   NotionConfig,
   PortfolioSnapshot,
@@ -26,8 +33,9 @@ import { saveAs } from 'file-saver';
 
 // ── Backup shape ────────────────────────────────────────────────────────────
 // version 2 adds accounts
+// version 3 adds full agriculture data
 export type BackupPayload = {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
@@ -38,6 +46,14 @@ export type BackupPayload = {
   accounts: Account[];
   notion: NotionConfig;
   essentials: EssentialsConfig;
+  // Agriculture (v3+)
+  agriFields?: Field[];
+  agriCropCycles?: CropCycle[];
+  agriExpenses?: AgriExpense[];
+  agriLivestock?: Livestock[];
+  agriMilkRecords?: MilkRecord[];
+  agriCoconut?: CoconutRecord[];
+  agriLivestockEvents?: LivestockEvent[];
 };
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -79,6 +95,13 @@ export async function exportFullBackup(uid: string) {
     snapshots,
     networthSnapshots,
     accounts,
+    agriFields,
+    agriCropCycles,
+    agriExpenses,
+    agriLivestock,
+    agriMilkRecords,
+    agriCoconut,
+    agriLivestockEvents,
   ] = await Promise.all([
     fetchUserCollection<Investment>('investments', uid),
     fetchUserCollection<Liability>('liabilities', uid),
@@ -87,6 +110,13 @@ export async function exportFullBackup(uid: string) {
     fetchUserCollection<PortfolioSnapshot>('snapshots', uid),
     fetchUserCollection<NetWorthSnapshot>('networthSnapshots', uid),
     fetchUserCollection<Account>('accounts', uid),
+    fetchUserCollection<Field>('agriFields', uid),
+    fetchUserCollection<CropCycle>('agriCropCycles', uid),
+    fetchUserCollection<AgriExpense>('agriExpenses', uid),
+    fetchUserCollection<Livestock>('agriLivestock', uid),
+    fetchUserCollection<MilkRecord>('agriMilkRecords', uid),
+    fetchUserCollection<CoconutRecord>('agriCoconut', uid),
+    fetchUserCollection<LivestockEvent>('agriLivestockEvents', uid),
   ]);
 
   const settingsDoc = await getDoc(doc(db, 'settings', uid));
@@ -95,7 +125,7 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 2,
+    version: 3,
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
@@ -106,6 +136,13 @@ export async function exportFullBackup(uid: string) {
     accounts,
     notion: settings?.notion ?? { enabled: false },
     essentials: settings?.essentials ?? {},
+    agriFields,
+    agriCropCycles,
+    agriExpenses,
+    agriLivestock,
+    agriMilkRecords,
+    agriCoconut,
+    agriLivestockEvents,
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -121,8 +158,8 @@ export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
 
   const parsed = JSON.parse(jsonText) as BackupPayload;
-  if (!parsed || (parsed.version !== 1 && parsed.version !== 2)) {
-    throw new Error('Unsupported backup format. Expected version 1 or 2.');
+  if (!parsed || ![1, 2, 3].includes(parsed.version)) {
+    throw new Error('Unsupported backup format. Expected version 1, 2, or 3.');
   }
 
   // Use chunked batch writes to stay within Firestore 500-op limit
@@ -134,6 +171,14 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet('snapshots', parsed.snapshots ?? [], uid),
     batchSet('networthSnapshots', parsed.networthSnapshots ?? [], uid),
     batchSet('accounts', (parsed as any).accounts ?? [], uid),
+    // Agriculture collections (v3)
+    batchSet('agriFields', parsed.agriFields ?? [], uid),
+    batchSet('agriCropCycles', parsed.agriCropCycles ?? [], uid),
+    batchSet('agriExpenses', parsed.agriExpenses ?? [], uid),
+    batchSet('agriLivestock', parsed.agriLivestock ?? [], uid),
+    batchSet('agriMilkRecords', parsed.agriMilkRecords ?? [], uid),
+    batchSet('agriCoconut', parsed.agriCoconut ?? [], uid),
+    batchSet('agriLivestockEvents', parsed.agriLivestockEvents ?? [], uid),
   ]);
 
   // Restore settings in a single doc write
