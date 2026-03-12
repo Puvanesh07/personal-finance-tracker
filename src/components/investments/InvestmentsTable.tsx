@@ -1,6 +1,8 @@
 // src/components/investments/InvestmentsTable.tsx
 
 import {
+  FiArrowDown,
+  FiArrowUp,
   FiBox,
   FiBriefcase,
   FiCheck,
@@ -79,11 +81,11 @@ function formatPlatformName(platformStr?: string) {
   if (str === 'manual') return 'Direct';
   return str
     .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
 
-// ── Custom Dropdown for Bulk Edit ──────────────────────────────────────────
+// ── Bulk Edit Category Dropdown ────────────────────────────────────────────
 function BulkCategoryDropdown({
   value,
   onChange,
@@ -122,9 +124,8 @@ function BulkCategoryDropdown({
         !panelRef.current.contains(e.target as Node) &&
         triggerRef.current &&
         !triggerRef.current.contains(e.target as Node)
-      ) {
+      )
         setOpen(false);
-      }
     };
     document.addEventListener('mousedown', onMouse);
     window.addEventListener('scroll', updatePos, true);
@@ -140,7 +141,11 @@ function BulkCategoryDropdown({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all outline-none ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-100' : 'border-slate-700/80 bg-slate-900/80 hover:border-slate-600 hover:bg-slate-800/80 text-slate-200'}`}
+        className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all outline-none ${
+          open
+            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-100'
+            : 'border-slate-700/80 bg-slate-900/80 hover:border-slate-600 hover:bg-slate-800/80 text-slate-200'
+        }`}
       >
         <div className='flex items-center gap-3'>
           <Icon
@@ -177,7 +182,11 @@ function BulkCategoryDropdown({
                     onChange(cat.id);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${isSelected ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
+                    isSelected
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                  }`}
                 >
                   <div className='flex items-center gap-3'>
                     <CatIcon
@@ -196,7 +205,7 @@ function BulkCategoryDropdown({
   );
 }
 
-// ── Inline Classification Editor Popover ──────────────────────────────────
+// ── Classification Popover ─────────────────────────────────────────────────
 function ClassificationPopover({
   inv,
   currentCap,
@@ -214,9 +223,8 @@ function ClassificationPopover({
 
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node))
         onClose();
-      }
     };
     document.addEventListener('mousedown', onMouse);
     return () => document.removeEventListener('mousedown', onMouse);
@@ -274,7 +282,7 @@ function ClassificationPopover({
   );
 }
 
-// ── Asset Chip Components ───────────────────────────────────────────────────
+// ── Chip Components ────────────────────────────────────────────────────────
 
 function TypeChip({ type, assetType }: { type: string; assetType?: string }) {
   let label = type.replace('_', ' ');
@@ -297,25 +305,19 @@ function TypeChip({ type, assetType }: { type: string; assetType?: string }) {
     label = 'Fixed Deposit';
     color = 'border-amber-500/30 bg-amber-500/10 text-amber-400';
     Icon = FiShield;
-  } else if (type === 'other') {
-    if (assetType) {
-      label = assetType.replace('_', ' ');
-      if (assetType === 'international_equity') {
-        Icon = FiGlobe;
-        color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
-      } else if (assetType === 'gold') {
-        color = 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
-      } else if (assetType === 'silver') {
-        color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
-      } else if (assetType === 'real_estate') {
-        Icon = FiHome;
-        color = 'border-orange-500/30 bg-orange-500/10 text-orange-400';
-      } else if (assetType === 'crypto') {
-        Icon = FiMonitor;
-        color = 'border-rose-500/30 bg-rose-500/10 text-rose-400';
-      }
-    } else {
-      label = 'Other';
+  } else if (type === 'other' && assetType) {
+    label = assetType.replace('_', ' ');
+    if (assetType === 'international_equity') {
+      Icon = FiGlobe;
+      color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
+    } else if (assetType === 'gold') {
+      color = 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400';
+    } else if (assetType === 'real_estate') {
+      Icon = FiHome;
+      color = 'border-orange-500/30 bg-orange-500/10 text-orange-400';
+    } else if (assetType === 'crypto') {
+      Icon = FiMonitor;
+      color = 'border-rose-500/30 bg-rose-500/10 text-rose-400';
     }
   }
 
@@ -348,7 +350,6 @@ function MarketCapChip({ cap }: { cap?: string }) {
     color = 'border-orange-500/30 bg-orange-500/10 text-orange-300';
   if (c.includes('small') || c.includes('micro'))
     color = 'border-pink-500/30 bg-pink-500/10 text-pink-300';
-
   return (
     <span
       className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shadow-sm ${color}`}
@@ -358,20 +359,21 @@ function MarketCapChip({ cap }: { cap?: string }) {
   );
 }
 
-// ── Live Price Flash Cell ──────────────────────────────────────────────────
+// ── Price Cell ─────────────────────────────────────────────────────────────
 function PriceCell({
   inv,
   flashState,
+  isRefreshing,
 }: {
   inv: any;
   flashState: 'up' | 'down' | 'none';
+  isRefreshing?: boolean;
 }) {
   let price: number | null = null;
   let label = '';
 
   if (inv.type === 'stock') {
     price = inv.currentPrice ?? null;
-    label = '';
   } else if (inv.type === 'mutual_fund') {
     price = inv.nav ?? null;
     label = 'NAV';
@@ -389,19 +391,28 @@ function PriceCell({
     }
   }
 
+  if (isRefreshing) {
+    return (
+      <span className='inline-flex items-center gap-1 text-xs text-slate-500'>
+        <FiRefreshCw size={10} className='animate-spin' />…
+      </span>
+    );
+  }
+
   if (price === null || price === undefined) {
     return <span className='text-slate-600 text-xs font-medium'>—</span>;
   }
 
   const flashClass =
     flashState === 'up'
-      ? 'animate-pulse text-emerald-300 bg-emerald-500/20 rounded px-1'
+      ? 'text-emerald-300 bg-emerald-500/20 rounded px-1'
       : flashState === 'down'
-        ? 'animate-pulse text-rose-300 bg-rose-500/20 rounded px-1'
+        ? 'text-rose-300 bg-rose-500/20 rounded px-1'
         : '';
 
-  const at = (inv.assetType || '').toLowerCase();
-  const isUS = inv.type === 'other' && at === 'international_equity';
+  const isUS =
+    inv.type === 'other' &&
+    (inv.assetType || '').toLowerCase() === 'international_equity';
 
   return (
     <span
@@ -416,38 +427,48 @@ function PriceCell({
   );
 }
 
-// ── Helper: build the symbol string for each investment type ───────────────
-//
-// Return value meanings:
-//   "WIPRO"          → NSE stock, ready to fetch
-//   "US:AAPL"        → US stock, ready to fetch
-//   "MF:119551"      → MF with known numeric scheme code, ready to fetch
-//   "MF_NAME:HDFC…"  → MF with only a name — resolved via AMFI lookup at runtime
-//   "GOLD" / "SILVER"→ commodity, ready to fetch
-//   null             → not supported / skip
+// ── Per-row refresh button ─────────────────────────────────────────────────
+function RowRefreshButton({
+  onClick,
+  refreshing,
+}: {
+  onClick: () => void;
+  refreshing: boolean;
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={refreshing}
+      title='Refresh live price for this row'
+      className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all border ${
+        refreshing
+          ? 'border-slate-700 bg-slate-800 text-slate-600 cursor-not-allowed'
+          : 'border-emerald-500/25 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/50 active:scale-95'
+      }`}
+    >
+      <FiRefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
+      {!refreshing && <span>Live</span>}
+    </button>
+  );
+}
 
+// ── Symbol resolver ────────────────────────────────────────────────────────
 function getLivePriceSymbol(inv: any): string | null {
   const type = inv.type;
   const assetType = (inv.assetType || '').toLowerCase();
 
-  if (type === 'stock') {
-    return inv.symbol ? inv.symbol.toUpperCase() : null;
-  }
+  if (type === 'stock') return inv.symbol ? inv.symbol.toUpperCase() : null;
 
   if (type === 'mutual_fund') {
-    // Already have a numeric scheme code → use it directly
-    if (inv.schemeCode && /^\d{5,6}$/.test(String(inv.schemeCode).trim())) {
+    if (inv.schemeCode && /^\d{5,6}$/.test(String(inv.schemeCode).trim()))
       return `MF:${inv.schemeCode}`;
-    }
-    if (inv.amfiCode && /^\d{5,6}$/.test(String(inv.amfiCode).trim())) {
+    if (inv.amfiCode && /^\d{5,6}$/.test(String(inv.amfiCode).trim()))
       return `MF:${inv.amfiCode}`;
-    }
-    // symbol field might be a numeric code too
-    if (inv.symbol && /^\d{5,6}$/.test(String(inv.symbol).trim())) {
+    if (inv.symbol && /^\d{5,6}$/.test(String(inv.symbol).trim()))
       return `MF:${inv.symbol}`;
-    }
-    // Fall back to name-based lookup — prefix with MF_NAME: so the
-    // refresh handler knows it needs AMFI resolution
     const name = inv.name || inv.symbol;
     return name ? `MF_NAME:${name}` : null;
   }
@@ -455,20 +476,44 @@ function getLivePriceSymbol(inv: any): string | null {
   if (type === 'other') {
     if (assetType === 'gold') return 'GOLD';
     if (assetType === 'silver') return 'SILVER';
-    if (assetType === 'international_equity') {
+    if (assetType === 'international_equity')
       return inv.symbol ? `US:${inv.symbol.toUpperCase()}` : null;
-    }
   }
 
   return null;
 }
 
+// ── Sort Icon ───────────────────────────────────────────────────────────────
+function SortIcon({
+  col,
+  sortCol,
+  sortDir,
+}: {
+  col: string;
+  sortCol: string | null;
+  sortDir: 'asc' | 'desc';
+}) {
+  if (sortCol !== col)
+    return (
+      <FiArrowUp
+        size={11}
+        className='text-slate-600 group-hover/th:text-slate-400 transition-colors'
+      />
+    );
+  if (sortDir === 'asc')
+    return <FiArrowUp size={11} className='text-emerald-400' />;
+  /* desc — show ↓ in amber to hint "click again to clear" */
+  return <FiArrowDown size={11} className='text-amber-400' />;
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
 export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
   const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
 
   // ── Live Price State ───────────────────────────────────────────────────
-  const [refreshing, setRefreshing] = useState(false);
+  // Global refresh state
+  const [refreshingAll, setRefreshingAll] = useState(false);
   const [fetchProgress, setFetchProgress] = useState<{
     done: number;
     total: number;
@@ -479,152 +524,181 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     Record<string, 'up' | 'down' | 'none'>
   >({});
 
-  const handleRefreshLivePrices = async () => {
-    // Collect all assets that have a live price symbol
-    const liveAssets = investments
+  // ✅ Per-row refresh state: rowId → boolean
+  const [rowRefreshingMap, setRowRefreshingMap] = useState<
+    Record<string, boolean>
+  >({});
+
+  // ── Core refresh logic (shared by both global and per-row) ─────────────
+  const refreshPricesForAssets = async (
+    targetInvestments: any[],
+    onDone?: (updatedCount: number) => void,
+  ) => {
+    const liveAssets = targetInvestments
       .map((inv) => ({ inv, sym: getLivePriceSymbol(inv) }))
       .filter(({ sym }) => sym !== null) as { inv: any; sym: string }[];
 
-    if (liveAssets.length === 0) {
-      setRefreshError(
-        'No assets with live price support found. Add NSE symbol / MF scheme code / US ticker to your assets.',
-      );
-      setTimeout(() => setRefreshError(null), 5000);
-      return;
+    if (liveAssets.length === 0) return;
+
+    // Resolve MF name codes
+    const mfNameAssets = liveAssets.filter(({ sym }) =>
+      sym.startsWith('MF_NAME:'),
+    );
+    if (mfNameAssets.length > 0) {
+      const names = mfNameAssets.map(({ sym }) => sym.slice('MF_NAME:'.length));
+      const resolved = await resolveAmfiCodes(names);
+      for (const asset of mfNameAssets) {
+        const name = asset.sym.slice('MF_NAME:'.length);
+        const code = resolved[name];
+        if (code) {
+          asset.sym = `MF:${code}`;
+          updateInvestment(asset.inv.id, { schemeCode: code } as any).catch(
+            () => {},
+          );
+        } else {
+          asset.sym = '';
+        }
+      }
     }
 
-    setRefreshing(true);
-    setRefreshError(null);
+    const fetchableAssets = liveAssets.filter(({ sym }) => sym.length > 0);
+    if (fetchableAssets.length === 0) return;
 
-    try {
-      // ── Resolve MF_NAME: entries → real AMFI scheme codes ─────────────
-      const mfNameAssets = liveAssets.filter(({ sym }) =>
-        sym.startsWith('MF_NAME:'),
-      );
+    const symbols = [...new Set(fetchableAssets.map((a) => a.sym))];
+    const result = await fetchLivePrices(symbols, (done, total) => {
+      setFetchProgress({ done, total });
+    });
 
-      if (mfNameAssets.length > 0) {
-        const names = mfNameAssets.map(({ sym }) =>
-          sym.slice('MF_NAME:'.length),
-        );
-        console.log(
-          `[LivePrice] Resolving ${names.length} MF name(s) via AMFI…`,
-        );
+    const newFlash: Record<string, 'up' | 'down' | 'none'> = {};
+    const updates: Promise<void>[] = [];
 
-        const resolved = await resolveAmfiCodes(names);
+    for (const { inv, sym } of fetchableAssets) {
+      const fetched = result.prices[sym.toUpperCase()];
+      if (!fetched || fetched.price === null) continue;
 
-        for (const asset of mfNameAssets) {
-          const name = asset.sym.slice('MF_NAME:'.length);
-          const code = resolved[name];
-          if (code) {
-            asset.sym = `MF:${code}`;
-            // Persist the resolved schemeCode so the next refresh skips AMFI lookup
-            updateInvestment(asset.inv.id, { schemeCode: code } as any).catch(
-              () => {},
-            );
-          } else {
-            console.warn(
-              `[LivePrice] Could not resolve AMFI code for: "${name}"`,
-            );
-            asset.sym = ''; // mark unresolvable — filtered out below
-          }
-        }
-      }
+      const newPrice = fetched.price;
+      const type = inv.type;
+      const assetType = (inv.assetType || '').toLowerCase();
+      let oldPrice = 0;
+      let patch: Record<string, any> = {};
 
-      // Drop unresolvable entries
-      const fetchableAssets = liveAssets.filter(({ sym }) => sym.length > 0);
-
-      if (fetchableAssets.length === 0) {
-        setRefreshError(
-          'Could not resolve any MF scheme codes. Check fund names or add scheme codes manually.',
-        );
-        setTimeout(() => setRefreshError(null), 6000);
-        return;
-      }
-
-      // ── Fetch live prices ──────────────────────────────────────────────
-      const symbols = [...new Set(fetchableAssets.map((a) => a.sym))];
-      setFetchProgress({ done: 0, total: symbols.length });
-      const result = await fetchLivePrices(symbols, (done, total) => {
-        setFetchProgress({ done, total });
-      });
-
-      const newFlash: Record<string, 'up' | 'down' | 'none'> = {};
-      const updates: Promise<void>[] = [];
-
-      for (const { inv, sym } of fetchableAssets) {
-        const fetched = result.prices[sym.toUpperCase()];
-        if (!fetched || fetched.price === null) continue;
-
-        const newPrice = fetched.price;
-        const type = inv.type;
-        const assetType = (inv.assetType || '').toLowerCase();
-
-        let oldPrice = 0;
-        let patch: Record<string, any> = {};
-
-        if (type === 'stock') {
+      if (type === 'stock') {
+        oldPrice = inv.currentPrice ?? 0;
+        patch = { currentPrice: newPrice };
+      } else if (type === 'mutual_fund') {
+        oldPrice = inv.nav ?? 0;
+        patch = { nav: newPrice };
+      } else if (type === 'other') {
+        if (['gold', 'silver', 'international_equity'].includes(assetType)) {
           oldPrice = inv.currentPrice ?? 0;
           patch = { currentPrice: newPrice };
-        } else if (type === 'mutual_fund') {
-          oldPrice = inv.nav ?? 0;
-          patch = { nav: newPrice };
-        } else if (type === 'other') {
-          if (
-            assetType === 'gold' ||
-            assetType === 'silver' ||
-            assetType === 'international_equity'
-          ) {
-            oldPrice = inv.currentPrice ?? 0;
-            patch = { currentPrice: newPrice };
-          }
-        }
-
-        if (
-          Object.keys(patch).length > 0 &&
-          Math.abs(newPrice - oldPrice) > 0.001
-        ) {
-          newFlash[inv.id] = newPrice > oldPrice ? 'up' : 'down';
-          updates.push(updateInvestment(inv.id, patch));
         }
       }
 
-      await Promise.allSettled(updates);
+      if (
+        Object.keys(patch).length > 0 &&
+        Math.abs(newPrice - oldPrice) > 0.001
+      ) {
+        newFlash[inv.id] = newPrice > oldPrice ? 'up' : 'down';
+        updates.push(updateInvestment(inv.id, patch));
+      }
+    }
 
-      setFlashMap(newFlash);
+    await Promise.allSettled(updates);
+    setFlashMap((prev) => ({ ...prev, ...newFlash }));
+    setTimeout(
+      () =>
+        setFlashMap((prev) => {
+          const cleared = { ...prev };
+          Object.keys(newFlash).forEach((k) => {
+            if (cleared[k] === newFlash[k]) delete cleared[k];
+          });
+          return cleared;
+        }),
+      2000,
+    );
+
+    onDone?.(Object.keys(newFlash).length);
+  };
+
+  // ── Refresh ALL visible rows ───────────────────────────────────────────
+  const handleRefreshAll = async () => {
+    setRefreshingAll(true);
+    setRefreshError(null);
+    setFetchProgress({ done: 0, total: investments.length });
+
+    try {
+      await refreshPricesForAssets(investments, (count) => {
+        setLastUpdated(
+          new Date().toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        );
+        if (count === 0) {
+          setRefreshError('No price updates available for current assets.');
+          setTimeout(() => setRefreshError(null), 4000);
+        }
+      });
+    } catch (e: any) {
+      setRefreshError('Failed to fetch live prices. Please try again.');
+      setTimeout(() => setRefreshError(null), 4000);
+    } finally {
       setFetchProgress(null);
+      setRefreshingAll(false);
+    }
+  };
+
+  // ── ✅ Refresh SINGLE row ──────────────────────────────────────────────
+  const handleRefreshRow = async (inv: any) => {
+    const sym = getLivePriceSymbol(inv);
+    if (!sym) return;
+
+    setRowRefreshingMap((prev) => ({ ...prev, [inv.id]: true }));
+
+    try {
+      await refreshPricesForAssets([inv]);
       setLastUpdated(
         new Date().toLocaleTimeString('en-IN', {
           hour: '2-digit',
           minute: '2-digit',
         }),
       );
-
-      // Clear flash after 2 seconds
-      setTimeout(() => setFlashMap({}), 2000);
-
-      const updatedCount = Object.keys(newFlash).length;
-      const failedSymbols = symbols.filter(
-        (s) =>
-          !result.prices[s.toUpperCase()] ||
-          result.prices[s.toUpperCase()].price === null,
-      );
-
-      if (failedSymbols.length > 0 && updatedCount === 0) {
-        setRefreshError(`Could not fetch: ${failedSymbols.join(', ')}`);
-        setTimeout(() => setRefreshError(null), 5000);
-      } else if (updatedCount > 0) {
-        console.log(`[LivePrice] Updated ${updatedCount} assets`);
-      }
-    } catch (e: any) {
-      setRefreshError('Failed to fetch live prices. Please try again.');
-      setTimeout(() => setRefreshError(null), 4000);
-      console.error('[InvestmentsTable] refreshLivePrices failed:', e);
+    } catch (e) {
+      console.error('[RowRefresh] Failed for', inv.name, e);
     } finally {
-      setFetchProgress(null);
-      setRefreshing(false);
+      setRowRefreshingMap((prev) => ({ ...prev, [inv.id]: false }));
     }
   };
 
+  // ── ✅ Refresh SELECTED rows (checkbox-picked) ────────────────────────
+  const [refreshingSelected, setRefreshingSelected] = useState(false);
+
+  const handleRefreshSelected = async () => {
+    if (selectedIds.length === 0) return;
+    const targets = investments.filter((inv) => selectedIds.includes(inv.id));
+    const liveable = targets.filter((inv) => getLivePriceSymbol(inv) !== null);
+
+    if (liveable.length === 0) return;
+
+    setRefreshingSelected(true);
+    try {
+      await refreshPricesForAssets(liveable, (_count) => {
+        setLastUpdated(
+          new Date().toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        );
+      });
+    } catch (e) {
+      console.error('[BulkRowRefresh] failed', e);
+    } finally {
+      setRefreshingSelected(false);
+    }
+  };
+
+  // ── Extended data (market cap from metadata) ───────────────────────────
   const [extendedData, setExtendedData] = useState<
     Record<string, { cap?: string }>
   >({});
@@ -641,12 +715,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             }));
           }
         } catch (e) {
-          /* silent fail */
+          /* silent */
         }
       }
     });
   }, [investments]);
 
+  // ── Selection & Edit State ─────────────────────────────────────────────
   const [edit, setEdit] = useState<any | null>(null);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -665,7 +740,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             : inv.type === 'mutual_fund'
               ? inv.units
               : null;
-
         return {
           inv,
           invested: investedValue(inv),
@@ -684,13 +758,88 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     [investments, extendedData],
   );
 
-  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
+  // ── Sort ──────────────────────────────────────────────────────────────────
+  type SortCol =
+    | 'name'
+    | 'broker'
+    | 'sector'
+    | 'qty'
+    | 'invested'
+    | 'current'
+    | 'livePrice'
+    | 'pl'
+    | 'plPct';
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  const toggleSelectAll = () => {
-    if (isAllSelected) setSelectedIds([]);
-    else setSelectedIds(rows.map((r) => r.inv.id));
+  const handleSort = (col: SortCol) => {
+    if (sortCol !== col) {
+      setSortCol(col);
+      setSortDir('asc');
+    } // 1st click: asc
+    else if (sortDir === 'asc')
+      setSortDir('desc'); // 2nd click: desc
+    else {
+      setSortCol(null);
+      setSortDir('asc');
+    } // 3rd click: clear
   };
 
+  const sortedRows = useMemo(() => {
+    if (!sortCol) return rows;
+    return [...rows].sort((a, b) => {
+      let av: string | number = 0;
+      let bv: string | number = 0;
+      switch (sortCol) {
+        case 'name':
+          av = a.inv.name.toLowerCase();
+          bv = b.inv.name.toLowerCase();
+          break;
+        case 'broker':
+          av = (a.inv.platform || '').toLowerCase();
+          bv = (b.inv.platform || '').toLowerCase();
+          break;
+        case 'sector':
+          av = (a.inv.sector || '').toLowerCase();
+          bv = (b.inv.sector || '').toLowerCase();
+          break;
+        case 'qty':
+          av = a.qty ?? 0;
+          bv = b.qty ?? 0;
+          break;
+        case 'invested':
+          av = a.invested;
+          bv = b.invested;
+          break;
+        case 'current':
+          av = a.current;
+          bv = b.current;
+          break;
+        case 'livePrice':
+          av = a.inv.currentPrice ?? a.inv.nav ?? 0;
+          bv = b.inv.currentPrice ?? b.inv.nav ?? 0;
+          break;
+        case 'pl':
+          av = a.pl;
+          bv = b.pl;
+          break;
+        case 'plPct':
+          av = a.plPct;
+          bv = b.plPct;
+          break;
+      }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [rows, sortCol, sortDir]);
+
+  const isAllSelected =
+    sortedRows.length > 0 && selectedIds.length === sortedRows.length;
+  const toggleSelectAll = () => {
+    if (isAllSelected) setSelectedIds([]);
+    else setSelectedIds(sortedRows.map((r) => r.inv.id));
+  };
   const toggleRow = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -721,35 +870,25 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     for (const id of selectedIds) {
       const existing = investments.find((i) => i.id === id);
       if (!existing) continue;
-
       const patch: any = { type: cat.type };
       if (cat.type === 'other') patch.assetType = cat.id;
-
       if (cat.type === 'stock') {
         patch.quantity = existing.quantity || existing.units || 1;
-        patch.buyPrice =
-          existing.buyPrice || existing.nav || existing.investedAmount || 0;
-        patch.currentPrice =
-          existing.currentPrice || existing.nav || existing.currentValue || 0;
+        patch.buyPrice = existing.buyPrice || existing.nav || 0;
+        patch.currentPrice = existing.currentPrice || existing.nav || 0;
       } else if (cat.type === 'mutual_fund') {
         patch.units = existing.units || existing.quantity || 1;
         patch.nav = existing.nav || existing.buyPrice || 0;
-        patch.investedAmount =
-          existing.investedAmount || existing.quantity * existing.buyPrice || 0;
+        patch.investedAmount = existing.investedAmount || 0;
       } else if (cat.type === 'bond' || cat.type === 'fixed_deposit') {
-        patch.investedAmount =
-          existing.investedAmount || existing.quantity * existing.buyPrice || 0;
+        patch.investedAmount = existing.investedAmount || 0;
         patch.interestRate = existing.interestRate || 0;
         patch.durationMonths = existing.durationMonths || 12;
         patch.startDate = existing.startDate || todayISO();
         patch.maturityDate = existing.maturityDate || todayISO();
       } else if (cat.type === 'other') {
-        patch.investedAmount =
-          existing.investedAmount || existing.quantity * existing.buyPrice || 0;
-        patch.currentValue =
-          existing.currentValue ||
-          existing.quantity * existing.currentPrice ||
-          0;
+        patch.investedAmount = existing.investedAmount || 0;
+        patch.currentValue = existing.currentValue || 0;
       }
       await updateInvestment(id, patch);
     }
@@ -770,6 +909,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     setInlineEditId(null);
   };
 
+  // Reset to page 1 when rows change (filter applied)
+
   if (rows.length === 0) {
     return (
       <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-slate-500'>
@@ -781,344 +922,557 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   return (
     <div className='space-y-3 relative'>
-      {/* ── Header ── */}
-      <div className='flex items-center justify-between mb-2 px-1 flex-wrap gap-3'>
-        <div className='flex items-center gap-2'>
-          <FiList className='h-4 w-4 text-emerald-500' />
-          <h2 className='text-xs font-bold uppercase tracking-widest text-slate-400'>
-            Showing <span className='text-white'>{rows.length}</span> Asset
+      {/* ── Single unified header bar ── */}
+      <div className='flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 min-w-0'>
+        {/* Left: count */}
+        <div className='flex items-center gap-2 shrink-0'>
+          <FiList className='h-3.5 w-3.5 text-emerald-500' />
+          <span className='text-[11px] font-bold text-slate-400 whitespace-nowrap'>
+            <span className='text-white'>{rows.length}</span> asset
             {rows.length !== 1 ? 's' : ''}
-          </h2>
+          </span>
         </div>
 
-        {/* ── Refresh Live Price Button ── */}
-        <div className='flex items-center gap-3 flex-wrap'>
+        {/* Divider */}
+        <span className='w-px h-4 bg-slate-700 shrink-0' />
+
+        {/* Centre: legend dots */}
+        <div className='flex items-center gap-3 overflow-x-auto no-scrollbar flex-1 min-w-0'>
+          {[
+            { label: 'NSE', color: 'text-emerald-400', dot: 'bg-emerald-500' },
+            { label: 'MF', color: 'text-indigo-400', dot: 'bg-indigo-500' },
+            {
+              label: 'Gold/Silver',
+              color: 'text-yellow-400',
+              dot: 'bg-yellow-500',
+            },
+            { label: 'US', color: 'text-blue-400', dot: 'bg-blue-500' },
+          ].map((item) => (
+            <span
+              key={item.label}
+              className={`flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${item.color}`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.dot}`}
+              />
+              {item.label}
+            </span>
+          ))}
+          <span className='text-[9px] text-slate-600 whitespace-nowrap hidden sm:block'>
+            · hover row → ⚡ Live to refresh one
+          </span>
+        </div>
+
+        {/* Divider */}
+        <span className='w-px h-4 bg-slate-700 shrink-0' />
+
+        {/* Right: last updated + Refresh All button */}
+        <div className='flex items-center gap-2 shrink-0'>
           {lastUpdated && !refreshError && (
-            <span className='text-[10px] font-semibold text-slate-500 hidden sm:block'>
+            <span className='text-[10px] text-slate-500 whitespace-nowrap hidden md:block'>
               Updated {lastUpdated}
             </span>
           )}
           {refreshError && (
-            <span className='text-[10px] font-semibold text-rose-400 max-w-[220px] text-right leading-tight'>
+            <span className='text-[10px] font-semibold text-rose-400 whitespace-nowrap max-w-[160px] truncate'>
               {refreshError}
             </span>
           )}
-          <button
-            onClick={handleRefreshLivePrices}
-            disabled={refreshing}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all border shadow-lg
-              ${
-                refreshing
-                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
-                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 hover:shadow-emerald-500/20 active:scale-95'
-              }`}
-            title='Fetch latest prices for Stocks, MF NAV, Gold, Silver, US Stocks'
-          >
-            {refreshing ? (
-              <FiRefreshCw size={13} className='animate-spin' />
-            ) : (
-              <FiZap size={13} />
-            )}
-            <span>
-              {refreshing && fetchProgress
-                ? `Fetching ${fetchProgress.done}/${fetchProgress.total}…`
-                : refreshing
-                  ? 'Preparing…'
-                  : 'Refresh Live Price'}
-            </span>
-          </button>
 
-          {/* Progress bar — only shown when refreshing large portfolios */}
-          {refreshing && fetchProgress && fetchProgress.total > 20 && (
-            <div className='w-full mt-1.5'>
-              <div className='h-1 w-full bg-slate-800 rounded-full overflow-hidden'>
-                <div
-                  className='h-1 bg-emerald-500 rounded-full transition-all duration-300'
-                  style={{
-                    width: `${Math.round((fetchProgress.done / fetchProgress.total) * 100)}%`,
-                  }}
-                />
-              </div>
-              <p className='text-[9px] text-slate-500 font-semibold mt-0.5 text-right'>
-                {Math.round((fetchProgress.done / fetchProgress.total) * 100)}%
-              </p>
-            </div>
-          )}
+          <button
+            onClick={handleRefreshAll}
+            disabled={refreshingAll}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
+              refreshingAll
+                ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 active:scale-95'
+            }`}
+            title='Refresh live prices for all visible assets'
+          >
+            {refreshingAll ? (
+              <FiRefreshCw size={11} className='animate-spin' />
+            ) : (
+              <FiZap size={11} />
+            )}
+            {refreshingAll && fetchProgress
+              ? `${fetchProgress.done}/${fetchProgress.total}`
+              : refreshingAll
+                ? '…'
+                : 'Refresh All'}
+          </button>
         </div>
       </div>
 
-      {/* ── Legend: what gets refreshed ── */}
-      <div className='flex flex-wrap gap-2 px-1 mb-1'>
-        {[
-          {
-            label: 'NSE Stocks',
-            color: 'text-emerald-400',
-            dot: 'bg-emerald-500',
-          },
-          {
-            label: 'Mutual Funds',
-            color: 'text-indigo-400',
-            dot: 'bg-indigo-500',
-          },
-          {
-            label: 'Gold/Silver',
-            color: 'text-yellow-400',
-            dot: 'bg-yellow-500',
-          },
-          { label: 'US Stocks', color: 'text-blue-400', dot: 'bg-blue-500' },
-        ].map((item) => (
-          <span
-            key={item.label}
-            className={`flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider ${item.color}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${item.dot}`} />
-            {item.label}
-          </span>
-        ))}
-        <span className='text-[9px] text-slate-600 font-medium'>
-          auto-updated on refresh
-        </span>
-      </div>
+      {/* Progress bar — only for large portfolios */}
+      {refreshingAll && fetchProgress && fetchProgress.total > 20 && (
+        <div className='h-0.5 w-full bg-slate-800 rounded-full overflow-hidden -mt-1'>
+          <div
+            className='h-full bg-emerald-500 rounded-full transition-all duration-300'
+            style={{
+              width: `${Math.round((fetchProgress.done / fetchProgress.total) * 100)}%`,
+            }}
+          />
+        </div>
+      )}
 
-      {/* MOBILE VIEW */}
-      <div className='flex flex-col gap-3 md:hidden'>
-        <div className='flex items-center gap-3 px-2 py-1'>
+      {/* ── MOBILE VIEW ── */}
+      <div className='flex flex-col gap-2.5 md:hidden px-1'>
+        {/* Select-all bar */}
+        <div className='flex items-center justify-between px-1 py-1'>
           <button
             onClick={toggleSelectAll}
-            className='flex items-center gap-2 text-sm text-slate-400 font-semibold hover:text-emerald-400'
+            className='flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-emerald-400 transition-colors'
           >
             {isAllSelected ? (
-              <FiCheckSquare size={18} className='text-emerald-500' />
+              <FiCheckSquare size={15} className='text-emerald-500' />
             ) : (
-              <FiSquare size={18} />
+              <FiSquare size={15} />
             )}
-            Select All
+            {isAllSelected ? 'Deselect All' : 'Select All'}
           </button>
+          <span className='text-[11px] text-slate-600 font-medium'>
+            {sortedRows.length} assets
+          </span>
         </div>
 
-        {rows.map(({ inv, current, pl, plPct, marketCap, qty }) => {
-          const isSelected = selectedIds.includes(inv.id);
-          return (
-            <div
-              key={inv.id}
-              className={`border p-4 rounded-2xl flex flex-col gap-4 transition-colors ${isSelected ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-900/50 border-slate-800'}`}
-            >
-              <div className='flex justify-between items-start gap-3'>
-                <div className='flex items-start gap-3 min-w-0 flex-1'>
-                  <button
-                    onClick={() => toggleRow(inv.id)}
-                    className='mt-0.5 text-slate-400 hover:text-emerald-400 transition-colors shrink-0'
-                  >
-                    {isSelected ? (
-                      <FiCheckSquare size={18} className='text-emerald-500' />
-                    ) : (
-                      <FiSquare size={18} />
-                    )}
-                  </button>
-                  <div className='flex flex-col gap-1.5 relative min-w-0 flex-1'>
-                    <div className='min-w-0'>
-                      <h3
-                        className='font-bold text-slate-50 truncate text-sm'
-                        title={inv.name}
-                      >
-                        {inv.name}
-                      </h3>
-                      <div className='flex items-center flex-wrap gap-2 mt-1'>
-                        <TypeChip
-                          type={inv.type}
-                          assetType={(inv as any).assetType}
-                        />
-                        <span className='text-[10px] text-slate-500 font-bold uppercase tracking-wide whitespace-nowrap'>
-                          {formatPlatformName(inv.platform)}
-                          {qty !== null && qty !== undefined
-                            ? ` • QTY: ${Number(qty).toLocaleString('en-IN', { maximumFractionDigits: 4 })}`
-                            : ''}
-                        </span>
-                      </div>
-                    </div>
-                    {inv.type === 'stock' && (
-                      <div
-                        className='flex flex-wrap items-center gap-1.5 mt-1 cursor-pointer group'
-                        onClick={() =>
-                          setInlineEditId(
-                            inlineEditId === inv.id ? null : inv.id,
-                          )
-                        }
-                      >
-                        <SectorChip sector={inv.sector} />
-                        <MarketCapChip cap={marketCap} />
-                        {!inv.sector && !marketCap && (
-                          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover:border-emerald-500/50 group-hover:text-emerald-400 transition-colors'>
-                            <FiTag size={10} /> Add Tags
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {inlineEditId === inv.id && (
-                      <ClassificationPopover
-                        inv={inv}
-                        currentCap={marketCap}
-                        onClose={() => setInlineEditId(null)}
-                        onSave={handleSaveClassification}
-                      />
-                    )}
-                  </div>
-                </div>
-                <div className='flex gap-1.5 shrink-0'>
-                  <button
-                    onClick={() => setEdit(inv)}
-                    className='p-2 text-slate-400 bg-slate-800 rounded-lg transition-colors hover:text-white'
-                  >
-                    <FiEdit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(inv.id)}
-                    className='p-2 text-rose-400 bg-rose-500/10 rounded-lg transition-colors hover:bg-rose-500/20'
-                  >
-                    <FiTrash2 size={14} />
-                  </button>
-                </div>
-              </div>
+        {sortedRows.map(
+          ({ inv, invested, current, pl, plPct, marketCap, qty }) => {
+            const isSelected = selectedIds.includes(inv.id);
+            const isRowRefreshing = !!rowRefreshingMap[inv.id];
+            const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
+            const isProfit = pl >= 0;
 
+            return (
               <div
-                className={`grid grid-cols-2 gap-2 pt-3 border-t ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/50'}`}
+                key={inv.id}
+                className={`relative rounded-2xl border overflow-hidden transition-all duration-150 ${
+                  isSelected
+                    ? 'border-emerald-500/40 bg-emerald-500/[0.05]'
+                    : 'border-slate-800 bg-slate-900/60'
+                }`}
               >
-                <div>
-                  <p className='text-[10px] text-slate-500 font-bold uppercase tracking-wider'>
-                    Current Value
-                  </p>
-                  <p className='text-base font-bold text-white mt-0.5'>
-                    {formatINR(current)}
-                  </p>
-                  <PriceCell
-                    inv={inv}
-                    flashState={flashMap[inv.id] ?? 'none'}
-                  />
-                </div>
-                <div className='text-right'>
-                  <p className='text-[10px] text-slate-500 font-bold uppercase tracking-wider'>
-                    Returns
-                  </p>
-                  <p
-                    className={`text-base font-bold mt-0.5 ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
-                  >
-                    {pl >= 0 ? '+' : ''}
-                    {plPct.toFixed(2)}%
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                {/* Profit/Loss accent bar on left edge */}
+                <div
+                  className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl ${isProfit ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                />
 
-      {/* DESKTOP VIEW */}
-      <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
-        <div className='overflow-x-auto pb-2'>
-          <table className='w-full text-left text-sm'>
-            <thead className='bg-slate-800/80 text-[10px] font-bold uppercase text-slate-400 tracking-widest border-b border-slate-700/50'>
-              <tr>
-                <th className='px-4 py-4 w-12 text-center'>
-                  <button
-                    onClick={toggleSelectAll}
-                    className='text-slate-400 hover:text-emerald-400 transition-colors pt-1'
-                  >
-                    {isAllSelected ? (
-                      <FiCheckSquare size={16} className='text-emerald-500' />
-                    ) : (
-                      <FiSquare size={16} />
-                    )}
-                  </button>
-                </th>
-                <th className='px-4 py-4 w-64'>Asset Name</th>
-                <th className='px-4 py-4 whitespace-nowrap'>Broker</th>
-                <th className='px-4 py-4'>Classification</th>
-                <th className='px-4 py-4 text-right'>Qty</th>
-                <th className='px-6 py-4 text-right'>Invested</th>
-                <th className='px-6 py-4 text-right'>Current Val</th>
-                <th className='px-6 py-4 text-right'>Live Price</th>
-                <th className='px-6 py-4 text-right'>P/L (%)</th>
-                <th className='px-4 py-4 text-center'>Actions</th>
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-slate-800/60'>
-              {rows.map(
-                ({ inv, invested, current, pl, plPct, marketCap, qty }) => {
-                  const isSelected = selectedIds.includes(inv.id);
-                  return (
-                    <tr
-                      key={inv.id}
-                      className={`transition-colors group ${isSelected ? 'bg-emerald-500/10' : 'hover:bg-slate-800/40'}`}
+                <div className='pl-3 pr-3 pt-3 pb-3'>
+                  {/* ── Row 1: Checkbox + Name + Actions ── */}
+                  <div className='flex items-start gap-2.5'>
+                    <button
+                      onClick={() => toggleRow(inv.id)}
+                      className='mt-0.5 shrink-0 text-slate-500 hover:text-emerald-400 transition-colors'
                     >
-                      <td className='px-4 py-4 text-center'>
-                        <button
-                          onClick={() => toggleRow(inv.id)}
-                          className='text-slate-400 hover:text-emerald-400 transition-colors pt-1'
-                        >
-                          {isSelected ? (
-                            <FiCheckSquare
-                              size={16}
-                              className='text-emerald-500'
-                            />
-                          ) : (
-                            <FiSquare size={16} />
-                          )}
-                        </button>
-                      </td>
-                      <td className='px-4 py-4'>
-                        <div className='flex flex-col gap-1.5'>
-                          <div
-                            className='font-bold text-slate-100 truncate max-w-[220px]'
+                      {isSelected ? (
+                        <FiCheckSquare size={15} className='text-emerald-500' />
+                      ) : (
+                        <FiSquare size={15} />
+                      )}
+                    </button>
+
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex items-start justify-between gap-2'>
+                        <div className='min-w-0 flex-1'>
+                          <h3
+                            className='font-bold text-[14px] text-slate-100 truncate leading-tight'
                             title={inv.name}
                           >
                             {inv.name}
+                          </h3>
+                          <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
+                            <TypeChip
+                              type={inv.type}
+                              assetType={(inv as any).assetType}
+                            />
+                            <span className='inline-flex items-center rounded-md bg-slate-800 border border-slate-700/50 px-1.5 py-0.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider'>
+                              {formatPlatformName(inv.platform)}
+                            </span>
+                            {qty !== null && qty !== undefined && (
+                              <span className='text-[10px] text-slate-600 font-medium'>
+                                ×{' '}
+                                {Number(qty).toLocaleString('en-IN', {
+                                  maximumFractionDigits: 4,
+                                })}
+                              </span>
+                            )}
                           </div>
-                          <div className='flex items-center gap-2'>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className='flex items-center gap-1 shrink-0'>
+                          {hasLiveSymbol && (
+                            <RowRefreshButton
+                              onClick={() => handleRefreshRow(inv)}
+                              refreshing={isRowRefreshing}
+                            />
+                          )}
+                          <button
+                            onClick={() => setEdit(inv)}
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white transition-all'
+                          >
+                            <FiEdit2 size={12} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(inv.id)}
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-all'
+                          >
+                            <FiTrash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Sector + Cap tags */}
+                      {inv.type === 'stock' && (
+                        <div
+                          className='flex items-center gap-1.5 mt-2 cursor-pointer'
+                          onClick={() =>
+                            setInlineEditId(
+                              inlineEditId === inv.id ? null : inv.id,
+                            )
+                          }
+                        >
+                          {inv.sector ? (
+                            <SectorChip sector={inv.sector} />
+                          ) : null}
+                          {marketCap ? <MarketCapChip cap={marketCap} /> : null}
+                          {!inv.sector && !marketCap && (
+                            <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                              <FiTag size={9} /> Add Tags
+                            </span>
+                          )}
+                          <FiEdit2
+                            size={10}
+                            className='text-slate-700 ml-0.5'
+                          />
+                        </div>
+                      )}
+                      {inlineEditId === inv.id && (
+                        <ClassificationPopover
+                          inv={inv}
+                          currentCap={marketCap}
+                          onClose={() => setInlineEditId(null)}
+                          onSave={handleSaveClassification}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── Row 2: Stats grid ── */}
+                  <div
+                    className={`mt-3 pt-3 border-t grid grid-cols-3 gap-0 ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/60'}`}
+                  >
+                    {/* Invested */}
+                    <div className='flex flex-col gap-0.5'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        Invested
+                      </span>
+                      <span className='text-[13px] font-semibold text-slate-400 tabular-nums'>
+                        {formatINR(invested)}
+                      </span>
+                    </div>
+
+                    {/* Current Value */}
+                    <div className='flex flex-col gap-0.5 items-center'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        Curr. Value
+                      </span>
+                      <span className='text-[13px] font-bold text-white tabular-nums'>
+                        {formatINR(current)}
+                      </span>
+                      {hasLiveSymbol && (
+                        <PriceCell
+                          inv={inv}
+                          flashState={flashMap[inv.id] ?? 'none'}
+                          isRefreshing={isRowRefreshing}
+                        />
+                      )}
+                    </div>
+
+                    {/* P&L */}
+                    <div className='flex flex-col gap-0.5 items-end'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        P&amp;L
+                      </span>
+                      <span
+                        className={`text-[13px] font-bold tabular-nums ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}
+                      >
+                        {isProfit ? '+' : ''}
+                        {formatINR(pl)}
+                      </span>
+                      <span
+                        className={`text-[10px] font-semibold tabular-nums ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
+                      >
+                        {isProfit ? '▲' : '▼'} {Math.abs(plPct).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          },
+        )}
+      </div>
+
+      {/* ── DESKTOP VIEW ── */}
+      <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
+        <div className='overflow-x-auto pb-2'>
+          <table className='w-full text-sm border-separate border-spacing-0'>
+            {/* ── HEADER ── */}
+            <thead>
+              <tr className='whitespace-nowrap'>
+                {/* Checkbox */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-3 py-2.5 w-10 border-b border-slate-700/60'>
+                  <button
+                    onClick={toggleSelectAll}
+                    className='flex items-center justify-center text-slate-500 hover:text-emerald-400 transition-colors'
+                  >
+                    {isAllSelected ? (
+                      <FiCheckSquare size={14} className='text-emerald-500' />
+                    ) : (
+                      <FiSquare size={14} />
+                    )}
+                  </button>
+                </th>
+
+                {/* Asset — sortable left */}
+                <th className='sticky top-0 z-10 bg-slate-900 pl-2 pr-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('name')}
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    Asset
+                    <SortIcon col='name' sortCol={sortCol} sortDir={sortDir} />
+                  </button>
+                </th>
+
+                {/* Broker — sortable left */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('broker')}
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    Broker
+                    <SortIcon
+                      col='broker'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                  </button>
+                </th>
+
+                {/* Sector · Cap — sortable left */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('sector')}
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    Sector · Cap
+                    <SortIcon
+                      col='sector'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                  </button>
+                </th>
+
+                {/* Qty — sortable right */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('qty')}
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    <SortIcon col='qty' sortCol={sortCol} sortDir={sortDir} />
+                    Qty
+                  </button>
+                </th>
+
+                {/* Invested — sortable right */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('invested')}
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    <SortIcon
+                      col='invested'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                    Invested
+                  </button>
+                </th>
+
+                {/* Curr. Value — sortable right */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('current')}
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    <SortIcon
+                      col='current'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                    Curr. Value
+                  </button>
+                </th>
+
+                {/* Live Price — sortable right */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('livePrice')}
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    <SortIcon
+                      col='livePrice'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                    Live Price
+                  </button>
+                </th>
+
+                {/* Refresh — not sortable */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-2 py-2.5 w-10 text-center text-[10px] font-semibold text-slate-600 border-b border-slate-700/60'>
+                  ⚡
+                </th>
+
+                {/* P&L — two sort options: abs value or % */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60 min-w-[120px]'>
+                  <div className='flex items-center justify-end gap-2'>
+                    <button
+                      onClick={() => handleSort('pl')}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-200 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-500'}`}
+                    >
+                      <span className='flex items-center gap-1'>
+                        <SortIcon
+                          col='pl'
+                          sortCol={sortCol}
+                          sortDir={sortDir}
+                        />{' '}
+                        P&amp;L
+                      </span>
+                    </button>
+                    <span className='text-slate-700 text-[10px]'>/</span>
+                    <button
+                      onClick={() => handleSort('plPct')}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-200 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-500'}`}
+                    >
+                      <span className='flex items-center gap-1'>
+                        %{' '}
+                        <SortIcon
+                          col='plPct'
+                          sortCol={sortCol}
+                          sortDir={sortDir}
+                        />
+                      </span>
+                    </button>
+                  </div>
+                </th>
+
+                {/* Actions */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-3 py-2.5 w-16 border-b border-slate-700/60' />
+              </tr>
+            </thead>
+
+            {/* ── BODY ── */}
+            <tbody>
+              {sortedRows.map(
+                (
+                  { inv, invested, current, pl, plPct, marketCap, qty },
+                  rowIdx,
+                ) => {
+                  const isSelected = selectedIds.includes(inv.id);
+                  const isRowRefreshing = !!rowRefreshingMap[inv.id];
+                  const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
+                  const isLast = rowIdx === sortedRows.length - 1;
+                  const bdClass = !isLast ? 'border-b border-slate-800/70' : '';
+
+                  return (
+                    <tr
+                      key={inv.id}
+                      className={`group transition-colors duration-100 ${isSelected ? 'bg-emerald-500/[0.07]' : 'hover:bg-slate-800/50'}`}
+                    >
+                      {/* ── Checkbox ── */}
+                      <td className={`px-3 py-3.5 ${bdClass}`}>
+                        <button
+                          onClick={() => toggleRow(inv.id)}
+                          className='flex items-center justify-center text-slate-500 hover:text-emerald-400 transition-colors'
+                        >
+                          {isSelected ? (
+                            <FiCheckSquare
+                              size={14}
+                              className='text-emerald-500'
+                            />
+                          ) : (
+                            <FiSquare size={14} />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* ── Asset ── */}
+                      <td className={`pl-2 pr-4 py-3.5 ${bdClass}`}>
+                        <div className='flex flex-col gap-1 min-w-[150px] max-w-[210px]'>
+                          <span
+                            className='font-semibold text-[13px] text-slate-100 truncate leading-tight'
+                            title={inv.name}
+                          >
+                            {inv.name}
+                          </span>
+                          <div className='flex items-center gap-1.5'>
                             <TypeChip
                               type={inv.type}
                               assetType={(inv as any).assetType}
                             />
                             {inv.symbol && (
-                              <span className='text-[10px] font-bold text-slate-500'>
+                              <span className='text-[10px] font-bold text-slate-600 tracking-wide'>
                                 {inv.symbol}
                               </span>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className='px-4 py-4'>
-                        <span className='inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 uppercase tracking-widest border border-slate-700/50 whitespace-nowrap'>
+
+                      {/* ── Broker ── */}
+                      <td className={`px-4 py-3.5 ${bdClass}`}>
+                        <span className='inline-flex items-center rounded-md bg-slate-800 border border-slate-700/50 px-2 py-0.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider whitespace-nowrap'>
                           {formatPlatformName(inv.platform)}
                         </span>
                       </td>
-                      <td className='px-4 py-4 relative group/class'>
+
+                      {/* ── Sector · Cap ── */}
+                      <td
+                        className={`px-4 py-3.5 ${bdClass} relative group/class`}
+                      >
                         {inv.type === 'stock' ? (
                           <div
-                            className='flex flex-wrap gap-1.5 cursor-pointer min-h-[24px] items-center'
+                            className='flex items-center gap-1.5 cursor-pointer whitespace-nowrap'
                             onClick={() =>
                               setInlineEditId(
                                 inlineEditId === inv.id ? null : inv.id,
                               )
                             }
                           >
-                            <SectorChip sector={inv.sector} />
-                            <MarketCapChip cap={marketCap} />
-                            {!inv.sector && !marketCap && (
-                              <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 group-hover/class:border-emerald-500/50 group-hover/class:text-emerald-400 transition-colors'>
-                                <FiTag size={10} /> Add
+                            {inv.sector ? (
+                              <SectorChip sector={inv.sector} />
+                            ) : (
+                              <span className='text-[10px] text-slate-600 italic'>
+                                —
                               </span>
                             )}
-                            {(inv.sector || marketCap) && (
-                              <FiEdit2
-                                size={12}
-                                className='text-slate-500 opacity-0 group-hover/class:opacity-100 transition-opacity ml-1'
-                              />
+                            {marketCap ? (
+                              <MarketCapChip cap={marketCap} />
+                            ) : (
+                              <span className='text-[10px] text-slate-600 italic'>
+                                —
+                              </span>
                             )}
+                            <FiEdit2
+                              size={10}
+                              className='text-slate-600 opacity-0 group-hover/class:opacity-100 transition-opacity shrink-0 ml-0.5'
+                            />
                           </div>
                         ) : (
-                          <span className='text-xs text-slate-600 font-medium'>
-                            —
-                          </span>
+                          <span className='text-[11px] text-slate-600'>—</span>
                         )}
                         {inlineEditId === inv.id && (
                           <ClassificationPopover
@@ -1129,50 +1483,96 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           />
                         )}
                       </td>
-                      <td className='px-4 py-4 text-right text-slate-300 font-medium tabular-nums'>
-                        {qty !== null && qty !== undefined
-                          ? Number(qty).toLocaleString('en-IN', {
+
+                      {/* ── Qty ── */}
+                      <td
+                        className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
+                      >
+                        <span className='text-[13px] font-medium text-slate-300'>
+                          {qty !== null && qty !== undefined ? (
+                            Number(qty).toLocaleString('en-IN', {
                               maximumFractionDigits: 4,
                             })
-                          : '—'}
+                          ) : (
+                            <span className='text-slate-600'>—</span>
+                          )}
+                        </span>
                       </td>
-                      <td className='px-6 py-4 text-right text-slate-300 font-medium tabular-nums'>
-                        {formatINR(invested)}
+
+                      {/* ── Invested ── */}
+                      <td
+                        className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
+                      >
+                        <span className='text-[13px] font-medium text-slate-400'>
+                          {formatINR(invested)}
+                        </span>
                       </td>
-                      <td className='px-6 py-4 text-right font-bold text-white tabular-nums'>
-                        {formatINR(current)}
+
+                      {/* ── Current Val ── */}
+                      <td
+                        className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
+                      >
+                        <span className='text-[13px] font-bold text-white'>
+                          {formatINR(current)}
+                        </span>
                       </td>
-                      <td className='px-6 py-4 text-right tabular-nums'>
+
+                      {/* ── Live Price ── */}
+                      <td
+                        className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
+                      >
                         <PriceCell
                           inv={inv}
                           flashState={flashMap[inv.id] ?? 'none'}
+                          isRefreshing={isRowRefreshing}
                         />
                       </td>
+
+                      {/* ── Refresh button (separate col) ── */}
+                      <td className={`px-2 py-3.5 text-center ${bdClass}`}>
+                        {hasLiveSymbol ? (
+                          <span className='opacity-0 group-hover:opacity-100 transition-opacity'>
+                            <RowRefreshButton
+                              onClick={() => handleRefreshRow(inv)}
+                              refreshing={isRowRefreshing}
+                            />
+                          </span>
+                        ) : (
+                          <span className='text-slate-700 text-[10px]'>—</span>
+                        )}
+                      </td>
+
+                      {/* ── P&L ── */}
                       <td
-                        className={`px-6 py-4 text-right tabular-nums ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                        className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
-                        <div className='font-bold'>
-                          {pl >= 0 ? '+' : ''}
-                          {formatINR(pl)}
-                        </div>
-                        <div className='text-[10px] font-semibold opacity-80 mt-0.5'>
-                          {pl >= 0 ? '+' : ''}
-                          {plPct.toFixed(2)}%
+                        <div
+                          className={`flex flex-col items-end gap-0.5 ${pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+                        >
+                          <span className='text-[13px] font-bold leading-none whitespace-nowrap'>
+                            {pl >= 0 ? '+' : ''}
+                            {formatINR(pl)}
+                          </span>
+                          <span className='text-[10px] font-semibold whitespace-nowrap opacity-80'>
+                            {pl >= 0 ? '▲' : '▼'} {Math.abs(plPct).toFixed(2)}%
+                          </span>
                         </div>
                       </td>
-                      <td className='px-4 py-4'>
-                        <div className='flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+
+                      {/* ── Actions ── */}
+                      <td className={`px-3 py-3.5 ${bdClass}`}>
+                        <div className='flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
                           <button
                             onClick={() => setEdit(inv)}
-                            className='p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors'
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
                           >
-                            <FiEdit2 size={14} />
+                            <FiEdit2 size={12} />
                           </button>
                           <button
                             onClick={() => setDeleteId(inv.id)}
-                            className='p-2 hover:bg-rose-500/20 rounded-lg text-slate-400 hover:text-rose-400 transition-colors'
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-all'
                           >
-                            <FiTrash2 size={14} />
+                            <FiTrash2 size={12} />
                           </button>
                         </div>
                       </td>
@@ -1184,8 +1584,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </table>
         </div>
       </div>
-
-      {/* FLOATING BULK ACTION BAR */}
       {selectedIds.length > 0 && (
         <div className='fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-in slide-in-from-bottom-8 fade-in duration-300'>
           <div className='flex items-center gap-2'>
@@ -1197,18 +1595,41 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             </span>
           </div>
           <div className='w-px h-6 bg-slate-700 mx-1' />
+
+          {/* ✅ Bulk Live Price Refresh for selected rows */}
+          <button
+            onClick={handleRefreshSelected}
+            disabled={refreshingSelected}
+            className={`flex items-center gap-2 text-sm font-bold transition-colors ${
+              refreshingSelected
+                ? 'text-slate-500 cursor-not-allowed'
+                : 'text-emerald-400 hover:text-emerald-300'
+            }`}
+            title='Fetch live prices for selected assets'
+          >
+            {refreshingSelected ? (
+              <FiRefreshCw size={15} className='animate-spin' />
+            ) : (
+              <FiZap size={15} />
+            )}
+            <span className='hidden sm:block'>
+              {refreshingSelected ? 'Fetching…' : 'Refresh Prices'}
+            </span>
+          </button>
+          <div className='w-px h-6 bg-slate-700 mx-1' />
+
           <button
             onClick={() => setBulkEditOpen(true)}
             className='flex items-center gap-2 text-sm font-bold text-slate-200 hover:text-emerald-400 transition-colors'
           >
-            <FiFolder size={16} />{' '}
+            <FiFolder size={16} />
             <span className='hidden sm:block'>Edit Category</span>
           </button>
           <button
             onClick={() => setBulkDeleteOpen(true)}
             className='flex items-center gap-2 text-sm font-bold text-rose-400 hover:text-rose-300 transition-colors'
           >
-            <FiTrash2 size={16} />{' '}
+            <FiTrash2 size={16} />
             <span className='hidden sm:block'>Delete</span>
           </button>
           <div className='w-px h-6 bg-slate-700 mx-1' />
@@ -1221,7 +1642,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         </div>
       )}
 
-      {/* MODALS */}
+      {/* ── Modals ── */}
       {edit && (
         <UpsertInvestmentModal
           open={!!edit}
@@ -1238,8 +1659,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       >
         <div className='space-y-6'>
           <p className='text-sm text-slate-400'>
-            Are you sure you want to permanently delete this asset? This action
-            cannot be undone.
+            Are you sure you want to permanently delete this asset? This cannot
+            be undone.
           </p>
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button
@@ -1269,7 +1690,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <span className='text-white font-bold'>
               {selectedIds.length} assets
             </span>
-            . This action cannot be undone.
+            . This cannot be undone.
           </p>
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button

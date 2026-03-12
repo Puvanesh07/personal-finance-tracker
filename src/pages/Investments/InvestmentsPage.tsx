@@ -17,6 +17,7 @@ import {
 } from 'react-icons/fi';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { BsBank2 } from 'react-icons/bs';
 import { ImportAngelOnePdfButton } from '../../components/investments/ImportAngelOnePdfButton';
 import { ImportCsvButton } from '../../components/investments/ImportCsvButton';
 import { ImportGrowwButton } from '../../components/investments/ImportGrowButton';
@@ -26,7 +27,7 @@ import { UpsertInvestmentModal } from '../../components/investments/UpsertInvest
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-// ── Extended Category Definitions ──────────────────────────────────────────
+// ── Asset Type Filter Categories ───────────────────────────────────────────
 const FILTER_CATEGORIES = [
   { id: 'all', label: 'All Assets', type: 'all', icon: FiFilter },
   { id: 'stock', label: 'Indian Stocks', type: 'stock', icon: FiTrendingUp },
@@ -58,21 +59,35 @@ const FILTER_CATEGORIES = [
   { id: 'other', label: 'Other Asset', type: 'other', icon: FiBox },
 ];
 
-// ── Custom Filter Dropdown (Portalled) ───────────────────────────────────
-function CategoryFilterDropdown({
+// ── Broker Filter Options ──────────────────────────────────────────────────
+const BROKER_FILTERS = [
+  { id: 'all', label: 'All Brokers', icon: BsBank2 },
+  { id: 'zerodha', label: 'Zerodha', icon: BsBank2 },
+  { id: 'angel_one', label: 'Angel One', icon: BsBank2 },
+  { id: 'groww', label: 'Groww', icon: BsBank2 },
+  { id: 'indmoney', label: 'INDmoney', icon: BsBank2 },
+  { id: 'upstox', label: 'Upstox', icon: BsBank2 },
+  { id: 'manual', label: 'Direct / Manual', icon: BsBank2 },
+];
+
+// ── Generic Portalled Dropdown ─────────────────────────────────────────────
+function FilterDropdown<T extends { id: string; label: string; icon: any }>({
+  options,
   value,
   onChange,
+  accentColor = 'emerald',
 }: {
+  options: T[];
   value: string;
   onChange: (v: string) => void;
+  accentColor?: string;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
-  const selected =
-    FILTER_CATEGORIES.find((c) => c.id === value) || FILTER_CATEGORIES[0];
+  const selected = options.find((o) => o.id === value) || options[0];
   const Icon = selected.icon;
 
   const updatePos = useCallback(() => {
@@ -97,9 +112,8 @@ function CategoryFilterDropdown({
         !panelRef.current.contains(e.target as Node) &&
         triggerRef.current &&
         !triggerRef.current.contains(e.target as Node)
-      ) {
+      )
         setOpen(false);
-      }
     };
     document.addEventListener('mousedown', onMouse);
     window.addEventListener('scroll', updatePos, true);
@@ -109,6 +123,17 @@ function CategoryFilterDropdown({
     };
   }, [open, updatePos]);
 
+  const ringColor =
+    accentColor === 'blue'
+      ? 'border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)] ring-2 ring-blue-500/20'
+      : 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20';
+  const iconActive =
+    accentColor === 'blue' ? 'text-blue-400' : 'text-emerald-400';
+  const selectedBg =
+    accentColor === 'blue'
+      ? 'bg-blue-500/10 text-blue-400'
+      : 'bg-emerald-500/10 text-emerald-400';
+
   return (
     <>
       <button
@@ -117,18 +142,16 @@ function CategoryFilterDropdown({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 outline-none backdrop-blur-md ${
           open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] text-slate-100 ring-2 ring-emerald-500/20'
+            ? `border-emerald-500/50 bg-slate-800 ${ringColor} text-slate-100`
             : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'
         }`}
       >
         <div className='flex items-center gap-3'>
-          <Icon
-            className={`h-4 w-4 ${open ? 'text-emerald-400' : 'text-slate-500'}`}
-          />
+          <Icon className={`h-4 w-4 ${open ? iconActive : 'text-slate-500'}`} />
           <span>{selected.label}</span>
         </div>
         <FiChevronDown
-          className={`h-4 w-4 transition-transform duration-300 text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-4 w-4 transition-transform duration-300 text-slate-500 ${open ? `rotate-180 ${iconActive}` : ''}`}
         />
       </button>
 
@@ -145,28 +168,28 @@ function CategoryFilterDropdown({
             }}
             className='max-h-[350px] overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 shadow-2xl custom-scrollbar py-1.5 animate-in fade-in zoom-in-95 duration-200'
           >
-            {FILTER_CATEGORIES.map((cat) => {
-              const CatIcon = cat.icon;
-              const isSelected = cat.id === value;
+            {options.map((opt) => {
+              const OptIcon = opt.icon;
+              const isSelected = opt.id === value;
               return (
                 <button
-                  key={cat.id}
+                  key={opt.id}
                   type='button'
                   onClick={() => {
-                    onChange(cat.id);
+                    onChange(opt.id);
                     setOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
                     isSelected
-                      ? 'bg-emerald-500/10 text-emerald-400'
+                      ? selectedBg
                       : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                   }`}
                 >
                   <div className='flex items-center gap-3'>
-                    <CatIcon
-                      className={`h-4 w-4 ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}
+                    <OptIcon
+                      className={`h-4 w-4 ${isSelected ? iconActive : 'text-slate-400'}`}
                     />
-                    <span>{cat.label}</span>
+                    <span>{opt.label}</span>
                   </div>
                   {isSelected && <FiCheck className='h-4 w-4 shrink-0' />}
                 </button>
@@ -179,27 +202,62 @@ function CategoryFilterDropdown({
   );
 }
 
-// ───────────────────────────────────────────────────────────────────────────
+// ── Broker badge colors ────────────────────────────────────────────────────
+function getBrokerBadgeStyle(brokerId: string) {
+  switch (brokerId) {
+    case 'zerodha':
+      return 'bg-sky-500/10 border-sky-500/30 text-sky-400';
+    case 'angel_one':
+      return 'bg-orange-500/10 border-orange-500/30 text-orange-400';
+    case 'groww':
+      return 'bg-purple-500/10 border-purple-500/30 text-purple-400';
+    case 'indmoney':
+      return 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+    case 'upstox':
+      return 'bg-amber-500/10 border-amber-500/30 text-amber-400';
+    default:
+      return 'bg-slate-700/40 border-slate-600/40 text-slate-400';
+  }
+}
 
+// ── Helper: normalise platform string to broker id ─────────────────────────
+function normalisePlatform(platform?: string): string {
+  if (!platform) return 'manual';
+  const s = platform.toLowerCase().replace(/\s+/g, '_');
+  if (s === 'angel_one' || s === 'angelone') return 'angel_one';
+  if (s === 'zerodha') return 'zerodha';
+  if (s === 'groww') return 'groww';
+  if (s === 'indmoney') return 'indmoney';
+  if (s === 'upstox') return 'upstox';
+  if (s === 'direct' || s === 'manual') return 'manual';
+  return 'manual';
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────
 export function InvestmentsPage() {
   const investments = usePortfolioStore((s) => s.investments);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [brokerFilter, setBrokerFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  // Advanced Filtering Logic
+  // Derive active brokers from actual data so the dropdown only shows relevant options
+  const activeBrokers = useMemo(() => {
+    const ids = new Set(
+      investments.map((inv) => normalisePlatform(inv.platform)),
+    );
+    return BROKER_FILTERS.filter((b) => b.id === 'all' || ids.has(b.id));
+  }, [investments]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
     return investments.filter((inv) => {
-      // 1. Check Category Match
+      // 1. Asset type filter
       if (typeFilter !== 'all') {
         const cat = FILTER_CATEGORIES.find((c) => c.id === typeFilter);
         if (cat) {
-          // Verify base type matches (e.g. stock === stock)
           if (inv.type !== cat.type) return false;
-
-          // For extended "other" types (gold, ppf, nps), verify the sub-type matches
           if (cat.type === 'other') {
             const invAssetType = (inv as any).assetType || 'other';
             if (invAssetType !== cat.id) return false;
@@ -207,7 +265,12 @@ export function InvestmentsPage() {
         }
       }
 
-      // 2. Check Search Match
+      // 2. Broker filter
+      if (brokerFilter !== 'all') {
+        if (normalisePlatform(inv.platform) !== brokerFilter) return false;
+      }
+
+      // 3. Search
       if (!q) return true;
       return (
         inv.name.toLowerCase().includes(q) ||
@@ -215,11 +278,16 @@ export function InvestmentsPage() {
         (inv.platform ?? '').toLowerCase().includes(q)
       );
     });
-  }, [investments, query, typeFilter]);
+  }, [investments, query, typeFilter, brokerFilter]);
+
+  // Active broker label for the results bar
+  const activeBrokerLabel =
+    BROKER_FILTERS.find((b) => b.id === brokerFilter)?.label ?? 'All Brokers';
+  const showBrokerBadge = brokerFilter !== 'all';
 
   return (
     <div className='flex flex-col gap-4 md:gap-6 pb-20 md:pb-8'>
-      {/* Responsive Header */}
+      {/* Header */}
       <header className='flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-4 md:p-6 border border-emerald-500/20 shadow-xl'>
         <div className='flex items-center justify-between w-full'>
           <div className='flex items-center gap-3'>
@@ -255,26 +323,86 @@ export function InvestmentsPage() {
         </div>
       </header>
 
-      {/* Search and Filters Section */}
-      <div className='flex flex-col md:grid md:grid-cols-[1fr_240px] gap-3'>
-        {/* Search Bar */}
+      {/* ── Filters Row ── */}
+      <div className='flex flex-col gap-3'>
+        {/* Search */}
         <div className='relative group'>
           <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors' />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className='w-full rounded-xl border border-slate-800 bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all'
-            placeholder='Search assets...'
+            placeholder='Search by name, symbol, or broker…'
           />
         </div>
 
-        {/* Custom Icon Filter Dropdown */}
-        <div className='relative'>
-          <CategoryFilterDropdown value={typeFilter} onChange={setTypeFilter} />
+        {/* Asset Type + Broker dropdowns side by side */}
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+          <div className='relative'>
+            <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
+              Asset Type
+            </p>
+            <FilterDropdown
+              options={FILTER_CATEGORIES}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              accentColor='emerald'
+            />
+          </div>
+
+          <div className='relative'>
+            <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
+              Broker / Platform
+            </p>
+            <FilterDropdown
+              options={activeBrokers}
+              value={brokerFilter}
+              onChange={setBrokerFilter}
+              accentColor='blue'
+            />
+          </div>
         </div>
+
+        {/* Active filter pills */}
+        {(showBrokerBadge || typeFilter !== 'all') && (
+          <div className='flex items-center gap-2 flex-wrap'>
+            <span className='text-[10px] text-slate-500 font-semibold uppercase tracking-widest'>
+              Filters:
+            </span>
+            {typeFilter !== 'all' && (
+              <button
+                onClick={() => setTypeFilter('all')}
+                className='flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
+              >
+                {FILTER_CATEGORIES.find((c) => c.id === typeFilter)?.label}
+                <span className='text-emerald-300 text-xs ml-0.5'>✕</span>
+              </button>
+            )}
+            {showBrokerBadge && (
+              <button
+                onClick={() => setBrokerFilter('all')}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold hover:opacity-80 transition-opacity ${getBrokerBadgeStyle(brokerFilter)}`}
+              >
+                {activeBrokerLabel}
+                <span className='text-xs ml-0.5'>✕</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setTypeFilter('all');
+                setBrokerFilter('all');
+                setQuery('');
+              }}
+              className='text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
       <InvestmentsTable investments={filtered} />
+
       <UpsertInvestmentModal
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
