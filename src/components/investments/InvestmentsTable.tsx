@@ -284,15 +284,24 @@ function ClassificationPopover({
 
 // ── Chip Components ────────────────────────────────────────────────────────
 
-function TypeChip({ type, assetType }: { type: string; assetType?: string }) {
+function TypeChip({ inv }: { inv: any }) {
+  const type = inv.type;
+  const assetType = inv.assetType;
   let label = type.replace('_', ' ');
   let color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
   let Icon = FiBox;
 
   if (type === 'stock') {
-    label = 'Equity';
-    color = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
-    Icon = FiTrendingUp;
+    // Detect US Stock based on the presence of usdPrice
+    if (inv.usdPrice || inv.usdToInr) {
+      label = 'Intl Equity';
+      color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
+      Icon = FiGlobe;
+    } else {
+      label = 'Equity';
+      color = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
+      Icon = FiTrendingUp;
+    }
   } else if (type === 'mutual_fund') {
     label = 'Mutual Fund';
     color = 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400';
@@ -373,7 +382,13 @@ function PriceCell({
   let label = '';
 
   if (inv.type === 'stock') {
-    price = inv.currentPrice ?? null;
+    // Show USD Price for US Stocks
+    if (inv.usdPrice) {
+      price = inv.usdPrice;
+      label = 'USD';
+    } else {
+      price = inv.currentPrice ?? null;
+    }
   } else if (inv.type === 'mutual_fund') {
     price = inv.nav ?? null;
     label = 'NAV';
@@ -411,8 +426,9 @@ function PriceCell({
         : '';
 
   const isUS =
-    inv.type === 'other' &&
-    (inv.assetType || '').toLowerCase() === 'international_equity';
+    (inv.type === 'stock' && !!inv.usdPrice) ||
+    (inv.type === 'other' &&
+      (inv.assetType || '').toLowerCase() === 'international_equity');
 
   return (
     <span
@@ -583,8 +599,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       let patch: Record<string, any> = {};
 
       if (type === 'stock') {
-        oldPrice = inv.currentPrice ?? 0;
-        patch = { currentPrice: newPrice };
+        const isUS = !!inv.usdPrice || fetched.type === 'us_stock';
+
+        if (isUS) {
+          const rate = inv.usdToInr || 84; // Ensure fallback rate is provided
+          oldPrice = inv.usdPrice || 0;
+          patch = {
+            usdPrice: newPrice, // Store raw USD price
+            currentPrice: newPrice * rate, // Auto-convert live price to INR for P&L calculation
+          };
+        } else {
+          oldPrice = inv.currentPrice ?? 0;
+          patch = { currentPrice: newPrice };
+        }
       } else if (type === 'mutual_fund') {
         oldPrice = inv.nav ?? 0;
         patch = { nav: newPrice };
@@ -1080,10 +1107,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             {inv.name}
                           </h3>
                           <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
-                            <TypeChip
-                              type={inv.type}
-                              assetType={(inv as any).assetType}
-                            />
+                            <TypeChip inv={inv} />
                             <span className='inline-flex items-center rounded-md bg-slate-800 border border-slate-700/50 px-1.5 py-0.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider'>
                               {formatPlatformName(inv.platform)}
                             </span>
@@ -1419,10 +1443,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             {inv.name}
                           </span>
                           <div className='flex items-center gap-1.5'>
-                            <TypeChip
-                              type={inv.type}
-                              assetType={(inv as any).assetType}
-                            />
+                            <TypeChip inv={inv} />
                             {inv.symbol && (
                               <span className='text-[10px] font-bold text-slate-600 tracking-wide'>
                                 {inv.symbol}

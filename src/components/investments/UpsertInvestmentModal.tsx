@@ -13,6 +13,7 @@ import {
   FiMonitor,
   FiPieChart,
   FiPlus,
+  FiRefreshCw,
   FiSave,
   FiShield,
   FiTrendingUp,
@@ -73,7 +74,7 @@ const ASSET_CATEGORIES = [
       {
         id: 'international_equity',
         label: 'Intl. Equity',
-        type: 'other',
+        type: 'stock',
         icon: FiGlobe,
         color: 'text-blue-400',
         bg: 'bg-blue-400/10',
@@ -183,6 +184,19 @@ const ASSET_CATEGORIES = [
   },
 ];
 
+// ── Fetch live USD → INR rate ─────────────────────────────────────────────
+async function fetchUsdToInr(): Promise<number> {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (!res.ok) throw new Error('Network response was not ok');
+    const data = await res.json();
+    return data?.rates?.INR ?? 84;
+  } catch (error) {
+    console.error('Failed to fetch USD rate:', error);
+    return 84; // fallback
+  }
+}
+
 // ── Rich Asset Dropdown ───────────────────────────────────────────────────
 function RichAssetDropdown({
   value,
@@ -203,25 +217,17 @@ function RichAssetDropdown({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 340;
-
-    // Use actual height if rendered, else default max-height
     const panelH = panelRef.current ? panelRef.current.offsetHeight : 400;
-
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 16,
     );
-
-    // Smart Upward Positioning logic
     const spaceBelow = window.innerHeight - r.bottom;
     let top = r.bottom + 8 + window.scrollY;
-
-    // If space below is not enough, and there's more space above, open upwards
     if (spaceBelow < panelH && r.top > spaceBelow) {
       top = r.top - panelH - 8 + window.scrollY;
     }
-
     setPos({ top, left: Math.max(8, clampedLeft), width: panelW });
   }, []);
 
@@ -290,9 +296,8 @@ function RichAssetDropdown({
               left: pos.left,
               width: pos.width,
               zIndex: 99999,
-              animation: 'none',
             }}
-            className='overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200'
+            className='overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl'
           >
             <div className='max-h-[400px] overflow-y-auto custom-scrollbar p-2'>
               {ASSET_CATEGORIES.map((group, gIdx) => (
@@ -355,7 +360,7 @@ function RichAssetDropdown({
   );
 }
 
-// ── Smart Calendar Picker ────────────────────────────────────────────────────────
+// ── Smart Calendar Picker ─────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -385,20 +390,16 @@ function CalendarPicker({
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 280;
     const panelH = panelRef.current ? panelRef.current.offsetHeight : 340;
-
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 16,
     );
-
     const spaceBelow = window.innerHeight - r.bottom;
     let top = r.bottom + 8 + window.scrollY;
-
     if (spaceBelow < panelH && r.top > spaceBelow) {
       top = r.top - panelH - 8 + window.scrollY;
     }
-
     setPos({ top, left: Math.max(8, clampedLeft) });
   }, []);
 
@@ -470,7 +471,6 @@ function CalendarPicker({
               left: pos.left,
               zIndex: 99999,
               width: 280,
-              animation: 'none',
             }}
             className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
@@ -548,7 +548,7 @@ function CalendarPicker({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 type Props =
   | {
@@ -574,14 +574,21 @@ type FormState = {
   quantity: string;
   buyPrice: string;
   currentPrice: string;
+  // US stock USD fields
+  totalInvestedUsd: string;
+  currentValueUsd: string;
+  usdToInr: string;
+  // mutual fund
   units: string;
   nav: string;
   investedAmount: string;
+  // bond / fd
   interestRate: string;
   durationMonths: string;
   startDate: string;
   maturityDate: string;
   bankName: string;
+  // other
   currentValue: string;
 };
 
@@ -605,6 +612,9 @@ export function UpsertInvestmentModal(props: Props) {
       quantity: '0',
       buyPrice: '0',
       currentPrice: '0',
+      totalInvestedUsd: '0',
+      currentValueUsd: '0',
+      usdToInr: '84',
       units: '0',
       nav: '0',
       investedAmount: '0',
@@ -632,6 +642,25 @@ export function UpsertInvestmentModal(props: Props) {
         base.uiCategory = (inv.assetType as ExtendedAssetCategory) || 'other';
 
       if (inv.type === 'stock') {
+        const isUs = !!(
+          (inv as any).usdPrice ||
+          (inv as any).usdToInr ||
+          (inv as any).buyPriceUsd
+        );
+        if (isUs) {
+          base.uiCategory = 'international_equity';
+
+          const buyPUsd = Number(
+            (inv as any).buyPriceUsd ?? (inv as any).usdPrice ?? inv.buyPrice,
+          );
+          const curPUsd = Number((inv as any).usdPrice ?? inv.currentPrice);
+          const q = Number(inv.quantity || 0);
+
+          // Show the total invested and total current value to the user in the UI
+          base.totalInvestedUsd = String(buyPUsd * q);
+          base.currentValueUsd = String(curPUsd * q);
+          base.usdToInr = String((inv as any).usdToInr ?? 84);
+        }
         base.quantity = String(inv.quantity);
         base.buyPrice = String(inv.buyPrice);
         base.currentPrice = String(inv.currentPrice);
@@ -668,6 +697,38 @@ export function UpsertInvestmentModal(props: Props) {
   const [saving, setSaving] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [detectMsg, setDetectMsg] = useState<string | null>(null);
+  const [fetchingRate, setFetchingRate] = useState(false);
+
+  const isUsStock = state.uiCategory === 'international_equity';
+
+  // Auto-fetch USD/INR rate when switching to international equity
+  useEffect(() => {
+    if (isUsStock && state.usdToInr === '84') {
+      void refreshUsdRate();
+    }
+  }, [isUsStock]);
+
+  // Auto-calculate INR prices whenever USD price, rate, or quantity changes
+  useEffect(() => {
+    if (!isUsStock) return;
+    const rate = toNumber(state.usdToInr);
+    const q = toNumber(state.quantity) || 1; // avoid division by zero
+    if (rate <= 0) return;
+
+    // Convert Total USD -> Per Share USD -> Per Share INR
+    const buyInr = ((toNumber(state.totalInvestedUsd) / q) * rate).toFixed(2);
+    const currentInr = ((toNumber(state.currentValueUsd) / q) * rate).toFixed(
+      2,
+    );
+
+    setState((s) => ({ ...s, buyPrice: buyInr, currentPrice: currentInr }));
+  }, [
+    state.totalInvestedUsd,
+    state.currentValueUsd,
+    state.usdToInr,
+    state.quantity,
+    isUsStock,
+  ]);
 
   useEffect(() => {
     if (props.open) {
@@ -675,6 +736,13 @@ export function UpsertInvestmentModal(props: Props) {
       setDetectMsg(null);
     }
   }, [props.open, initial]);
+
+  async function refreshUsdRate() {
+    setFetchingRate(true);
+    const rate = await fetchUsdToInr();
+    setState((s) => ({ ...s, usdToInr: String(rate) }));
+    setFetchingRate(false);
+  }
 
   async function autoDetectSector() {
     const sym = state.symbol.trim();
@@ -705,15 +773,41 @@ export function UpsertInvestmentModal(props: Props) {
       let payload: any = {};
 
       if (state.type === 'stock') {
+        let q = toNumber(state.quantity);
+        let buyPrice = toNumber(state.buyPrice);
+        let currentPrice = toNumber(state.currentPrice);
+        let usdFields = {};
+
+        if (isUsStock) {
+          q = q === 0 ? 1 : q; // Prevent division by zero
+          const totalInvUsd = toNumber(state.totalInvestedUsd);
+          const totalCurUsd = toNumber(state.currentValueUsd);
+          const rate = toNumber(state.usdToInr);
+
+          // Calculate Per Share prices internally
+          const buyPriceUsd = totalInvUsd / q;
+          const currentPriceUsd = totalCurUsd / q;
+
+          buyPrice = buyPriceUsd * rate;
+          currentPrice = currentPriceUsd * rate;
+
+          usdFields = {
+            usdPrice: currentPriceUsd,
+            buyPriceUsd: buyPriceUsd,
+            usdToInr: rate,
+          };
+        }
+
         payload = {
           type: 'stock' as const,
           name: state.name.trim(),
           symbol: state.symbol.trim() || undefined,
           platform: state.platform.trim() || undefined,
-          quantity: toNumber(state.quantity),
-          buyPrice: toNumber(state.buyPrice),
-          currentPrice: toNumber(state.currentPrice),
+          quantity: toNumber(state.quantity), // Save the actual typed quantity
+          buyPrice,
+          currentPrice,
           sector: state.sector.trim() || undefined,
+          ...usdFields,
         };
       } else if (state.type === 'mutual_fund') {
         payload = {
@@ -779,7 +873,6 @@ export function UpsertInvestmentModal(props: Props) {
       onClose={props.onClose}
       title={props.mode === 'create' ? 'Add New Asset' : 'Edit Asset Details'}
     >
-      {/* Scrollable Form Body Container - Max Height Only on Mobile */}
       <div className='flex flex-col max-h-[60vh] md:max-h-none'>
         <div className='mb-6 shrink-0'>
           <label className={labelCls}>Asset Category</label>
@@ -795,7 +888,6 @@ export function UpsertInvestmentModal(props: Props) {
           />
         </div>
 
-        {/* Inner Content Scrolls on Mobile, Native size on Desktop */}
         <div className='overflow-y-auto md:overflow-visible custom-scrollbar pr-2 -mr-2 md:pr-0 md:mr-0 rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-5'>
           <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
             <div>
@@ -838,12 +930,14 @@ export function UpsertInvestmentModal(props: Props) {
                     symbol: e.target.value.toUpperCase(),
                   }))
                 }
-                placeholder='e.g. RELIANCE, TCS'
+                placeholder={
+                  isUsStock ? 'e.g. AAPL, TSLA, MSFT' : 'e.g. RELIANCE, TCS'
+                }
               />
             </div>
           )}
 
-          {state.type === 'stock' && (
+          {state.type === 'stock' && !isUsStock && (
             <div>
               <div className='mb-1.5 flex items-center justify-between ml-1'>
                 <label className='text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-0'>
@@ -877,7 +971,103 @@ export function UpsertInvestmentModal(props: Props) {
             </div>
           )}
 
-          {state.type === 'stock' && (
+          {/* ── US Stock Fields ── */}
+          {isUsStock && (
+            <div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-4'>
+              <div className='flex items-center justify-between border-b border-blue-500/10 pb-3'>
+                <div className='flex items-center gap-2'>
+                  <FiGlobe className='h-4 w-4 text-blue-400' />
+                  <span className='text-xs font-bold text-blue-400 uppercase tracking-widest'>
+                    US Stock Details
+                  </span>
+                </div>
+                <button
+                  type='button'
+                  onClick={() => void refreshUsdRate()}
+                  disabled={fetchingRate}
+                  className='flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50'
+                >
+                  <FiRefreshCw
+                    className={`h-3 w-3 ${fetchingRate ? 'animate-spin' : ''}`}
+                  />
+                  {fetchingRate ? 'Fetching…' : 'Live Rate'}
+                </button>
+              </div>
+
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                <div>
+                  <label className={labelCls}>Quantity</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={state.quantity}
+                    onChange={(v) => setState((s) => ({ ...s, quantity: v }))}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Total Invested ($)</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={state.totalInvestedUsd}
+                    onChange={(v) =>
+                      setState((s) => ({ ...s, totalInvestedUsd: v }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Current Value ($)</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={state.currentValueUsd}
+                    onChange={(v) =>
+                      setState((s) => ({ ...s, currentValueUsd: v }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-1'>
+                <div>
+                  <label className={labelCls}>1 USD = INR (₹)</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={state.usdToInr}
+                    onChange={(v) => setState((s) => ({ ...s, usdToInr: v }))}
+                  />
+                </div>
+
+                {/* Converted INR preview */}
+                <div className='md:col-span-2 grid grid-cols-2 gap-3'>
+                  <div className='rounded-lg bg-slate-800/80 border border-slate-700/50 px-3 py-2'>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5'>
+                      Invested (₹)
+                    </p>
+                    <p className='text-sm font-bold text-slate-300'>
+                      ₹
+                      {(
+                        toNumber(state.totalInvestedUsd) *
+                        toNumber(state.usdToInr)
+                      ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className='rounded-lg bg-slate-800/80 border border-slate-700/50 px-3 py-2'>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5'>
+                      Current Value (₹)
+                    </p>
+                    <p className='text-sm font-bold text-emerald-400'>
+                      ₹
+                      {(
+                        toNumber(state.currentValueUsd) *
+                        toNumber(state.usdToInr)
+                      ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Indian Stock Fields ── */}
+          {state.type === 'stock' && !isUsStock && (
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
                 <label className={labelCls}>Quantity</label>
@@ -888,7 +1078,7 @@ export function UpsertInvestmentModal(props: Props) {
                 />
               </div>
               <div>
-                <label className={labelCls}>Buy Price</label>
+                <label className={labelCls}>Buy Price (₹)</label>
                 <NumericInput
                   className={inputCls}
                   value={state.buyPrice}
@@ -896,7 +1086,7 @@ export function UpsertInvestmentModal(props: Props) {
                 />
               </div>
               <div>
-                <label className={labelCls}>Current Price</label>
+                <label className={labelCls}>Current Price (₹)</label>
                 <NumericInput
                   className={inputCls}
                   value={state.currentPrice}
@@ -1030,7 +1220,6 @@ export function UpsertInvestmentModal(props: Props) {
           )}
         </div>
 
-        {/* Fixed Footer Buttons */}
         <div className='mt-6 shrink-0 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
           <button
             type='button'

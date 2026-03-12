@@ -23,6 +23,7 @@ export type PriceSource =
 export type PriceResult = {
   price: number | null;
   source: PriceSource;
+  type?: string; // Added to capture 'us_stock', 'mutual_fund', 'stock', etc. from worker
 };
 
 export type LivePriceResponse = {
@@ -155,6 +156,8 @@ export async function fetchLivePrices(
   for (const [sym, result] of Object.entries(mergedPrices)) {
     if (result.price !== null) {
       const isMF = sym.startsWith('MF:');
+      const isUS = result.type === 'us_stock' || sym.startsWith('US:'); // Detect US Stock
+
       if (isMF) {
         console.log(
           `%c[LivePrice] ${sym}`,
@@ -164,6 +167,18 @@ export async function fetchLivePrices(
           '\n  📡 Source     :',
           result.source,
           '\n  🕐 Fetched At :',
+          new Date().toLocaleTimeString(),
+        );
+      } else if (isUS) {
+        // Specifically log US Stocks with distinct colors and USD sign
+        console.log(
+          `%c[LivePrice] US Stock: ${sym}`,
+          'color: #3b82f6; font-weight: bold;', // Blue color for US Stocks
+          '\n  💵 Price (USD) :',
+          `$${result.price}`,
+          '\n  📡 Source      :',
+          result.source,
+          '\n  🕐 Fetched At  :',
           new Date().toLocaleTimeString(),
         );
       } else {

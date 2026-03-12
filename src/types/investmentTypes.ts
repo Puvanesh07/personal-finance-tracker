@@ -76,6 +76,8 @@ export type StockInvestment = BaseInvestment & {
   currentPrice: number;
   sector?: string;
   marketCap?: string; // e.g. 'Large Cap' | 'Mid Cap' | 'Small Cap' | 'Micro Cap'
+  usdPrice?: number;
+  usdToInr?: number;
 };
 
 export type MutualFundInvestment = BaseInvestment & {

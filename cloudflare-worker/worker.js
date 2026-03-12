@@ -419,6 +419,12 @@ async function fetchSymbolPrice(rawSymbol, nseCookie) {
   const sc = await screenerPrice(symbol);
   if (sc !== null) return { price: sc, source: 'screener', type: 'stock' };
 
+  // 6. Global / US Stock Fallback (Fixes QQQ / AAPL without "US:" prefix)
+  const globalPrice = await usStockPrice(symbol);
+  if (globalPrice !== null) {
+    return { price: globalPrice, source: 'yahoo', type: 'us_stock' };
+  }
+
   return { price: null, source: 'none', type: 'stock' };
 }
 
