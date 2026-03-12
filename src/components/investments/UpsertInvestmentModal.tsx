@@ -187,6 +187,7 @@ const ASSET_CATEGORIES = [
 // ── Fetch live USD → INR rate ─────────────────────────────────────────────
 async function fetchUsdToInr(): Promise<number> {
   try {
+    // Replaced frankfurter with open.er-api.com which allows CORS on localhost
     const res = await fetch('https://open.er-api.com/v6/latest/USD');
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json();
@@ -575,8 +576,8 @@ type FormState = {
   buyPrice: string;
   currentPrice: string;
   // US stock USD fields
-  totalInvestedUsd: string;
-  currentValueUsd: string;
+  buyPriceUsd: string;
+  currentPriceUsd: string;
   usdToInr: string;
   // mutual fund
   units: string;
@@ -612,8 +613,8 @@ export function UpsertInvestmentModal(props: Props) {
       quantity: '0',
       buyPrice: '0',
       currentPrice: '0',
-      totalInvestedUsd: '0',
-      currentValueUsd: '0',
+      buyPriceUsd: '0',
+      currentPriceUsd: '0',
       usdToInr: '84',
       units: '0',
       nav: '0',
@@ -642,23 +643,14 @@ export function UpsertInvestmentModal(props: Props) {
         base.uiCategory = (inv.assetType as ExtendedAssetCategory) || 'other';
 
       if (inv.type === 'stock') {
-        const isUs = !!(
-          (inv as any).usdPrice ||
-          (inv as any).usdToInr ||
-          (inv as any).buyPriceUsd
-        );
+        // Check if this was a US stock saved with USD prices
+        const isUs = !!(inv as any).usdPrice;
         if (isUs) {
           base.uiCategory = 'international_equity';
-
-          const buyPUsd = Number(
-            (inv as any).buyPriceUsd ?? (inv as any).usdPrice ?? inv.buyPrice,
+          base.buyPriceUsd = String((inv as any).usdPrice ?? inv.buyPrice);
+          base.currentPriceUsd = String(
+            (inv as any).usdPrice ?? inv.currentPrice,
           );
-          const curPUsd = Number((inv as any).usdPrice ?? inv.currentPrice);
-          const q = Number(inv.quantity || 0);
-
-          // Show the total invested and total current value to the user in the UI
-          base.totalInvestedUsd = String(buyPUsd * q);
-          base.currentValueUsd = String(curPUsd * q);
           base.usdToInr = String((inv as any).usdToInr ?? 84);
         }
         base.quantity = String(inv.quantity);
@@ -708,27 +700,15 @@ export function UpsertInvestmentModal(props: Props) {
     }
   }, [isUsStock]);
 
-  // Auto-calculate INR prices whenever USD price, rate, or quantity changes
+  // Auto-calculate INR prices whenever USD price or rate changes
   useEffect(() => {
     if (!isUsStock) return;
     const rate = toNumber(state.usdToInr);
-    const q = toNumber(state.quantity) || 1; // avoid division by zero
     if (rate <= 0) return;
-
-    // Convert Total USD -> Per Share USD -> Per Share INR
-    const buyInr = ((toNumber(state.totalInvestedUsd) / q) * rate).toFixed(2);
-    const currentInr = ((toNumber(state.currentValueUsd) / q) * rate).toFixed(
-      2,
-    );
-
+    const buyInr = (toNumber(state.buyPriceUsd) * rate).toFixed(2);
+    const currentInr = (toNumber(state.currentPriceUsd) * rate).toFixed(2);
     setState((s) => ({ ...s, buyPrice: buyInr, currentPrice: currentInr }));
-  }, [
-    state.totalInvestedUsd,
-    state.currentValueUsd,
-    state.usdToInr,
-    state.quantity,
-    isUsStock,
-  ]);
+  }, [state.buyPriceUsd, state.currentPriceUsd, state.usdToInr, isUsStock]);
 
   useEffect(() => {
     if (props.open) {
@@ -773,41 +753,20 @@ export function UpsertInvestmentModal(props: Props) {
       let payload: any = {};
 
       if (state.type === 'stock') {
-        let q = toNumber(state.quantity);
-        let buyPrice = toNumber(state.buyPrice);
-        let currentPrice = toNumber(state.currentPrice);
-        let usdFields = {};
-
-        if (isUsStock) {
-          q = q === 0 ? 1 : q; // Prevent division by zero
-          const totalInvUsd = toNumber(state.totalInvestedUsd);
-          const totalCurUsd = toNumber(state.currentValueUsd);
-          const rate = toNumber(state.usdToInr);
-
-          // Calculate Per Share prices internally
-          const buyPriceUsd = totalInvUsd / q;
-          const currentPriceUsd = totalCurUsd / q;
-
-          buyPrice = buyPriceUsd * rate;
-          currentPrice = currentPriceUsd * rate;
-
-          usdFields = {
-            usdPrice: currentPriceUsd,
-            buyPriceUsd: buyPriceUsd,
-            usdToInr: rate,
-          };
-        }
-
         payload = {
           type: 'stock' as const,
           name: state.name.trim(),
           symbol: state.symbol.trim() || undefined,
           platform: state.platform.trim() || undefined,
-          quantity: toNumber(state.quantity), // Save the actual typed quantity
-          buyPrice,
-          currentPrice,
+          quantity: toNumber(state.quantity),
+          buyPrice: toNumber(state.buyPrice),
+          currentPrice: toNumber(state.currentPrice),
           sector: state.sector.trim() || undefined,
-          ...usdFields,
+          // Save USD fields only for US stocks
+          ...(isUsStock && {
+            usdPrice: toNumber(state.currentPriceUsd),
+            usdToInr: toNumber(state.usdToInr),
+          }),
         };
       } else if (state.type === 'mutual_fund') {
         payload = {
@@ -973,97 +932,102 @@ export function UpsertInvestmentModal(props: Props) {
 
           {/* ── US Stock Fields ── */}
           {isUsStock && (
-            <div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-4'>
-              <div className='flex items-center justify-between border-b border-blue-500/10 pb-3'>
-                <div className='flex items-center gap-2'>
-                  <FiGlobe className='h-4 w-4 text-blue-400' />
-                  <span className='text-xs font-bold text-blue-400 uppercase tracking-widest'>
-                    US Stock Details
-                  </span>
+            <>
+              {/* USD/INR Rate row */}
+              <div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-3'>
+                <div className='flex items-center justify-between'>
+                  <div className='flex items-center gap-2'>
+                    <FiGlobe className='h-4 w-4 text-blue-400' />
+                    <span className='text-xs font-bold text-blue-400 uppercase tracking-widest'>
+                      USD → INR Conversion
+                    </span>
+                  </div>
+                  <button
+                    type='button'
+                    onClick={() => void refreshUsdRate()}
+                    disabled={fetchingRate}
+                    className='flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50'
+                  >
+                    <FiRefreshCw
+                      className={`h-3 w-3 ${fetchingRate ? 'animate-spin' : ''}`}
+                    />
+                    {fetchingRate ? 'Fetching…' : 'Refresh Rate'}
+                  </button>
                 </div>
-                <button
-                  type='button'
-                  onClick={() => void refreshUsdRate()}
-                  disabled={fetchingRate}
-                  className='flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50'
-                >
-                  <FiRefreshCw
-                    className={`h-3 w-3 ${fetchingRate ? 'animate-spin' : ''}`}
-                  />
-                  {fetchingRate ? 'Fetching…' : 'Live Rate'}
-                </button>
-              </div>
 
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                <div>
-                  <label className={labelCls}>Quantity</label>
-                  <NumericInput
-                    className={inputCls}
-                    value={state.quantity}
-                    onChange={(v) => setState((s) => ({ ...s, quantity: v }))}
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Total Invested ($)</label>
-                  <NumericInput
-                    className={inputCls}
-                    value={state.totalInvestedUsd}
-                    onChange={(v) =>
-                      setState((s) => ({ ...s, totalInvestedUsd: v }))
-                    }
-                  />
-                </div>
-                <div>
-                  <label className={labelCls}>Current Value ($)</label>
-                  <NumericInput
-                    className={inputCls}
-                    value={state.currentValueUsd}
-                    onChange={(v) =>
-                      setState((s) => ({ ...s, currentValueUsd: v }))
-                    }
-                  />
-                </div>
-              </div>
+                <div className='grid grid-cols-3 gap-3'>
+                  <div>
+                    <label className={labelCls}>Avg Buy Price (USD)</label>
 
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-1'>
-                <div>
-                  <label className={labelCls}>1 USD = INR (₹)</label>
-                  <NumericInput
-                    className={inputCls}
-                    value={state.usdToInr}
-                    onChange={(v) => setState((s) => ({ ...s, usdToInr: v }))}
-                  />
+                    <NumericInput
+                      className={inputCls}
+                      value={state.buyPriceUsd}
+                      onChange={(v) =>
+                        setState((s) => ({ ...s, buyPriceUsd: v }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Curr. Stock Price (USD)</label>
+
+                    <NumericInput
+                      className={inputCls}
+                      value={state.currentPriceUsd}
+                      onChange={(v) =>
+                        setState((s) => ({ ...s, currentPriceUsd: v }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>1 USD = INR</label>
+                    <NumericInput
+                      className={inputCls}
+                      value={state.usdToInr}
+                      onChange={(v) => setState((s) => ({ ...s, usdToInr: v }))}
+                    />
+                  </div>
                 </div>
 
                 {/* Converted INR preview */}
-                <div className='md:col-span-2 grid grid-cols-2 gap-3'>
-                  <div className='rounded-lg bg-slate-800/80 border border-slate-700/50 px-3 py-2'>
-                    <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5'>
-                      Invested (₹)
-                    </p>
-                    <p className='text-sm font-bold text-slate-300'>
-                      ₹
-                      {(
-                        toNumber(state.totalInvestedUsd) *
-                        toNumber(state.usdToInr)
-                      ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                    </p>
+                {toNumber(state.usdToInr) > 0 && (
+                  <div className='grid grid-cols-2 gap-3 pt-1'>
+                    <div className='rounded-lg bg-slate-800/60 px-3 py-2'>
+                      <p className='text-[10px] text-slate-500 mb-0.5'>
+                        Buy Price (INR)
+                      </p>
+                      <p className='text-sm font-bold text-slate-100'>
+                        ₹
+                        {(
+                          toNumber(state.buyPriceUsd) * toNumber(state.usdToInr)
+                        ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className='rounded-lg bg-slate-800/60 px-3 py-2'>
+                      <p className='text-[10px] text-slate-500 mb-0.5'>
+                        Current Price (INR)
+                      </p>
+                      <p className='text-sm font-bold text-emerald-400'>
+                        ₹
+                        {(
+                          toNumber(state.currentPriceUsd) *
+                          toNumber(state.usdToInr)
+                        ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
                   </div>
-                  <div className='rounded-lg bg-slate-800/80 border border-slate-700/50 px-3 py-2'>
-                    <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5'>
-                      Current Value (₹)
-                    </p>
-                    <p className='text-sm font-bold text-emerald-400'>
-                      ₹
-                      {(
-                        toNumber(state.currentValueUsd) *
-                        toNumber(state.usdToInr)
-                      ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
-            </div>
+
+              {/* Quantity */}
+              <div>
+                <label className={labelCls}>Quantity</label>
+                <NumericInput
+                  className={inputCls}
+                  value={state.quantity}
+                  onChange={(v) => setState((s) => ({ ...s, quantity: v }))}
+                />
+              </div>
+            </>
           )}
 
           {/* ── Indian Stock Fields ── */}

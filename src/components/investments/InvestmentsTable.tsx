@@ -205,80 +205,175 @@ function BulkCategoryDropdown({
   );
 }
 
-// ── Classification Popover ─────────────────────────────────────────────────
-function ClassificationPopover({
+// ── Smart Inline Sector/Cap Cell (Using Portals) ─────────────────────────
+function SectorCapCell({
   inv,
-  currentCap,
-  onClose,
+  marketCap,
   onSave,
 }: {
   inv: any;
-  currentCap?: string;
-  onClose: () => void;
+  marketCap?: string;
   onSave: (id: string, sector: string, cap: string) => void;
 }) {
-  const [sector, setSector] = useState(inv.sector || '');
-  const [cap, setCap] = useState(currentCap || '');
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const [sector, setSector] = useState(inv.sector || '');
+  const [cap, setCap] = useState(marketCap || '');
+
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    const panelWidth = 240;
+
+    // Prevent the modal from opening off the right edge of the screen
+    let left = r.left + window.scrollX;
+    if (left + panelWidth > window.innerWidth) {
+      left = window.innerWidth - panelWidth - 16;
+    }
+
+    setPos({
+      top: r.bottom + 8 + window.scrollY,
+      left: Math.max(8, left),
+    });
+  }, []);
 
   useEffect(() => {
+    if (open) {
+      setSector(inv.sector || '');
+      setCap(marketCap || '');
+      updatePos();
+    }
+  }, [open, inv.sector, marketCap, updatePos]);
+
+  useEffect(() => {
+    if (!open) return;
     const onMouse = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node))
-        onClose();
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
     };
     document.addEventListener('mousedown', onMouse);
-    return () => document.removeEventListener('mousedown', onMouse);
-  }, [onClose]);
+    window.addEventListener('scroll', updatePos, true);
+    return () => {
+      document.removeEventListener('mousedown', onMouse);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [open, updatePos]);
+
+  if (inv.type !== 'stock') {
+    return <span className='text-[11px] text-slate-600'>—</span>;
+  }
+
+  const hasTags = inv.sector || marketCap;
 
   return (
-    <div
-      ref={panelRef}
-      className='absolute z-50 top-full mt-2 left-0 w-[240px] p-3 rounded-xl border border-slate-700 bg-slate-800 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 cursor-default'
-    >
-      <div className='flex flex-col gap-3'>
-        <div>
-          <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
-            Sector
-          </label>
-          <input
-            value={sector}
-            onChange={(e) => setSector(e.target.value)}
-            placeholder='e.g. Railway, IT, Defence'
-            className='w-full rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
-          />
-        </div>
-        <div>
-          <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
-            Market Cap
-          </label>
-          <select
-            value={cap}
-            onChange={(e) => setCap(e.target.value)}
-            className='w-full appearance-none rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
-          >
-            <option value=''>Select Cap...</option>
-            <option value='Large Cap'>Large Cap</option>
-            <option value='Mid Cap'>Mid Cap</option>
-            <option value='Small Cap'>Small Cap</option>
-            <option value='Micro Cap'>Micro Cap</option>
-          </select>
-        </div>
-        <div className='flex items-center justify-end gap-2 pt-2'>
-          <button
-            onClick={onClose}
-            className='px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors'
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(inv.id, sector, cap)}
-            className='px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-500 transition-colors'
-          >
-            Save
-          </button>
-        </div>
+    <>
+      <div
+        ref={triggerRef}
+        className='flex items-center gap-1.5 cursor-pointer whitespace-nowrap group/class'
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+      >
+        {hasTags ? (
+          <>
+            {inv.sector ? (
+              <SectorChip sector={inv.sector} />
+            ) : (
+              <span className='text-[10px] text-slate-600 italic'>—</span>
+            )}
+            {marketCap ? (
+              <MarketCapChip cap={marketCap} />
+            ) : (
+              <span className='text-[10px] text-slate-600 italic'>—</span>
+            )}
+          </>
+        ) : (
+          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors'>
+            <FiTag size={9} /> Add Tags
+          </span>
+        )}
+        <FiEdit2
+          size={10}
+          className={`text-slate-600 transition-opacity shrink-0 ml-0.5 ${hasTags ? 'opacity-0 group-hover/class:opacity-100' : 'opacity-100'}`}
+        />
       </div>
-    </div>
+
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              position: 'absolute',
+              top: pos.top,
+              left: pos.left,
+              zIndex: 99999,
+            }}
+            className='w-[240px] p-3 rounded-xl border border-slate-700 bg-slate-800 shadow-2xl backdrop-blur-xl animate-in fade-in cursor-default'
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className='flex flex-col gap-3'>
+              <div>
+                <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
+                  Sector
+                </label>
+                <input
+                  value={sector}
+                  onChange={(e) => setSector(e.target.value)}
+                  placeholder='e.g. Railway, IT, Defence'
+                  className='w-full rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
+                />
+              </div>
+              <div>
+                <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
+                  Market Cap
+                </label>
+                <select
+                  value={cap}
+                  onChange={(e) => setCap(e.target.value)}
+                  className='w-full appearance-none rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
+                >
+                  <option value=''>Select Cap...</option>
+                  <option value='Large Cap'>Large Cap</option>
+                  <option value='Mid Cap'>Mid Cap</option>
+                  <option value='Small Cap'>Small Cap</option>
+                  <option value='Micro Cap'>Micro Cap</option>
+                </select>
+              </div>
+              <div className='flex items-center justify-end gap-2 pt-2'>
+                <button
+                  type='button'
+                  onClick={() => setOpen(false)}
+                  className='px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors'
+                >
+                  Cancel
+                </button>
+                <button
+                  type='button'
+                  onClick={() => {
+                    onSave(inv.id, sector, cap);
+                    setOpen(false);
+                  }}
+                  className='px-3 py-1.5 rounded-lg bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-500 transition-colors'
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -293,7 +388,7 @@ function TypeChip({ inv }: { inv: any }) {
 
   if (type === 'stock') {
     // Detect US Stock based on the presence of usdPrice
-    if (inv.usdPrice || inv.usdToInr) {
+    if (inv.usdPrice || inv.usdToInr || inv.buyPriceUsd) {
       label = 'Intl Equity';
       color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
       Icon = FiGlobe;
@@ -386,6 +481,9 @@ function PriceCell({
     if (inv.usdPrice) {
       price = inv.usdPrice;
       label = 'USD';
+    } else if (inv.usdToInr && inv.currentPrice) {
+      price = inv.currentPrice / inv.usdToInr; // fallback
+      label = 'USD';
     } else {
       price = inv.currentPrice ?? null;
     }
@@ -426,7 +524,8 @@ function PriceCell({
         : '';
 
   const isUS =
-    (inv.type === 'stock' && !!inv.usdPrice) ||
+    (inv.type === 'stock' &&
+      (!!inv.usdPrice || !!inv.buyPriceUsd || !!inv.usdToInr)) ||
     (inv.type === 'other' &&
       (inv.assetType || '').toLowerCase() === 'international_equity');
 
@@ -476,7 +575,12 @@ function getLivePriceSymbol(inv: any): string | null {
   const type = inv.type;
   const assetType = (inv.assetType || '').toLowerCase();
 
-  if (type === 'stock') return inv.symbol ? inv.symbol.toUpperCase() : null;
+  if (type === 'stock') {
+    if (!inv.symbol) return null; // Protect against missing symbol preventing Live button
+    const isUS = !!inv.usdPrice || !!inv.buyPriceUsd || !!inv.usdToInr;
+    // Optimize: Pre-tag US stocks so Cloudflare Worker fetches immediately
+    return isUS ? `US:${inv.symbol.toUpperCase()}` : inv.symbol.toUpperCase();
+  }
 
   if (type === 'mutual_fund') {
     if (inv.schemeCode && /^\d{5,6}$/.test(String(inv.schemeCode).trim()))
@@ -599,7 +703,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       let patch: Record<string, any> = {};
 
       if (type === 'stock') {
-        const isUS = !!inv.usdPrice || fetched.type === 'us_stock';
+        const isUS =
+          !!inv.usdPrice || !!inv.buyPriceUsd || fetched.type === 'us_stock';
 
         if (isUS) {
           const rate = inv.usdToInr || 84; // Ensure fallback rate is provided
@@ -750,7 +855,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   // ── Selection & Edit State ─────────────────────────────────────────────
   const [edit, setEdit] = useState<any | null>(null);
-  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
@@ -933,10 +1037,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     if (sector !== undefined) patch.sector = sector;
     if (cap !== undefined) patch.marketCap = cap;
     await updateInvestment(id, patch);
-    setInlineEditId(null);
   };
-
-  // Reset to page 1 when rows change (filter applied)
 
   if (rows.length === 0) {
     return (
@@ -1147,36 +1248,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                       {/* Sector + Cap tags */}
                       {inv.type === 'stock' && (
-                        <div
-                          className='flex items-center gap-1.5 mt-2 cursor-pointer'
-                          onClick={() =>
-                            setInlineEditId(
-                              inlineEditId === inv.id ? null : inv.id,
-                            )
-                          }
-                        >
-                          {inv.sector ? (
-                            <SectorChip sector={inv.sector} />
-                          ) : null}
-                          {marketCap ? <MarketCapChip cap={marketCap} /> : null}
-                          {!inv.sector && !marketCap && (
-                            <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600'>
-                              <FiTag size={9} /> Add Tags
-                            </span>
-                          )}
-                          <FiEdit2
-                            size={10}
-                            className='text-slate-700 ml-0.5'
+                        <div className='mt-2'>
+                          <SectorCapCell
+                            inv={inv}
+                            marketCap={marketCap}
+                            onSave={handleSaveClassification}
                           />
                         </div>
-                      )}
-                      {inlineEditId === inv.id && (
-                        <ClassificationPopover
-                          inv={inv}
-                          currentCap={marketCap}
-                          onClose={() => setInlineEditId(null)}
-                          onSave={handleSaveClassification}
-                        />
                       )}
                     </div>
                   </div>
@@ -1461,48 +1539,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       </td>
 
                       {/* ── Sector · Cap ── */}
-                      <td
-                        className={`px-4 py-3.5 ${bdClass} relative group/class`}
-                      >
-                        {inv.type === 'stock' ? (
-                          <div
-                            className='flex items-center gap-1.5 cursor-pointer whitespace-nowrap'
-                            onClick={() =>
-                              setInlineEditId(
-                                inlineEditId === inv.id ? null : inv.id,
-                              )
-                            }
-                          >
-                            {inv.sector ? (
-                              <SectorChip sector={inv.sector} />
-                            ) : (
-                              <span className='text-[10px] text-slate-600 italic'>
-                                —
-                              </span>
-                            )}
-                            {marketCap ? (
-                              <MarketCapChip cap={marketCap} />
-                            ) : (
-                              <span className='text-[10px] text-slate-600 italic'>
-                                —
-                              </span>
-                            )}
-                            <FiEdit2
-                              size={10}
-                              className='text-slate-600 opacity-0 group-hover/class:opacity-100 transition-opacity shrink-0 ml-0.5'
-                            />
-                          </div>
-                        ) : (
-                          <span className='text-[11px] text-slate-600'>—</span>
-                        )}
-                        {inlineEditId === inv.id && (
-                          <ClassificationPopover
-                            inv={inv}
-                            currentCap={marketCap}
-                            onClose={() => setInlineEditId(null)}
-                            onSave={handleSaveClassification}
-                          />
-                        )}
+                      <td className={`px-4 py-3.5 ${bdClass}`}>
+                        <SectorCapCell
+                          inv={inv}
+                          marketCap={marketCap}
+                          onSave={handleSaveClassification}
+                        />
                       </td>
 
                       {/* ── Qty ── */}
