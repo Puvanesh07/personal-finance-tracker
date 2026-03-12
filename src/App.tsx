@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AccountsPage } from './pages/Accounts/AccountsPage';
+import { AgriculturePage } from './pages/Agriculture/AgriculturePage';
 import { AppLayout } from './components/layout/AppLayout';
 import { CashflowPage } from './pages/Cashflow/CashflowPage';
 import { DashboardPage } from './pages/Dashboard/DashboardPage';
@@ -42,6 +43,7 @@ export default function App() {
           <Route path='/snapshots' element={<SnapshotsPage />} />
           <Route path='/reports' element={<ReportsPage />} />
           <Route path='/settings' element={<SettingsPage />} />
+          <Route path='/agriculture' element={<AgriculturePage />} />
         </Route>
         <Route path='*' element={<Navigate to='/dashboard' replace />} />
       </Routes>

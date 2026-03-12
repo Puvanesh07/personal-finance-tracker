@@ -18,7 +18,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function DataManagement() {
   const state = usePortfolioStore();
-  const { investments, accounts, clearAllData, hydrate, uid } = state;
+  const { investments, clearAllData, hydrate, uid } = state;
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);

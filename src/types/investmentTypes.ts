@@ -225,3 +225,116 @@ export type Goal = {
   updatedAt: string;
   userId?: string;
 };
+
+// ── Agriculture ────────────────────────────────────────────────────────────
+
+export type Season = 'summer' | 'monsoon' | 'winter';
+export type LivestockType =
+  | 'cow'
+  | 'goat'
+  | 'buffalo'
+  | 'sheep'
+  | 'poultry'
+  | 'other';
+export type AgriExpenseCategory =
+  | 'seeds'
+  | 'fertilizer'
+  | 'pesticides'
+  | 'labor'
+  | 'irrigation'
+  | 'tractor_fuel'
+  | 'equipment_repair'
+  | 'feed'
+  | 'veterinary'
+  | 'medicine'
+  | 'shed'
+  | 'other';
+
+export type Field = {
+  id: string;
+  name: string;
+  areAcres: number;
+  location?: string;
+  soilType?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CropCycle = {
+  id: string;
+  fieldId: string;
+  fieldName?: string; // denormalized for display
+  cropName: string;
+  season: Season;
+  startDate: string; // YYYY-MM-DD
+  expectedHarvestDate: string; // YYYY-MM-DD
+  actualHarvestDate?: string;
+  investedAmount: number; // total planned investment
+  harvestIncome: number; // actual income from sale
+  quantityKg?: number; // yield in kg
+  notes?: string;
+  accountId?: string; // bank account the income went to
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AgriExpense = {
+  id: string;
+  cropCycleId: string;
+  cropName?: string; // denormalized
+  category: AgriExpenseCategory;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  notes?: string;
+  accountId?: string; // bank account expense paid from
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Livestock = {
+  id: string;
+  type: LivestockType;
+  name?: string; // optional individual name
+  count: number;
+  purchaseCost: number;
+  currentValue: number;
+  purchaseDate: string;
+  notes?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MilkRecord = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  liters: number;
+  pricePerLiter: number; // sale price
+  soldTo?: string;
+  accountId?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CoconutRecord = {
+  id: string;
+  date: string; // YYYY-MM-DD (harvest date)
+  numberOfTrees: number;
+  coconutPerTree: number; // avg coconuts per tree this harvest
+  totalCoconuts: number; // numberOfTrees * coconutPerTree
+  minPrice: number;
+  maxPrice: number;
+  avgPrice: number; // (min+max)/2, used for income calc
+  investmentAmount: number; // fertilizer/labor cost
+  harvestIncome: number; // totalCoconuts * avgPrice
+  durationMonths: number; // harvest interval in months
+  notes?: string;
+  accountId?: string; // income credited to
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};

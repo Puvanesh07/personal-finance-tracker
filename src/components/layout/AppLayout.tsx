@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 
 import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
+import { GiWheat } from 'react-icons/gi';
 import { Modal } from '../ui/Modal';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
@@ -76,6 +77,12 @@ export function AppLayout() {
     { to: '/tools', icon: AiFillCalculator, label: 'Tools' },
     { to: '/snapshots', icon: FiCamera, label: 'Snaps' },
     { to: '/reports', icon: FiBarChart2, label: 'Reports' },
+    {
+      to: '/agriculture',
+      icon: GiWheat,
+      label: 'Farm',
+      color: 'text-green-400',
+    },
     { to: '/settings', icon: FiSettings, label: 'Settings' },
   ];
 
@@ -162,6 +169,14 @@ export function AppLayout() {
             >
               <FiFlag className='h-4 w-4 shrink-0' />
               <span>Goals</span>
+            </NavLink>
+
+            <NavLink
+              to='/agriculture'
+              className={({ isActive }) => desktopLinkClass(isActive)}
+            >
+              <GiWheat className='h-4 w-4 shrink-0 text-green-400' />
+              <span>Agriculture</span>
             </NavLink>
 
             <div className='mt-4 mb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-600'>

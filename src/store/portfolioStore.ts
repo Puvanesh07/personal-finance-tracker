@@ -446,6 +446,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'networthSnapshots',
       'insights',
       'accounts',
+      'agriFields',
+      'agriCropCycles',
+      'agriExpenses',
+      'agriLivestock',
+      'agriMilkRecords',
+      'agriCoconut',
     ];
 
     try {
