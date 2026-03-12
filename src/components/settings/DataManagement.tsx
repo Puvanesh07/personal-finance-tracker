@@ -18,22 +18,22 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function DataManagement() {
   const state = usePortfolioStore();
-  const { investments, clearAllData, hydrate, uid } = state;
+  const { investments, accounts, clearAllData, hydrate, uid } = state;
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
 
-  /**
-   * Clears all data from Firestore collections belonging to this UID
-   * and resets the local Zustand state.
-   */
+  // ── Clear all data ──────────────────────────────────────────────────────
   const handleClearData = async () => {
+    if (confirmText.trim().toLowerCase() !== 'delete') return;
     setBusy(true);
     try {
       await clearAllData();
-      toast.success('All data cleared successfully from the cloud.');
+      toast.success('All data cleared from the cloud.');
       setConfirmOpen(false);
+      setConfirmText('');
     } catch (err: any) {
       toast.error(err.message || 'Failed to clear data.');
     } finally {
@@ -41,20 +41,56 @@ export function DataManagement() {
     }
   };
 
-  /**
-   * Handles the Full JSON Export
-   */
+  // ── Export JSON backup ──────────────────────────────────────────────────
   const handleExportBackup = async () => {
     if (!uid) return toast.error('Session expired. Please log in again.');
     setBusy(true);
     try {
       await exportFullBackup(uid);
-      toast.success('Backup generated successfully.');
+      toast.success(
+        'Backup downloaded — includes investments, cashflows, accounts, goals, liabilities & settings.',
+      );
     } catch (err: any) {
       toast.error(err.message || 'Backup generation failed.');
     } finally {
       setBusy(false);
     }
+  };
+
+  // ── Import JSON backup ──────────────────────────────────────────────────
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uid) return;
+    setBusy(true);
+    try {
+      const text = await file.text();
+      await importFullBackup(text, uid);
+      await hydrate(uid); // re-sync local Zustand state from Firebase
+      toast.success('Backup imported and synced with Firebase successfully.');
+    } catch (err: any) {
+      toast.error(err.message || 'Import failed — check JSON format.');
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // ── CSV all sections ────────────────────────────────────────────────────
+  const handleExportCSV = () => {
+    const sections = [
+      state.investments?.length && 'Investments',
+      state.liabilities?.length && 'Liabilities',
+      state.cashflows?.length && 'Cashflows',
+      state.goals?.length && 'Goals',
+      (state.accounts ?? []).length && 'Accounts',
+    ].filter(Boolean);
+
+    if (!sections.length) {
+      toast.error('Nothing to export — add some data first.');
+      return;
+    }
+    exportAllSectionsAsCSV(state);
+    toast.success(`Downloading: ${sections.join(', ')}`);
   };
 
   return (
@@ -70,25 +106,28 @@ export function DataManagement() {
         <div className='flex flex-col gap-6'>
           <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
 
-          {/* Section Exports */}
+          {/* ── CSV Exports ─────────────────────────────────────────────── */}
           <div className='flex flex-col gap-3'>
             <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
-              Data Exports (CSV/Excel)
+              CSV Exports
             </div>
+            <p className='text-xs text-slate-500 dark:text-slate-400'>
+              Downloads separate CSV files for: investments, liabilities,
+              cashflows, goals and accounts.
+            </p>
             <div className='flex flex-col xl:flex-row gap-2'>
               <button
-                className='flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200'
-                onClick={() => {
-                  exportAllSectionsAsCSV(state);
-                  toast.success('Downloading CSV exports for all sections...');
-                }}
+                className='flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 disabled:opacity-50'
+                onClick={handleExportCSV}
+                disabled={busy}
               >
                 <FiDownload className='h-4 w-4 text-slate-400' />
                 Export All (CSV)
               </button>
               <button
-                className='flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200'
+                className='flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 disabled:opacity-50'
                 onClick={() => exportExcel(investments, 'portfolio.xlsx')}
+                disabled={busy}
               >
                 <FiDownload className='h-4 w-4 text-slate-400' />
                 Portfolio Excel
@@ -98,15 +137,19 @@ export function DataManagement() {
 
           <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
 
-          {/* Backup */}
+          {/* ── JSON Backup ─────────────────────────────────────────────── */}
           <div className='flex flex-col gap-3'>
             <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
               Full System Backup (JSON)
             </div>
-            <div className='text-xs text-slate-500 dark:text-slate-400'>
-              Includes all investments, liabilities, goals, cashflows, and
-              historical snapshots.
-            </div>
+            <p className='text-xs text-slate-500 dark:text-slate-400'>
+              Complete backup including investments, liabilities, cashflows,
+              goals,{' '}
+              <strong className='text-slate-600 dark:text-slate-300'>
+                accounts
+              </strong>
+              , snapshots and settings.
+            </p>
 
             <div className='flex flex-col xl:flex-row gap-2'>
               <button
@@ -115,7 +158,7 @@ export function DataManagement() {
                 onClick={handleExportBackup}
               >
                 <FiDownload className='h-4 w-4' />
-                {busy ? 'Processing...' : 'Export JSON Backup'}
+                {busy ? 'Exporting…' : 'Export JSON Backup'}
               </button>
 
               <input
@@ -123,24 +166,7 @@ export function DataManagement() {
                 type='file'
                 accept='.json'
                 className='hidden'
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file || !uid) return;
-                  setBusy(true);
-                  try {
-                    const text = await file.text();
-                    await importFullBackup(text, uid);
-                    await hydrate(uid); // Re-fetch from Firebase to update local state
-                    toast.success(
-                      'Backup imported and synchronized successfully.',
-                    );
-                  } catch (err: any) {
-                    toast.error(err.message || 'Import failed.');
-                  } finally {
-                    setBusy(false);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }
-                }}
+                onChange={handleImportFile}
               />
 
               <button
@@ -149,25 +175,30 @@ export function DataManagement() {
                 disabled={busy}
               >
                 <FiUpload className='h-4 w-4' />
-                Import JSON Backup
+                {busy ? 'Importing…' : 'Import JSON Backup'}
               </button>
             </div>
           </div>
 
-          {/* Danger Zone */}
+          {/* ── Danger Zone ─────────────────────────────────────────────── */}
           <div className='mt-2 rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10'>
             <div className='flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400'>
               <FiAlertOctagon className='h-5 w-5' />
               Danger Zone
             </div>
             <p className='mt-2 text-xs text-rose-600 dark:text-rose-400'>
-              Wipes all your financial data from the cloud. This action is{' '}
-              <strong>permanent</strong> and cannot be undone.
+              Permanently wipes <strong>all</strong> your data from Firebase —
+              investments, liabilities, cashflows, goals,{' '}
+              <strong>accounts</strong>, snapshots and settings. This cannot be
+              undone.
             </p>
             <button
               disabled={busy}
               className='mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50'
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => {
+                setConfirmText('');
+                setConfirmOpen(true);
+              }}
             >
               <FiTrash2 className='h-4 w-4' />
               Clear All Data
@@ -176,32 +207,59 @@ export function DataManagement() {
         </div>
       </Card>
 
-      {/* Confirmation Modal for Data Deletion */}
+      {/* ── Confirm Delete Modal ─────────────────────────────────────────── */}
       <Modal
         open={confirmOpen}
         onClose={() => !busy && setConfirmOpen(false)}
-        title='Confirm Data Deletion'
+        title='⚠ Confirm — Delete Everything'
       >
-        <div className='space-y-6'>
+        <div className='space-y-5'>
           <p className='text-sm text-slate-500 dark:text-slate-300'>
-            This will permanently delete every record (Investments, Liabilities,
-            Goals, Cashflows) associated with your account from the cloud. Are
-            you absolutely sure you want to continue?
+            This will{' '}
+            <strong className='text-rose-500'>permanently delete</strong> every
+            record from Firebase:
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800'>
+          <ul className='text-xs text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-5'>
+            <li>All Investments</li>
+            <li>All Liabilities</li>
+            <li>All Cashflow entries</li>
+            <li>All Goals</li>
+            <li>All Accounts (bank &amp; credit)</li>
+            <li>All Snapshots &amp; Net Worth history</li>
+            <li>All Insights history</li>
+            <li>Settings (Essentials, Notion)</li>
+          </ul>
+
+          <div className='rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10 p-3'>
+            <p className='text-xs font-bold text-rose-700 dark:text-rose-400 mb-2'>
+              Type <span className='font-mono'>delete</span> to confirm:
+            </p>
+            <input
+              className='w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-mono text-rose-700 outline-none focus:ring-2 focus:ring-rose-400 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-300'
+              placeholder='delete'
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              autoComplete='off'
+            />
+          </div>
+
+          <div className='flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800'>
             <button
               disabled={busy}
-              onClick={() => setConfirmOpen(false)}
+              onClick={() => {
+                setConfirmOpen(false);
+                setConfirmText('');
+              }}
               className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 disabled:opacity-50'
             >
               Cancel
             </button>
             <button
-              disabled={busy}
+              disabled={busy || confirmText.trim().toLowerCase() !== 'delete'}
               onClick={handleClearData}
-              className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50'
+              className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60'
             >
-              {busy ? 'Wiping Data...' : 'Yes, Delete Everything'}
+              {busy ? 'Wiping data…' : 'Yes, Delete Everything'}
             </button>
           </div>
         </div>

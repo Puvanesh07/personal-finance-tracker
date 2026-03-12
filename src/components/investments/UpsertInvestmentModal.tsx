@@ -36,6 +36,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
+import { NumericInput } from '../ui/NumericInput';
 import { createPortal } from 'react-dom';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { todayISO } from '../../utils/dateUtils';
@@ -880,35 +881,26 @@ export function UpsertInvestmentModal(props: Props) {
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
                 <label className={labelCls}>Quantity</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.quantity}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, quantity: e.target.value }))
-                  }
+                  onChange={(v) => setState((s) => ({ ...s, quantity: v }))}
                 />
               </div>
               <div>
                 <label className={labelCls}>Buy Price</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.buyPrice}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, buyPrice: e.target.value }))
-                  }
+                  onChange={(v) => setState((s) => ({ ...s, buyPrice: v }))}
                 />
               </div>
               <div>
                 <label className={labelCls}>Current Price</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.currentPrice}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, currentPrice: e.target.value }))
-                  }
+                  onChange={(v) => setState((s) => ({ ...s, currentPrice: v }))}
                 />
               </div>
             </div>
@@ -918,37 +910,27 @@ export function UpsertInvestmentModal(props: Props) {
             <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
               <div>
                 <label className={labelCls}>Units</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.units}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, units: e.target.value }))
-                  }
+                  onChange={(v) => setState((s) => ({ ...s, units: v }))}
                 />
               </div>
               <div>
                 <label className={labelCls}>Avg. NAV</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.nav}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, nav: e.target.value }))
-                  }
+                  onChange={(v) => setState((s) => ({ ...s, nav: v }))}
                 />
               </div>
               <div>
                 <label className={labelCls}>Total Invested</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.investedAmount}
-                  onChange={(e) =>
-                    setState((s) => ({
-                      ...s,
-                      investedAmount: e.target.value,
-                    }))
+                  onChange={(v) =>
+                    setState((s) => ({ ...s, investedAmount: v }))
                   }
                 />
               </div>
@@ -973,43 +955,32 @@ export function UpsertInvestmentModal(props: Props) {
               <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
                 <div>
                   <label className={labelCls}>Principal Amt</label>
-                  <input
-                    inputMode='decimal'
+                  <NumericInput
                     className={inputCls}
                     value={state.investedAmount}
-                    onChange={(e) =>
-                      setState((s) => ({
-                        ...s,
-                        investedAmount: e.target.value,
-                      }))
+                    onChange={(v) =>
+                      setState((s) => ({ ...s, investedAmount: v }))
                     }
                   />
                 </div>
                 <div>
                   <label className={labelCls}>Interest (% p.a.)</label>
-                  <input
-                    inputMode='decimal'
+                  <NumericInput
                     className={inputCls}
                     value={state.interestRate}
-                    onChange={(e) =>
-                      setState((s) => ({
-                        ...s,
-                        interestRate: e.target.value,
-                      }))
+                    onChange={(v) =>
+                      setState((s) => ({ ...s, interestRate: v }))
                     }
                   />
                 </div>
                 <div>
                   <label className={labelCls}>Tenure (mo)</label>
-                  <input
-                    inputMode='numeric'
+                  <NumericInput
+                    allowDecimal={false}
                     className={inputCls}
                     value={state.durationMonths}
-                    onChange={(e) =>
-                      setState((s) => ({
-                        ...s,
-                        durationMonths: e.target.value,
-                      }))
+                    onChange={(v) =>
+                      setState((s) => ({ ...s, durationMonths: v }))
                     }
                   />
                 </div>
@@ -1039,27 +1010,20 @@ export function UpsertInvestmentModal(props: Props) {
             <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
               <div>
                 <label className={labelCls}>Total Invested</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.investedAmount}
-                  onChange={(e) =>
-                    setState((s) => ({
-                      ...s,
-                      investedAmount: e.target.value,
-                    }))
+                  onChange={(v) =>
+                    setState((s) => ({ ...s, investedAmount: v }))
                   }
                 />
               </div>
               <div>
                 <label className={labelCls}>Current Value</label>
-                <input
-                  inputMode='decimal'
+                <NumericInput
                   className={inputCls}
                   value={state.currentValue}
-                  onChange={(e) =>
-                    setState((s) => ({ ...s, currentValue: e.target.value }))
-                  }
+                  onChange={(v) => setState((s) => ({ ...s, currentValue: v }))}
                 />
               </div>
             </div>

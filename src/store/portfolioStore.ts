@@ -1,4 +1,5 @@
 import type {
+  Account,
   CashflowEntry,
   EssentialsConfig,
   Goal,
@@ -45,6 +46,7 @@ type PortfolioState = {
   latestInsight: InsightSnapshot | null;
   notion: NotionConfig;
   essentials: EssentialsConfig;
+  accounts: Account[];
 
   hydrate: (uid: string) => Promise<void>;
   addInvestment: (
@@ -74,6 +76,12 @@ type PortfolioState = {
   updateGoal: (id: string, patch: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
   clearAllData: () => Promise<void>;
+
+  addAccount: (
+    account: Omit<Account, 'id' | 'createdAt' | 'updatedAt'>,
+  ) => Promise<void>;
+  updateAccount: (id: string, patch: Partial<Account>) => Promise<void>;
+  deleteAccount: (id: string) => Promise<void>;
 
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
@@ -110,6 +118,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   latestInsight: null, // Initial state
   notion: DEFAULT_NOTION,
   essentials: DEFAULT_ESSENTIALS,
+  accounts: [],
 
   hydrate: async (uid: string) => {
     set({ uid });
@@ -120,7 +129,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       cashflows,
       goals,
       networthSnapshots,
-      insights, // Added
+      insights,
+      accounts,
     ] = await Promise.all([
       fetchUserCollection<Investment>('investments', uid),
       fetchUserCollection<PortfolioSnapshot>('snapshots', uid),
@@ -128,7 +138,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       fetchUserCollection<CashflowEntry>('cashflows', uid),
       fetchUserCollection<Goal>('goals', uid),
       fetchUserCollection<NetWorthSnapshot>('networthSnapshots', uid),
-      fetchUserCollection<InsightSnapshot>('insights', uid), // Added
+      fetchUserCollection<InsightSnapshot>('insights', uid),
+      fetchUserCollection<Account>('accounts', uid),
     ]);
 
     const settingsDoc = await getDoc(doc(db, 'settings', uid));
@@ -164,6 +175,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         null,
       notion: settings.notion ?? DEFAULT_NOTION,
       essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
+      accounts: accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     });
 
     if (investments.length > 0) {
@@ -433,6 +445,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'snapshots',
       'networthSnapshots',
       'insights',
+      'accounts',
     ];
 
     try {
@@ -459,6 +472,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         latestInsight: null,
         notion: { enabled: false },
         essentials: {},
+        accounts: [],
       });
     } catch (error) {
       console.error('Cloud wipe failed:', error);
@@ -531,6 +545,43 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
   recordSnapshotNow: async () => {
     await get().recordSnapshotIfNeeded();
+  },
+
+  addAccount: async (account) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const now = new Date().toISOString();
+    const raw = Object.fromEntries(
+      Object.entries({
+        ...account,
+        id: createId('acc'),
+        createdAt: now,
+        updatedAt: now,
+        userId: uid,
+      }).filter(([_, v]) => v !== undefined),
+    ) as Account;
+    await setDoc(doc(db, 'accounts', raw.id), raw);
+    set((s) => ({ accounts: [raw, ...s.accounts] }));
+  },
+
+  updateAccount: async (id, patch) => {
+    const existing = get().accounts.find((x) => x.id === id);
+    if (!existing) return;
+    const raw = Object.fromEntries(
+      Object.entries({
+        ...existing,
+        ...patch,
+        id,
+        updatedAt: new Date().toISOString(),
+      }).filter(([_, v]) => v !== undefined),
+    ) as Account;
+    await setDoc(doc(db, 'accounts', id), raw);
+    set((s) => ({ accounts: s.accounts.map((x) => (x.id === id ? raw : x)) }));
+  },
+
+  deleteAccount: async (id) => {
+    await deleteDoc(doc(db, 'accounts', id));
+    set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
   },
 
   takeNetWorthSnapshot: async (label) => {

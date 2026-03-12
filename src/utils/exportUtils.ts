@@ -1,3 +1,5 @@
+import type { Account, Investment } from '../types/investmentTypes';
+// src/utils/exportUtils.ts
 import {
   currentValue,
   investedValue,
@@ -6,38 +8,55 @@ import {
 } from './calculations';
 
 import ExcelJS from 'exceljs';
-import type { Investment } from '../types/investmentTypes';
-// src/utils/exportUtils.ts
 import { saveAs } from 'file-saver';
 
-/**
- * Helper to transform investment objects into a flat structure for spreadsheets
- */
-function toFlatRows(investments: Investment[]) {
+// ── Investment row flattening ────────────────────────────────────────────────
+function toFlatInvestmentRows(investments: Investment[]) {
   return investments.map((inv) => ({
     Type: typeLabel(inv.type),
     Name: inv.name,
-    Symbol: inv.symbol ?? '',
-    Platform: inv.platform ?? '',
+    Symbol: (inv as any).symbol ?? '',
+    Platform: (inv as any).platform ?? '',
     Invested: investedValue(inv),
-    Current: currentValue(inv),
-    ProfitLoss: profitLoss(inv),
-    UpdatedAt: inv.updatedAt,
+    'Current Value': currentValue(inv),
+    'P&L': profitLoss(inv),
+    'Updated At': inv.updatedAt,
   }));
 }
 
-/**
- * Generic CSV Exporter that handles special characters and escaping
- */
+// ── Account row flattening ────────────────────────────────────────────────────
+function toFlatAccountRows(accounts: Account[]) {
+  return accounts.map((a) => ({
+    Name: a.name,
+    Type: a.type === 'bank' ? 'Bank Account' : 'Credit Card',
+    Balance: a.balance,
+    'Created At': a.createdAt,
+  }));
+}
+
+// ── Cashflow row flattening (resolves account name) ─────────────────────────
+function toFlatCashflowRows(cashflows: any[], accounts: Account[]) {
+  const accountMap: Record<string, string> = {};
+  for (const a of accounts) accountMap[a.id] = a.name;
+
+  return cashflows.map((cf) => ({
+    Date: cf.date,
+    Type: cf.type,
+    Category: cf.category,
+    Account: cf.accountId ? (accountMap[cf.accountId] ?? cf.accountId) : '',
+    Amount: cf.amount,
+    Notes: cf.notes ?? '',
+  }));
+}
+
+// ── Generic CSV exporter ─────────────────────────────────────────────────────
 export function exportCSV(data: any[], filename = 'data.csv') {
   if (!data || data.length === 0) return;
 
-  // Use keys from the first object as headers
   const headers = Object.keys(data[0]);
 
   const escapeCell = (v: unknown) => {
     const s = String(v ?? '');
-    // If value contains quotes, commas, or newlines, wrap in quotes and escape internal quotes
     return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
   };
 
@@ -51,31 +70,52 @@ export function exportCSV(data: any[], filename = 'data.csv') {
   saveAs(blob, filename);
 }
 
-/**
- * Exports all primary financial categories as separate CSV files
- */
+// ── Export all sections as separate CSV files ────────────────────────────────
 export function exportAllSectionsAsCSV(state: any) {
-  // Use specialized flattening for investments
-  if (state.investments?.length) {
-    const flatInvestments = toFlatRows(state.investments);
-    exportCSV(flatInvestments, 'investments.csv');
-  }
+  const accounts: Account[] = state.accounts ?? [];
 
-  // Export other sections as-is
-  if (state.liabilities?.length)
-    exportCSV(state.liabilities, 'liabilities.csv');
-  if (state.cashflows?.length) exportCSV(state.cashflows, 'cashflows.csv');
-  if (state.goals?.length) exportCSV(state.goals, 'goals.csv');
+  if (state.investments?.length) {
+    exportCSV(toFlatInvestmentRows(state.investments), 'investments.csv');
+  }
+  if (state.liabilities?.length) {
+    exportCSV(
+      state.liabilities.map((l: any) => ({
+        Name: l.name,
+        Type: l.type,
+        Principal: l.principal,
+        Outstanding: l.outstanding,
+        'Interest Rate': l.interestRate ?? '',
+        'Start Date': l.startDate ?? '',
+        'End Date': l.endDate ?? '',
+      })),
+      'liabilities.csv',
+    );
+  }
+  if (state.cashflows?.length) {
+    exportCSV(toFlatCashflowRows(state.cashflows, accounts), 'cashflows.csv');
+  }
+  if (state.goals?.length) {
+    exportCSV(
+      state.goals.map((g: any) => ({
+        Name: g.name,
+        'Target Amount': g.targetAmount,
+        'Current Amount': g.currentAmount,
+        'Due Date': g.dueDate ?? '',
+      })),
+      'goals.csv',
+    );
+  }
+  if (accounts.length) {
+    exportCSV(toFlatAccountRows(accounts), 'accounts.csv');
+  }
 }
 
-/**
- * Proper Excel (.xlsx) exporter using ExcelJS
- */
+// ── Portfolio Excel export ───────────────────────────────────────────────────
 export function exportExcel(
   investments: Investment[],
   filename = 'portfolio.xlsx',
 ) {
-  const rows = toFlatRows(investments);
+  const rows = toFlatInvestmentRows(investments);
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Investments');
 
@@ -87,22 +127,19 @@ export function exportExcel(
         'Symbol',
         'Platform',
         'Invested',
-        'Current',
-        'ProfitLoss',
-        'UpdatedAt',
+        'Current Value',
+        'P&L',
+        'Updated At',
       ];
 
-  // Setup columns with automatic width adjustment
   sheet.columns = headers.map((h) => ({
     header: h,
     key: h,
     width: Math.max(12, Math.min(32, h.length + 6)),
   }));
 
-  // Add data rows
   rows.forEach((r) => sheet.addRow(r));
 
-  // Style the header row
   sheet.getRow(1).font = { bold: true };
   sheet.getRow(1).fill = {
     type: 'pattern',
@@ -110,7 +147,6 @@ export function exportExcel(
     fgColor: { argb: 'F2F2F2' },
   };
 
-  // Generate and save the file
   void workbook.xlsx.writeBuffer().then((buf) => {
     const blob = new Blob([buf], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

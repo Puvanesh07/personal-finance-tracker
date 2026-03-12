@@ -26,6 +26,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
+import { NumericInput } from '../ui/NumericInput';
 import { createPortal } from 'react-dom';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -370,6 +371,7 @@ type FormState = {
   category: string;
   amount: string;
   notes: string;
+  accountId: string;
 };
 
 function toNum(v: string) {
@@ -385,6 +387,12 @@ const TYPE_OPTIONS = [
 export function UpsertCashflowModal(props: Props) {
   const addCashflow = usePortfolioStore((s) => s.addCashflow);
   const updateCashflow = usePortfolioStore((s) => s.updateCashflow);
+  const accounts = usePortfolioStore((s) => s.accounts);
+
+  const accountOptions = [
+    { key: '', label: 'No Account' },
+    ...accounts.map((a) => ({ key: a.id, label: a.name })),
+  ];
 
   const initial = useMemo<FormState>(() => {
     const base: FormState = {
@@ -393,6 +401,7 @@ export function UpsertCashflowModal(props: Props) {
       category: '',
       amount: '0',
       notes: '',
+      accountId: '',
     };
     if (props.mode === 'edit') {
       base.type = props.entry.type;
@@ -400,6 +409,7 @@ export function UpsertCashflowModal(props: Props) {
       base.category = props.entry.category;
       base.amount = String(props.entry.amount);
       base.notes = props.entry.notes ?? '';
+      base.accountId = props.entry.accountId ?? '';
     }
     return base;
   }, [props.mode, (props as any).entry]);
@@ -420,6 +430,7 @@ export function UpsertCashflowModal(props: Props) {
         category: state.category.trim() || 'Other',
         amount: toNum(state.amount),
         ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
+        ...(state.accountId ? { accountId: state.accountId } : {}),
       };
       if (props.mode === 'create') await addCashflow(payload as any);
       else await updateCashflow(props.entry.id, payload as any);
@@ -482,15 +493,25 @@ export function UpsertCashflowModal(props: Props) {
         {/* Amount */}
         <div>
           <label className={labelCls}>Amount</label>
-          <input
-            inputMode='decimal'
+          <NumericInput
             className={inputCls}
             value={state.amount}
-            onChange={(e) =>
-              setState((s) => ({ ...s, amount: e.target.value }))
-            }
+            onChange={(v) => setState((s) => ({ ...s, amount: v }))}
           />
         </div>
+
+        {/* Account */}
+        {accounts.length > 0 && (
+          <div>
+            <label className={labelCls}>Account (Optional)</label>
+            <InvDropdown
+              value={state.accountId}
+              onChange={(v) => setState((s) => ({ ...s, accountId: v }))}
+              options={accountOptions}
+              label='Select account'
+            />
+          </div>
+        )}
 
         {/* Notes */}
         <div>

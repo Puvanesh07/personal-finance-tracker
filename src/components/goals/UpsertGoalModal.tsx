@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Goal } from '../../types/investmentTypes';
 import { Modal } from '../ui/Modal';
+import { NumericInput } from '../ui/NumericInput';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -339,25 +340,19 @@ export function UpsertGoalModal(props: Props) {
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
           <div>
             <label className={labelCls}>Target Amount</label>
-            <input
-              inputMode='decimal'
+            <NumericInput
               className={inputCls}
               value={state.targetAmount}
-              onChange={(e) =>
-                setState((s) => ({ ...s, targetAmount: e.target.value }))
-              }
+              onChange={(v) => setState((s) => ({ ...s, targetAmount: v }))}
             />
           </div>
 
           <div>
             <label className={labelCls}>Current Amount</label>
-            <input
-              inputMode='decimal'
+            <NumericInput
               className={inputCls}
               value={state.currentAmount}
-              onChange={(e) =>
-                setState((s) => ({ ...s, currentAmount: e.target.value }))
-              }
+              onChange={(v) => setState((s) => ({ ...s, currentAmount: v }))}
             />
           </div>
 

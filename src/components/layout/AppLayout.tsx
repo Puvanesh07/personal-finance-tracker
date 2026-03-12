@@ -18,6 +18,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 import { AiFillCalculator } from 'react-icons/ai';
+import { BsBank2 } from 'react-icons/bs';
 import { Modal } from '../ui/Modal';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
@@ -63,6 +64,7 @@ export function AppLayout() {
     { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
     { to: '/investments', icon: FiTrendingUp, label: 'Investments' },
     { to: '/liabilities', icon: FiCreditCard, label: 'Liabilities' },
+    { to: '/accounts', icon: BsBank2, label: 'Accounts' },
     { to: '/cashflow', icon: FiActivity, label: 'Cashflow' },
     { to: '/goals', icon: FiFlag, label: 'Goals' },
     {
@@ -144,6 +146,14 @@ export function AppLayout() {
             >
               <FiActivity className='h-4 w-4 shrink-0' />
               <span>Cashflow</span>
+            </NavLink>
+
+            <NavLink
+              to='/accounts'
+              className={({ isActive }) => desktopLinkClass(isActive)}
+            >
+              <BsBank2 className='h-4 w-4 shrink-0' />
+              <span>Accounts</span>
             </NavLink>
 
             <NavLink

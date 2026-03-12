@@ -182,6 +182,20 @@ export type Liability = {
   userId?: string;
 };
 
+// ── Bank Accounts ──────────────────────────────────────────────────────────
+
+export type AccountType = 'bank' | 'credit';
+
+export type Account = {
+  id: string;
+  name: string;
+  type: AccountType;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
+};
+
 // ── Cashflow ───────────────────────────────────────────────────────────────
 
 export type CashflowType = 'income' | 'expense';
@@ -193,6 +207,7 @@ export type CashflowEntry = {
   category: string;
   amount: number;
   notes?: string;
+  accountId?: string;
   createdAt: string;
   updatedAt: string;
   userId?: string;
