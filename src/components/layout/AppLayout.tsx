@@ -23,8 +23,8 @@ import { GiWheat } from 'react-icons/gi';
 import { Modal } from '../ui/Modal';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
+import { useAutoLogout } from '../../hooks/useAutoLogout';
 
-// ── Desktop Sidebar Styling ──
 function desktopLinkClass(isActive: boolean) {
   const base =
     'flex flex-row items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 text-sm font-semibold';
@@ -38,17 +38,18 @@ export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
+  // ✅ Auto logout after 10 minutes of inactivity
+  useAutoLogout();
+
   const confirmLogout = async () => {
     await signOut(auth);
     setLogoutOpen(false);
   };
 
-  // Close the mobile bottom sheet automatically when the route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Prevent background scrolling when bottom sheet is open
   useEffect(() => {
     if (isMobileMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -60,7 +61,6 @@ export function AppLayout() {
     };
   }, [isMobileMenuOpen]);
 
-  // All menu items for the mobile bottom sheet
   const MOBILE_MENU_ITEMS = [
     { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
     { to: '/investments', icon: FiTrendingUp, label: 'Investments' },
@@ -88,22 +88,21 @@ export function AppLayout() {
 
   return (
     <div className='h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-50 flex relative'>
-      {/* Inject custom smooth float animation */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        @keyframes smoothFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-6px); }
-        }
-        .animate-float {
-          animation: smoothFloat 3s ease-in-out infinite;
-        }
-      `,
+            @keyframes smoothFloat {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-6px); }
+            }
+            .animate-float {
+              animation: smoothFloat 3s ease-in-out infinite;
+            }
+          `,
         }}
       />
 
-      {/* ── DESKTOP SIDEBAR (Hidden on mobile) ────────────────────────── */}
+      {/* ── DESKTOP SIDEBAR ── */}
       <aside className='hidden md:flex h-full w-60 shrink-0 flex-col border-r border-slate-800/60 bg-slate-900/80 px-4 py-5'>
         {/* Logo */}
         <div className='mb-5 flex items-center gap-3 px-1'>
@@ -130,7 +129,6 @@ export function AppLayout() {
               <FiHome className='h-4 w-4 shrink-0' />
               <span>Dashboard</span>
             </NavLink>
-
             <NavLink
               to='/investments'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -138,7 +136,6 @@ export function AppLayout() {
               <FiTrendingUp className='h-4 w-4 shrink-0' />
               <span>Investments</span>
             </NavLink>
-
             <NavLink
               to='/liabilities'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -146,7 +143,6 @@ export function AppLayout() {
               <FiCreditCard className='h-4 w-4 shrink-0' />
               <span>Liabilities</span>
             </NavLink>
-
             <NavLink
               to='/cashflow'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -154,7 +150,6 @@ export function AppLayout() {
               <FiActivity className='h-4 w-4 shrink-0' />
               <span>Cashflow</span>
             </NavLink>
-
             <NavLink
               to='/accounts'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -162,7 +157,6 @@ export function AppLayout() {
               <BsBank2 className='h-4 w-4 shrink-0' />
               <span>Accounts</span>
             </NavLink>
-
             <NavLink
               to='/goals'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -170,7 +164,6 @@ export function AppLayout() {
               <FiFlag className='h-4 w-4 shrink-0' />
               <span>Goals</span>
             </NavLink>
-
             <NavLink
               to='/agriculture'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -182,7 +175,6 @@ export function AppLayout() {
             <div className='mt-4 mb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-600'>
               Intelligence
             </div>
-
             <NavLink
               to='/insights'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -194,7 +186,6 @@ export function AppLayout() {
             <div className='mt-4 mb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-600'>
               Analytics
             </div>
-
             <NavLink
               to='/tools'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -202,7 +193,6 @@ export function AppLayout() {
               <AiFillCalculator className='h-4 w-4 shrink-0' />
               <span>Tools</span>
             </NavLink>
-
             <NavLink
               to='/snapshots'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -210,7 +200,6 @@ export function AppLayout() {
               <FiCamera className='h-4 w-4 shrink-0' />
               <span>Snapshots</span>
             </NavLink>
-
             <NavLink
               to='/reports'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -218,7 +207,6 @@ export function AppLayout() {
               <FiBarChart2 className='h-4 w-4 shrink-0' />
               <span>Reports</span>
             </NavLink>
-
             <NavLink
               to='/settings'
               className={({ isActive }) => desktopLinkClass(isActive)}
@@ -241,14 +229,14 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ────────────────────────────────────────── */}
+      {/* ── MAIN CONTENT ── */}
       <main className='flex-1 overflow-y-auto relative'>
         <div className='p-4 pb-28 md:p-8 md:pb-8 max-w-7xl mx-auto min-h-full'>
           <Outlet />
         </div>
       </main>
 
-      {/* ── MOBILE FLOATING ACTION BUTTON (Center Bottom) ───────────── */}
+      {/* ── MOBILE FAB ── */}
       <div
         className={`md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] transition-transform duration-300 ease-out ${
           isMobileMenuOpen ? 'translate-y-2' : ''
@@ -262,7 +250,6 @@ export function AppLayout() {
               : 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-[0_4px_20px_rgba(16,185,129,0.4)] animate-float'
           }`}
         >
-          {/* Animated Icon Container - Made smaller */}
           <div
             className={`transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-90 scale-100' : 'rotate-0 scale-90'}`}
           >
@@ -275,8 +262,7 @@ export function AppLayout() {
         </button>
       </div>
 
-      {/* ── MOBILE EXPANDABLE BOTTOM SHEET MENU ──────────────────── */}
-      {/* Dimmed Overlay */}
+      {/* ── MOBILE OVERLAY ── */}
       {isMobileMenuOpen && (
         <div
           className='md:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-300'
@@ -284,7 +270,7 @@ export function AppLayout() {
         />
       )}
 
-      {/* Sliding Sheet */}
+      {/* ── MOBILE BOTTOM SHEET ── */}
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 z-[70] bg-slate-900 border-t border-slate-800 rounded-t-3xl pt-5 pb-24 px-6 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'
@@ -293,7 +279,6 @@ export function AppLayout() {
         <div className='w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-8' />
 
         <div className='grid grid-cols-4 gap-y-8 gap-x-2'>
-          {/* Dynamic Map of All App Pages */}
           {MOBILE_MENU_ITEMS.map((item) => (
             <NavLink
               key={item.to}
@@ -323,7 +308,7 @@ export function AppLayout() {
             </NavLink>
           ))}
 
-          {/* Logout Action */}
+          {/* Logout */}
           <button
             onClick={() => {
               setIsMobileMenuOpen(false);
@@ -341,7 +326,7 @@ export function AppLayout() {
         </div>
       </div>
 
-      {/* ── LOGOUT MODAL ────────────────────────────────────────── */}
+      {/* ── LOGOUT MODAL ── */}
       <Modal
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
