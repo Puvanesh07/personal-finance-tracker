@@ -34,15 +34,9 @@ export type LivePriceResponse = {
 export type FetchProgressCallback = (fetched: number, total: number) => void;
 
 // ── Tunables ──────────────────────────────────────────────────────────────────
-// Symbols per worker request — keep ≤ 20 to stay under CF 10ms CPU limit
 const CHUNK_SIZE = 20;
-
-// Max concurrent requests at once — 3 is safe for CF free tier
 const MAX_CONCURRENCY = 3;
-
-// Delay between launching each concurrency group (ms)
 const GROUP_DELAY_MS = 300;
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getWorkerUrl(): string {
@@ -89,9 +83,8 @@ async function fetchBatch(
 /**
  * Fetch live prices for ANY number of symbols.
  *
- * @param symbols   - Array of symbol strings (WIPRO, MF:119551, US:AAPL, GOLD…)
+ * @param symbols    - Array of symbol strings (WIPRO, MF:119551, US:AAPL, GOLD…)
  * @param onProgress - Optional callback: (fetchedSoFar, total) → void
- *                     Use this to show a progress bar / counter in the UI.
  */
 export async function fetchLivePrices(
   symbols: string[],
@@ -123,12 +116,10 @@ export async function fetchLivePrices(
   for (let gi = 0; gi < groups.length; gi++) {
     const group = groups[gi];
 
-    // Fire this group in parallel
     const groupResults = await Promise.allSettled(
       group.map((chunk) => fetchBatch(workerUrl, chunk)),
     );
 
-    // Merge results
     groupResults.forEach((result, i) => {
       const chunk = group[i];
       if (result.status === 'fulfilled') {
@@ -138,7 +129,6 @@ export async function fetchLivePrices(
           `[livePriceService] Chunk failed (${chunk.join(',')}):`,
           result.reason,
         );
-        // Mark failed symbols as null so they are not updated
         for (const sym of chunk) {
           mergedPrices[sym] = { price: null, source: 'none' };
         }
@@ -147,7 +137,6 @@ export async function fetchLivePrices(
       onProgress?.(Math.min(fetchedCount, clean.length), clean.length);
     });
 
-    // Delay between groups to avoid hammering CF (skip delay after last group)
     if (gi < groups.length - 1) {
       await sleep(GROUP_DELAY_MS);
     }
@@ -162,14 +151,30 @@ export async function fetchLivePrices(
     `[livePriceService] Done — ${found} updated, ${missed} not found out of ${clean.length} total`,
   );
 
-  // Detailed per-symbol log (only in dev to avoid console spam in prod)
-  if (import.meta.env.DEV) {
-    for (const [sym, result] of Object.entries(mergedPrices)) {
-      if (result.price !== null) {
-        console.log(`  ✓ ${sym} → ₹${result.price} (${result.source})`);
+  // Detailed per-symbol log
+  for (const [sym, result] of Object.entries(mergedPrices)) {
+    if (result.price !== null) {
+      const isMF = sym.startsWith('MF:');
+      if (isMF) {
+        console.log(
+          `%c[LivePrice] ${sym}`,
+          'color: #a78bfa; font-weight: bold;',
+          '\n  💰 NAV Price  :',
+          `₹${result.price}`,
+          '\n  📡 Source     :',
+          result.source,
+          '\n  🕐 Fetched At :',
+          new Date().toLocaleTimeString(),
+        );
       } else {
-        console.warn(`  ✗ ${sym} → not found`);
+        console.log(
+          `%c[LivePrice] ${sym} → ₹${result.price}`,
+          'color: #10b981; font-weight: bold;',
+          `(${result.source})`,
+        );
       }
+    } else {
+      console.warn(`%c[LivePrice] ${sym} → not found`, 'color: #f87171;');
     }
   }
 
