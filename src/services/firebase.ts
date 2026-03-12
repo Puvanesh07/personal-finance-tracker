@@ -1,9 +1,4 @@
-import {
-  GoogleAuthProvider,
-  getAuth,
-  inMemoryPersistence,
-  setPersistence,
-} from 'firebase/auth';
+import { GoogleAuthProvider, getAuth } from 'firebase/auth';
 
 import { getAnalytics } from 'firebase/analytics';
 import { getFirestore } from 'firebase/firestore';
@@ -23,12 +18,6 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-
-// inMemoryPersistence = session lives only in RAM.
-// Closing the browser/tab clears it → user must log in again every time.
-setPersistence(auth, inMemoryPersistence).catch((err) =>
-  console.error('Failed to set auth persistence:', err),
-);
 
 if (typeof window !== 'undefined') {
   getAnalytics(app);

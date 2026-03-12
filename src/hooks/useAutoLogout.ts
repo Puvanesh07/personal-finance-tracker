@@ -26,10 +26,8 @@ export function useAutoLogout() {
     const scheduleLogout = () => {
       clearTimers();
 
-      // sessionStorage is cleared automatically when the browser/tab closes,
-      // so reopening the app always starts fresh and forces a new login.
       const lastActive = parseInt(
-        sessionStorage.getItem(LAST_ACTIVE_KEY) || '0',
+        localStorage.getItem(LAST_ACTIVE_KEY) || '0',
         10,
       );
       const now = Date.now();
@@ -56,19 +54,19 @@ export function useAutoLogout() {
 
     const handleLogout = async () => {
       clearTimers();
-      sessionStorage.removeItem(LAST_ACTIVE_KEY);
+      localStorage.removeItem(LAST_ACTIVE_KEY);
       toast.error('Session expired. You have been logged out.');
       await signOut(auth);
       window.location.href = '/';
     };
 
     const onActivity = () => {
-      sessionStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
       scheduleLogout();
     };
 
-    if (!sessionStorage.getItem(LAST_ACTIVE_KEY)) {
-      sessionStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+    if (!localStorage.getItem(LAST_ACTIVE_KEY)) {
+      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
     }
 
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
