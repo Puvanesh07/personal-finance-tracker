@@ -1,5 +1,3 @@
-// src/hooks/useAutoLogout.ts
-
 import { useEffect, useRef } from 'react';
 
 import { auth } from '../services/firebase';
@@ -28,25 +26,22 @@ export function useAutoLogout() {
     const scheduleLogout = () => {
       clearTimers();
 
-      // Read when the user was last active from localStorage
-      // This survives route changes and remounts
+      // sessionStorage is cleared automatically when the browser/tab closes,
+      // so reopening the app always starts fresh and forces a new login.
       const lastActive = parseInt(
-        localStorage.getItem(LAST_ACTIVE_KEY) || '0',
+        sessionStorage.getItem(LAST_ACTIVE_KEY) || '0',
         10,
       );
       const now = Date.now();
       const elapsed = now - lastActive;
       const remainingTotal = INACTIVITY_MS - elapsed;
 
-      // Already past 10 minutes — logout immediately
       if (remainingTotal <= 0) {
         handleLogout();
         return;
       }
 
       const remainingWarning = WARNING_MS - elapsed;
-
-      // Schedule warning if not already past it
       if (remainingWarning > 0) {
         warningRef.current = setTimeout(() => {
           toastIdRef.current = toast(
@@ -56,35 +51,30 @@ export function useAutoLogout() {
         }, remainingWarning);
       }
 
-      // Schedule logout
       timerRef.current = setTimeout(handleLogout, remainingTotal);
     };
 
     const handleLogout = async () => {
       clearTimers();
-      localStorage.removeItem(LAST_ACTIVE_KEY);
+      sessionStorage.removeItem(LAST_ACTIVE_KEY);
       toast.error('Session expired. You have been logged out.');
       await signOut(auth);
       window.location.href = '/';
     };
 
     const onActivity = () => {
-      // Stamp the current time on every user interaction
-      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+      sessionStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
       scheduleLogout();
     };
 
-    // Initialise last-active if not set
-    if (!localStorage.getItem(LAST_ACTIVE_KEY)) {
-      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+    if (!sessionStorage.getItem(LAST_ACTIVE_KEY)) {
+      sessionStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
     }
 
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     events.forEach((e) =>
       window.addEventListener(e, onActivity, { passive: true }),
     );
-
-    // On mount, check how much time is left from the persisted timestamp
     scheduleLogout();
 
     return () => {

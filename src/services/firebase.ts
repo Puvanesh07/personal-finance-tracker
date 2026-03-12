@@ -1,8 +1,13 @@
-// src/services/firebase.ts
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider } from "firebase/auth"; // Added these
+import {
+  GoogleAuthProvider,
+  getAuth,
+  inMemoryPersistence,
+  setPersistence,
+} from 'firebase/auth';
+
+import { getAnalytics } from 'firebase/analytics';
+import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,14 +16,20 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const auth = getAuth(app); // Added auth export
-export const googleProvider = new GoogleAuthProvider(); // Added Google provider
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
-if (typeof window !== "undefined") {
+// inMemoryPersistence = session lives only in RAM.
+// Closing the browser/tab clears it → user must log in again every time.
+setPersistence(auth, inMemoryPersistence).catch((err) =>
+  console.error('Failed to set auth persistence:', err),
+);
+
+if (typeof window !== 'undefined') {
   getAnalytics(app);
 }
