@@ -27,6 +27,8 @@ import {
 } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { SiNotion } from 'react-icons/si';
+import { BsBank2 } from 'react-icons/bs';
+import { GiWheat } from 'react-icons/gi';
 
 // ── Animation Variants ────────────────────────────────────────────────────────
 
@@ -213,6 +215,34 @@ const features = [
       'Market-cap category (Large / Mid / Small)',
       'Auto-populates allocation charts',
       'No API key needed — data bundled in-app',
+    ],
+  },
+  {
+    icon: <BsBank2 />,
+    color: '#06b6d4',
+    glow: 'rgba(6,182,212,0.25)',
+    label: 'Accounts',
+    desc: 'Track all your bank accounts and credit cards in one place. See total liquid balance, account-wise breakdown with a donut chart, and a bar chart comparing balances across all accounts.',
+    bullets: [
+      'Add bank accounts & credit cards',
+      'Per-account balance tracking',
+      'Total liquid balance summary card',
+      'Donut & bar chart breakdown',
+      'Add, edit & delete accounts anytime',
+    ],
+  },
+  {
+    icon: <GiWheat />,
+    color: '#84cc16',
+    glow: 'rgba(132,204,22,0.25)',
+    label: 'Agriculture',
+    desc: 'A dedicated farm management module for Indian farmers. Track crop cycles, farm expenses, livestock, daily milk records, and coconut harvest — with P&L analytics per season.',
+    bullets: [
+      'Crop cycle tracking with season & P&L',
+      'Farm expense categories (seeds, labor, fuel…)',
+      'Livestock register with events log',
+      'Daily milk production & sales records',
+      'Coconut harvest & selling tracker',
     ],
   },
 ];
@@ -417,7 +447,7 @@ export default function AuthPage() {
             className='flex flex-wrap items-center justify-center gap-3 mb-16'
           >
             {[
-              '12 Built Modules',
+              '14 Built Modules',
               '4 Platform Imports',
               'No Broker Access',
               'Notion Sync',
@@ -727,8 +757,8 @@ export default function AuthPage() {
               className='mt-3 max-w-xl mx-auto text-sm'
               style={{ color: 'rgba(226,232,240,0.42)' }}
             >
-              12 fully built modules — from portfolio tracking to Notion sync.
-              Every feature is live and ready to use.
+              14 fully built modules — from portfolio tracking to farm
+              management. Every feature is live and ready to use.
             </p>
           </motion.div>
 
@@ -965,6 +995,37 @@ export default function AuthPage() {
                   'Emergency Fund Tracker',
                   'JSON Backup & Restore',
                   'Full Data Wipe',
+                ],
+              },
+              {
+                icon: <BsBank2 />,
+                color: '#06b6d4',
+                label: 'Accounts',
+                tagline: 'All your bank accounts and cards, one clear view',
+                detail:
+                  'The Accounts module lets you track every bank account and credit card balance in one place. A summary card shows your total liquid balance at a glance. Below that, a donut chart visualises how your money is distributed across accounts, and a bar chart compares balances side by side. You can add, edit, or delete accounts anytime using a simple modal form that supports both bank and credit card types.',
+                pills: [
+                  'Bank & Credit Card accounts',
+                  'Total liquid balance card',
+                  'Donut chart breakdown',
+                  'Bar chart comparison',
+                  'Add / Edit / Delete',
+                ],
+              },
+              {
+                icon: <GiWheat />,
+                color: '#84cc16',
+                label: 'Agriculture',
+                tagline: 'Full farm management for Indian farmers',
+                detail:
+                  'Agriculture is a standalone module built for farmers who want to track their land alongside their finances. The Overview tab shows season-wise income, expenses, and net profit. The Crops tab tracks individual crop cycles with sowing date, harvest date, yield, and P&L per season. The Expenses tab logs farm costs across 12 categories including seeds, fertilizer, labor, and tractor fuel. Livestock registers animals with an events log (vaccination, purchase, sale). Milk tab records daily production and sales. Coconut tab tracks harvest batches and selling price.',
+                pills: [
+                  'Overview: P&L by season',
+                  'Crop cycles with yield & profit',
+                  'Farm expenses (12 categories)',
+                  'Livestock register & events',
+                  'Daily milk records',
+                  'Coconut harvest tracker',
                 ],
               },
             ].map((item, idx) => (
