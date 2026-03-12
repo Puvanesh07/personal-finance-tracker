@@ -10,6 +10,7 @@ import { FiSave, FiZap } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
 import { useMemo, useState } from 'react';
 
+import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { summarizePortfolio } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -459,12 +460,7 @@ export default function InsightsPage() {
     }
   }
 
-  if (!ready)
-    return (
-      <div className='flex items-center justify-center h-60 text-slate-500'>
-        Loading insights…
-      </div>
-    );
+  if (!ready) return <InsightsLoader />;
 
   const noData =
     investments.length === 0 &&

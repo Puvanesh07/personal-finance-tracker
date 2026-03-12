@@ -28,6 +28,7 @@ import { FiCheck, FiChevronDown } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { AgricultureLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { createPortal } from 'react-dom';
@@ -2805,12 +2806,7 @@ export function AgriculturePage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const { ready } = useAgriStore();
 
-  if (!ready)
-    return (
-      <div className='flex items-center justify-center h-60 text-slate-500'>
-        Loading agriculture data…
-      </div>
-    );
+  if (!ready) return <AgricultureLoader />;
 
   return (
     <div className='flex flex-col gap-6 pb-12'>
