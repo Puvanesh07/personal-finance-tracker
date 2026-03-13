@@ -25,6 +25,7 @@ import {
 } from 'react-icons/fi';
 import { useMemo, useState } from 'react';
 
+import { AccountsSkeleton } from '../../components/loader/skeletons';
 import { BsBank2 } from 'react-icons/bs';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
@@ -304,6 +305,7 @@ function AccountCard({
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export function AccountsPage() {
+  const ready = usePortfolioStore((s) => s.ready);
   const accounts = usePortfolioStore((s) => s.accounts);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteAccount = usePortfolioStore((s) => s.deleteAccount);
@@ -355,6 +357,8 @@ export function AccountsPage() {
   const totalCredit = accounts
     .filter((a) => a.type === 'credit')
     .reduce((s, a) => s + a.balance, 0);
+
+  if (!ready) return <AccountsSkeleton />;
 
   return (
     <div className='flex flex-col gap-6 pb-8'>

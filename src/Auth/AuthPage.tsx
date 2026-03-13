@@ -618,8 +618,8 @@ export default function AuthPage() {
                   (m) => (
                     <span
                       key={m}
-                      className='text-[10px]'
-                      style={{ color: 'rgba(226,232,240,0.2)' }}
+                      className='text-[11px] font-medium'
+                      style={{ color: 'rgba(148,163,184,0.85)' }}
                     >
                       {m}
                     </span>
@@ -1456,7 +1456,7 @@ export default function AuthPage() {
             FinTrackly
           </span>
         </div>
-        <p className='text-xs' style={{ color: 'rgba(226,232,240,0.2)' }}>
+        <p className='text-xs' style={{ color: 'rgba(148,163,184,0.85)' }}>
           © 2026 Fintrackly · Free personal finance tracker & investment
           portfolio manager for India
         </p>

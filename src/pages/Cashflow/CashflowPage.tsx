@@ -40,6 +40,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CashflowEntry } from '../../types/investmentTypes';
+import { CashflowSkeleton } from '../../components/loader/skeletons';
 import { ImportDividendCsvButton } from '../../components/cashflow/ImportDividendCsvButton';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
@@ -495,6 +496,7 @@ function SummaryCard({
 // ─────────────────────────────────────────────────────────────────────────
 
 export function CashflowPage() {
+  const ready = usePortfolioStore((s) => s.ready);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteCashflow = usePortfolioStore((s) => s.deleteCashflow);
   const accounts = usePortfolioStore((s) => s.accounts);
@@ -574,6 +576,10 @@ export function CashflowPage() {
     setDeleteOpen(false);
     setSelectedDeleteId(null);
   };
+
+  if (!ready) {
+    return <CashflowSkeleton />;
+  }
 
   return (
     <div className='flex flex-col gap-6 pb-8'>

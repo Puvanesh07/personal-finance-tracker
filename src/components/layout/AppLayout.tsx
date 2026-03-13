@@ -85,6 +85,7 @@ export function AppLayout() {
 
   return (
     <div className='h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-50 flex relative'>
+      {/* Progress bar on every route change */}
       <style
         dangerouslySetInnerHTML={{
           __html: `

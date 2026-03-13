@@ -22,6 +22,7 @@ import { ImportAngelOnePdfButton } from '../../components/investments/ImportAnge
 import { ImportCsvButton } from '../../components/investments/ImportCsvButton';
 import { ImportGrowwButton } from '../../components/investments/ImportGrowButton';
 import { ImportIndmoneyButton } from '../../components/investments/ImportIndmoneyButton';
+import { InvestmentsSkeleton } from '../../components/loader/skeletons';
 import { InvestmentsTable } from '../../components/investments/InvestmentsTable';
 import { UpsertInvestmentModal } from '../../components/investments/UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
@@ -235,6 +236,7 @@ function normalisePlatform(platform?: string): string {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export function InvestmentsPage() {
+  const ready = usePortfolioStore((s) => s.ready);
   const investments = usePortfolioStore((s) => s.investments);
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -284,6 +286,10 @@ export function InvestmentsPage() {
   const activeBrokerLabel =
     BROKER_FILTERS.find((b) => b.id === brokerFilter)?.label ?? 'All Brokers';
   const showBrokerBadge = brokerFilter !== 'all';
+
+  if (!ready) {
+    return <InvestmentsSkeleton />;
+  }
 
   return (
     <div className='flex flex-col gap-4 md:gap-6 pb-20 md:pb-8'>

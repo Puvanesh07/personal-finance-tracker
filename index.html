@@ -3,13 +3,12 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#020617" />
 
   <!-- ── Favicon ── -->
   <link rel="icon" type="image/svg+xml"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>" />
-  <meta property="fb:app_id" content="0" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#020617" />
 
   <!-- ── Primary SEO ── -->
   <title>Fintrackly – Free Personal Finance Tracker &amp; Investment Portfolio Manager for India</title>
@@ -20,7 +19,7 @@
   <meta name="author" content="Fintrackly" />
   <meta name="robots" content="index, follow" />
 
-  <!-- ── Google Search Console Verification ── -->
+  <!-- ── Google Search Console ── -->
   <meta name="google-site-verification" content="srbJNsBZf55UxgVrEEB97OsZKnzZOJBtH18kI0tLjHw" />
 
   <!-- ── Canonical ── -->
@@ -38,6 +37,7 @@
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:locale" content="en_IN" />
+  <meta property="fb:app_id" content="0" />
 
   <!-- ── Twitter Card ── -->
   <meta name="twitter:card" content="summary_large_image" />
@@ -48,90 +48,101 @@
 
   <!-- ── Structured Data: SoftwareApplication ── -->
   <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Fintrackly",
-      "url": "https://fintrackly.web.app/",
-      "applicationCategory": "FinanceApplication",
-      "operatingSystem": "Web",
-      "description": "Fintrackly is a free personal finance tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, crypto, gold, fixed deposits, PPF, NPS, expenses and financial goals in one private dashboard. Import from Zerodha, Groww, Angel One and INDmoney.",
-      "inLanguage": "en-IN",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "INR"
-      },
-      "featureList": [
-        "Net worth tracker",
-        "Investment portfolio tracker",
-        "Stock portfolio tracker India NSE",
-        "Mutual fund and SIP tracker",
-        "Crypto tracker India",
-        "Gold and silver tracker",
-        "Fixed deposit tracker",
-        "PPF and NPS tracker",
-        "Expense and cashflow tracker",
-        "Financial goal tracker",
-        "Import from Zerodha Groww Angel One INDmoney",
-        "Notion sync",
-        "CSV and Excel export"
-      ],
-      "screenshot": "https://fintrackly.web.app/og-image.png"
-    }
-    </script>
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Fintrackly",
+    "url": "https://fintrackly.web.app/",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Web",
+    "description": "Fintrackly is a free personal finance tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, crypto, gold, fixed deposits, PPF, NPS, expenses and financial goals in one private dashboard. Import from Zerodha, Groww, Angel One and INDmoney.",
+    "inLanguage": "en-IN",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+    "featureList": [
+      "Net worth tracker", "Stock portfolio tracker India NSE",
+      "Mutual fund and SIP tracker", "Crypto tracker India",
+      "Gold and silver tracker", "Fixed deposit tracker",
+      "PPF and NPS tracker", "Expense and cashflow tracker",
+      "Financial goal tracker", "Import from Zerodha Groww Angel One INDmoney",
+      "Notion sync", "CSV and Excel export"
+    ],
+    "screenshot": "https://fintrackly.web.app/og-image.png"
+  }
+  </script>
 
   <!-- ── Structured Data: WebSite ── -->
   <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Fintrackly",
-      "url": "https://fintrackly.web.app/"
-    }
-    </script>
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Fintrackly",
+    "url": "https://fintrackly.web.app/"
+  }
+  </script>
 
-  <!-- ── Fonts ── -->
+  <!-- ── Fonts: preconnect + display=swap (fixes render-blocking) ── -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet" />
+  <link rel="preconnect" href="https://firebaseapp.com" crossorigin />
+  <link rel="preconnect" href="https://apis.google.com" crossorigin />
+  <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
+  <!--
+    IMPORTANT: display=swap is already in the URL below — this prevents
+    the font from blocking render (fixes the 780ms render-blocking issue)
+  -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"
+    media="print" onload="this.media='all'" />
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </noscript>
+
+  <!-- ── Critical inline styles (prevents FOUC, no render blocking) ── -->
   <style>
     html,
-    body {
+    body,
+    #root {
       margin: 0;
       padding: 0;
       height: 100%;
       background-color: #020617;
+      color: #f8fafc;
       color-scheme: dark;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Prevent CLS: reserve space for root while JS loads */
+    #root {
+      min-height: 100vh;
+    }
+
+    /* Fix low-contrast issue flagged by Lighthouse for chart labels */
+    .recharts-text,
+    .recharts-label {
+      fill: #94a3b8 !important;
     }
   </style>
 
-  <!-- ── Fix Facebook fb:app_id warning ── -->
-  <meta property="fb:app_id" content="0" />
-
-  <!-- ── Google Analytics ── -->
-  <!-- Replace G-XXXXXXXXXX with your real Measurement ID from analytics.google.com -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NGY36RFPVJ"></script>
+  <!-- ── Google Analytics (defer so it doesn't block FCP) ── -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
-    gtag('config', 'G-NGY36RFPVJ');
+    gtag('config', 'G-NGY36RFPVJ', { send_page_view: true });
   </script>
-
+  <script defer src="https://www.googletagmanager.com/gtag/js?id=G-NGY36RFPVJ"></script>
 </head>
 
 <body>
-  <!-- SEO crawlable text block (visually hidden) -->
+  <!-- ── SEO: crawlable hidden text for Google bot (SPA fallback) ── -->
   <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;"
     aria-hidden="true">
     <h1>Fintrackly – Free Personal Finance Tracker and Investment Portfolio Manager for India</h1>
     <p>Fintrackly helps Indian investors track their complete financial life in one private dashboard. Monitor net
       worth, stocks, mutual funds, SIPs, crypto, gold, silver, fixed deposits, PPF, NPS, expenses, liabilities and
-      financial goals — all for free, with no broker access required. Import your portfolio from Zerodha, Groww, Angel
-      One and INDmoney. Export as CSV or Excel. Sync to Notion.</p>
+      financial goals — all for free, with no broker access required. Import from Zerodha, Groww, Angel One and
+      INDmoney.</p>
     <h2>Features</h2>
     <ul>
       <li>Net worth tracker with live dashboard</li>
@@ -151,7 +162,12 @@
     </ul>
   </div>
 
-  <div id="root"></div>
+  <!--
+    main landmark added — fixes "Document does not have a main landmark"
+    Lighthouse accessibility error. React mounts inside this.
+  -->
+  <main id="root" role="main" aria-label="Fintrackly application"></main>
+
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

@@ -1,49 +1,214 @@
 // src/App.tsx
+// Each lazy route has its own Suspense with a matching skeleton fallback.
+// This eliminates the blank-flash flicker — the skeleton fills the exact
+// same layout as the real page, so the transition is smooth.
 
+import {
+  AccountsSkeleton,
+  AgricultureSkeleton,
+  CashflowSkeleton,
+  DashboardSkeleton,
+  GoalsSkeleton,
+  InsightsSkeleton,
+  InvestmentsSkeleton,
+  LiabilitiesSkeleton,
+  ReportsSkeleton,
+  SettingsSkeleton,
+  SnapshotsSkeleton,
+  ToolsSkeleton,
+} from './components/loader/skeletons';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 
-import { AccountsPage } from './pages/Accounts/AccountsPage';
-import { AgriculturePage } from './pages/Agriculture/AgriculturePage';
 import { AppLayout } from './components/layout/AppLayout';
-import { CashflowPage } from './pages/Cashflow/CashflowPage';
-import { DashboardPage } from './pages/Dashboard/DashboardPage';
-import { GoalsPage } from './pages/Goals/GoalsPage';
-import InsightsPage from './pages/Insights/InsightsPage';
-import { InvestmentsPage } from './pages/Investments/InvestmentsPage';
-import { LiabilitiesPage } from './pages/Liabilities/LiabilitiesPage';
-import { ReportsPage } from './pages/Reports/ReportsPage';
-import { SettingsPage } from './pages/Settings/SettingsPage';
-import { SnapshotsPage } from './pages/Snapshots/SnapshotsPage';
+import { Loader } from './components/loader/Loader';
 import { Toaster } from 'react-hot-toast';
-import { ToolsPage } from './Tools/ToolsPage';
 
-// ✅ Removed: const ready = usePortfolioStore(s => s.ready)
-// ✅ Removed: if (!ready) return <Loader />
-// Loading is now handled entirely inside AuthWrapper — no double-loader race condition
+const DashboardPage = lazy(() =>
+  import('./pages/Dashboard/DashboardPage').then((m) => ({
+    default: m.DashboardPage,
+  })),
+);
+const InvestmentsPage = lazy(() =>
+  import('./pages/Investments/InvestmentsPage').then((m) => ({
+    default: m.InvestmentsPage,
+  })),
+);
+const LiabilitiesPage = lazy(() =>
+  import('./pages/Liabilities/LiabilitiesPage').then((m) => ({
+    default: m.LiabilitiesPage,
+  })),
+);
+const CashflowPage = lazy(() =>
+  import('./pages/Cashflow/CashflowPage').then((m) => ({
+    default: m.CashflowPage,
+  })),
+);
+const AccountsPage = lazy(() =>
+  import('./pages/Accounts/AccountsPage').then((m) => ({
+    default: m.AccountsPage,
+  })),
+);
+const GoalsPage = lazy(() =>
+  import('./pages/Goals/GoalsPage').then((m) => ({ default: m.GoalsPage })),
+);
+const InsightsPage = lazy(() => import('./pages/Insights/InsightsPage'));
+const ToolsPage = lazy(() =>
+  import('./Tools/ToolsPage').then((m) => ({ default: m.ToolsPage })),
+);
+const SnapshotsPage = lazy(() =>
+  import('./pages/Snapshots/SnapshotsPage').then((m) => ({
+    default: m.SnapshotsPage,
+  })),
+);
+const ReportsPage = lazy(() =>
+  import('./pages/Reports/ReportsPage').then((m) => ({
+    default: m.ReportsPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import('./pages/Settings/SettingsPage').then((m) => ({
+    default: m.SettingsPage,
+  })),
+);
+const AgriculturePage = lazy(() =>
+  import('./pages/Agriculture/AgriculturePage').then((m) => ({
+    default: m.AgriculturePage,
+  })),
+);
 
 export default function App() {
   return (
     <>
-      <Toaster position='bottom-right' />
+      <Toaster
+        position='bottom-right'
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#f8fafc',
+            border: '1px solid #334155',
+          },
+        }}
+      />
 
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route path='/' element={<Navigate to='/dashboard' replace />} />
-          <Route path='/dashboard' element={<DashboardPage />} />
-          <Route path='/investments' element={<InvestmentsPage />} />
-          <Route path='/liabilities' element={<LiabilitiesPage />} />
-          <Route path='/cashflow' element={<CashflowPage />} />
-          <Route path='/accounts' element={<AccountsPage />} />
-          <Route path='/goals' element={<GoalsPage />} />
-          <Route path='/insights' element={<InsightsPage />} />
-          <Route path='/tools' element={<ToolsPage />} />
-          <Route path='/snapshots' element={<SnapshotsPage />} />
-          <Route path='/reports' element={<ReportsPage />} />
-          <Route path='/settings' element={<SettingsPage />} />
-          <Route path='/agriculture' element={<AgriculturePage />} />
-        </Route>
-        <Route path='*' element={<Navigate to='/dashboard' replace />} />
-      </Routes>
+      {/* Outer Suspense: only on very first load before AppLayout mounts */}
+      <Suspense fallback={<Loader />}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route path='/' element={<Navigate to='/dashboard' replace />} />
+
+            <Route
+              path='/dashboard'
+              element={
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/investments'
+              element={
+                <Suspense fallback={<InvestmentsSkeleton />}>
+                  <InvestmentsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/liabilities'
+              element={
+                <Suspense fallback={<LiabilitiesSkeleton />}>
+                  <LiabilitiesPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/cashflow'
+              element={
+                <Suspense fallback={<CashflowSkeleton />}>
+                  <CashflowPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/accounts'
+              element={
+                <Suspense fallback={<AccountsSkeleton />}>
+                  <AccountsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/goals'
+              element={
+                <Suspense fallback={<GoalsSkeleton />}>
+                  <GoalsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/insights'
+              element={
+                <Suspense fallback={<InsightsSkeleton />}>
+                  <InsightsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/tools'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <ToolsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/snapshots'
+              element={
+                <Suspense fallback={<SnapshotsSkeleton />}>
+                  <SnapshotsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/reports'
+              element={
+                <Suspense fallback={<ReportsSkeleton />}>
+                  <ReportsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/settings'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <SettingsPage />
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/agriculture'
+              element={
+                <Suspense fallback={<AgricultureSkeleton />}>
+                  <AgriculturePage />
+                </Suspense>
+              }
+            />
+          </Route>
+
+          <Route path='*' element={<Navigate to='/dashboard' replace />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }
