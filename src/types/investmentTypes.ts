@@ -192,7 +192,9 @@ export type Account = {
   id: string;
   name: string;
   type: AccountType;
-  balance: number;
+  balance: number; // opening balance (snapshot)
+  openingBalance: number; // same as balance — explicit alias
+  openingBalanceDate: string; // yyyy-MM-dd: cashflows ON or AFTER this date affect live balance
   createdAt: string;
   updatedAt: string;
   userId?: string;

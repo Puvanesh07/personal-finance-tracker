@@ -17,28 +17,22 @@ import {
   FiCreditCard,
   FiDollarSign,
   FiEdit2,
+  FiInfo,
   FiPlus,
   FiSave,
   FiTrash2,
   FiTrendingDown,
   FiTrendingUp,
 } from 'react-icons/fi';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { AccountsSkeleton } from '../../components/loader/skeletons';
 import { BsBank2 } from 'react-icons/bs';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
+import { format } from 'date-fns';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
-
-// ── Account Form Modal ─────────────────────────────────────────────────────
-type AccountFormProps = {
-  open: boolean;
-  onClose: () => void;
-  mode: 'create' | 'edit';
-  entry?: Account;
-};
 
 const ACCOUNT_COLORS = [
   '#10b981',
@@ -53,31 +47,45 @@ const ACCOUNT_COLORS = [
   '#6366f1',
 ];
 
+// ── Account Form Modal ─────────────────────────────────────────────────────
+type AccountFormProps = {
+  open: boolean;
+  onClose: () => void;
+  mode: 'create' | 'edit';
+  entry?: Account;
+};
+
 function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
   const addAccount = usePortfolioStore((s) => s.addAccount);
   const updateAccount = usePortfolioStore((s) => s.updateAccount);
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const [name, setName] = useState(entry?.name ?? '');
-  const [type, setType] = useState<AccountType>(entry?.type ?? 'bank');
-  const [balance, setBalance] = useState(String(entry?.balance ?? '0'));
+  const [name, setName] = useState('');
+  const [type, setType] = useState<AccountType>('bank');
+  const [balance, setBalance] = useState('0');
+  const [openingBalanceDate, setOpeningBalanceDate] = useState(todayStr);
   const [saving, setSaving] = useState(false);
 
-  // Reset when opening
-  useState(() => {
+  // ✅ FIX 1: Reset form fields every time the modal opens
+  useEffect(() => {
     if (open) {
       setName(entry?.name ?? '');
       setType(entry?.type ?? 'bank');
-      setBalance(String(entry?.balance ?? '0'));
+      setBalance(String(entry?.openingBalance ?? entry?.balance ?? '0'));
+      setOpeningBalanceDate(entry?.openingBalanceDate ?? todayStr);
     }
-  });
+  }, [open]);
 
   async function onSubmit() {
     setSaving(true);
     try {
+      const balNum = Number(balance) || 0;
       const payload = {
         name: name.trim(),
         type,
-        balance: Number(balance) || 0,
+        balance: balNum,
+        openingBalance: balNum,
+        openingBalanceDate,
       };
       if (mode === 'create') await addAccount(payload);
       else if (entry) await updateAccount(entry.id, payload);
@@ -99,7 +107,7 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
       title={mode === 'create' ? 'Add Account' : 'Edit Account'}
     >
       <div className='grid grid-cols-1 gap-5'>
-        {/* Account Type Toggle */}
+        {/* Account Type */}
         <div>
           <label className={labelCls}>Account Type</label>
           <div className='flex gap-3'>
@@ -139,12 +147,12 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
           />
         </div>
 
-        {/* Balance */}
+        {/* Opening Balance */}
         <div>
           <label className={labelCls}>
             {type === 'credit'
               ? 'Outstanding Balance (₹)'
-              : 'Current Balance (₹)'}
+              : 'Opening Balance (₹)'}
           </label>
           <NumericInput
             className={inputCls}
@@ -154,21 +162,40 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
           />
         </div>
 
+        {/* Opening Balance Date */}
+        <div>
+          <label className={labelCls}>Balance As-Of Date</label>
+          <input
+            type='date'
+            className={inputCls}
+            value={openingBalanceDate}
+            onChange={(e) => setOpeningBalanceDate(e.target.value)}
+          />
+          <div className='mt-2 flex items-start gap-2 rounded-xl bg-slate-800/60 border border-slate-700/50 px-3 py-2.5'>
+            <FiInfo className='h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5' />
+            <p className='text-[11px] text-slate-400 leading-relaxed'>
+              Enter your current bank balance and set today as the date. Only
+              cashflow entries on or after this date will adjust the live
+              balance — older entries are ignored.
+            </p>
+          </div>
+        </div>
+
         {/* Footer */}
         <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200'
             onClick={onClose}
             disabled={saving}
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200'
           >
             Cancel
           </button>
           <button
             type='button'
-            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 disabled:opacity-60'
             onClick={() => void onSubmit()}
             disabled={saving || !name.trim()}
+            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 disabled:opacity-60'
           >
             {saving ? (
               <>
@@ -199,6 +226,7 @@ function AccountCard({
   index,
   totalIncome,
   totalExpense,
+  liveBalance,
   onEdit,
   onDelete,
 }: {
@@ -206,18 +234,19 @@ function AccountCard({
   index: number;
   totalIncome: number;
   totalExpense: number;
+  liveBalance: number;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const color = ACCOUNT_COLORS[index % ACCOUNT_COLORS.length];
   const isCredit = account.type === 'credit';
+  const openingBal = account.openingBalance ?? account.balance;
 
   return (
     <div
       className='relative overflow-hidden rounded-2xl border bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md'
       style={{ borderColor: color + '40' }}
     >
-      {/* Color accent bar */}
       <div
         className='absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl'
         style={{ backgroundColor: color }}
@@ -226,7 +255,7 @@ function AccountCard({
       <div className='flex items-start justify-between gap-3'>
         <div className='flex items-center gap-3'>
           <div
-            className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm'
+            className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl'
             style={{ backgroundColor: color + '20', color }}
           >
             {isCredit ? (
@@ -262,21 +291,29 @@ function AccountCard({
         </div>
       </div>
 
+      {/* Live Balance */}
       <div className='mt-4 space-y-1'>
         <p className='text-xs font-bold uppercase tracking-wider text-slate-400'>
-          {isCredit ? 'Outstanding' : 'Balance'}
+          {isCredit ? 'Outstanding' : 'Current Balance'}
         </p>
         <p
           className='text-2xl font-bold tabular-nums tracking-tight'
           style={{ color }}
         >
-          {formatINR(account.balance)}
+          {formatINR(liveBalance)}
         </p>
+        {liveBalance !== openingBal && (
+          <p className='text-[11px] text-slate-500'>
+            Opening: {formatINR(openingBal)}
+            {account.openingBalanceDate
+              ? ` · ${account.openingBalanceDate}`
+              : ''}
+          </p>
+        )}
       </div>
 
-      {/* Per-account stats */}
       <div className='mt-4 grid grid-cols-2 gap-2'>
-        <div className='rounded-xl bg-emerald-500/8 dark:bg-emerald-500/10 p-2.5'>
+        <div className='rounded-xl bg-emerald-500/10 p-2.5'>
           <div className='flex items-center gap-1.5 mb-1'>
             <FiTrendingUp className='h-3 w-3 text-emerald-500' />
             <span className='text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400'>
@@ -287,7 +324,7 @@ function AccountCard({
             {formatINR(totalIncome)}
           </p>
         </div>
-        <div className='rounded-xl bg-rose-500/8 dark:bg-rose-500/10 p-2.5'>
+        <div className='rounded-xl bg-rose-500/10 p-2.5'>
           <div className='flex items-center gap-1.5 mb-1'>
             <FiTrendingDown className='h-3 w-3 text-rose-500' />
             <span className='text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400'>
@@ -314,55 +351,77 @@ export function AccountsPage() {
   const [editEntry, setEditEntry] = useState<Account | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Compute per-account income/expense
+  // ── ✅ FIX 2: Live balance = opening balance ± cashflows on/after openingBalanceDate ──
   const accountStats = useMemo(() => {
-    const stats: Record<string, { income: number; expense: number }> = {};
+    const stats: Record<
+      string,
+      { income: number; expense: number; liveBalance: number }
+    > = {};
+
+    for (const acc of accounts) {
+      stats[acc.id] = {
+        income: 0,
+        expense: 0,
+        liveBalance: acc.openingBalance ?? acc.balance,
+      };
+    }
+
     for (const cf of cashflows) {
       if (!cf.accountId) continue;
-      if (!stats[cf.accountId]) stats[cf.accountId] = { income: 0, expense: 0 };
-      if (cf.type === 'income') stats[cf.accountId].income += cf.amount;
-      else stats[cf.accountId].expense += cf.amount;
-    }
-    return stats;
-  }, [cashflows]);
+      const acc = accounts.find((a) => a.id === cf.accountId);
+      if (!acc || !stats[acc.id]) continue;
 
-  // Bar chart data
+      // Only count cashflows on or after the opening balance date
+      const cutoff = acc.openingBalanceDate ?? '1900-01-01';
+      if (cf.date < cutoff) continue;
+
+      if (cf.type === 'income') {
+        stats[acc.id].income += cf.amount;
+        stats[acc.id].liveBalance += cf.amount;
+      } else {
+        stats[acc.id].expense += cf.amount;
+        stats[acc.id].liveBalance -= cf.amount;
+      }
+    }
+
+    return stats;
+  }, [cashflows, accounts]);
+
   const barData = useMemo(
     () =>
       accounts.map((a) => ({
         name: a.name.length > 12 ? a.name.slice(0, 12) + '…' : a.name,
-        Balance: a.balance,
+        Balance: accountStats[a.id]?.liveBalance ?? a.balance,
         Income: accountStats[a.id]?.income ?? 0,
         Expense: accountStats[a.id]?.expense ?? 0,
       })),
     [accounts, accountStats],
   );
 
-  // Pie chart data (balance distribution)
   const pieData = useMemo(
     () =>
       accounts
-        .filter((a) => a.balance > 0)
+        .filter((a) => (accountStats[a.id]?.liveBalance ?? a.balance) > 0)
         .map((a, i) => ({
           name: a.name,
-          value: a.balance,
+          value: accountStats[a.id]?.liveBalance ?? a.balance,
           color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length],
         })),
-    [accounts],
+    [accounts, accountStats],
   );
 
   const totalBalance = accounts
     .filter((a) => a.type === 'bank')
-    .reduce((s, a) => s + a.balance, 0);
+    .reduce((s, a) => s + (accountStats[a.id]?.liveBalance ?? a.balance), 0);
   const totalCredit = accounts
     .filter((a) => a.type === 'credit')
-    .reduce((s, a) => s + a.balance, 0);
+    .reduce((s, a) => s + (accountStats[a.id]?.liveBalance ?? a.balance), 0);
 
   if (!ready) return <AccountsSkeleton />;
 
   return (
     <div className='flex flex-col gap-6 pb-8'>
-      {/* ── Header ────────────────────────────────────────────────── */}
+      {/* Header */}
       <header className='flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-violet-500/10 via-indigo-500/5 to-transparent p-6 border border-violet-500/20 dark:border-violet-500/30 shadow-sm'>
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-indigo-600 text-white shadow-lg shadow-violet-500/30'>
@@ -373,7 +432,7 @@ export function AccountsPage() {
               Accounts
             </h1>
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
-              Manage your bank accounts and credit cards.
+              Live balances auto-update from your cashflow entries.
             </p>
           </div>
         </div>
@@ -387,7 +446,19 @@ export function AccountsPage() {
         </button>
       </header>
 
-      {/* ── Summary Row ───────────────────────────────────────────── */}
+      {/* Info Banner */}
+      <div className='flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-5 py-3.5'>
+        <FiInfo className='h-4 w-4 text-emerald-400 shrink-0 mt-0.5' />
+        <p className='text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed'>
+          <span className='font-bold'>How balances work: </span>
+          Set your current bank balance and today as the "As-Of Date". The
+          displayed balance is your opening balance adjusted by any cashflow
+          entries on or after that date. Older entries you added historically
+          are excluded so they don't double-count.
+        </p>
+      </div>
+
+      {/* Summary Row */}
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         {[
           {
@@ -435,7 +506,7 @@ export function AccountsPage() {
         ))}
       </div>
 
-      {/* ── Account Cards ─────────────────────────────────────────── */}
+      {/* Account Cards */}
       {accounts.length === 0 ? (
         <div className='flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/30 p-16 text-center'>
           <BsBank2 className='h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600' />
@@ -450,8 +521,7 @@ export function AccountsPage() {
             onClick={() => setAddOpen(true)}
             type='button'
           >
-            <FiPlus className='h-4 w-4' />
-            Add First Account
+            <FiPlus className='h-4 w-4' /> Add First Account
           </button>
         </div>
       ) : (
@@ -463,6 +533,9 @@ export function AccountsPage() {
               index={i}
               totalIncome={accountStats[account.id]?.income ?? 0}
               totalExpense={accountStats[account.id]?.expense ?? 0}
+              liveBalance={
+                accountStats[account.id]?.liveBalance ?? account.balance
+              }
               onEdit={() => setEditEntry(account)}
               onDelete={() => setDeleteId(account.id)}
             />
@@ -470,64 +543,47 @@ export function AccountsPage() {
         </div>
       )}
 
-      {/* ── Charts ────────────────────────────────────────────────── */}
+      {/* Charts */}
       {accounts.length > 0 && (
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
-          {/* Bar Chart */}
           <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
             <p className='text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
               Account-wise Cashflow
             </p>
-            {barData.length > 0 ? (
-              <div className='h-[240px]'>
-                <ResponsiveContainer width='100%' height='100%'>
-                  <BarChart
-                    data={barData}
-                    margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray='3 3'
-                      stroke='rgba(148,163,184,0.1)'
-                    />
-                    <XAxis
-                      dataKey='name'
-                      tick={{ fontSize: 11, fill: '#94a3b8' }}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: '#94a3b8' }}
-                      tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
-                    />
-                    <Tooltip
-                      formatter={(val: any) => formatINR(val as number)}
-                      contentStyle={{
-                        borderRadius: '12px',
-                        border: 'none',
-                        backgroundColor: 'rgba(15,23,42,0.95)',
-                        color: '#f1f5f9',
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey='Income'
-                      fill='#10b981'
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey='Expense'
-                      fill='#f43f5e'
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className='flex h-[240px] items-center justify-center text-slate-400'>
-                <p className='text-sm'>No transaction data yet.</p>
-              </div>
-            )}
+            <div className='h-[240px]'>
+              <ResponsiveContainer width='100%' height='100%'>
+                <BarChart
+                  data={barData}
+                  margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray='3 3'
+                    stroke='rgba(148,163,184,0.1)'
+                  />
+                  <XAxis
+                    dataKey='name'
+                    tick={{ fontSize: 11, fill: '#94a3b8' }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#94a3b8' }}
+                    tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    formatter={(val: any) => formatINR(val as number)}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: 'none',
+                      backgroundColor: 'rgba(15,23,42,0.95)',
+                      color: '#f1f5f9',
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey='Income' fill='#10b981' radius={[4, 4, 0, 0]} />
+                  <Bar dataKey='Expense' fill='#f43f5e' radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-
-          {/* Pie Chart - Balance Distribution */}
           <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
             <p className='text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
               Balance Distribution
@@ -578,8 +634,10 @@ export function AccountsPage() {
         </div>
       )}
 
-      {/* ── Modals ─────────────────────────────────────────────────── */}
+      {/* Modals */}
+      {/* ✅ key prop forces fresh mount = guaranteed empty form on open */}
       <AccountFormModal
+        key={addOpen ? 'new' : 'new-closed'}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         mode='create'
@@ -587,6 +645,7 @@ export function AccountsPage() {
 
       {editEntry && (
         <AccountFormModal
+          key={editEntry.id}
           open={!!editEntry}
           onClose={() => setEditEntry(null)}
           mode='edit'
