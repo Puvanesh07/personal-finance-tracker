@@ -37,6 +37,7 @@ import { fetchLivePrices } from '../../services/livePriceService';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { formatINR } from '../../utils/format';
 import { resolveAmfiCodes } from '../../services/amfiLookupService';
+import toast from 'react-hot-toast';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -651,16 +652,59 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     Record<string, boolean>
   >({});
 
+  // ── Helper: show a grouped "failed symbols" toast ─────────────────────
+  const showFailedSymbolsToast = (
+    failed: { name: string; symbol: string; reason: string }[],
+  ) => {
+    if (failed.length === 0) return;
+
+    if (failed.length === 1) {
+      const f = failed[0];
+      toast.error(
+        `❌ Could not fetch price for "${f.name}"\nSymbol: ${f.symbol} — ${f.reason}\nPlease update the symbol and try again.`,
+        { duration: 8000, style: { whiteSpace: 'pre-line', maxWidth: 400 } },
+      );
+    } else {
+      const lines = failed
+        .slice(0, 10)
+        .map((f) => `• ${f.name} (${f.symbol}): ${f.reason}`)
+        .join('\n');
+      const extra =
+        failed.length > 10 ? `\n…and ${failed.length - 10} more` : '';
+      toast.error(
+        `❌ ${failed.length} asset${failed.length > 1 ? 's' : ''} could not be fetched:\n${lines}${extra}\n\nPlease update their symbols and try again.`,
+        { duration: 10000, style: { whiteSpace: 'pre-line', maxWidth: 440 } },
+      );
+    }
+  };
+
   // ── Core refresh logic (shared by both global and per-row) ─────────────
   const refreshPricesForAssets = async (
     targetInvestments: any[],
     onDone?: (updatedCount: number) => void,
   ) => {
+    // Assets with no symbol at all — warn immediately
+    const noSymbolAssets = targetInvestments.filter(
+      (inv) => getLivePriceSymbol(inv) === null,
+    );
+
     const liveAssets = targetInvestments
       .map((inv) => ({ inv, sym: getLivePriceSymbol(inv) }))
       .filter(({ sym }) => sym !== null) as { inv: any; sym: string }[];
 
-    if (liveAssets.length === 0) return;
+    if (liveAssets.length === 0) {
+      if (noSymbolAssets.length > 0) {
+        showFailedSymbolsToast(
+          noSymbolAssets.map((inv) => ({
+            name: inv.name,
+            symbol: inv.symbol || '—',
+            reason: 'No symbol set',
+          })),
+        );
+      }
+      onDone?.(0);
+      return;
+    }
 
     // Resolve MF name codes
     const mfNameAssets = liveAssets.filter(({ sym }) =>
@@ -684,7 +728,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     }
 
     const fetchableAssets = liveAssets.filter(({ sym }) => sym.length > 0);
-    if (fetchableAssets.length === 0) return;
+    if (fetchableAssets.length === 0) {
+      onDone?.(0);
+      return;
+    }
 
     const symbols = [...new Set(fetchableAssets.map((a) => a.sym))];
     const result = await fetchLivePrices(symbols, (done, total) => {
@@ -694,9 +741,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     const newFlash: Record<string, 'up' | 'down' | 'none'> = {};
     const updates: Promise<void>[] = [];
 
+    // Track which assets failed to fetch a price
+    const failedAssets: { name: string; symbol: string; reason: string }[] = [];
+
     for (const { inv, sym } of fetchableAssets) {
       const fetched = result.prices[sym.toUpperCase()];
-      if (!fetched || fetched.price === null) continue;
+
+      if (!fetched || fetched.price === null) {
+        // Collect failures for toast
+        const rawSym = inv.symbol || sym.replace(/^(MF:|US:)/, '');
+        const reason = !fetched
+          ? 'Symbol not found on exchange'
+          : 'Price unavailable (market may be closed)';
+        failedAssets.push({ name: inv.name, symbol: rawSym, reason });
+        continue;
+      }
 
       const newPrice = fetched.price;
       const type = inv.type;
@@ -707,14 +766,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       if (type === 'stock') {
         const isUS =
           !!inv.usdPrice || !!inv.buyPriceUsd || fetched.type === 'us_stock';
-
         if (isUS) {
-          const rate = inv.usdToInr || 84; // Ensure fallback rate is provided
+          const rate = inv.usdToInr || 84;
           oldPrice = inv.usdPrice || 0;
-          patch = {
-            usdPrice: newPrice, // Store raw USD price
-            currentPrice: newPrice * rate, // Auto-convert live price to INR for P&L calculation
-          };
+          patch = { usdPrice: newPrice, currentPrice: newPrice * rate };
         } else {
           oldPrice = inv.currentPrice ?? 0;
           patch = { currentPrice: newPrice };
@@ -752,6 +807,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       2000,
     );
 
+    // Show failed symbols toast (max 10 in one toast)
+    const allFailed = [
+      ...failedAssets,
+      ...noSymbolAssets.map((inv: any) => ({
+        name: inv.name,
+        symbol: inv.symbol || '—',
+        reason: 'No symbol set',
+      })),
+    ];
+    if (allFailed.length > 0) {
+      showFailedSymbolsToast(allFailed);
+    }
+
     onDone?.(Object.keys(newFlash).length);
   };
 
@@ -770,23 +838,29 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           }),
         );
         if (count === 0) {
-          setRefreshError('No price updates available for current assets.');
-          setTimeout(() => setRefreshError(null), 4000);
+          setRefreshError('No price updates — check symbols above.');
+          setTimeout(() => setRefreshError(null), 6000);
         }
       });
     } catch (e: any) {
       setRefreshError('Failed to fetch live prices. Please try again.');
-      setTimeout(() => setRefreshError(null), 4000);
+      setTimeout(() => setRefreshError(null), 6000);
     } finally {
       setFetchProgress(null);
       setRefreshingAll(false);
     }
   };
 
-  // ── ✅ Refresh SINGLE row ──────────────────────────────────────────────
+  // ── Refresh SINGLE row ────────────────────────────────────────────────
   const handleRefreshRow = async (inv: any) => {
     const sym = getLivePriceSymbol(inv);
-    if (!sym) return;
+    if (!sym) {
+      toast.error(
+        `❌ No symbol set for "${inv.name}"\nPlease edit this asset and add a valid symbol, then try again.`,
+        { duration: 8000, style: { whiteSpace: 'pre-line', maxWidth: 380 } },
+      );
+      return;
+    }
 
     setRowRefreshingMap((prev) => ({ ...prev, [inv.id]: true }));
 
@@ -800,6 +874,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       );
     } catch (e) {
       console.error('[RowRefresh] Failed for', inv.name, e);
+      toast.error(
+        `Failed to refresh price for "${inv.name}". Please try again.`,
+        {
+          duration: 7000,
+        },
+      );
     } finally {
       setRowRefreshingMap((prev) => ({ ...prev, [inv.id]: false }));
     }

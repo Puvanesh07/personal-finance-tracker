@@ -33,7 +33,6 @@ import { formatINR } from '../../utils/format';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-// ── Inline Calendar Picker ────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -70,9 +69,8 @@ function CalendarPicker({
     );
     const spaceBelow = window.innerHeight - r.bottom;
     let top = r.bottom + 8 + window.scrollY;
-    if (spaceBelow < panelH && r.top > spaceBelow) {
+    if (spaceBelow < panelH && r.top > spaceBelow)
       top = r.top - panelH - 8 + window.scrollY;
-    }
     setPos({ top, left: Math.max(8, clampedLeft) });
   }, []);
 
@@ -112,7 +110,6 @@ function CalendarPicker({
     onChange(format(d, 'yyyy-MM-dd'));
     setOpen(false);
   };
-
   const inputCls = `flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`;
 
   return (
@@ -132,7 +129,6 @@ function CalendarPicker({
           {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
         </span>
       </button>
-
       {open &&
         createPortal(
           <div
@@ -187,16 +183,7 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all
-                    ${
-                      isSelected
-                        ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30'
-                        : isTodayDay
-                          ? 'border border-emerald-500/40 text-emerald-400'
-                          : isCurMonth
-                            ? 'text-slate-300 hover:bg-slate-800'
-                            : 'text-slate-600 hover:bg-slate-800/50'
-                    }`}
+                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-800/50'}`}
                   >
                     {format(day, 'd')}
                   </button>
@@ -219,21 +206,28 @@ function CalendarPicker({
   );
 }
 
-// ── Main Modal ─────────────────────────────────────────────────────────────
-
-type Props = {
-  open: boolean;
-  onClose: () => void;
-  investment: Investment;
-};
+type Props = { open: boolean; onClose: () => void; investment: Investment };
 
 export function SellInvestmentModal({ open, onClose, investment }: Props) {
   const addSoldTrade = usePortfolioStore((s) => s.addSoldTrade);
+  const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
+  const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
+
+  const totalQty: number =
+    (investment as any).quantity ?? (investment as any).units ?? 0;
+  const hasQty = totalQty > 0;
 
   const originalInvested = investedValue(investment);
   const originalCurrentVal = currentValue(investment);
 
-  // Default sell price to current portfolio value of this investment
+  const perUnitBuyPrice =
+    hasQty && totalQty > 0 ? originalInvested / totalQty : 0;
+  const perUnitSellPrice =
+    hasQty && totalQty > 0 ? originalCurrentVal / totalQty : 0;
+
+  const [sellQtyStr, setSellQtyStr] = useState(
+    String(totalQty > 0 ? totalQty : ''),
+  );
   const [sellTotal, setSellTotal] = useState(
     String(originalCurrentVal.toFixed(2)),
   );
@@ -242,21 +236,33 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Reset when opening
+  useEffect(() => {
+    if (!hasQty || !sellQtyStr) return;
+    const qty = parseFloat(sellQtyStr);
+    if (isNaN(qty) || qty <= 0) return;
+    const ratio = Math.min(qty, totalQty) / totalQty;
+    setBuyTotal((originalInvested * ratio).toFixed(2));
+    setSellTotal((originalCurrentVal * ratio).toFixed(2));
+  }, [sellQtyStr]);
+
   useEffect(() => {
     if (open) {
+      setSellQtyStr(String(totalQty > 0 ? totalQty : ''));
       setSellTotal(String(originalCurrentVal.toFixed(2)));
       setBuyTotal(String(originalInvested.toFixed(2)));
       setSoldDate(todayISO());
       setNotes('');
     }
-  }, [open, originalCurrentVal, originalInvested]);
+  }, [open]);
 
+  const sellQty = parseFloat(sellQtyStr) || 0;
   const buy = parseFloat(buyTotal) || 0;
   const sell = parseFloat(sellTotal) || 0;
   const profit = sell - buy;
   const profitPct = buy > 0 ? (profit / buy) * 100 : 0;
   const isProfit = profit >= 0;
+  const isSellingAll = !hasQty || sellQty >= totalQty;
+  const remainingQty = hasQty ? Math.max(0, totalQty - sellQty) : 0;
 
   async function handleSubmit() {
     setSaving(true);
@@ -266,12 +272,27 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
         investmentType: investment.type,
         symbol: (investment as any).symbol,
         platform: investment.platform,
-        quantity: (investment as any).quantity ?? (investment as any).units,
+        quantity: hasQty ? sellQty : undefined,
         buyPrice: buy,
         sellPrice: sell,
         soldDate,
         notes: notes.trim() || undefined,
       });
+
+      if (hasQty && !isSellingAll && remainingQty > 0) {
+        const patch: any = {};
+        if ((investment as any).quantity !== undefined)
+          patch.quantity = remainingQty;
+        else if ((investment as any).units !== undefined)
+          patch.units = remainingQty;
+        const remainingRatio = remainingQty / totalQty;
+        if ((investment as any).investedAmount !== undefined) {
+          patch.investedAmount = originalInvested * remainingRatio;
+        }
+        await updateInvestment(investment.id, patch);
+      } else {
+        await deleteInvestment(investment.id);
+      }
       onClose();
     } finally {
       setSaving(false);
@@ -302,8 +323,58 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
             <p className='text-sm font-bold text-white'>
               {formatINR(originalCurrentVal)}
             </p>
+            {hasQty && (
+              <p className='text-[10px] text-slate-500 mt-0.5'>
+                {totalQty} units total
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Quantity field */}
+        {hasQty && (
+          <div>
+            <label className={labelCls}>
+              Quantity to Sell{' '}
+              <span className='text-slate-600 font-normal normal-case tracking-normal'>
+                (max: {totalQty})
+              </span>
+            </label>
+            <NumericInput
+              className={inputCls}
+              value={sellQtyStr}
+              onChange={(v) => {
+                const num = parseFloat(v);
+                if (!isNaN(num) && num > totalQty)
+                  setSellQtyStr(String(totalQty));
+                else setSellQtyStr(v);
+              }}
+            />
+            {sellQty > 0 && (
+              <div className='mt-2'>
+                {isSellingAll ? (
+                  <span className='inline-flex items-center gap-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 text-[11px] font-bold text-rose-400'>
+                    🗑 Full position will be removed from portfolio
+                  </span>
+                ) : (
+                  <span className='inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-400'>
+                    📊{' '}
+                    {remainingQty.toLocaleString('en-IN', {
+                      maximumFractionDigits: 4,
+                    })}{' '}
+                    units will remain
+                  </span>
+                )}
+              </div>
+            )}
+            {perUnitSellPrice > 0 && (
+              <p className='text-[10px] text-slate-600 mt-1 ml-1'>
+                ~{formatINR(perUnitSellPrice)} per unit (current) · ~
+                {formatINR(perUnitBuyPrice)} per unit (buy)
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Buy & Sell totals */}
         <div className='grid grid-cols-2 gap-4'>
@@ -333,11 +404,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
 
         {/* Live Profit Preview */}
         <div
-          className={`rounded-2xl border p-4 flex items-center gap-4 ${
-            isProfit
-              ? 'border-emerald-500/20 bg-emerald-500/5'
-              : 'border-rose-500/20 bg-rose-500/5'
-          }`}
+          className={`rounded-2xl border p-4 flex items-center gap-4 ${isProfit ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}
         >
           <div
             className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${isProfit ? 'bg-emerald-500/15' : 'bg-rose-500/15'}`}
@@ -405,11 +472,17 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
           <button
             type='button'
             onClick={() => void handleSubmit()}
-            disabled={saving || buy <= 0 || sell <= 0}
+            disabled={
+              saving || buy <= 0 || sell <= 0 || (hasQty && sellQty <= 0)
+            }
             className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0'
           >
             <FiSave className={`h-4 w-4 ${saving ? 'animate-pulse' : ''}`} />
-            {saving ? 'Saving…' : 'Record Sale'}
+            {saving
+              ? 'Saving…'
+              : isSellingAll
+                ? 'Record Sale & Remove'
+                : 'Record Partial Sale'}
           </button>
         </div>
       </div>

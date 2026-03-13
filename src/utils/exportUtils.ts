@@ -240,3 +240,53 @@ export function exportExcel(
     saveAs(blob, filename);
   });
 }
+
+// ── Export sold trades as CSV ─────────────────────────────────────────────────
+export function exportSoldTradesCSV(
+  soldTrades: any[],
+  filename = 'profits.csv',
+) {
+  if (!soldTrades || soldTrades.length === 0) return;
+  const rows = soldTrades.map((t) => ({
+    'Asset Name': t.investmentName,
+    Type: t.investmentType,
+    Symbol: t.symbol ?? '',
+    Platform: t.platform ?? '',
+    Quantity: t.quantity ?? '',
+    'Buy Cost (₹)': t.buyPrice,
+    'Sell Value (₹)': t.sellPrice,
+    'Profit/Loss (₹)': t.profit,
+    'Return %': t.profitPct?.toFixed(2) ?? '',
+    'Sale Date': t.soldDate,
+    Notes: t.notes ?? '',
+  }));
+  exportCSV(rows, filename);
+}
+
+// ── Export full portfolio state as JSON ──────────────────────────────────────
+export function exportPortfolioJSON(
+  state: any,
+  filename = 'portfolio-data.json',
+) {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    version: '1.0',
+    investments: state.investments ?? [],
+    soldTrades: state.soldTrades ?? [],
+    liabilities: state.liabilities ?? [],
+    cashflows: state.cashflows ?? [],
+    goals: state.goals ?? [],
+    accounts: state.accounts ?? [],
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json',
+  });
+  saveAs(blob, filename);
+}
+
+// ── Import portfolio JSON (returns parsed data for the caller to handle) ─────
+export async function parseImportedPortfolioJSON(file: File): Promise<any> {
+  const text = await file.text();
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}

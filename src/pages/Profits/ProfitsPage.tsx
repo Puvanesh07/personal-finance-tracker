@@ -8,7 +8,6 @@ import {
   FiEdit2,
   FiFilter,
   FiPercent,
-  FiPlus,
   FiSave,
   FiTarget,
   FiTrash2,
@@ -39,7 +38,6 @@ import { NumericInput } from '../../components/ui/NumericInput';
 import type { SoldTrade } from '../../types/investmentTypes';
 import { createPortal } from 'react-dom';
 import { formatINR } from '../../utils/format';
-import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Inline Calendar Picker ────────────────────────────────────────────────
@@ -402,150 +400,6 @@ function EditTradeModal({
   );
 }
 
-// ── Add Trade Modal (manual entry without an existing investment) ──────────
-function AddTradeModal({ onClose }: { onClose: () => void }) {
-  const addSoldTrade = usePortfolioStore((s) => s.addSoldTrade);
-  const [name, setName] = useState('');
-  const [type, setType] = useState<SoldTrade['investmentType']>('stock');
-  const [buyTotal, setBuyTotal] = useState('');
-  const [sellTotal, setSellTotal] = useState('');
-  const [soldDate, setSoldDate] = useState(todayISO());
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const buy = parseFloat(buyTotal) || 0;
-  const sell = parseFloat(sellTotal) || 0;
-  const profit = sell - buy;
-  const profitPct = buy > 0 ? (profit / buy) * 100 : 0;
-  const isProfit = profit >= 0;
-
-  async function handleSave() {
-    if (!name.trim() || buy <= 0 || sell <= 0) return;
-    setSaving(true);
-    try {
-      await addSoldTrade({
-        investmentName: name.trim(),
-        investmentType: type,
-        buyPrice: buy,
-        sellPrice: sell,
-        soldDate,
-        notes: notes.trim() || undefined,
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
-  const labelCls =
-    'text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block ml-1';
-
-  return (
-    <Modal open onClose={onClose} title='Add Trade Manually'>
-      <div className='space-y-5'>
-        <div className='grid grid-cols-2 gap-4'>
-          <div>
-            <label className={labelCls}>Asset Name</label>
-            <input
-              className={inputCls}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder='e.g. RELIANCE, HDFC MF'
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Type</label>
-            <select
-              className={`${inputCls} appearance-none`}
-              value={type}
-              onChange={(e) => setType(e.target.value as any)}
-            >
-              <option value='stock'>Stock</option>
-              <option value='mutual_fund'>Mutual Fund</option>
-              <option value='bond'>Bond</option>
-              <option value='fixed_deposit'>Fixed Deposit</option>
-              <option value='other'>Other</option>
-            </select>
-          </div>
-        </div>
-        <div className='grid grid-cols-2 gap-4'>
-          <div>
-            <label className={labelCls}>Total Buy Cost (₹)</label>
-            <NumericInput
-              className={inputCls}
-              value={buyTotal}
-              onChange={setBuyTotal}
-            />
-          </div>
-          <div>
-            <label className={labelCls}>Total Sell Value (₹)</label>
-            <NumericInput
-              className={inputCls}
-              value={sellTotal}
-              onChange={setSellTotal}
-            />
-          </div>
-        </div>
-
-        {buy > 0 && sell > 0 && (
-          <div
-            className={`rounded-xl border p-3 flex items-center gap-3 ${isProfit ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}
-          >
-            {isProfit ? (
-              <FiTrendingUp className='h-4 w-4 text-emerald-400' />
-            ) : (
-              <FiTrendingDown className='h-4 w-4 text-rose-400' />
-            )}
-            <span
-              className={`font-bold text-sm ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}
-            >
-              {isProfit ? '+' : ''}
-              {formatINR(profit)}
-            </span>
-            <span
-              className={`text-xs font-semibold ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
-            >
-              ({isProfit ? '▲' : '▼'} {Math.abs(profitPct).toFixed(2)}%)
-            </span>
-          </div>
-        )}
-
-        <div>
-          <label className={labelCls}>Date of Sale</label>
-          <CalendarPicker value={soldDate} onChange={setSoldDate} />
-        </div>
-        <div>
-          <label className={labelCls}>Notes (optional)</label>
-          <textarea
-            className={`${inputCls} resize-none h-16`}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder='e.g. Target reached, booked profits...'
-          />
-        </div>
-        <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
-          <button
-            onClick={onClose}
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => void handleSave()}
-            disabled={saving || !name.trim() || buy <= 0 || sell <= 0}
-            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 disabled:opacity-60'
-          >
-            <FiPlus className='h-4 w-4' />
-            {saving ? 'Saving…' : 'Add Trade'}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 // ── Type chip ─────────────────────────────────────────────────────────────
 function TypeBadge({ type }: { type: SoldTrade['investmentType'] }) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -604,7 +458,6 @@ export function ProfitsPage() {
 
   const [editTrade, setEditTrade] = useState<SoldTrade | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [resultFilter, setResultFilter] = useState<'all' | 'profit' | 'loss'>(
     'all',
@@ -710,13 +563,6 @@ export function ProfitsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className='flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 transition-all active:scale-95'
-          >
-            <FiPlus className='h-4 w-4' />
-            Add Trade
-          </button>
         </div>
       </header>
 
@@ -819,15 +665,9 @@ export function ProfitsPage() {
               <strong className='text-slate-300'>
                 Investments → Sell button (💰)
               </strong>{' '}
-              on any row, or add a trade manually here.
+              on any row to record the sale and track your profit here.
             </p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className='flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-500 transition-colors'
-          >
-            <FiPlus className='h-4 w-4' /> Add Your First Trade
-          </button>
         </div>
       )}
 
@@ -1146,7 +986,6 @@ export function ProfitsPage() {
       )}
 
       {/* ── Modals ── */}
-      {showAddModal && <AddTradeModal onClose={() => setShowAddModal(false)} />}
       {editTrade && (
         <EditTradeModal trade={editTrade} onClose={() => setEditTrade(null)} />
       )}

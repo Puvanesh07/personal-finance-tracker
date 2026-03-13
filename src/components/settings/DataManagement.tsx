@@ -7,7 +7,13 @@ import {
   FiTrash2,
   FiUpload,
 } from 'react-icons/fi';
-import { exportAllSectionsAsCSV, exportExcel } from '../../utils/exportUtils';
+import {
+  exportAllSectionsAsCSV,
+  exportExcel,
+  exportPortfolioJSON,
+  exportSoldTradesCSV,
+  parseImportedPortfolioJSON,
+} from '../../utils/exportUtils';
 import { exportFullBackup, importFullBackup } from '../../utils/backup';
 import { useRef, useState } from 'react';
 
@@ -25,6 +31,7 @@ export function DataManagement() {
   const agriClear = agriState.clearAll;
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const jsonImportRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -105,6 +112,56 @@ export function DataManagement() {
     toast.success(`Downloading CSVs: ${allSections.join(', ')}`);
   };
 
+  const handleExportProfitsCSV = () => {
+    if (!state.soldTrades?.length) {
+      toast.error('No profit records to export.');
+      return;
+    }
+    exportSoldTradesCSV(state.soldTrades, 'profits.csv');
+    toast.success(`Exported ${state.soldTrades.length} profit records as CSV.`);
+  };
+
+  const handleExportPortfolioJSON = () => {
+    if (!state.investments?.length && !state.soldTrades?.length) {
+      toast.error('No portfolio data to export.');
+      return;
+    }
+    exportPortfolioJSON(state, 'portfolio-data.json');
+    toast.success('Portfolio data exported as JSON.');
+  };
+
+  const handleImportPortfolioJSON = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !uid) return;
+    setBusy(true);
+    try {
+      const parsed = await parseImportedPortfolioJSON(file);
+      // Re-import via the full backup mechanism if it has the right shape,
+      // otherwise treat as portfolio-only import
+      if (parsed.investments || parsed.soldTrades) {
+        // Use full hydration cycle — just import to firebase via importFullBackup
+        const text = JSON.stringify(parsed);
+        await importFullBackup(text, uid);
+        await hydrate(uid);
+        toast.success('Portfolio JSON imported successfully.');
+      } else {
+        toast.error('Invalid portfolio JSON format.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Import failed — check JSON format.');
+    } finally {
+      setBusy(false);
+      if (jsonImportRef.current) jsonImportRef.current.value = '';
+    }
+  };
+
+  const btnBase =
+    'flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:opacity-50 transition-colors';
+  const btnDefault = `${btnBase} border-slate-200/80 bg-white/50 text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200`;
+  const btnIndigo = `${btnBase} border-indigo-200/80 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400`;
+
   return (
     <>
       <Card
@@ -118,42 +175,84 @@ export function DataManagement() {
         <div className='flex flex-col gap-6'>
           <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
 
-          {/* CSV Exports */}
+          {/* ── Export Utils ───────────────────────────────────────────── */}
           <div className='flex flex-col gap-3'>
             <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
-              CSV Exports
+              Export Utils
             </div>
             <p className='text-xs text-slate-500 dark:text-slate-400'>
-              Downloads separate CSV files for investments, liabilities,
-              cashflows, goals, accounts and{' '}
-              <strong className='text-slate-600 dark:text-slate-300'>
-                all agriculture data
-              </strong>{' '}
-              (fields, crops, expenses, livestock events, milk, coconut).
+              Download your portfolio, profits and all finance data in various
+              formats.
             </p>
-            <div className='flex flex-col xl:flex-row gap-2'>
+            <div className='flex flex-col gap-2'>
               <button
-                className='flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 disabled:opacity-50'
+                className={btnDefault}
                 onClick={handleExportCSV}
                 disabled={busy}
               >
                 <FiDownload className='h-4 w-4 text-slate-400' />
-                Export All (CSV)
+                Export All Sections (CSV)
               </button>
               <button
-                className='flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 disabled:opacity-50'
+                className={btnDefault}
                 onClick={() => exportExcel(investments, 'portfolio.xlsx')}
                 disabled={busy}
               >
                 <FiDownload className='h-4 w-4 text-slate-400' />
-                Portfolio Excel
+                Export Portfolio (Excel)
+              </button>
+              <button
+                className={btnDefault}
+                onClick={handleExportProfitsCSV}
+                disabled={busy}
+              >
+                <FiDownload className='h-4 w-4 text-emerald-500' />
+                Export Profits / Sold Trades (CSV)
               </button>
             </div>
           </div>
 
           <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
 
-          {/* JSON Backup */}
+          {/* ── Portfolio Store (JSON) ─────────────────────────────────── */}
+          <div className='flex flex-col gap-3'>
+            <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+              Portfolio Store (JSON)
+            </div>
+            <p className='text-xs text-slate-500 dark:text-slate-400'>
+              Export or import your investments, profits (sold trades),
+              liabilities, cashflows, goals and accounts as a single JSON file.
+            </p>
+            <div className='flex flex-col gap-2'>
+              <button
+                className={btnIndigo}
+                onClick={handleExportPortfolioJSON}
+                disabled={busy}
+              >
+                <FiDownload className='h-4 w-4' />
+                Export Portfolio JSON
+              </button>
+              <input
+                ref={jsonImportRef}
+                type='file'
+                accept='.json'
+                className='hidden'
+                onChange={handleImportPortfolioJSON}
+              />
+              <button
+                className={btnIndigo}
+                onClick={() => jsonImportRef.current?.click()}
+                disabled={busy}
+              >
+                <FiUpload className='h-4 w-4' />
+                {busy ? 'Importing…' : 'Import Portfolio JSON'}
+              </button>
+            </div>
+          </div>
+
+          <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
+
+          {/* ── Full System Backup ────────────────────────────────────── */}
           <div className='flex flex-col gap-3'>
             <div className='text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
               Full System Backup (JSON)
@@ -173,11 +272,11 @@ export function DataManagement() {
             <div className='flex flex-col xl:flex-row gap-2'>
               <button
                 disabled={busy}
-                className='flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200/80 bg-indigo-50/50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400'
+                className={btnIndigo}
                 onClick={handleExportBackup}
               >
                 <FiDownload className='h-4 w-4' />
-                {busy ? 'Exporting…' : 'Export JSON Backup'}
+                {busy ? 'Exporting…' : 'Export Full Backup'}
               </button>
               <input
                 ref={fileInputRef}
@@ -187,17 +286,17 @@ export function DataManagement() {
                 onChange={handleImportFile}
               />
               <button
-                className='flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200/80 bg-indigo-50/50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400'
+                className={btnIndigo}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={busy}
               >
                 <FiUpload className='h-4 w-4' />
-                {busy ? 'Importing…' : 'Import JSON Backup'}
+                {busy ? 'Importing…' : 'Import Full Backup'}
               </button>
             </div>
           </div>
 
-          {/* Danger Zone */}
+          {/* ── Danger Zone ───────────────────────────────────────────── */}
           <div className='mt-2 rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10'>
             <div className='flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400'>
               <FiAlertOctagon className='h-5 w-5' />
@@ -237,6 +336,7 @@ export function DataManagement() {
           </p>
           <ul className='text-xs text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-5'>
             <li>All Investments</li>
+            <li>All Sold Trades / Profit Records</li>
             <li>All Liabilities</li>
             <li>All Cashflow entries</li>
             <li>All Goals</li>
