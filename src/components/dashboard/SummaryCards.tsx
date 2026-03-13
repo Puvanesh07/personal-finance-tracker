@@ -1,4 +1,3 @@
-import { FiDollarSign } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
 import { summarizePortfolio } from '../../utils/calculations';
 import { useMemo } from 'react';
@@ -103,6 +102,10 @@ export function SummaryCards() {
           label='Net Worth'
           value={formatINR(netWorth)}
           variant='primary'
+        />{' '}
+        <MetricCard
+          label='Snapshots Taken'
+          value={String(networthSnapshots.length)}
         />
       </div>
 

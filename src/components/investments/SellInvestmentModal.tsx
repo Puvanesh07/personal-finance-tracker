@@ -4,7 +4,6 @@ import {
   FiCalendar,
   FiChevronLeft,
   FiChevronRight,
-  FiDollarSign,
   FiSave,
   FiTrendingDown,
   FiTrendingUp,
