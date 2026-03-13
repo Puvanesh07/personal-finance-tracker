@@ -1,7 +1,4 @@
 // src/App.tsx
-// Each lazy route has its own Suspense with a matching skeleton fallback.
-// This eliminates the blank-flash flicker — the skeleton fills the exact
-// same layout as the real page, so the transition is smooth.
 
 import {
   AccountsSkeleton,
@@ -17,8 +14,8 @@ import {
   SnapshotsSkeleton,
   ToolsSkeleton,
 } from './components/loader/skeletons';
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useState } from 'react';
 
 import { AppLayout } from './components/layout/AppLayout';
 import { Loader } from './components/loader/Loader';
@@ -77,6 +74,33 @@ const AgriculturePage = lazy(() =>
   })),
 );
 
+/**
+ * Wrapper component to force the specific page skeleton to show
+ * EVERY time the user navigates, not just on initial chunk load.
+ */
+function PageTransition({
+  children,
+  skeleton,
+}: {
+  children: React.ReactNode;
+  skeleton: React.ReactNode;
+}) {
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Show skeleton on every route change
+    setShowSkeleton(true);
+    const timer = setTimeout(() => {
+      setShowSkeleton(false);
+    }, 1000); // 600ms artificial delay for the skeleton loader
+
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  return showSkeleton ? <>{skeleton}</> : <>{children}</>;
+}
+
 export default function App() {
   return (
     <>
@@ -101,7 +125,9 @@ export default function App() {
               path='/dashboard'
               element={
                 <Suspense fallback={<DashboardSkeleton />}>
-                  <DashboardPage />
+                  <PageTransition skeleton={<DashboardSkeleton />}>
+                    <DashboardPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -110,7 +136,9 @@ export default function App() {
               path='/investments'
               element={
                 <Suspense fallback={<InvestmentsSkeleton />}>
-                  <InvestmentsPage />
+                  <PageTransition skeleton={<InvestmentsSkeleton />}>
+                    <InvestmentsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -119,7 +147,9 @@ export default function App() {
               path='/liabilities'
               element={
                 <Suspense fallback={<LiabilitiesSkeleton />}>
-                  <LiabilitiesPage />
+                  <PageTransition skeleton={<LiabilitiesSkeleton />}>
+                    <LiabilitiesPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -128,7 +158,9 @@ export default function App() {
               path='/cashflow'
               element={
                 <Suspense fallback={<CashflowSkeleton />}>
-                  <CashflowPage />
+                  <PageTransition skeleton={<CashflowSkeleton />}>
+                    <CashflowPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -137,7 +169,9 @@ export default function App() {
               path='/accounts'
               element={
                 <Suspense fallback={<AccountsSkeleton />}>
-                  <AccountsPage />
+                  <PageTransition skeleton={<AccountsSkeleton />}>
+                    <AccountsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -146,7 +180,9 @@ export default function App() {
               path='/goals'
               element={
                 <Suspense fallback={<GoalsSkeleton />}>
-                  <GoalsPage />
+                  <PageTransition skeleton={<GoalsSkeleton />}>
+                    <GoalsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -155,7 +191,9 @@ export default function App() {
               path='/insights'
               element={
                 <Suspense fallback={<InsightsSkeleton />}>
-                  <InsightsPage />
+                  <PageTransition skeleton={<InsightsSkeleton />}>
+                    <InsightsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -164,7 +202,9 @@ export default function App() {
               path='/tools'
               element={
                 <Suspense fallback={<ToolsSkeleton />}>
-                  <ToolsPage />
+                  <PageTransition skeleton={<ToolsSkeleton />}>
+                    <ToolsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -173,7 +213,9 @@ export default function App() {
               path='/snapshots'
               element={
                 <Suspense fallback={<SnapshotsSkeleton />}>
-                  <SnapshotsPage />
+                  <PageTransition skeleton={<SnapshotsSkeleton />}>
+                    <SnapshotsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -182,7 +224,9 @@ export default function App() {
               path='/reports'
               element={
                 <Suspense fallback={<ReportsSkeleton />}>
-                  <ReportsPage />
+                  <PageTransition skeleton={<ReportsSkeleton />}>
+                    <ReportsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -191,7 +235,9 @@ export default function App() {
               path='/settings'
               element={
                 <Suspense fallback={<SettingsSkeleton />}>
-                  <SettingsPage />
+                  <PageTransition skeleton={<SettingsSkeleton />}>
+                    <SettingsPage />
+                  </PageTransition>
                 </Suspense>
               }
             />
@@ -200,7 +246,9 @@ export default function App() {
               path='/agriculture'
               element={
                 <Suspense fallback={<AgricultureSkeleton />}>
-                  <AgriculturePage />
+                  <PageTransition skeleton={<AgricultureSkeleton />}>
+                    <AgriculturePage />
+                  </PageTransition>
                 </Suspense>
               }
             />

@@ -1,24 +1,30 @@
 // src/components/loader/skeletons.tsx
 // Section-specific skeleton loaders — shown while store is hydrating
-// Each skeleton exactly mirrors the real page layout to eliminate flicker
+// Premium animations applied to eliminate flicker and provide a high-end feel.
 
 import React from 'react';
 
-// ─── Shared primitives ────────────────────────────────────────────────────────
+// ─── Shared Premium Primitives ───────────────────────────────────────────────
 
-const SHIMMER = `
+const PREMIUM_ANIMATIONS = `
 @keyframes skShimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
 }
-@keyframes skPulse {
+@keyframes skBreathe {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
+  50%      { opacity: 0.4; }
 }
 @keyframes skFadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}`;
+  0%   { opacity: 0; transform: translateY(12px) scale(0.98); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+`;
+
+// Base colors for the premium dark theme
+const C_BG = '#0f172a'; // Card Background
+const C_BONE = '#1e293b'; // Bone base
+const C_SHIMMER = '#334155'; // Bone highlight
 
 function Bone({
   w = '100%',
@@ -42,10 +48,10 @@ function Bone({
         height: h,
         borderRadius: r,
         flexShrink: 0,
-        background:
-          'linear-gradient(90deg,#1a2535 25%,#243042 50%,#1a2535 75%)',
-        backgroundSize: '200% 100%',
-        animation: 'skShimmer 1.5s ease-in-out infinite',
+        backgroundColor: C_BONE,
+        backgroundImage: `linear-gradient(to right, ${C_BONE} 0%, ${C_SHIMMER} 20%, ${C_BONE} 40%, ${C_BONE} 100%)`,
+        backgroundSize: '2000px 100%',
+        animation: 'skShimmer 2s infinite linear',
         marginBottom: mb,
         marginTop: mt,
         ...style,
@@ -58,20 +64,26 @@ function Card({
   children,
   accent,
   pad = '16px 18px',
+  delay = 0,
   style = {},
 }: {
   children: React.ReactNode;
   accent?: string;
   pad?: string;
+  delay?: number;
   style?: React.CSSProperties;
 }) {
   return (
     <div
       style={{
-        background: accent ? `${accent}08` : '#0f172a',
+        background: accent ? `${accent}0A` : C_BG,
         borderRadius: 16,
-        border: `1px solid ${accent ? `${accent}22` : 'rgba(255,255,255,0.05)'}`,
+        border: `1px solid ${accent ? `${accent}22` : 'rgba(255,255,255,0.03)'}`,
+        boxShadow: accent
+          ? `0 4px 20px -2px ${accent}08`
+          : '0 4px 20px -2px rgba(0,0,0,0.2)',
         padding: pad,
+        animation: `skFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s both`,
         ...style,
       }}
     >
@@ -126,7 +138,7 @@ function Col({
 
 function Circle({
   size = 40,
-  color = '#1a2535',
+  color = C_BONE,
 }: {
   size?: number;
   color?: string;
@@ -139,6 +151,7 @@ function Circle({
         borderRadius: '50%',
         background: color,
         flexShrink: 0,
+        boxShadow: color !== C_BONE ? `0 0 10px ${color}30` : 'none',
       }}
     />
   );
@@ -153,6 +166,7 @@ function Avatar({ size = 44, color }: { size?: number; color: string }) {
         borderRadius: 12,
         flexShrink: 0,
         background: `${color}20`,
+        boxShadow: `inset 0 0 0 1px ${color}30`,
       }}
     />
   );
@@ -172,7 +186,7 @@ function Bar({
       style={{
         height: h,
         borderRadius: h,
-        background: '#1a2535',
+        background: C_BONE,
         overflow: 'hidden',
       }}
     >
@@ -181,8 +195,9 @@ function Bar({
           width: `${pct}%`,
           height: '100%',
           borderRadius: h,
-          background: color,
-          animation: 'skPulse 1.5s ease-in-out infinite',
+          background: `linear-gradient(90deg, ${color}dd, ${color})`,
+          animation: 'skBreathe 2s ease-in-out infinite',
+          boxShadow: `0 0 8px ${color}50`,
         }}
       />
     </div>
@@ -211,9 +226,9 @@ function Grid({
   );
 }
 
-function MetricCard({ color }: { color: string }) {
+function MetricCard({ color, delay = 0 }: { color: string; delay?: number }) {
   return (
-    <Card>
+    <Card delay={delay}>
       <Bone w={70} h={10} mb={10} />
       <Bone w='65%' h={24} mb={8} />
       <Row gap={6}>
@@ -236,7 +251,7 @@ function PageHeader({
   hasButton?: boolean;
 }) {
   return (
-    <Card accent={color} pad='16px 20px'>
+    <Card accent={color} pad='16px 20px' delay={0}>
       <Row justify='space-between'>
         <Row gap={14}>
           <Avatar size={44} color={color} />
@@ -254,7 +269,7 @@ function PageHeader({
 function TableRows({
   cols = 4,
   rows = 6,
-  delay = 0.06,
+  delay = 0.05,
 }: {
   cols?: number;
   rows?: number;
@@ -271,8 +286,9 @@ function TableRows({
             gap={12}
             style={{
               padding: '13px 16px',
-              borderBottom: i < rows - 1 ? '1px solid #0d1623' : 'none',
-              animation: `skFadeUp 0.35s ease ${i * delay}s both`,
+              borderBottom:
+                i < rows - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+              animation: `skFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) ${i * delay}s both`,
             }}
           >
             {Array(cols)
@@ -302,7 +318,7 @@ function ChartSVG({
       height={height}
       viewBox={`0 0 600 ${height}`}
       preserveAspectRatio='none'
-      style={style}
+      style={{ ...style, filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.2))' }}
     >
       <defs>
         <linearGradient
@@ -312,18 +328,19 @@ function ChartSVG({
           x2='0'
           y2='1'
         >
-          <stop offset='0%' stopColor={color} stopOpacity='0.2' />
+          <stop offset='0%' stopColor={color} stopOpacity='0.25' />
           <stop offset='100%' stopColor={color} stopOpacity='0' />
         </linearGradient>
       </defs>
       <path
         d={`M0,${height * 0.8} C80,${height * 0.65} 160,${height * 0.45} 240,${height * 0.38} C320,${height * 0.3} 400,${height * 0.42} 480,${height * 0.22} C540,${height * 0.1} 580,${height * 0.18} 600,${height * 0.08} L600,${height} L0,${height}Z`}
         fill={`url(#grad-${color.replace('#', '')})`}
+        style={{ animation: 'skBreathe 3s ease-in-out infinite' }}
       />
       <path
         d={`M0,${height * 0.8} C80,${height * 0.65} 160,${height * 0.45} 240,${height * 0.38} C320,${height * 0.3} 400,${height * 0.42} 480,${height * 0.22} C540,${height * 0.1} 580,${height * 0.18} 600,${height * 0.08}`}
         fill='none'
-        stroke={`${color}50`}
+        stroke={`${color}80`}
         strokeWidth='2.5'
         strokeLinecap='round'
       />
@@ -331,11 +348,11 @@ function ChartSVG({
   );
 }
 
-// ─── Wrapper that injects CSS + fade animation ─────────────────────────────────
+// ─── Wrapper that injects CSS + Layout ───────────────────────────────────────
 function SkeletonPage({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <style>{SHIMMER}</style>
+      <style>{PREMIUM_ANIMATIONS}</style>
       <div
         style={{
           display: 'flex',
@@ -356,17 +373,14 @@ export function DashboardSkeleton() {
     <SkeletonPage>
       <PageHeader color='#10b981' titleW={120} subtitleW={260} />
 
-      {/* 3 metric cards */}
       <Grid cols={3}>
         {['#10b981', '#3b82f6', '#f59e0b'].map((c, i) => (
-          <MetricCard key={i} color={c} />
+          <MetricCard key={i} color={c} delay={0.05 + i * 0.05} />
         ))}
       </Grid>
 
-      {/* Allocation + growth */}
       <Grid cols={2} gap={14}>
-        {/* Donut */}
-        <Card>
+        <Card delay={0.15}>
           <Bone w={110} h={13} mb={18} />
           <div
             style={{
@@ -380,11 +394,12 @@ export function DashboardSkeleton() {
                 width: 110,
                 height: 110,
                 borderRadius: '50%',
-                border: '16px solid #1a2535',
+                border: `16px solid ${C_BONE}`,
                 borderTopColor: '#10b981',
                 borderRightColor: '#3b82f6',
                 borderBottomColor: '#f59e0b',
-                animation: 'skPulse 1.5s ease-in-out infinite',
+                animation: 'skBreathe 2s ease-in-out infinite',
+                boxShadow: '0 0 20px rgba(0,0,0,0.2)',
               }}
             />
           </div>
@@ -400,16 +415,14 @@ export function DashboardSkeleton() {
           ))}
         </Card>
 
-        {/* Line chart */}
-        <Card>
+        <Card delay={0.2}>
           <Bone w={100} h={13} mb={16} />
           <ChartSVG color='#3b82f6' height={110} />
           <Bone w='60%' h={10} mt={8} />
         </Card>
       </Grid>
 
-      {/* Net worth chart */}
-      <Card>
+      <Card delay={0.25}>
         <Row justify='space-between' style={{ marginBottom: 18 }}>
           <Bone w={160} h={14} />
           <Bone w={80} h={30} r={20} />
@@ -417,10 +430,9 @@ export function DashboardSkeleton() {
         <ChartSVG color='#10b981' height={90} />
       </Card>
 
-      {/* Goals + essentials */}
       <Grid cols={2} gap={14}>
         {['#a78bfa', '#f87171'].map((c, i) => (
-          <Card key={i}>
+          <Card key={i} delay={0.3 + i * 0.05}>
             <Bone w={100} h={13} mb={14} />
             {Array(3)
               .fill(0)
@@ -446,17 +458,18 @@ export function InvestmentsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#3b82f6' titleW={160} subtitleW={240} hasButton />
 
-      {/* Filter pills */}
-      <Row gap={8} style={{ flexWrap: 'wrap' }}>
+      <Row
+        gap={8}
+        style={{ flexWrap: 'wrap', animation: 'skFadeUp 0.4s 0.05s both' }}
+      >
         {[80, 120, 100, 95, 110, 90].map((w, i) => (
           <Bone key={i} w={w} h={34} r={20} />
         ))}
       </Row>
 
-      {/* 4 portfolio metrics */}
       <Grid cols={4} gap={10}>
         {['#10b981', '#3b82f6', '#f59e0b', '#ef4444'].map((c, i) => (
-          <Card key={i}>
+          <Card key={i} delay={0.1 + i * 0.05}>
             <Bone w={60} h={10} mb={8} />
             <Bone w='70%' h={22} mb={6} />
             <Row gap={5}>
@@ -467,16 +480,14 @@ export function InvestmentsSkeleton() {
         ))}
       </Grid>
 
-      {/* Investments table */}
-      <Card pad='0'>
-        {/* Table header */}
+      <Card pad='0' delay={0.25}>
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
             gap: 12,
             padding: '12px 16px',
-            borderBottom: '1px solid #1a2535',
+            borderBottom: '1px solid rgba(255,255,255,0.03)',
           }}
         >
           {Array(5)
@@ -485,7 +496,6 @@ export function InvestmentsSkeleton() {
               <Bone key={i} w='75%' h={11} />
             ))}
         </div>
-        {/* Rows with avatar */}
         {Array(7)
           .fill(0)
           .map((_, i) => (
@@ -496,8 +506,9 @@ export function InvestmentsSkeleton() {
                 gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
                 gap: 12,
                 padding: '13px 16px',
-                borderBottom: i < 6 ? '1px solid #0d1623' : 'none',
-                animation: `skFadeUp 0.3s ease ${i * 0.055}s both`,
+                borderBottom:
+                  i < 6 ? '1px solid rgba(255,255,255,0.02)' : 'none',
+                animation: `skFadeUp 0.4s ${0.3 + i * 0.04}s both`,
               }}
             >
               <Row gap={10}>
@@ -506,7 +517,7 @@ export function InvestmentsSkeleton() {
                     width: 32,
                     height: 32,
                     borderRadius: 8,
-                    background: '#1a2535',
+                    background: C_BONE,
                     flexShrink: 0,
                   }}
                 />
@@ -535,8 +546,7 @@ export function CashflowSkeleton() {
     <SkeletonPage>
       <PageHeader color='#10b981' titleW={110} subtitleW={230} hasButton />
 
-      {/* Month pills */}
-      <Row gap={8}>
+      <Row gap={8} style={{ animation: 'skFadeUp 0.4s 0.05s both' }}>
         {Array(6)
           .fill(0)
           .map((_, i) => (
@@ -544,14 +554,13 @@ export function CashflowSkeleton() {
           ))}
       </Row>
 
-      {/* Income / Expense / Savings */}
       <Grid cols={3}>
         {[
           ['#10b981', 'Income'],
           ['#ef4444', 'Expenses'],
           ['#3b82f6', 'Savings'],
         ].map(([c], i) => (
-          <Card key={i} accent={c as string}>
+          <Card key={i} accent={c as string} delay={0.1 + i * 0.05}>
             <Row gap={6} style={{ marginBottom: 10 }}>
               <Circle size={8} color={c as string} />
               <Bone w={60} h={11} />
@@ -562,8 +571,7 @@ export function CashflowSkeleton() {
         ))}
       </Grid>
 
-      {/* Bar chart */}
-      <Card>
+      <Card delay={0.2}>
         <Bone w={130} h={14} mb={20} />
         <div
           style={{
@@ -581,7 +589,7 @@ export function CashflowSkeleton() {
                 height: h,
                 borderRadius: '4px 4px 0 0',
                 background: i % 2 === 0 ? '#10b98128' : '#ef444428',
-                animation: `skPulse 1.5s ease-in-out ${i * 0.09}s infinite`,
+                animation: `skBreathe 2s ease-in-out ${i * 0.1}s infinite`,
               }}
             />
           ))}
@@ -596,10 +604,12 @@ export function CashflowSkeleton() {
         </Row>
       </Card>
 
-      {/* Transaction list */}
-      <Card pad='0'>
+      <Card pad='0' delay={0.25}>
         <div
-          style={{ padding: '12px 16px', borderBottom: '1px solid #1a2535' }}
+          style={{
+            padding: '12px 16px',
+            borderBottom: '1px solid rgba(255,255,255,0.03)',
+          }}
         >
           <Bone w={130} h={13} />
         </div>
@@ -611,9 +621,9 @@ export function CashflowSkeleton() {
               gap={12}
               style={{
                 padding: '13px 16px',
-                alignItems: 'center',
-                borderBottom: i < 5 ? '1px solid #0d1623' : 'none',
-                animation: `skFadeUp 0.3s ease ${i * 0.07}s both`,
+                borderBottom:
+                  i < 5 ? '1px solid rgba(255,255,255,0.02)' : 'none',
+                animation: `skFadeUp 0.4s ${0.3 + i * 0.05}s both`,
               }}
             >
               <div
@@ -621,7 +631,7 @@ export function CashflowSkeleton() {
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  background: '#1a2535',
+                  background: C_BONE,
                   flexShrink: 0,
                 }}
               />
@@ -644,19 +654,13 @@ export function GoalsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#a78bfa' titleW={90} subtitleW={200} hasButton />
 
-      {/* Goal cards 2-col grid */}
       <Grid cols={2} gap={14}>
         {Array(4)
           .fill(0)
           .map((_, i) => {
-            const pct = [65, 42, 88, 23][i];
             const c = colors[i];
             return (
-              <Card
-                key={i}
-                accent={c}
-                style={{ animation: `skFadeUp 0.35s ease ${i * 0.1}s both` }}
-              >
+              <Card key={i} accent={c} delay={0.05 + i * 0.05}>
                 <Row gap={10} style={{ marginBottom: 14 }}>
                   <div
                     style={{
@@ -672,7 +676,7 @@ export function GoalsSkeleton() {
                     <Bone w='50%' h={10} />
                   </Col>
                 </Row>
-                <Bar pct={pct} color={c} h={6} />
+                <Bar pct={[65, 42, 88, 23][i]} color={c} h={6} />
                 <Row justify='space-between' style={{ marginTop: 10 }}>
                   <Bone w={70} h={11} />
                   <Bone w={50} h={11} />
@@ -682,8 +686,7 @@ export function GoalsSkeleton() {
           })}
       </Grid>
 
-      {/* Summary */}
-      <Card>
+      <Card delay={0.25}>
         <Bone w={120} h={14} mb={16} />
         <Grid cols={3} gap={10}>
           {['#10b981', '#f59e0b', '#ef4444'].map((c, i) => (
@@ -714,21 +717,21 @@ export function AccountsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#34d399' titleW={110} subtitleW={210} hasButton />
 
-      {/* Total balance hero */}
-      <Card accent='#10b981' pad='28px' style={{ textAlign: 'center' }}>
+      <Card
+        accent='#10b981'
+        pad='28px'
+        style={{ textAlign: 'center' }}
+        delay={0.05}
+      >
         <Bone w={110} h={12} mb={12} style={{ margin: '0 auto 12px' }} />
         <Bone w={200} h={36} mb={10} style={{ margin: '0 auto 10px' }} />
         <Bone w={100} h={11} style={{ margin: '0 auto' }} />
       </Card>
 
-      {/* Account rows */}
       {Array(4)
         .fill(0)
         .map((_, i) => (
-          <Card
-            key={i}
-            style={{ animation: `skFadeUp 0.35s ease ${i * 0.1}s both` }}
-          >
+          <Card key={i} delay={0.15 + i * 0.05}>
             <Row justify='space-between'>
               <Row gap={14}>
                 <div
@@ -762,10 +765,9 @@ export function LiabilitiesSkeleton() {
     <SkeletonPage>
       <PageHeader color='#ef4444' titleW={120} subtitleW={210} hasButton />
 
-      {/* 3 summary metrics */}
       <Grid cols={3}>
         {['#ef4444', '#f59e0b', '#10b981'].map((c, i) => (
-          <Card key={i} accent={c}>
+          <Card key={i} accent={c} delay={0.05 + i * 0.05}>
             <Bone w={80} h={10} mb={8} />
             <Bone w='65%' h={24} mb={8} />
             <Bar pct={[75, 45, 30][i]} color={c} />
@@ -773,14 +775,10 @@ export function LiabilitiesSkeleton() {
         ))}
       </Grid>
 
-      {/* Liability items */}
       {Array(4)
         .fill(0)
         .map((_, i) => (
-          <Card
-            key={i}
-            style={{ animation: `skFadeUp 0.35s ease ${i * 0.1}s both` }}
-          >
+          <Card key={i} delay={0.2 + i * 0.05}>
             <Row justify='space-between' align='flex-start'>
               <Row gap={12} style={{ flex: 1, alignItems: 'flex-start' }}>
                 <div
@@ -817,8 +815,7 @@ export function InsightsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#f59e0b' titleW={100} subtitleW={220} hasButton />
 
-      {/* AI generating card */}
-      <Card accent='#f59e0b' pad='20px'>
+      <Card accent='#f59e0b' pad='20px' delay={0.05}>
         <Row gap={10} style={{ marginBottom: 14 }}>
           <div
             style={{
@@ -826,7 +823,8 @@ export function InsightsSkeleton() {
               height: 8,
               borderRadius: '50%',
               background: '#f59e0b',
-              animation: 'skPulse 0.8s ease-in-out infinite',
+              animation: 'skBreathe 1s ease-in-out infinite',
+              boxShadow: '0 0 10px #f59e0b60',
             }}
           />
           <Bone w={170} h={13} />
@@ -836,18 +834,13 @@ export function InsightsSkeleton() {
         ))}
       </Card>
 
-      {/* Insight blocks */}
       {[
         ['#10b981', 'Portfolio Health'],
         ['#3b82f6', 'Diversification'],
         ['#f59e0b', 'Risk Analysis'],
         ['#a78bfa', 'Recommendations'],
-      ].map(([c, _], i) => (
-        <Card
-          key={i}
-          accent={c as string}
-          style={{ animation: `skFadeUp 0.35s ease ${i * 0.12}s both` }}
-        >
+      ].map(([c], i) => (
+        <Card key={i} accent={c as string} delay={0.15 + i * 0.05}>
           <Row gap={12} align='flex-start'>
             <div
               style={{
@@ -877,19 +870,13 @@ export function ReportsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#3b82f6' titleW={100} subtitleW={210} hasButton />
 
-      {/* 4 summary metrics */}
       <Grid cols={4} gap={10}>
-        {['#10b981', '#3b82f6', '#f59e0b', '#a78bfa'].map((i: any) => (
-          <Card key={i}>
-            <Bone w={70} h={10} mb={8} />
-            <Bone w='70%' h={20} mb={5} />
-            <Bone w={50} h={10} />
-          </Card>
+        {['#10b981', '#3b82f6', '#f59e0b', '#a78bfa'].map((_, i) => (
+          <MetricCard key={i} color={_} delay={0.05 + i * 0.05} />
         ))}
       </Grid>
 
-      {/* Bar chart */}
-      <Card>
+      <Card delay={0.25}>
         <Row justify='space-between' style={{ marginBottom: 20 }}>
           <Bone w={170} h={14} />
           <Row gap={8}>
@@ -913,7 +900,7 @@ export function ReportsSkeleton() {
                   rx='5'
                   fill={i % 3 === 1 ? '#3b82f622' : '#10b98122'}
                   style={{
-                    animation: `skPulse 1.5s ease-in-out ${i * 0.08}s infinite`,
+                    animation: `skBreathe 2s ease-in-out ${i * 0.05}s infinite`,
                   }}
                 />
               );
@@ -921,21 +908,19 @@ export function ReportsSkeleton() {
         </svg>
       </Card>
 
-      {/* Line chart */}
-      <Card>
+      <Card delay={0.3}>
         <Bone w={130} h={14} mb={16} />
         <ChartSVG color='#a78bfa' height={80} />
       </Card>
 
-      {/* Table */}
-      <Card pad='0'>
+      <Card pad='0' delay={0.35}>
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr 1fr 1fr',
             gap: 12,
             padding: '12px 16px',
-            borderBottom: '1px solid #1a2535',
+            borderBottom: '1px solid rgba(255,255,255,0.03)',
           }}
         >
           {Array(4)
@@ -944,7 +929,7 @@ export function ReportsSkeleton() {
               <Bone key={i} w='80%' h={11} />
             ))}
         </div>
-        <TableRows cols={4} rows={5} />
+        <TableRows cols={4} rows={5} delay={0.05} />
       </Card>
     </SkeletonPage>
   );
@@ -956,21 +941,16 @@ export function SnapshotsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#10b981' titleW={110} subtitleW={200} hasButton />
 
-      {/* Growth chart */}
-      <Card>
+      <Card delay={0.05}>
         <Bone w={160} h={14} mb={18} />
         <ChartSVG color='#10b981' height={100} />
       </Card>
 
-      {/* Snapshot cards 2-col */}
       <Grid cols={2} gap={14}>
         {Array(4)
           .fill(0)
           .map((_, i) => (
-            <Card
-              key={i}
-              style={{ animation: `skFadeUp 0.35s ease ${i * 0.1}s both` }}
-            >
+            <Card key={i} delay={0.15 + i * 0.05}>
               <Row justify='space-between' style={{ marginBottom: 12 }}>
                 <Row gap={6}>
                   <Circle size={8} color='#10b981' />
@@ -997,13 +977,9 @@ export function SettingsSkeleton() {
     <SkeletonPage>
       <PageHeader color='#64748b' titleW={100} subtitleW={180} />
 
-      {/* Settings groups */}
       {['Profile', 'Notifications', 'Integrations', 'Data & Privacy'].map(
         (_, gi) => (
-          <Card
-            key={gi}
-            style={{ animation: `skFadeUp 0.35s ease ${gi * 0.12}s both` }}
-          >
+          <Card key={gi} delay={0.05 + gi * 0.08}>
             <Bone w={130} h={13} mb={16} />
             {Array(3)
               .fill(0)
@@ -1013,7 +989,8 @@ export function SettingsSkeleton() {
                   justify='space-between'
                   style={{
                     padding: '12px 0',
-                    borderBottom: i < 2 ? '1px solid #1a2535' : 'none',
+                    borderBottom:
+                      i < 2 ? '1px solid rgba(255,255,255,0.03)' : 'none',
                   }}
                 >
                   <Row gap={12}>
@@ -1022,7 +999,7 @@ export function SettingsSkeleton() {
                         width: 34,
                         height: 34,
                         borderRadius: 8,
-                        background: '#1a2535',
+                        background: C_BONE,
                         flexShrink: 0,
                       }}
                     />
@@ -1036,7 +1013,7 @@ export function SettingsSkeleton() {
                       width: 42,
                       height: 22,
                       borderRadius: 11,
-                      background: i === 0 ? '#10b98135' : '#1a2535',
+                      background: i === 0 ? '#10b98135' : C_BONE,
                       flexShrink: 0,
                     }}
                   />
@@ -1058,11 +1035,7 @@ export function ToolsSkeleton() {
       <Grid cols={2} gap={14}>
         {['#a78bfa', '#10b981', '#3b82f6', '#f59e0b', '#f87171', '#34d399'].map(
           (c, i) => (
-            <Card
-              key={i}
-              accent={c}
-              style={{ animation: `skFadeUp 0.35s ease ${i * 0.1}s both` }}
-            >
+            <Card key={i} accent={c} delay={0.05 + i * 0.05}>
               <Row gap={12} style={{ marginBottom: 12 }}>
                 <div
                   style={{
@@ -1096,7 +1069,7 @@ export function AgricultureSkeleton() {
 
       <Grid cols={3}>
         {['#4ade80', '#86efac', '#a3e635'].map((c, i) => (
-          <Card key={i} accent={c}>
+          <Card key={i} accent={c} delay={0.05 + i * 0.05}>
             <Bone w={80} h={10} mb={8} />
             <Bone w='65%' h={24} mb={6} />
             <Bone w={70} h={10} />
@@ -1107,10 +1080,7 @@ export function AgricultureSkeleton() {
       {Array(3)
         .fill(0)
         .map((_, i) => (
-          <Card
-            key={i}
-            style={{ animation: `skFadeUp 0.35s ease ${i * 0.12}s both` }}
-          >
+          <Card key={i} delay={0.2 + i * 0.08}>
             <Row justify='space-between'>
               <Row gap={12}>
                 <div
