@@ -389,7 +389,7 @@ export default function AuthPage() {
               color: '#f8fafc',
             }}
           >
-            Know your true wealth
+            India's free personal
             <br />
             <span
               style={{
@@ -400,7 +400,7 @@ export default function AuthPage() {
                 backgroundClip: 'text',
               }}
             >
-              at a glance.
+              finance tracker.
             </span>
           </motion.h1>
 
@@ -409,9 +409,10 @@ export default function AuthPage() {
             className='text-lg max-w-2xl mx-auto mb-10 leading-relaxed'
             style={{ color: 'rgba(226,232,240,0.52)' }}
           >
-            Track net worth, income, expenses, and financial goals across 20+
-            asset classes. No broker credentials. No third-party tracking. Just
-            you and your data.
+            Track net worth, stocks, mutual funds, SIPs, crypto, gold, FDs, PPF
+            and expenses across 20+ asset classes. Import from Zerodha, Groww,
+            Angel One & INDmoney. No broker credentials. No third-party
+            tracking. Just you and your data.
           </motion.p>
 
           <motion.div
@@ -448,11 +449,13 @@ export default function AuthPage() {
           >
             {[
               '14 Built Modules',
-              '4 Platform Imports',
-              'No Broker Access',
+              'Stocks · MFs · SIPs · Crypto · Gold',
+              'Import Zerodha · Groww · Angel One',
+              'PPF · NPS · FD Tracker',
               'Notion Sync',
-              '100% Encrypted',
+              '100% Free & Private',
               'CSV & Excel Export',
+              'NSE 500+ Stocks',
             ].map((s, i) => (
               <div
                 key={i}
@@ -757,8 +760,9 @@ export default function AuthPage() {
               className='mt-3 max-w-xl mx-auto text-sm'
               style={{ color: 'rgba(226,232,240,0.42)' }}
             >
-              14 fully built modules — from portfolio tracking to farm
-              management. Every feature is live and ready to use.
+              14 fully built modules — track stocks, mutual funds, SIPs, crypto,
+              gold, FDs, PPF, NPS, expenses, liabilities and goals. Every
+              feature is live and ready to use.
             </p>
           </motion.div>
 
@@ -1342,14 +1346,14 @@ export default function AuthPage() {
           />
           <div className='relative'>
             <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight mb-4'>
-              Ready to see your true wealth?
+              Ready to see your true net worth?
             </h2>
             <p
               className='mb-10 text-lg'
               style={{ color: 'rgba(226,232,240,0.48)' }}
             >
-              Join thousands of Indian investors who track their complete
-              financial picture on FinTrackly.
+              Join Indian investors who track stocks, mutual funds, SIPs,
+              crypto, gold, FDs, PPF and expenses on Fintrackly — free, forever.
             </p>
             <motion.button
               onClick={handleGoogleSignIn}
@@ -1377,6 +1381,59 @@ export default function AuthPage() {
         </motion.div>
       </section>
 
+      {/* ── SEO KEYWORD SECTION — visible, indexable, styled subtly ── */}
+      <section
+        className='px-6 py-16 relative'
+        style={{ zIndex: 1, borderTop: '1px solid rgba(255,255,255,0.04)' }}
+      >
+        <div className='max-w-5xl mx-auto text-center'>
+          <p
+            className='text-xs font-bold uppercase tracking-widest mb-6'
+            style={{ color: 'rgba(16,185,129,0.5)' }}
+          >
+            What you can track with Fintrackly
+          </p>
+          <div className='flex flex-wrap justify-center gap-2'>
+            {[
+              'Net Worth Tracker',
+              'Stock Portfolio Tracker',
+              'Mutual Fund Tracker',
+              'SIP Tracker',
+              'Expense Tracker',
+              'Crypto Portfolio Tracker',
+              'Gold & Silver Tracker',
+              'Fixed Deposit Tracker',
+              'PPF Tracker',
+              'NPS Tracker',
+              'Financial Goal Tracker',
+              'Investment Portfolio Manager',
+              'Zerodha Import',
+              'Groww Import',
+              'Angel One Import',
+              'INDmoney Import',
+              'Loan Tracker',
+              'Bank Account Tracker',
+              'Notion Finance Sync',
+              'NSE Stock Data India',
+              'Free Finance App India',
+              'Personal Finance Dashboard',
+            ].map((tag, i) => (
+              <span
+                key={i}
+                className='px-3 py-1.5 rounded-full text-xs'
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: 'rgba(226,232,240,0.3)',
+                }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── FOOTER ── */}
       <footer
         className='py-10 px-6 text-center relative'
@@ -1400,7 +1457,8 @@ export default function AuthPage() {
           </span>
         </div>
         <p className='text-xs' style={{ color: 'rgba(226,232,240,0.2)' }}>
-          © 2026 FinTrackly · Privacy-first net worth tracking
+          © 2026 Fintrackly · Free personal finance tracker & investment
+          portfolio manager for India
         </p>
       </footer>
     </div>

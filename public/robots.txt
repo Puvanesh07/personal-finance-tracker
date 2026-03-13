@@ -1,0 +1,22 @@
+# robots.txt for Fintrackly
+# https://fintrackly.web.app/
+
+User-agent: *
+Allow: /
+
+# Block internal app routes from indexing
+Disallow: /dashboard
+Disallow: /investments
+Disallow: /cashflow
+Disallow: /accounts
+Disallow: /liabilities
+Disallow: /goals
+Disallow: /snapshots
+Disallow: /reports
+Disallow: /settings
+Disallow: /agriculture
+Disallow: /insights
+Disallow: /tools
+
+# Sitemap location
+Sitemap: https://fintrackly.web.app/sitemap.xml
