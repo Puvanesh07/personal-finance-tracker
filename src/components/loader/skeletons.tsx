@@ -1061,6 +1061,53 @@ export function ToolsSkeleton() {
   );
 }
 
+// ─── 13. PROFITS ─────────────────────────────────────────────────────────────
+export function ProfitsSkeleton() {
+  return (
+    <SkeletonPage>
+      <PageHeader color='#10b981' titleW={150} subtitleW={230} hasButton />
+
+      <Grid cols={4}>
+        {['#10b981', '#6366f1', '#f59e0b', '#3b82f6'].map((c, i) => (
+          <Card key={i} accent={c} delay={0.05 + i * 0.05}>
+            <Bone w={80} h={10} mb={8} />
+            <Bone w='65%' h={24} mb={6} />
+            <Bone w={70} h={10} />
+          </Card>
+        ))}
+      </Grid>
+
+      {Array(5)
+        .fill(0)
+        .map((_, i) => (
+          <Card key={i} delay={0.25 + i * 0.07}>
+            <Row justify='space-between'>
+              <Row gap={12}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'rgba(16,185,129,0.12)',
+                    flexShrink: 0,
+                  }}
+                />
+                <Col gap={6}>
+                  <Bone w={140} h={14} />
+                  <Bone w={90} h={10} />
+                </Col>
+              </Row>
+              <Col gap={6} style={{ alignItems: 'flex-end' }}>
+                <Bone w={90} h={16} />
+                <Bone w={60} h={11} />
+              </Col>
+            </Row>
+          </Card>
+        ))}
+    </SkeletonPage>
+  );
+}
+
 // ─── 12. AGRICULTURE ─────────────────────────────────────────────────────────
 export function AgricultureSkeleton() {
   return (

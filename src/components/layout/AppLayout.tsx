@@ -5,6 +5,7 @@ import {
   FiBarChart2,
   FiCamera,
   FiCreditCard,
+  FiDollarSign,
   FiFlag,
   FiGrid,
   FiHome,
@@ -61,6 +62,12 @@ export function AppLayout() {
   const MOBILE_MENU_ITEMS = [
     { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
     { to: '/investments', icon: FiTrendingUp, label: 'Investments' },
+    {
+      to: '/profits',
+      icon: FiDollarSign,
+      label: 'Profits',
+      color: 'text-emerald-400',
+    },
     { to: '/liabilities', icon: FiCreditCard, label: 'Liabilities' },
     { to: '/accounts', icon: BsBank2, label: 'Accounts' },
     { to: '/cashflow', icon: FiActivity, label: 'Cashflow' },
@@ -133,6 +140,13 @@ export function AppLayout() {
             >
               <FiTrendingUp className='h-4 w-4 shrink-0' />
               <span>Investments</span>
+            </NavLink>
+            <NavLink
+              to='/profits'
+              className={({ isActive }) => desktopLinkClass(isActive)}
+            >
+              <FiDollarSign className='h-4 w-4 shrink-0 text-emerald-400' />
+              <span>Profits</span>
             </NavLink>
             <NavLink
               to='/liabilities'

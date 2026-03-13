@@ -8,6 +8,7 @@ import {
   FiCheck,
   FiCheckSquare,
   FiChevronDown,
+  FiDollarSign,
   FiEdit2,
   FiFolder,
   FiGlobe,
@@ -29,6 +30,7 @@ import { currentValue, investedValue } from '../../utils/calculations';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
+import { SellInvestmentModal } from './SellInvestmentModal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
 import { fetchLivePrices } from '../../services/livePriceService';
@@ -855,6 +857,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   // ── Selection & Edit State ─────────────────────────────────────────────
   const [edit, setEdit] = useState<any | null>(null);
+  const [sellTarget, setSellTarget] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
@@ -1231,6 +1234,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               refreshing={isRowRefreshing}
                             />
                           )}
+                          <button
+                            onClick={() => setSellTarget(inv)}
+                            title='Record sale & track profit'
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all'
+                          >
+                            <FiDollarSign size={12} />
+                          </button>
                           <button
                             onClick={() => setEdit(inv)}
                             className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white transition-all'
@@ -1626,6 +1636,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <td className={`px-3 py-3.5 ${bdClass}`}>
                         <div className='flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
                           <button
+                            onClick={() => setSellTarget(inv)}
+                            title='Record sale & track profit'
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all'
+                          >
+                            <FiDollarSign size={12} />
+                          </button>
+                          <button
                             onClick={() => setEdit(inv)}
                             className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
                           >
@@ -1712,6 +1729,14 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           onClose={() => setEdit(null)}
           mode='edit'
           investment={edit}
+        />
+      )}
+
+      {sellTarget && (
+        <SellInvestmentModal
+          open={!!sellTarget}
+          onClose={() => setSellTarget(null)}
+          investment={sellTarget}
         />
       )}
 

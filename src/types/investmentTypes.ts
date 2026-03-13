@@ -230,6 +230,26 @@ export type Goal = {
   userId?: string;
 };
 
+// ── Sold Trades (Profit Tracking) ─────────────────────────────────────────
+
+export type SoldTrade = {
+  id: string;
+  investmentName: string; // Name of the stock/fund sold
+  investmentType: InvestmentType;
+  symbol?: string;
+  platform?: string;
+  quantity?: number; // Shares / units sold (optional for non-qty assets)
+  buyPrice: number; // Total buy cost (not per-unit)
+  sellPrice: number; // Total sell value (not per-unit)
+  profit: number; // sellPrice - buyPrice (auto-calculated)
+  profitPct: number; // (profit / buyPrice) * 100
+  soldDate: ISODateString; // Date of sale
+  notes?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 // ── Agriculture ────────────────────────────────────────────────────────────
 
 export type Season = 'summer' | 'monsoon' | 'winter';

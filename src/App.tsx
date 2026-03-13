@@ -9,6 +9,7 @@ import {
   InsightsSkeleton,
   InvestmentsSkeleton,
   LiabilitiesSkeleton,
+  ProfitsSkeleton,
   ReportsSkeleton,
   SettingsSkeleton,
   SnapshotsSkeleton,
@@ -71,6 +72,11 @@ const SettingsPage = lazy(() =>
 const AgriculturePage = lazy(() =>
   import('./pages/Agriculture/AgriculturePage').then((m) => ({
     default: m.AgriculturePage,
+  })),
+);
+const ProfitsPage = lazy(() =>
+  import('./pages/Profits/ProfitsPage').then((m) => ({
+    default: m.ProfitsPage,
   })),
 );
 
@@ -138,6 +144,17 @@ export default function App() {
                 <Suspense fallback={<InvestmentsSkeleton />}>
                   <PageTransition skeleton={<InvestmentsSkeleton />}>
                     <InvestmentsPage />
+                  </PageTransition>
+                </Suspense>
+              }
+            />
+
+            <Route
+              path='/profits'
+              element={
+                <Suspense fallback={<ProfitsSkeleton />}>
+                  <PageTransition skeleton={<ProfitsSkeleton />}>
+                    <ProfitsPage />
                   </PageTransition>
                 </Suspense>
               }

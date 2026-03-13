@@ -9,6 +9,7 @@ import type {
   NetWorthSnapshot,
   NotionConfig,
   PortfolioSnapshot,
+  SoldTrade,
 } from '../types/investmentTypes';
 import {
   collection,
@@ -47,6 +48,7 @@ type PortfolioState = {
   notion: NotionConfig;
   essentials: EssentialsConfig;
   accounts: Account[];
+  soldTrades: SoldTrade[];
 
   hydrate: (uid: string) => Promise<void>;
   addInvestment: (
@@ -82,6 +84,16 @@ type PortfolioState = {
   ) => Promise<void>;
   updateAccount: (id: string, patch: Partial<Account>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+
+  // Sold Trades
+  addSoldTrade: (
+    trade: Omit<
+      SoldTrade,
+      'id' | 'createdAt' | 'updatedAt' | 'userId' | 'profit' | 'profitPct'
+    >,
+  ) => Promise<void>;
+  updateSoldTrade: (id: string, patch: Partial<SoldTrade>) => Promise<void>;
+  deleteSoldTrade: (id: string) => Promise<void>;
 
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
@@ -119,6 +131,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   notion: DEFAULT_NOTION,
   essentials: DEFAULT_ESSENTIALS,
   accounts: [],
+  soldTrades: [],
 
   hydrate: async (uid: string) => {
     set({ uid });
@@ -131,6 +144,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       networthSnapshots,
       insights,
       accounts,
+      soldTrades,
     ] = await Promise.all([
       fetchUserCollection<Investment>('investments', uid),
       fetchUserCollection<PortfolioSnapshot>('snapshots', uid),
@@ -140,6 +154,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       fetchUserCollection<NetWorthSnapshot>('networthSnapshots', uid),
       fetchUserCollection<InsightSnapshot>('insights', uid),
       fetchUserCollection<Account>('accounts', uid),
+      fetchUserCollection<SoldTrade>('soldTrades', uid),
     ]);
 
     const settingsDoc = await getDoc(doc(db, 'settings', uid));
@@ -176,6 +191,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       notion: settings.notion ?? DEFAULT_NOTION,
       essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
       accounts: accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      soldTrades: soldTrades.sort((a, b) =>
+        b.soldDate.localeCompare(a.soldDate),
+      ),
     });
 
     if (investments.length > 0) {
@@ -452,6 +470,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriMilkRecords',
       'agriCoconut',
       'agriLivestockEvents',
+      'soldTrades',
     ];
 
     try {
@@ -487,6 +506,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         notion: { enabled: false },
         essentials: {},
         accounts: [],
+        soldTrades: [],
       });
     } catch (error) {
       console.error('Cloud wipe failed:', error);
@@ -596,6 +616,59 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteAccount: async (id) => {
     await deleteDoc(doc(db, 'accounts', id));
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
+  },
+
+  addSoldTrade: async (trade) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const now = new Date().toISOString();
+    const profit = trade.sellPrice - trade.buyPrice;
+    const profitPct = trade.buyPrice > 0 ? (profit / trade.buyPrice) * 100 : 0;
+    const raw = Object.fromEntries(
+      Object.entries({
+        ...trade,
+        id: createId('sold'),
+        profit,
+        profitPct,
+        userId: uid,
+        createdAt: now,
+        updatedAt: now,
+      }).filter(([_, v]) => v !== undefined),
+    ) as SoldTrade;
+    await setDoc(doc(db, 'soldTrades', raw.id), raw);
+    set((s) => ({
+      soldTrades: [raw, ...s.soldTrades].sort((a, b) =>
+        b.soldDate.localeCompare(a.soldDate),
+      ),
+    }));
+  },
+
+  updateSoldTrade: async (id, patch) => {
+    const existing = get().soldTrades.find((x) => x.id === id);
+    if (!existing) return;
+    const merged = {
+      ...existing,
+      ...patch,
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+    const profit = merged.sellPrice - merged.buyPrice;
+    const profitPct =
+      merged.buyPrice > 0 ? (profit / merged.buyPrice) * 100 : 0;
+    const updated = Object.fromEntries(
+      Object.entries({ ...merged, profit, profitPct }).filter(
+        ([_, v]) => v !== undefined,
+      ),
+    ) as SoldTrade;
+    await setDoc(doc(db, 'soldTrades', id), updated);
+    set((s) => ({
+      soldTrades: s.soldTrades.map((x) => (x.id === id ? updated : x)),
+    }));
+  },
+
+  deleteSoldTrade: async (id) => {
+    await deleteDoc(doc(db, 'soldTrades', id));
+    set((s) => ({ soldTrades: s.soldTrades.filter((x) => x.id !== id) }));
   },
 
   takeNetWorthSnapshot: async (label) => {
