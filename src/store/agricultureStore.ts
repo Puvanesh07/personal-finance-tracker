@@ -1,5 +1,3 @@
-// src/store/agricultureStore.ts
-
 import type {
   AgriExpense,
   CoconutRecord,
@@ -13,28 +11,29 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  query,
   setDoc,
-  where,
 } from 'firebase/firestore';
 
 import { create } from 'zustand';
 import { db } from '../services/firebase';
 
+const agriCol = (uid: string, col: string) => collection(db, 'users', uid, col);
+const agriDoc = (uid: string, col: string, id: string) =>
+  doc(db, 'users', uid, col, id);
+
 function agriId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
-
-async function fetchCol<T>(col: string, uid: string): Promise<T[]> {
-  const q = query(collection(db, col), where('userId', '==', uid));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as T);
-}
-
 function clean<T extends object>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined),
   ) as T;
+}
+const now = () => new Date().toISOString();
+
+async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
+  const snap = await getDocs(agriCol(uid, col));
+  return snap.docs.map((d) => d.data() as T);
 }
 
 type AgriState = {
@@ -49,31 +48,26 @@ type AgriState = {
 
   hydrate: (uid: string) => Promise<void>;
   clearAll: () => void;
-
   addField: (
     f: Omit<Field, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateField: (id: string, patch: Partial<Field>) => Promise<void>;
   deleteField: (id: string) => Promise<void>;
-
   addCropCycle: (
     c: Omit<CropCycle, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateCropCycle: (id: string, patch: Partial<CropCycle>) => Promise<void>;
   deleteCropCycle: (id: string) => Promise<void>;
-
   addAgriExpense: (
     e: Omit<AgriExpense, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateAgriExpense: (id: string, patch: Partial<AgriExpense>) => Promise<void>;
   deleteAgriExpense: (id: string) => Promise<void>;
-
   addMilkRecord: (
     m: Omit<MilkRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateMilkRecord: (id: string, patch: Partial<MilkRecord>) => Promise<void>;
   deleteMilkRecord: (id: string) => Promise<void>;
-
   addCoconutRecord: (
     c: Omit<CoconutRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -82,10 +76,12 @@ type AgriState = {
     patch: Partial<CoconutRecord>,
   ) => Promise<void>;
   deleteCoconutRecord: (id: string) => Promise<void>;
-
-  // Livestock Event actions (event-based tracking: purchase/birth/sale/death)
   addLivestockEvent: (
     e: Omit<LivestockEvent, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
+  ) => Promise<void>;
+  updateLivestockEvent: (
+    id: string,
+    patch: Partial<LivestockEvent>,
   ) => Promise<void>;
   deleteLivestockEvent: (id: string) => Promise<void>;
 };
@@ -109,12 +105,12 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       coconutRecords,
       livestockEvents,
     ] = await Promise.all([
-      fetchCol<Field>('agriFields', uid),
-      fetchCol<CropCycle>('agriCropCycles', uid),
-      fetchCol<AgriExpense>('agriExpenses', uid),
-      fetchCol<MilkRecord>('agriMilkRecords', uid),
-      fetchCol<CoconutRecord>('agriCoconut', uid),
-      fetchCol<LivestockEvent>('agriLivestockEvents', uid),
+      fetchSub<Field>(uid, 'agriFields'),
+      fetchSub<CropCycle>(uid, 'agriCropCycles'),
+      fetchSub<AgriExpense>(uid, 'agriExpenses'),
+      fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
+      fetchSub<CoconutRecord>(uid, 'agriCoconut'),
+      fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
     ]);
     set({
       uid,
@@ -134,7 +130,6 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     });
   },
 
-  // ready: true keeps the page showing empty state instead of infinite spinner
   clearAll: () =>
     set({
       fields: [],
@@ -147,76 +142,80 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       uid: get().uid,
     }),
 
-  // ── Fields ────────────────────────────────────────────────────────────────
   addField: async (f) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
     const raw: Field = clean({
       ...f,
       id: agriId('fld'),
       userId: uid,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: t,
+      updatedAt: t,
     });
-    await setDoc(doc(db, 'agriFields', raw.id), raw);
+    await setDoc(agriDoc(uid, 'agriFields', raw.id), raw);
     set((s) => ({ fields: [raw, ...s.fields] }));
   },
   updateField: async (id, patch) => {
-    const raw = clean({
-      ...get().fields.find((x) => x.id === id)!,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    await setDoc(doc(db, 'agriFields', id), raw);
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().fields.find((x) => x.id === id);
+    if (!ex) return;
+    const raw = clean({ ...ex, ...patch, id, updatedAt: now() }) as Field;
+    await setDoc(agriDoc(uid, 'agriFields', id), raw);
     set((s) => ({ fields: s.fields.map((x) => (x.id === id ? raw : x)) }));
   },
   deleteField: async (id) => {
-    await deleteDoc(doc(db, 'agriFields', id));
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriFields', id));
     set((s) => ({ fields: s.fields.filter((x) => x.id !== id) }));
   },
 
-  // ── Crop Cycles ───────────────────────────────────────────────────────────
   addCropCycle: async (c) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
     const raw: CropCycle = clean({
       ...c,
       id: agriId('crp'),
       userId: uid,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: t,
+      updatedAt: t,
     });
-    await setDoc(doc(db, 'agriCropCycles', raw.id), raw);
+    await setDoc(agriDoc(uid, 'agriCropCycles', raw.id), raw);
     set((s) => ({ cropCycles: [raw, ...s.cropCycles] }));
   },
   updateCropCycle: async (id, patch) => {
-    const raw: CropCycle = clean({
-      ...get().cropCycles.find((x) => x.id === id)!,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    await setDoc(doc(db, 'agriCropCycles', id), raw);
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().cropCycles.find((x) => x.id === id);
+    if (!ex) return;
+    const raw: CropCycle = clean({ ...ex, ...patch, id, updatedAt: now() });
+    await setDoc(agriDoc(uid, 'agriCropCycles', id), raw);
     set((s) => ({
       cropCycles: s.cropCycles.map((x) => (x.id === id ? raw : x)),
     }));
   },
   deleteCropCycle: async (id) => {
-    await deleteDoc(doc(db, 'agriCropCycles', id));
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriCropCycles', id));
     set((s) => ({ cropCycles: s.cropCycles.filter((x) => x.id !== id) }));
   },
 
-  // ── Agri Expenses ─────────────────────────────────────────────────────────
   addAgriExpense: async (e) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
     const raw: AgriExpense = clean({
       ...e,
       id: agriId('aex'),
       userId: uid,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: t,
+      updatedAt: t,
     });
-    await setDoc(doc(db, 'agriExpenses', raw.id), raw);
+    await setDoc(agriDoc(uid, 'agriExpenses', raw.id), raw);
     set((s) => ({
       agriExpenses: [raw, ...s.agriExpenses].sort((a, b) =>
         b.date.localeCompare(a.date),
@@ -224,33 +223,35 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     }));
   },
   updateAgriExpense: async (id, patch) => {
-    const raw: AgriExpense = clean({
-      ...get().agriExpenses.find((x) => x.id === id)!,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    await setDoc(doc(db, 'agriExpenses', id), raw);
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().agriExpenses.find((x) => x.id === id);
+    if (!ex) return;
+    const raw: AgriExpense = clean({ ...ex, ...patch, id, updatedAt: now() });
+    await setDoc(agriDoc(uid, 'agriExpenses', id), raw);
     set((s) => ({
       agriExpenses: s.agriExpenses.map((x) => (x.id === id ? raw : x)),
     }));
   },
   deleteAgriExpense: async (id) => {
-    await deleteDoc(doc(db, 'agriExpenses', id));
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriExpenses', id));
     set((s) => ({ agriExpenses: s.agriExpenses.filter((x) => x.id !== id) }));
   },
 
-  // ── Milk Records ──────────────────────────────────────────────────────────
   addMilkRecord: async (m) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
     const raw: MilkRecord = clean({
       ...m,
       id: agriId('mlk'),
       userId: uid,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: t,
+      updatedAt: t,
     });
-    await setDoc(doc(db, 'agriMilkRecords', raw.id), raw);
+    await setDoc(agriDoc(uid, 'agriMilkRecords', raw.id), raw);
     set((s) => ({
       milkRecords: [raw, ...s.milkRecords].sort((a, b) =>
         b.date.localeCompare(a.date),
@@ -258,33 +259,35 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     }));
   },
   updateMilkRecord: async (id, patch) => {
-    const raw: MilkRecord = clean({
-      ...get().milkRecords.find((x) => x.id === id)!,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    await setDoc(doc(db, 'agriMilkRecords', id), raw);
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().milkRecords.find((x) => x.id === id);
+    if (!ex) return;
+    const raw: MilkRecord = clean({ ...ex, ...patch, id, updatedAt: now() });
+    await setDoc(agriDoc(uid, 'agriMilkRecords', id), raw);
     set((s) => ({
       milkRecords: s.milkRecords.map((x) => (x.id === id ? raw : x)),
     }));
   },
   deleteMilkRecord: async (id) => {
-    await deleteDoc(doc(db, 'agriMilkRecords', id));
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriMilkRecords', id));
     set((s) => ({ milkRecords: s.milkRecords.filter((x) => x.id !== id) }));
   },
 
-  // ── Coconut Records ───────────────────────────────────────────────────────
   addCoconutRecord: async (c) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
     const raw: CoconutRecord = clean({
       ...c,
       id: agriId('coc'),
       userId: uid,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: t,
+      updatedAt: t,
     });
-    await setDoc(doc(db, 'agriCoconut', raw.id), raw);
+    await setDoc(agriDoc(uid, 'agriCoconut', raw.id), raw);
     set((s) => ({
       coconutRecords: [raw, ...s.coconutRecords].sort((a, b) =>
         b.date.localeCompare(a.date),
@@ -292,43 +295,63 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     }));
   },
   updateCoconutRecord: async (id, patch) => {
-    const raw: CoconutRecord = clean({
-      ...get().coconutRecords.find((x) => x.id === id)!,
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    await setDoc(doc(db, 'agriCoconut', id), raw);
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().coconutRecords.find((x) => x.id === id);
+    if (!ex) return;
+    const raw: CoconutRecord = clean({ ...ex, ...patch, id, updatedAt: now() });
+    await setDoc(agriDoc(uid, 'agriCoconut', id), raw);
     set((s) => ({
       coconutRecords: s.coconutRecords.map((x) => (x.id === id ? raw : x)),
     }));
   },
   deleteCoconutRecord: async (id) => {
-    await deleteDoc(doc(db, 'agriCoconut', id));
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriCoconut', id));
     set((s) => ({
       coconutRecords: s.coconutRecords.filter((x) => x.id !== id),
     }));
   },
 
-  // ── Livestock Events ──────────────────────────────────────────────────────
   addLivestockEvent: async (e) => {
-    const uid = get().uid!;
-    const now = new Date().toISOString();
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
     const raw: LivestockEvent = clean({
       ...e,
       id: agriId('lve'),
       userId: uid,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: t,
+      updatedAt: t,
     });
-    await setDoc(doc(db, 'agriLivestockEvents', raw.id), raw);
+    await setDoc(agriDoc(uid, 'agriLivestockEvents', raw.id), raw);
     set((s) => ({
       livestockEvents: [raw, ...s.livestockEvents].sort((a, b) =>
         b.date.localeCompare(a.date),
       ),
     }));
   },
+  updateLivestockEvent: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().livestockEvents.find((x) => x.id === id);
+    if (!ex) return;
+    const raw: LivestockEvent = clean({
+      ...ex,
+      ...patch,
+      id,
+      updatedAt: now(),
+    });
+    await setDoc(agriDoc(uid, 'agriLivestockEvents', id), raw);
+    set((s) => ({
+      livestockEvents: s.livestockEvents.map((x) => (x.id === id ? raw : x)),
+    }));
+  },
   deleteLivestockEvent: async (id) => {
-    await deleteDoc(doc(db, 'agriLivestockEvents', id));
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriLivestockEvents', id));
     set((s) => ({
       livestockEvents: s.livestockEvents.filter((x) => x.id !== id),
     }));

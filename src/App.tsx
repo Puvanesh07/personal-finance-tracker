@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import {
   AccountsSkeleton,
   AgricultureSkeleton,
@@ -15,8 +13,8 @@ import {
   SnapshotsSkeleton,
   ToolsSkeleton,
 } from './components/loader/skeletons';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 
 import { AppLayout } from './components/layout/AppLayout';
 import { Loader } from './components/loader/Loader';
@@ -80,33 +78,6 @@ const ProfitsPage = lazy(() =>
   })),
 );
 
-/**
- * Wrapper component to force the specific page skeleton to show
- * EVERY time the user navigates, not just on initial chunk load.
- */
-function PageTransition({
-  children,
-  skeleton,
-}: {
-  children: React.ReactNode;
-  skeleton: React.ReactNode;
-}) {
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  const location = useLocation();
-
-  useEffect(() => {
-    // Show skeleton on every route change
-    setShowSkeleton(true);
-    const timer = setTimeout(() => {
-      setShowSkeleton(false);
-    }, 1000); // 600ms artificial delay for the skeleton loader
-
-    return () => clearTimeout(timer);
-  }, [location.pathname]);
-
-  return showSkeleton ? <>{skeleton}</> : <>{children}</>;
-}
-
 export default function App() {
   return (
     <>
@@ -120,157 +91,115 @@ export default function App() {
           },
         }}
       />
-
-      {/* Outer Suspense: only on very first load before AppLayout mounts */}
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route element={<AppLayout />}>
             <Route path='/' element={<Navigate to='/dashboard' replace />} />
-
             <Route
               path='/dashboard'
               element={
                 <Suspense fallback={<DashboardSkeleton />}>
-                  <PageTransition skeleton={<DashboardSkeleton />}>
-                    <DashboardPage />
-                  </PageTransition>
+                  <DashboardPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/investments'
               element={
                 <Suspense fallback={<InvestmentsSkeleton />}>
-                  <PageTransition skeleton={<InvestmentsSkeleton />}>
-                    <InvestmentsPage />
-                  </PageTransition>
+                  <InvestmentsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/profits'
               element={
                 <Suspense fallback={<ProfitsSkeleton />}>
-                  <PageTransition skeleton={<ProfitsSkeleton />}>
-                    <ProfitsPage />
-                  </PageTransition>
+                  <ProfitsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/liabilities'
               element={
                 <Suspense fallback={<LiabilitiesSkeleton />}>
-                  <PageTransition skeleton={<LiabilitiesSkeleton />}>
-                    <LiabilitiesPage />
-                  </PageTransition>
+                  <LiabilitiesPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/cashflow'
               element={
                 <Suspense fallback={<CashflowSkeleton />}>
-                  <PageTransition skeleton={<CashflowSkeleton />}>
-                    <CashflowPage />
-                  </PageTransition>
+                  <CashflowPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/accounts'
               element={
                 <Suspense fallback={<AccountsSkeleton />}>
-                  <PageTransition skeleton={<AccountsSkeleton />}>
-                    <AccountsPage />
-                  </PageTransition>
+                  <AccountsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/goals'
               element={
                 <Suspense fallback={<GoalsSkeleton />}>
-                  <PageTransition skeleton={<GoalsSkeleton />}>
-                    <GoalsPage />
-                  </PageTransition>
+                  <GoalsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/insights'
               element={
                 <Suspense fallback={<InsightsSkeleton />}>
-                  <PageTransition skeleton={<InsightsSkeleton />}>
-                    <InsightsPage />
-                  </PageTransition>
+                  <InsightsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/tools'
               element={
                 <Suspense fallback={<ToolsSkeleton />}>
-                  <PageTransition skeleton={<ToolsSkeleton />}>
-                    <ToolsPage />
-                  </PageTransition>
+                  <ToolsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/snapshots'
               element={
                 <Suspense fallback={<SnapshotsSkeleton />}>
-                  <PageTransition skeleton={<SnapshotsSkeleton />}>
-                    <SnapshotsPage />
-                  </PageTransition>
+                  <SnapshotsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/reports'
               element={
                 <Suspense fallback={<ReportsSkeleton />}>
-                  <PageTransition skeleton={<ReportsSkeleton />}>
-                    <ReportsPage />
-                  </PageTransition>
+                  <ReportsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/settings'
               element={
                 <Suspense fallback={<SettingsSkeleton />}>
-                  <PageTransition skeleton={<SettingsSkeleton />}>
-                    <SettingsPage />
-                  </PageTransition>
+                  <SettingsPage />
                 </Suspense>
               }
             />
-
             <Route
               path='/agriculture'
               element={
                 <Suspense fallback={<AgricultureSkeleton />}>
-                  <PageTransition skeleton={<AgricultureSkeleton />}>
-                    <AgriculturePage />
-                  </PageTransition>
+                  <AgriculturePage />
                 </Suspense>
               }
             />
           </Route>
-
           <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
       </Suspense>

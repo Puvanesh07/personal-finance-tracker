@@ -4,17 +4,15 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-
   build: {
-    target: 'es2020', // Modern browsers — removes legacy polyfills (saves ~10 KiB)
+    target: 'es2020',
     sourcemap: false,
     minify: 'esbuild',
     cssMinify: true,
     chunkSizeWarningLimit: 600,
-
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
-        // Split vendor chunks so browser caches them separately
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'firebase-vendor': [
@@ -26,7 +24,11 @@ export default defineConfig({
           'motion-vendor': ['framer-motion'],
           'icons-vendor': ['react-icons'],
           'utils-vendor': ['date-fns', 'zustand'],
+          'excel-vendor': ['exceljs'],
+          'pdf-vendor': ['pdfjs-dist'],
         },
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
       },
     },
   },
