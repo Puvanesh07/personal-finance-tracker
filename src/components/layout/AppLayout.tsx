@@ -22,6 +22,7 @@ import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
 import { GiWheat } from 'react-icons/gi';
 import { Modal } from '../ui/Modal';
+import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -92,7 +93,6 @@ export function AppLayout() {
 
   return (
     <div className='h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-50 flex relative'>
-      {/* Progress bar on every route change */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -337,6 +337,9 @@ export function AppLayout() {
           </button>
         </div>
       </div>
+
+      {/* ── PWA INSTALL BANNER ── */}
+      <PWAInstallBanner />
 
       {/* ── LOGOUT MODAL ── */}
       <Modal

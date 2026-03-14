@@ -6,7 +6,6 @@ import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-// Mount into <main id="root"> — satisfies "Document does not have a main landmark"
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AuthWrapper>
@@ -16,3 +15,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </AuthWrapper>
   </React.StrictMode>,
 );
+
+// ── Register Service Worker (PWA offline support) ──────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        console.log('[SW] Registered:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
