@@ -100,10 +100,6 @@
   <link rel="preconnect" href="https://apis.google.com" crossorigin />
   <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
-  <!--
-    IMPORTANT: display=swap is already in the URL below — this prevents
-    the font from blocking render (fixes the 780ms render-blocking issue)
-  -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"
     media="print" onload="this.media='all'" />
   <noscript>
@@ -125,12 +121,10 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Prevent CLS: reserve space for root while JS loads */
     #root {
       min-height: 100vh;
     }
 
-    /* Fix low-contrast issue flagged by Lighthouse for chart labels */
     .recharts-text,
     .recharts-label {
       fill: #94a3b8 !important;
@@ -156,6 +150,7 @@
       Monitor net worth, stocks, mutual funds, SIPs, crypto, gold, silver, fixed deposits, PPF, NPS, expenses,
       liabilities, farm income, crop cycles, livestock, milk records, coconut income and financial goals — all for
       free, with no broker access required. Import from Zerodha, Groww, Angel One and INDmoney.</p>
+
     <h2>Investment &amp; Finance Features</h2>
     <ul>
       <li>Net worth tracker with live dashboard</li>
@@ -166,13 +161,14 @@
       <li>PPF and NPS tracker</li>
       <li>Monthly expense and income cashflow tracker</li>
       <li>Financial goal tracker with progress bars</li>
+      <li>Sold trades and profit tracker</li>
       <li>Import from Zerodha, Groww, Angel One, INDmoney</li>
       <li>Loan and liability tracker</li>
       <li>Bank account tracker</li>
-      <li>Sold trades and profit tracker</li>
       <li>Notion workspace sync</li>
       <li>CSV and Excel export</li>
     </ul>
+
     <h2>Agriculture &amp; Farm Income Features</h2>
     <ul>
       <li>Agriculture income tracker for Indian farmers</li>
@@ -186,6 +182,7 @@
       <li>Agriculture cashflow auto-sync with bank accounts</li>
       <li>Farm profit and loss overview by season and crop</li>
     </ul>
+
     <h2>Why Fintrackly</h2>
     <ul>
       <li>100% free personal finance app India</li>
@@ -196,10 +193,6 @@
     </ul>
   </div>
 
-  <!--
-    main landmark added — fixes "Document does not have a main landmark"
-    Lighthouse accessibility error. React mounts inside this.
-  -->
   <main id="root" role="main" aria-label="Fintrackly application"></main>
 
   <script type="module" src="/src/main.tsx"></script>
