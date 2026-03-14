@@ -22,7 +22,6 @@ import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
 import { GiWheat } from 'react-icons/gi';
 import { Modal } from '../ui/Modal';
-import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -337,9 +336,6 @@ export function AppLayout() {
           </button>
         </div>
       </div>
-
-      {/* ── PWA INSTALL BANNER ── */}
-      <PWAInstallBanner />
 
       {/* ── LOGOUT MODAL ── */}
       <Modal

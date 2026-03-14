@@ -29,6 +29,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { SiNotion } from 'react-icons/si';
 import { BsBank2 } from 'react-icons/bs';
 import { GiWheat } from 'react-icons/gi';
+import { PWAInstallBanner } from '../components/PWAInstallBanner';
 
 // ── Animation Variants ────────────────────────────────────────────────────────
 
@@ -1461,6 +1462,8 @@ export default function AuthPage() {
           portfolio manager for India
         </p>
       </footer>
+      {/* ── PWA INSTALL BANNER ── */}
+      <PWAInstallBanner />
     </div>
   );
 }
