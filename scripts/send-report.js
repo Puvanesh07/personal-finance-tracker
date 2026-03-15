@@ -1,9 +1,9 @@
 // scripts/send-report.js
 // FinTrackly Monthly Report — GitHub Actions
-// Fixed: uses CURRENT month data, better error logging, Resend onboarding sender
+// Uses Gmail + Nodemailer — completely free, no domain needed
 
 const admin = require('firebase-admin');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 // ── Init Firebase ─────────────────────────────────────────────────────────────
 admin.initializeApp({
@@ -15,17 +15,22 @@ admin.initializeApp({
 });
 const db = admin.firestore();
 
-// ── Init Resend ───────────────────────────────────────────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ── Init Gmail transporter ────────────────────────────────────────────────────
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS, // 16-char App Password (not your Gmail login password)
+    },
+  });
+}
 
-// Use Resend's free onboarding address if no custom domain is set
-// This works for testing without any domain verification
-const FROM = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+const FROM_NAME = 'FinTrackly Reports';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => '₹' + Math.abs(Math.round(n || 0)).toLocaleString('en-IN');
 
-// Use CURRENT month so data always exists even when testing
 function currentMonth() {
   return new Date().toISOString().slice(0, 7);
 }
@@ -37,10 +42,10 @@ function currentMonthLabel() {
 async function fetchCol(uid, col) {
   try {
     const snap = await db.collection('users').doc(uid).collection(col).get();
-    console.log(`    fetchCol ${col}: ${snap.docs.length} docs`);
+    console.log(`    ${col}: ${snap.docs.length} docs`);
     return snap.docs.map((d) => d.data());
   } catch (err) {
-    console.error(`    fetchCol ${col} ERROR:`, err.message);
+    console.error(`    ${col} ERROR:`, err.message);
     return [];
   }
 }
@@ -95,22 +100,12 @@ async function buildReport(uid) {
   const monthLbl = currentMonthLabel();
   const sections = [];
 
-  console.log(`  Building report for uid: ${uid}, month: ${month}`);
+  console.log(`  Building report — uid: ${uid}, month: ${month}`);
 
-  // Always fetch ALL data regardless of month — so report is never empty
-  // Monthly filter only applied to cashflow/milk/expenses
-
-  // 1. Cashflow (current month)
+  // 1. Cashflow
   const cashflows = await fetchCol(uid, 'cashflows');
-  const mc = cashflows.filter((c) => (c.date || '').startsWith(month));
-  // If no current month cashflow, show total all-time summary
-  const allIncome = cashflows
-    .filter((c) => c.type === 'income')
-    .reduce((s, c) => s + (c.amount || 0), 0);
-  const allExpense = cashflows
-    .filter((c) => c.type === 'expense')
-    .reduce((s, c) => s + (c.amount || 0), 0);
   if (cashflows.length > 0) {
+    const mc = cashflows.filter((c) => (c.date || '').startsWith(month));
     const mIncome = mc
       .filter((c) => c.type === 'income')
       .reduce((s, c) => s + (c.amount || 0), 0);
@@ -118,14 +113,20 @@ async function buildReport(uid) {
       .filter((c) => c.type === 'expense')
       .reduce((s, c) => s + (c.amount || 0), 0);
     const net = mIncome - mExpense;
+    const allInc = cashflows
+      .filter((c) => c.type === 'income')
+      .reduce((s, c) => s + (c.amount || 0), 0);
+    const allExp = cashflows
+      .filter((c) => c.type === 'expense')
+      .reduce((s, c) => s + (c.amount || 0), 0);
     const rows = [];
     if (mc.length > 0) {
       rows.push(['This Month Income', fmt(mIncome), '#22c55e']);
       rows.push(['This Month Expenses', fmt(mExpense), '#ef4444']);
       rows.push(['Net Savings', fmt(net), net >= 0 ? '#22c55e' : '#ef4444']);
     }
-    rows.push(['Total Income (all time)', fmt(allIncome), '#64748b']);
-    rows.push(['Total Expense (all time)', fmt(allExpense), '#64748b']);
+    rows.push(['Total Income (all time)', fmt(allInc), '#64748b']);
+    rows.push(['Total Expense (all time)', fmt(allExp), '#64748b']);
     sections.push(
       section('💰 Cashflow — ' + monthLbl, '#22c55e', tableRows(rows)),
     );
@@ -245,7 +246,7 @@ async function buildReport(uid) {
     }
   }
 
-  // 6. Agriculture (all time totals + this month)
+  // 6. Agriculture
   const [crops, agriExp, milk, livestock, coconut] = await Promise.all([
     fetchCol(uid, 'agriCropCycles'),
     fetchCol(uid, 'agriExpenses'),
@@ -282,7 +283,6 @@ async function buildReport(uid) {
       },
       0,
     );
-
     const agriRows = [];
     if (cropIncome > 0)
       agriRows.push(['Crop Income (total)', fmt(cropIncome), '#22c55e']);
@@ -290,7 +290,7 @@ async function buildReport(uid) {
       agriRows.push(['Farm Expenses (total)', fmt(allFarmExp), '#ef4444']);
     if (milkLiters > 0)
       agriRows.push([
-        `Milk This Month (${milkLiters.toFixed(1)}L)`,
+        `Milk This Month (${milkLiters.toFixed(1)} L)`,
         fmt(milkIncome),
         '#14b8a6',
       ]);
@@ -313,7 +313,6 @@ async function buildReport(uid) {
   ]);
   if (emps.length > 0) {
     const monthAtt = attRecs.filter((r) => (r.date || '').startsWith(month));
-    const allTime = attRecs.length;
     const present = monthAtt.filter((r) => r.present).length;
     const wages = monthAtt.reduce(
       (s, r) => s + (r.present ? (r.wage || 0) + (r.extraWork || 0) : 0),
@@ -322,16 +321,14 @@ async function buildReport(uid) {
     const advances = attTxns
       .filter((t) => t.type === 'advance' && (t.date || '').startsWith(month))
       .reduce((s, t) => s + (t.amount || 0), 0);
-    const unpaid = salRecs.filter(
-      (s) => s.month === month && s.paymentStatus !== 'paid',
-    ).length;
     const allAdv = attTxns
       .filter((t) => t.type === 'advance')
       .reduce((s, t) => s + (t.amount || 0), 0);
-
+    const unpaid = salRecs.filter(
+      (s) => s.month === month && s.paymentStatus !== 'paid',
+    ).length;
     const wRows = [
       ['Total Workers', `${emps.length}`, '#e2e8f0'],
-      ['Total Attendance Records', `${allTime}`, '#64748b'],
       ['Days Worked This Month', `${present}`, '#22c55e'],
       ['Wages This Month', fmt(wages), '#22c55e'],
     ];
@@ -346,7 +343,7 @@ async function buildReport(uid) {
     );
   }
 
-  // If truly nothing found, send a basic "account exists" email anyway
+  // If no data at all — send a basic welcome email
   if (sections.length === 0) {
     sections.push(`
     <div style="text-align:center;padding:20px">
@@ -365,15 +362,15 @@ async function buildReport(uid) {
 async function main() {
   console.log('=== FinTrackly Monthly Report ===');
   console.log('Time:', new Date().toISOString());
-  console.log('FROM:', FROM);
-  console.log('Project:', process.env.FIREBASE_PROJECT_ID);
+  console.log('Gmail:', process.env.GMAIL_USER);
 
-  // Validate all env vars
+  // Validate required env vars
   const required = [
     'FIREBASE_PROJECT_ID',
     'FIREBASE_CLIENT_EMAIL',
     'FIREBASE_PRIVATE_KEY',
-    'RESEND_API_KEY',
+    'GMAIL_USER',
+    'GMAIL_PASS',
   ];
   for (const key of required) {
     if (!process.env[key]) {
@@ -383,24 +380,36 @@ async function main() {
   }
   console.log('All env vars present ✓');
 
+  const transporter = createTransporter();
+
+  // Verify Gmail connection before starting
+  try {
+    await transporter.verify();
+    console.log('Gmail connection verified ✓');
+  } catch (err) {
+    console.error('Gmail connection FAILED:', err.message);
+    console.error('Check GMAIL_USER and GMAIL_PASS secrets');
+    process.exit(1);
+  }
+
   const testEmail = process.env.TEST_EMAIL;
 
   if (testEmail) {
     console.log(`\nTest mode — sending to: ${testEmail}`);
     try {
       const user = await admin.auth().getUserByEmail(testEmail);
-      console.log(`Found user: ${user.uid}`);
+      console.log(`Found user uid: ${user.uid}`);
       const html = await buildReport(user.uid);
       console.log('Report built ✓');
 
-      const result = await resend.emails.send({
-        from: FROM,
+      const info = await transporter.sendMail({
+        from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
         to: testEmail,
         subject: `📊 FinTrackly Monthly Report — ${currentMonthLabel()} (Test)`,
         html,
       });
-      console.log('Resend response:', JSON.stringify(result));
-      console.log(`\n✓ Email sent to ${testEmail}`);
+      console.log('Message sent:', info.messageId);
+      console.log(`\n✓ Test email sent to ${testEmail}`);
     } catch (err) {
       console.error('\nERROR:', err.message);
       console.error(err.stack);
@@ -426,15 +435,15 @@ async function main() {
     if (!user.email) continue;
     try {
       const html = await buildReport(user.uid);
-      await resend.emails.send({
-        from: FROM,
+      await transporter.sendMail({
+        from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
         to: user.email,
         subject: `📊 Your FinTrackly Monthly Report — ${currentMonthLabel()}`,
         html,
       });
       console.log(`✓ sent → ${user.email}`);
       sent++;
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 500));
     } catch (err) {
       console.error(`✗ failed → ${user.email}:`, err.message);
       errors++;
