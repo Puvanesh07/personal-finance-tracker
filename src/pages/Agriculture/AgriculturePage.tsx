@@ -29,6 +29,7 @@ import { formatINR, formatNumber } from '../../utils/format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AgricultureLoader } from '../../components/ui/SectionLoader';
+import { AttendancePage } from './AttendancePage';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { createPortal } from 'react-dom';
@@ -90,6 +91,7 @@ const TAB_TYPES = [
   'livestock',
   'milk',
   'coconut',
+  'attendance',
 ] as const;
 type Tab = (typeof TAB_TYPES)[number];
 
@@ -2800,6 +2802,7 @@ const TAB_META: { id: Tab; label: string; emoji: string }[] = [
   { id: 'livestock', label: 'Livestock', emoji: '🐄' },
   { id: 'milk', label: 'Milk', emoji: '🥛' },
   { id: 'coconut', label: 'Coconut', emoji: '🌴' },
+  { id: 'attendance', label: 'Attendance', emoji: '👷' },
 ];
 
 export function AgriculturePage() {
@@ -2850,6 +2853,7 @@ export function AgriculturePage() {
       {activeTab === 'livestock' && <LivestockTab />}
       {activeTab === 'milk' && <MilkTab />}
       {activeTab === 'coconut' && <CoconutTab />}
+      {activeTab === 'attendance' && <AttendancePage />}
     </div>
   );
 }

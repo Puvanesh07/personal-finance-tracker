@@ -7,6 +7,7 @@ import { Loader } from '../components/loader/Loader';
 import { auth } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useAgriStore } from '../store/agricultureStore';
+import { useAttendanceStore } from '../store/attendanceStore';
 import { useAutoLogout } from '../hooks/useAutoLogout';
 import { usePortfolioStore } from '../store/portfolioStore';
 
@@ -22,6 +23,8 @@ export default function AuthWrapper({
   const clearAllData = usePortfolioStore((s) => s.clearAllData);
   const hydrateAgri = useAgriStore((s) => s.hydrate);
   const clearAgri = useAgriStore((s) => s.clearAll);
+  const hydrateAttendance = useAttendanceStore((s) => s.hydrate);
+  const clearAttendance = useAttendanceStore((s) => s.clearAll);
 
   // ✅ Mounted here — above the router — so it NEVER resets on route changes
   useAutoLogout();
@@ -34,10 +37,12 @@ export default function AuthWrapper({
         // Hydrate store — ready flag is set inside hydrate()
         await hydrate(user.uid);
         await hydrateAgri(user.uid);
+        await hydrateAttendance(user.uid);
       } else {
         setIsLoggedIn(false);
         clearAllData();
         clearAgri();
+        clearAttendance();
       }
       // Always mark auth as checked so we stop showing the loader
       setAuthChecked(true);

@@ -385,3 +385,70 @@ export type CoconutRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE 1: ADD THESE TYPES AT THE BOTTOM OF
+//   src/types/investmentTypes.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Attendance Module ─────────────────────────────────────────────────────────
+
+export type PaymentStatus = 'unpaid' | 'partially_paid' | 'paid';
+
+export type TransactionType = 'advance' | 'deduction' | 'extra';
+
+export type AttendanceEmployee = {
+  id: string;
+  name: string;
+  phone?: string;
+  dailyWage: number; // ₹ per day
+  notes?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AttendanceRecord = {
+  id: string;
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  present: boolean;
+  wage: number; // actual wage that day (copy of dailyWage at time of marking)
+  extraWork?: number; // extra payment for this day
+  extraWorkNote?: string;
+  note?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AttendanceTransaction = {
+  id: string;
+  employeeId: string;
+  type: TransactionType; // 'advance' | 'deduction' | 'extra'
+  amount: number;
+  note?: string;
+  date: string; // YYYY-MM-DD
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SalaryRecord = {
+  id: string;
+  employeeId: string;
+  month: string; // YYYY-MM format e.g. "2024-06"
+  daysWorked: number;
+  baseSalary: number; // daysWorked × dailyWage
+  extraWork: number; // sum of extra work for month
+  totalSalary: number; // baseSalary + extraWork
+  advance: number; // total advances for month
+  deductions: number; // total deductions for month
+  finalSalary: number; // totalSalary - advance - deductions
+  paidAmount: number; // how much has been paid
+  paymentStatus: PaymentStatus;
+  notes?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};

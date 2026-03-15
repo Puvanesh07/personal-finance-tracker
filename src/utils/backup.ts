@@ -1,6 +1,9 @@
 import type {
   Account,
   AgriExpense,
+  AttendanceEmployee,
+  AttendanceRecord,
+  AttendanceTransaction,
   CashflowEntry,
   CoconutRecord,
   CropCycle,
@@ -15,6 +18,7 @@ import type {
   NetWorthSnapshot,
   NotionConfig,
   PortfolioSnapshot,
+  SalaryRecord,
 } from '../types/investmentTypes';
 import {
   collection,
@@ -47,6 +51,11 @@ export type BackupPayload = {
   agriMilkRecords?: MilkRecord[];
   agriCoconut?: CoconutRecord[];
   agriLivestockEvents?: LivestockEvent[];
+  // Attendance
+  attEmployees?: AttendanceEmployee[];
+  attRecords?: AttendanceRecord[];
+  attTransactions?: AttendanceTransaction[];
+  attSalary?: SalaryRecord[];
 };
 
 const userSubCol = (uid: string, col: string) =>
@@ -89,6 +98,10 @@ export async function exportFullBackup(uid: string) {
     agriMilkRecords,
     agriCoconut,
     agriLivestockEvents,
+    attEmployees,
+    attRecords,
+    attTransactions,
+    attSalary,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
     fetchSub<Liability>(uid, 'liabilities'),
@@ -104,6 +117,10 @@ export async function exportFullBackup(uid: string) {
     fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
     fetchSub<CoconutRecord>(uid, 'agriCoconut'),
     fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
+    fetchSub<AttendanceEmployee>(uid, 'attEmployees'),
+    fetchSub<AttendanceRecord>(uid, 'attRecords'),
+    fetchSub<AttendanceTransaction>(uid, 'attTransactions'),
+    fetchSub<SalaryRecord>(uid, 'attSalary'),
   ]);
   const settingsSnap = await getDoc(settingsDocRef(uid));
   const settings = settingsSnap.exists()
@@ -128,6 +145,10 @@ export async function exportFullBackup(uid: string) {
     agriMilkRecords,
     agriCoconut,
     agriLivestockEvents,
+    attEmployees,
+    attRecords,
+    attTransactions,
+    attSalary,
   };
   saveAs(
     new Blob([JSON.stringify(payload, null, 2)], {
@@ -157,6 +178,10 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'agriMilkRecords', parsed.agriMilkRecords ?? []),
     batchSet(uid, 'agriCoconut', parsed.agriCoconut ?? []),
     batchSet(uid, 'agriLivestockEvents', parsed.agriLivestockEvents ?? []),
+    batchSet(uid, 'attEmployees', parsed.attEmployees ?? []),
+    batchSet(uid, 'attRecords', parsed.attRecords ?? []),
+    batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
+    batchSet(uid, 'attSalary', parsed.attSalary ?? []),
   ]);
   const batch = writeBatch(db);
   batch.set(settingsDocRef(uid), {

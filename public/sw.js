@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fintrackly-v1';
+const CACHE_NAME = 'fintrackly-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -41,7 +41,12 @@ self.addEventListener('fetch', (event) => {
     url.includes('googleapis.com') ||
     url.includes('googletagmanager') ||
     url.includes('fonts.googleapis.com') ||
-    url.includes('fonts.gstatic.com')
+    url.includes('fonts.gstatic.com') ||
+    url.includes('localhost:5173') ||
+    url.includes('.js') ||
+    url.includes('.ts') ||
+    url.includes('.tsx') ||
+    url.includes('.css')
   ) {
     return;
   }

@@ -97,37 +97,43 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   livestockEvents: [],
 
   hydrate: async (uid) => {
-    const [
-      fields,
-      cropCycles,
-      agriExpenses,
-      milkRecords,
-      coconutRecords,
-      livestockEvents,
-    ] = await Promise.all([
-      fetchSub<Field>(uid, 'agriFields'),
-      fetchSub<CropCycle>(uid, 'agriCropCycles'),
-      fetchSub<AgriExpense>(uid, 'agriExpenses'),
-      fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
-      fetchSub<CoconutRecord>(uid, 'agriCoconut'),
-      fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
-    ]);
-    set({
-      uid,
-      ready: true,
-      fields: fields.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      cropCycles: cropCycles.sort((a, b) =>
-        b.startDate.localeCompare(a.startDate),
-      ),
-      agriExpenses: agriExpenses.sort((a, b) => b.date.localeCompare(a.date)),
-      milkRecords: milkRecords.sort((a, b) => b.date.localeCompare(a.date)),
-      coconutRecords: coconutRecords.sort((a, b) =>
-        b.date.localeCompare(a.date),
-      ),
-      livestockEvents: livestockEvents.sort((a, b) =>
-        b.date.localeCompare(a.date),
-      ),
-    });
+    try {
+      const [
+        fields,
+        cropCycles,
+        agriExpenses,
+        milkRecords,
+        coconutRecords,
+        livestockEvents,
+      ] = await Promise.all([
+        fetchSub<Field>(uid, 'agriFields'),
+        fetchSub<CropCycle>(uid, 'agriCropCycles'),
+        fetchSub<AgriExpense>(uid, 'agriExpenses'),
+        fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
+        fetchSub<CoconutRecord>(uid, 'agriCoconut'),
+        fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
+      ]);
+      set({
+        uid,
+        ready: true,
+        fields: fields.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        cropCycles: cropCycles.sort((a, b) =>
+          b.startDate.localeCompare(a.startDate),
+        ),
+        agriExpenses: agriExpenses.sort((a, b) => b.date.localeCompare(a.date)),
+        milkRecords: milkRecords.sort((a, b) => b.date.localeCompare(a.date)),
+        coconutRecords: coconutRecords.sort((a, b) =>
+          b.date.localeCompare(a.date),
+        ),
+        livestockEvents: livestockEvents.sort((a, b) =>
+          b.date.localeCompare(a.date),
+        ),
+      });
+    } catch (err) {
+      console.error('[AgriStore] hydrate failed:', err);
+      // Always set ready so the page never stays blank
+      set({ uid, ready: true });
+    }
   },
 
   clearAll: () =>
@@ -139,7 +145,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       coconutRecords: [],
       livestockEvents: [],
       ready: true,
-      uid: get().uid,
+      uid: null,
     }),
 
   addField: async (f) => {

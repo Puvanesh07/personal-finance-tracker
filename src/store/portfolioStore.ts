@@ -136,70 +136,77 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
   hydrate: async (uid) => {
     set({ uid });
-    const [
-      investments,
-      snapshots,
-      liabilities,
-      cashflows,
-      goals,
-      networthSnapshots,
-      insights,
-      accounts,
-      soldTrades,
-    ] = await Promise.all([
-      fetchSub<Investment>(uid, 'investments'),
-      fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
-      fetchSub<Liability>(uid, 'liabilities'),
-      fetchSub<CashflowEntry>(uid, 'cashflows'),
-      fetchSub<Goal>(uid, 'goals'),
-      fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
-      fetchSub<InsightSnapshot>(uid, 'insights'),
-      fetchSub<Account>(uid, 'accounts'),
-      fetchSub<SoldTrade>(uid, 'soldTrades'),
-    ]);
+    try {
+      const [
+        investments,
+        snapshots,
+        liabilities,
+        cashflows,
+        goals,
+        networthSnapshots,
+        insights,
+        accounts,
+        soldTrades,
+      ] = await Promise.all([
+        fetchSub<Investment>(uid, 'investments'),
+        fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
+        fetchSub<Liability>(uid, 'liabilities'),
+        fetchSub<CashflowEntry>(uid, 'cashflows'),
+        fetchSub<Goal>(uid, 'goals'),
+        fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
+        fetchSub<InsightSnapshot>(uid, 'insights'),
+        fetchSub<Account>(uid, 'accounts'),
+        fetchSub<SoldTrade>(uid, 'soldTrades'),
+      ]);
 
-    const settingsSnap = await getDoc(settingsDocRef(uid));
-    const settings: SettingsRecord = settingsSnap.exists()
-      ? (settingsSnap.data() as SettingsRecord)
-      : { notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS };
+      const settingsSnap = await getDoc(settingsDocRef(uid));
+      const settings: SettingsRecord = settingsSnap.exists()
+        ? (settingsSnap.data() as SettingsRecord)
+        : { notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS };
 
-    const sortedSnapshots = snapshots.sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
-    const today = todayISO();
-    const alreadySnappedToday = sortedSnapshots.some((s) => s.date === today);
+      const sortedSnapshots = snapshots.sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
+      const today = todayISO();
+      const alreadySnappedToday = sortedSnapshots.some((s) => s.date === today);
 
-    set({
-      ready: true,
-      investments: investments.sort((a, b) =>
-        b.updatedAt.localeCompare(a.updatedAt),
-      ),
-      snapshots: sortedSnapshots,
-      liabilities: liabilities.sort((a, b) =>
-        b.updatedAt.localeCompare(a.updatedAt),
-      ),
-      cashflows: cashflows.sort(
-        (a, b) =>
-          b.date.localeCompare(a.date) ||
+      set({
+        ready: true,
+        investments: investments.sort((a, b) =>
           b.updatedAt.localeCompare(a.updatedAt),
-      ),
-      goals: goals.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-      networthSnapshots: networthSnapshots.sort((a, b) =>
-        b.createdAt.localeCompare(a.createdAt),
-      ),
-      latestInsight:
-        insights.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ??
-        null,
-      notion: settings.notion ?? DEFAULT_NOTION,
-      essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
-      accounts: accounts.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      soldTrades: soldTrades.sort((a, b) =>
-        b.soldDate.localeCompare(a.soldDate),
-      ),
-      _lastSnapshotDate: alreadySnappedToday ? today : null,
-    });
-
-    if (investments.length > 0) await get().recordSnapshotIfNeeded();
+        ),
+        snapshots: sortedSnapshots,
+        liabilities: liabilities.sort((a, b) =>
+          b.updatedAt.localeCompare(a.updatedAt),
+        ),
+        cashflows: cashflows.sort(
+          (a, b) =>
+            b.date.localeCompare(a.date) ||
+            b.updatedAt.localeCompare(a.updatedAt),
+        ),
+        goals: goals.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+        networthSnapshots: networthSnapshots.sort((a, b) =>
+          b.createdAt.localeCompare(a.createdAt),
+        ),
+        latestInsight:
+          insights.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ??
+          null,
+        notion: settings.notion ?? DEFAULT_NOTION,
+        essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
+        accounts: accounts.sort((a, b) =>
+          b.createdAt.localeCompare(a.createdAt),
+        ),
+        soldTrades: soldTrades.sort((a, b) =>
+          b.soldDate.localeCompare(a.soldDate),
+        ),
+        _lastSnapshotDate: alreadySnappedToday ? today : null,
+      });
+      if (investments.length > 0) await get().recordSnapshotIfNeeded();
+    } catch (err) {
+      console.error('[PortfolioStore] hydrate failed:', err);
+      // Always set ready so the app never stays blank after F5
+      set({ ready: true });
+    }
   },
 
   addInvestment: async (investment) => {
@@ -607,6 +614,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriCoconut',
       'agriLivestockEvents',
       'soldTrades',
+      // Attendance collections
+      'attEmployees',
+      'attRecords',
+      'attTransactions',
+      'attSalary',
     ];
     try {
       for (const colName of subCollections) {

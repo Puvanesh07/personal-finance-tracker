@@ -196,6 +196,90 @@ export function exportAllSectionsAsCSV(state: any, agriState?: any) {
   }
 }
 
+// ── Attendance CSV export ─────────────────────────────────────────────────────
+export function exportAttendanceCSV(attState: {
+  employees: any[];
+  attendanceRecords: any[];
+  transactions: any[];
+  salaryRecords: any[];
+}) {
+  const { employees, attendanceRecords, transactions, salaryRecords } =
+    attState;
+
+  if (employees.length) {
+    exportCSV(
+      employees.map((e: any) => ({
+        Name: e.name,
+        Phone: e.phone ?? '',
+        'Daily Wage (₹)': e.dailyWage,
+        Notes: e.notes ?? '',
+        'Created At': e.createdAt,
+      })),
+      'attendance-workers.csv',
+    );
+  }
+
+  if (attendanceRecords.length) {
+    const empMap: Record<string, string> = {};
+    employees.forEach((e: any) => {
+      empMap[e.id] = e.name;
+    });
+    exportCSV(
+      attendanceRecords.map((r: any) => ({
+        Date: r.date,
+        Worker: empMap[r.employeeId] ?? r.employeeId,
+        Present: r.present ? 'Yes' : 'No',
+        'Daily Wage (₹)': r.wage,
+        'Extra Work (₹)': r.extraWork ?? 0,
+        'Total (₹)': r.present ? r.wage + (r.extraWork ?? 0) : 0,
+        Note: r.note ?? '',
+      })),
+      'attendance-records.csv',
+    );
+  }
+
+  if (transactions.length) {
+    const empMap: Record<string, string> = {};
+    employees.forEach((e: any) => {
+      empMap[e.id] = e.name;
+    });
+    exportCSV(
+      transactions.map((t: any) => ({
+        Date: t.date,
+        Worker: empMap[t.employeeId] ?? t.employeeId,
+        Type: t.type,
+        'Amount (₹)': t.amount,
+        Note: t.note ?? '',
+      })),
+      'attendance-advances-deductions.csv',
+    );
+  }
+
+  if (salaryRecords.length) {
+    const empMap: Record<string, string> = {};
+    employees.forEach((e: any) => {
+      empMap[e.id] = e.name;
+    });
+    exportCSV(
+      salaryRecords.map((s: any) => ({
+        Month: s.month,
+        Worker: empMap[s.employeeId] ?? s.employeeId,
+        'Days Worked': s.daysWorked,
+        'Base Salary (₹)': s.baseSalary,
+        'Extra Work (₹)': s.extraWork,
+        'Total Salary (₹)': s.totalSalary,
+        'Advance (₹)': s.advance,
+        'Deductions (₹)': s.deductions,
+        'Final Salary (₹)': s.finalSalary,
+        'Paid (₹)': s.paidAmount,
+        'Remaining (₹)': s.finalSalary - s.paidAmount,
+        Status: s.paymentStatus,
+      })),
+      'attendance-salary.csv',
+    );
+  }
+}
+
 // ── Portfolio Excel export ───────────────────────────────────────────────────
 export function exportExcel(
   investments: Investment[],
