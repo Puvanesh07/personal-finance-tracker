@@ -1,11 +1,11 @@
 // scripts/send-report.js
-// FinTrackly Monthly Report — runs via GitHub Actions
-// No Firebase Blaze needed — uses Firebase Admin SDK (read-only Firestore)
+// FinTrackly Monthly Report — GitHub Actions
+// Fixed: uses CURRENT month data, better error logging, Resend onboarding sender
 
 const admin = require('firebase-admin');
 const { Resend } = require('resend');
 
-// ── Init Firebase Admin ───────────────────────────────────────────────────────
+// ── Init Firebase ─────────────────────────────────────────────────────────────
 admin.initializeApp({
   credential: admin.credential.cert({
     projectId: process.env.FIREBASE_PROJECT_ID,
@@ -17,33 +17,35 @@ const db = admin.firestore();
 
 // ── Init Resend ───────────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.FROM_EMAIL || 'reports@fintrackly.in';
+
+// Use Resend's free onboarding address if no custom domain is set
+// This works for testing without any domain verification
+const FROM = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmt = (n) => '₹' + Math.abs(Math.round(n)).toLocaleString('en-IN');
+const fmt = (n) => '₹' + Math.abs(Math.round(n || 0)).toLocaleString('en-IN');
 
-function lastMonth() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().slice(0, 7);
+// Use CURRENT month so data always exists even when testing
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
 }
 
-function lastMonthLabel() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+function currentMonthLabel() {
+  return new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 }
 
 async function fetchCol(uid, col) {
   try {
     const snap = await db.collection('users').doc(uid).collection(col).get();
+    console.log(`    fetchCol ${col}: ${snap.docs.length} docs`);
     return snap.docs.map((d) => d.data());
-  } catch {
+  } catch (err) {
+    console.error(`    fetchCol ${col} ERROR:`, err.message);
     return [];
   }
 }
 
-// ── HTML Helpers ──────────────────────────────────────────────────────────────
+// ── HTML helpers ──────────────────────────────────────────────────────────────
 function tableRows(data) {
   return data
     .map(
@@ -78,7 +80,7 @@ function emailTemplate(sections, monthLbl) {
       ${sections.join('')}
     </div>
     <div style="text-align:center;padding:16px 8px">
-      <p style="color:#475569;font-size:12px;margin:0 0 4px">FinTrackly — Your personal finance &amp; farm tracker</p>
+      <p style="color:#475569;font-size:12px;margin:0 0 4px">FinTrackly — Your personal finance and farm tracker</p>
       <p style="color:#334155;font-size:11px;margin:0">
         <a href="https://finance-tracker-3b842.web.app/settings" style="color:#22c55e;text-decoration:none">Manage account</a>
       </p>
@@ -89,31 +91,43 @@ function emailTemplate(sections, monthLbl) {
 
 // ── Build report for one user ─────────────────────────────────────────────────
 async function buildReport(uid) {
-  const month = lastMonth();
-  const monthLbl = lastMonthLabel();
+  const month = currentMonth();
+  const monthLbl = currentMonthLabel();
   const sections = [];
 
-  // 1. Cashflow
+  console.log(`  Building report for uid: ${uid}, month: ${month}`);
+
+  // Always fetch ALL data regardless of month — so report is never empty
+  // Monthly filter only applied to cashflow/milk/expenses
+
+  // 1. Cashflow (current month)
   const cashflows = await fetchCol(uid, 'cashflows');
   const mc = cashflows.filter((c) => (c.date || '').startsWith(month));
-  if (mc.length > 0) {
-    const income = mc
+  // If no current month cashflow, show total all-time summary
+  const allIncome = cashflows
+    .filter((c) => c.type === 'income')
+    .reduce((s, c) => s + (c.amount || 0), 0);
+  const allExpense = cashflows
+    .filter((c) => c.type === 'expense')
+    .reduce((s, c) => s + (c.amount || 0), 0);
+  if (cashflows.length > 0) {
+    const mIncome = mc
       .filter((c) => c.type === 'income')
       .reduce((s, c) => s + (c.amount || 0), 0);
-    const expense = mc
+    const mExpense = mc
       .filter((c) => c.type === 'expense')
       .reduce((s, c) => s + (c.amount || 0), 0);
-    const net = income - expense;
+    const net = mIncome - mExpense;
+    const rows = [];
+    if (mc.length > 0) {
+      rows.push(['This Month Income', fmt(mIncome), '#22c55e']);
+      rows.push(['This Month Expenses', fmt(mExpense), '#ef4444']);
+      rows.push(['Net Savings', fmt(net), net >= 0 ? '#22c55e' : '#ef4444']);
+    }
+    rows.push(['Total Income (all time)', fmt(allIncome), '#64748b']);
+    rows.push(['Total Expense (all time)', fmt(allExpense), '#64748b']);
     sections.push(
-      section(
-        '💰 Cashflow — ' + monthLbl,
-        '#22c55e',
-        tableRows([
-          ['Income', fmt(income), '#22c55e'],
-          ['Expenses', fmt(expense), '#ef4444'],
-          ['Net Savings', fmt(net), net >= 0 ? '#22c55e' : '#ef4444'],
-        ]),
-      ),
+      section('💰 Cashflow — ' + monthLbl, '#22c55e', tableRows(rows)),
     );
   }
 
@@ -155,11 +169,16 @@ async function buildReport(uid) {
       (s, l) => s + (l.outstanding || 0),
       0,
     );
+    const principal = liabilities.reduce((s, l) => s + (l.principal || 0), 0);
     sections.push(
       section(
         `🏦 Liabilities (${liabilities.length} loans)`,
         '#ef4444',
-        tableRows([['Total Outstanding', fmt(outstanding), '#ef4444']]),
+        tableRows([
+          ['Total Principal', fmt(principal), '#94a3b8'],
+          ['Total Outstanding', fmt(outstanding), '#ef4444'],
+          ['Paid Off', fmt(principal - outstanding), '#22c55e'],
+        ]),
       ),
     );
   }
@@ -169,7 +188,7 @@ async function buildReport(uid) {
   if (accounts.length > 0) {
     const totalBal = accounts.reduce((s, a) => s + (a.balance || 0), 0);
     const accRows = accounts
-      .slice(0, 5)
+      .slice(0, 6)
       .map((a) => [a.name || 'Account', fmt(a.balance || 0), '#e2e8f0']);
     accRows.push(['Total Balance', fmt(totalBal), '#a78bfa']);
     sections.push(
@@ -190,7 +209,7 @@ async function buildReport(uid) {
           ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100))
           : 0;
       return [
-        `${g.name || 'Goal'} (${pct}%)`,
+        `${g.name || 'Goal'} — ${pct}%`,
         `${fmt(g.currentAmount)} / ${fmt(g.targetAmount)}`,
         pct >= 80 ? '#22c55e' : '#f59e0b',
       ];
@@ -226,7 +245,7 @@ async function buildReport(uid) {
     }
   }
 
-  // 6. Agriculture
+  // 6. Agriculture (all time totals + this month)
   const [crops, agriExp, milk, livestock, coconut] = await Promise.all([
     fetchCol(uid, 'agriCropCycles'),
     fetchCol(uid, 'agriExpenses'),
@@ -234,20 +253,20 @@ async function buildReport(uid) {
     fetchCol(uid, 'agriLivestockEvents'),
     fetchCol(uid, 'agriCoconut'),
   ]);
-  if (crops.length || milk.length || agriExp.length || coconut.length) {
+  if (crops.length || milk.length || coconut.length || livestock.length) {
     const cropIncome = crops.reduce((s, c) => s + (c.harvestIncome || 0), 0);
-    const farmExp = agriExp
-      .filter((e) => (e.date || '').startsWith(month))
-      .reduce((s, e) => s + (e.amount || 0), 0);
+    const allFarmExp = agriExp.reduce((s, e) => s + (e.amount || 0), 0);
     const milkMonth = milk.filter((m) => (m.date || '').startsWith(month));
     const milkLiters = milkMonth.reduce((s, m) => s + (m.liters || 0), 0);
     const milkIncome = milkMonth.reduce(
       (s, m) => s + (m.liters || 0) * (m.pricePerLiter || 0),
       0,
     );
-    const cocIncome = coconut
-      .filter((c) => (c.date || '').startsWith(month))
-      .reduce((s, c) => s + (c.harvestIncome || 0), 0);
+    const allMilkInc = milk.reduce(
+      (s, m) => s + (m.liters || 0) * (m.pricePerLiter || 0),
+      0,
+    );
+    const cocIncome = coconut.reduce((s, c) => s + (c.harvestIncome || 0), 0);
     const animals = ['goat', 'cow', 'buffalo', 'sheep', 'poultry'].reduce(
       (total, type) => {
         const cnt = livestock
@@ -263,21 +282,24 @@ async function buildReport(uid) {
       },
       0,
     );
+
     const agriRows = [];
     if (cropIncome > 0)
       agriRows.push(['Crop Income (total)', fmt(cropIncome), '#22c55e']);
-    if (farmExp > 0)
-      agriRows.push(['Farm Expenses (month)', fmt(farmExp), '#ef4444']);
+    if (allFarmExp > 0)
+      agriRows.push(['Farm Expenses (total)', fmt(allFarmExp), '#ef4444']);
     if (milkLiters > 0)
       agriRows.push([
-        `Milk (${milkLiters.toFixed(1)} L)`,
+        `Milk This Month (${milkLiters.toFixed(1)}L)`,
         fmt(milkIncome),
         '#14b8a6',
       ]);
+    if (allMilkInc > 0)
+      agriRows.push(['Milk Income (all time)', fmt(allMilkInc), '#64748b']);
     if (cocIncome > 0)
-      agriRows.push(['Coconut Income', fmt(cocIncome), '#f59e0b']);
+      agriRows.push(['Coconut Income (total)', fmt(cocIncome), '#f59e0b']);
     if (animals > 0)
-      agriRows.push(['Livestock', `${animals} animals`, '#94a3b8']);
+      agriRows.push(['Current Livestock', `${animals} animals`, '#94a3b8']);
     if (agriRows.length)
       sections.push(section('🌾 Agriculture', '#4ade80', tableRows(agriRows)));
   }
@@ -291,6 +313,7 @@ async function buildReport(uid) {
   ]);
   if (emps.length > 0) {
     const monthAtt = attRecs.filter((r) => (r.date || '').startsWith(month));
+    const allTime = attRecs.length;
     const present = monthAtt.filter((r) => r.present).length;
     const wages = monthAtt.reduce(
       (s, r) => s + (r.present ? (r.wage || 0) + (r.extraWork || 0) : 0),
@@ -302,12 +325,20 @@ async function buildReport(uid) {
     const unpaid = salRecs.filter(
       (s) => s.month === month && s.paymentStatus !== 'paid',
     ).length;
+    const allAdv = attTxns
+      .filter((t) => t.type === 'advance')
+      .reduce((s, t) => s + (t.amount || 0), 0);
+
     const wRows = [
       ['Total Workers', `${emps.length}`, '#e2e8f0'],
-      ['Days Worked (Month)', `${present}`, '#22c55e'],
-      ['Wages Payable', fmt(wages), '#22c55e'],
+      ['Total Attendance Records', `${allTime}`, '#64748b'],
+      ['Days Worked This Month', `${present}`, '#22c55e'],
+      ['Wages This Month', fmt(wages), '#22c55e'],
     ];
-    if (advances > 0) wRows.push(['Advances Given', fmt(advances), '#f59e0b']);
+    if (advances > 0)
+      wRows.push(['Advances This Month', fmt(advances), '#f59e0b']);
+    if (allAdv > 0)
+      wRows.push(['Total Advances Given', fmt(allAdv), '#64748b']);
     if (unpaid > 0)
       wRows.push(['Pending Salary', `${unpaid} workers`, '#ef4444']);
     sections.push(
@@ -315,44 +346,70 @@ async function buildReport(uid) {
     );
   }
 
-  if (sections.length === 0) return null;
+  // If truly nothing found, send a basic "account exists" email anyway
+  if (sections.length === 0) {
+    sections.push(`
+    <div style="text-align:center;padding:20px">
+      <div style="font-size:32px;margin-bottom:12px">👋</div>
+      <p style="color:#94a3b8;font-size:14px;margin:0">
+        Your FinTrackly account is active.<br>
+        Start adding data to see your monthly summary here.
+      </p>
+    </div>`);
+  }
+
   return emailTemplate(sections, monthLbl);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log(
-    '[FinTrackly] Monthly report job started —',
-    new Date().toISOString(),
-  );
+  console.log('=== FinTrackly Monthly Report ===');
+  console.log('Time:', new Date().toISOString());
+  console.log('FROM:', FROM);
+  console.log('Project:', process.env.FIREBASE_PROJECT_ID);
+
+  // Validate all env vars
+  const required = [
+    'FIREBASE_PROJECT_ID',
+    'FIREBASE_CLIENT_EMAIL',
+    'FIREBASE_PRIVATE_KEY',
+    'RESEND_API_KEY',
+  ];
+  for (const key of required) {
+    if (!process.env[key]) {
+      console.error(`MISSING env var: ${key}`);
+      process.exit(1);
+    }
+  }
+  console.log('All env vars present ✓');
 
   const testEmail = process.env.TEST_EMAIL;
 
   if (testEmail) {
-    // Test mode — send to one specific email
-    console.log(`[Test mode] Sending to ${testEmail} only`);
+    console.log(`\nTest mode — sending to: ${testEmail}`);
     try {
       const user = await admin.auth().getUserByEmail(testEmail);
+      console.log(`Found user: ${user.uid}`);
       const html = await buildReport(user.uid);
-      if (!html) {
-        console.log('No data found for this user — email not sent');
-        process.exit(0);
-      }
-      await resend.emails.send({
+      console.log('Report built ✓');
+
+      const result = await resend.emails.send({
         from: FROM,
         to: testEmail,
-        subject: `📊 FinTrackly Monthly Report — ${lastMonthLabel()} (Test)`,
+        subject: `📊 FinTrackly Monthly Report — ${currentMonthLabel()} (Test)`,
         html,
       });
-      console.log(`✓ Test report sent to ${testEmail}`);
+      console.log('Resend response:', JSON.stringify(result));
+      console.log(`\n✓ Email sent to ${testEmail}`);
     } catch (err) {
-      console.error('Failed:', err.message);
+      console.error('\nERROR:', err.message);
+      console.error(err.stack);
       process.exit(1);
     }
     process.exit(0);
   }
 
-  // Production mode — send to all users
+  // Production — all users
   let users = [];
   let pageToken;
   do {
@@ -361,45 +418,35 @@ async function main() {
     pageToken = result.pageToken;
   } while (pageToken);
 
-  console.log(`Processing ${users.length} users`);
-
+  console.log(`\nFound ${users.length} users`);
   let sent = 0,
-    skipped = 0,
     errors = 0;
 
   for (const user of users) {
-    if (!user.email) {
-      skipped++;
-      continue;
-    }
+    if (!user.email) continue;
     try {
       const html = await buildReport(user.uid);
-      if (!html) {
-        console.log(`  skip ${user.email} — no data`);
-        skipped++;
-        continue;
-      }
       await resend.emails.send({
         from: FROM,
         to: user.email,
-        subject: `📊 Your FinTrackly Monthly Report — ${lastMonthLabel()}`,
+        subject: `📊 Your FinTrackly Monthly Report — ${currentMonthLabel()}`,
         html,
       });
-      console.log(`  ✓ sent to ${user.email}`);
+      console.log(`✓ sent → ${user.email}`);
       sent++;
-      // 600ms delay — stay within Resend rate limit (2 req/sec)
       await new Promise((r) => setTimeout(r, 600));
     } catch (err) {
-      console.error(`  ✗ failed for ${user.email}:`, err.message);
+      console.error(`✗ failed → ${user.email}:`, err.message);
       errors++;
     }
   }
 
-  console.log(`\nDone — Sent: ${sent}, Skipped: ${skipped}, Errors: ${errors}`);
+  console.log(`\nDone — Sent: ${sent}, Errors: ${errors}`);
   process.exit(0);
 }
 
 main().catch((err) => {
-  console.error('Fatal error:', err);
+  console.error('Fatal:', err.message);
+  console.error(err.stack);
   process.exit(1);
 });
