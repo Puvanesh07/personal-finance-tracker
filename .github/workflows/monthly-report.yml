@@ -1,0 +1,36 @@
+# .github/workflows/monthly-report.yml
+# Runs on the 1st of every month at 8:00 AM IST (2:30 AM UTC)
+# Manual trigger available in GitHub Actions tab for testing
+
+name: Monthly Email Report
+
+on:
+  schedule:
+    - cron: '30 2 1 * *'
+  workflow_dispatch:
+    inputs:
+      test_email:
+        description: 'Send to this email only for testing (leave blank for all users)'
+        required: false
+        type: string
+
+jobs:
+  send-reports:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: cd scripts && npm install
+      - name: Send monthly reports
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TEST_EMAIL: ${{ github.event.inputs.test_email }}
+        run: cd scripts && node send-report.js
