@@ -4,7 +4,6 @@
 import type {
   AttendanceEmployee,
   AttendanceRecord,
-  AttendanceTransaction,
   PaymentStatus,
   SalaryRecord,
   TransactionType,
@@ -26,7 +25,6 @@ const lbl =
 const fmt = (n: number) =>
   '₹' + Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 const today = () => new Date().toISOString().split('T')[0];
-const monthOf = (d: string) => d.slice(0, 7);
 const curMonth = () => new Date().toISOString().slice(0, 7);
 const monthLabel = (ym: string) => {
   const [y, m] = ym.split('-');
@@ -1384,7 +1382,7 @@ function SalaryTab() {
         </p>
       ) : (
         <div className='flex flex-col gap-3'>
-          {filtered.map((s, si) => {
+          {filtered.map((s: any) => {
             const emp = employees.find((e) => e.id === s.employeeId);
             const empIdx = employees.findIndex((e) => e.id === s.employeeId);
             const remaining = s.finalSalary - s.paidAmount;
