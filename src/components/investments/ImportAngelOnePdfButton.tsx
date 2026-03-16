@@ -1,10 +1,4 @@
-import {
-  FiBriefcase,
-  FiChevronDown,
-  FiChevronUp,
-  FiInfo,
-  FiX,
-} from 'react-icons/fi';
+import { FiBriefcase, FiChevronUp, FiInfo, FiX } from 'react-icons/fi';
 import { useRef, useState } from 'react';
 
 import { ISIN_TO_SYMBOL } from '../../data/nseStockdata';

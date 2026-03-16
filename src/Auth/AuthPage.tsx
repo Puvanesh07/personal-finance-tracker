@@ -30,7 +30,6 @@ import {
   FiZap,
   FiActivity,
   FiFlag,
-  FiSettings,
   FiDatabase,
   FiGlobe,
   FiLoader,
