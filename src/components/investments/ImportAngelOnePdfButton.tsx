@@ -1,6 +1,12 @@
+import {
+  FiBriefcase,
+  FiChevronDown,
+  FiChevronUp,
+  FiInfo,
+  FiX,
+} from 'react-icons/fi';
 import { useRef, useState } from 'react';
 
-import { FiBriefcase } from 'react-icons/fi';
 import { ISIN_TO_SYMBOL } from '../../data/nseStockdata';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import toast from 'react-hot-toast';
@@ -10,6 +16,7 @@ export function ImportAngelOnePdfButton() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const importInvestments = usePortfolioStore((s) => s.importInvestments);
   const [busy, setBusy] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   async function onPickFile(file: File) {
     setBusy(true);
@@ -220,16 +227,86 @@ export function ImportAngelOnePdfButton() {
           if (file) void onPickFile(file);
         }}
       />
-      <button
-        type='button'
-        className='inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-600 transition-colors hover:bg-indigo-100/80 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-indigo-500/20'
-        onClick={() => inputRef.current?.click()}
-        disabled={busy}
-        title='Imports Angel One CSV holdings statement'
-      >
-        <FiBriefcase className='h-3.5 w-3.5' />
-        <span>{busy ? 'Importing…' : 'Angel One'}</span>
-      </button>
+
+      {/* Instructions Panel */}
+      {showInstructions && (
+        <div className='mb-3 rounded-xl border border-indigo-200/80 bg-indigo-50/60 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/10'>
+          <div className='flex items-start justify-between gap-2'>
+            <div className='flex items-center gap-2 text-sm font-bold text-indigo-700 dark:text-indigo-300'>
+              <FiInfo className='h-4 w-4 shrink-0' />
+              How to Export from Angel One
+            </div>
+            <button
+              type='button'
+              onClick={() => setShowInstructions(false)}
+              className='text-indigo-400 hover:text-indigo-600 dark:text-indigo-500 dark:hover:text-indigo-300'
+            >
+              <FiX className='h-4 w-4' />
+            </button>
+          </div>
+
+          <ol className='mt-3 space-y-1.5 text-xs text-indigo-700 dark:text-indigo-300'>
+            <li>
+              1. Open the <strong>Angel One app or website</strong> and log in
+            </li>
+            <li>
+              2. Go to <strong>Portfolio</strong>
+            </li>
+            <li>
+              3. Select the segment (<strong>Equity</strong> or{' '}
+              <strong>Mutual Funds</strong>)
+            </li>
+            <li>
+              4. Click the <strong>download icon</strong> (top right) to
+              download your statement
+            </li>
+            <li>
+              5. Upload the downloaded <strong>CSV file</strong> below
+            </li>
+          </ol>
+
+          <p className='mt-2 text-[11px] text-indigo-500 dark:text-indigo-400 italic'>
+            Upload Equity CSV and Mutual Fund CSV separately — each is imported
+            individually.
+          </p>
+
+          <div className='mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-500/20 dark:bg-amber-500/10'>
+            <p className='text-[11px] text-amber-700 dark:text-amber-300'>
+              <strong>Password-protected file?</strong> Angel One may
+              password-protect the download. Open the file in Excel or Google
+              Sheets, enter the password, then re-save it as a new CSV file
+              without a password before uploading.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className='inline-flex items-center gap-1'>
+        <button
+          type='button'
+          className='inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-indigo-600 transition-colors hover:bg-indigo-100/80 disabled:opacity-50 dark:text-indigo-400 dark:hover:bg-indigo-500/20'
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          title='Imports Angel One CSV holdings statement'
+        >
+          <FiBriefcase className='h-3.5 w-3.5' />
+          <span>{busy ? 'Importing…' : 'Angel One'}</span>
+        </button>
+
+        {/* Info toggle button */}
+        <button
+          type='button'
+          onClick={() => setShowInstructions((v) => !v)}
+          title='How to export from Angel One'
+          className='inline-flex items-center gap-0.5 rounded-lg px-1.5 py-1.5 text-xs text-indigo-400 transition-colors hover:bg-indigo-100/80 dark:text-indigo-500 dark:hover:bg-indigo-500/20'
+        >
+          {showInstructions ? (
+            <FiChevronUp className='h-3.5 w-3.5' />
+          ) : (
+            <FiInfo className='h-3.5 w-3.5' />
+          )}
+        </button>
+      </div>
     </>
   );
 }
