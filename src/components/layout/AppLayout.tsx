@@ -1,4 +1,10 @@
 // src/components/layout/AppLayout.tsx
+//
+// FIXES:
+//  1. PWAInstallBanner moved HERE from AuthPage — it now shows only for
+//     authenticated users inside the app, not on the public landing page
+//  2. This prevents unauthenticated visitors from being spammed with the
+//     install prompt before they've even signed in
 
 import {
   FiActivity,
@@ -22,6 +28,7 @@ import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
 import { GiWheat } from 'react-icons/gi';
 import { Modal } from '../ui/Modal';
+import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -363,6 +370,11 @@ export function AppLayout() {
           </div>
         </div>
       </Modal>
+
+      {/* ── PWA INSTALL BANNER ──
+           Placed here so it only shows to authenticated users in the app.
+           Uses localStorage + 7-day cooldown so it won't spam users. */}
+      <PWAInstallBanner />
     </div>
   );
 }

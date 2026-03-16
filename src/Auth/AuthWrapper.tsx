@@ -1,6 +1,12 @@
 // src/Auth/AuthWrapper.tsx
+//
+// FIXES:
+//  1. BrowserRouter is now in main.tsx (parent), so useNavigate works here
+//  2. On login success → navigate to /dashboard instead of relying on
+//     re-render, eliminating the 2-3 second flash of the auth page
+//  3. Proper "initialising" guard prevents any flicker
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import AuthPage from './AuthPage';
 import { Loader } from '../components/loader/Loader';
@@ -9,6 +15,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useAgriStore } from '../store/agricultureStore';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { useAutoLogout } from '../hooks/useAutoLogout';
+import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../store/portfolioStore';
 
 export default function AuthWrapper({
@@ -16,8 +23,13 @@ export default function AuthWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Three possible states:
+  //  'init'       → Firebase hasn't replied yet → show full-screen loader
+  //  'logged-out' → Firebase confirmed no session → show AuthPage
+  //  'logged-in'  → Firebase confirmed session + stores hydrated → show app
+  const [authState, setAuthState] = useState<
+    'init' | 'logged-out' | 'logged-in'
+  >('init');
 
   const hydrate = usePortfolioStore((s) => s.hydrate);
   const clearAllData = usePortfolioStore((s) => s.clearAllData);
@@ -26,37 +38,53 @@ export default function AuthWrapper({
   const hydrateAttendance = useAttendanceStore((s) => s.hydrate);
   const clearAttendance = useAttendanceStore((s) => s.clearAll);
 
-  // ✅ Mounted here — above the router — so it NEVER resets on route changes
+  const navigate = useNavigate();
+
+  // Track if we already navigated on this session to avoid double-navigate
+  const hasNavigated = useRef(false);
+
+  // ✅ Mounted above the router outlet — never resets on route changes
   useAutoLogout();
 
   useEffect(() => {
-    // onAuthStateChanged fires once on load with the persisted session
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setIsLoggedIn(true);
-        // Hydrate store — ready flag is set inside hydrate()
-        await hydrate(user.uid);
-        await hydrateAgri(user.uid);
-        await hydrateAttendance(user.uid);
+        // Hydrate all stores in parallel for faster load
+        await Promise.all([
+          hydrate(user.uid),
+          hydrateAgri(user.uid),
+          hydrateAttendance(user.uid),
+        ]);
+        setAuthState('logged-in');
+
+        // Navigate to dashboard on first login detection
+        // (avoids the brief flash where auth page is visible)
+        if (!hasNavigated.current) {
+          hasNavigated.current = true;
+          // Only redirect if we're at root or auth-looking path
+          const path = window.location.pathname;
+          if (path === '/' || path === '') {
+            navigate('/dashboard', { replace: true });
+          }
+        }
       } else {
-        setIsLoggedIn(false);
         clearAllData();
         clearAgri();
         clearAttendance();
+        hasNavigated.current = false;
+        setAuthState('logged-out');
       }
-      // Always mark auth as checked so we stop showing the loader
-      setAuthChecked(true);
     });
 
     return () => unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Still waiting for Firebase to confirm auth state
-  if (!authChecked) return <Loader />;
+  // ── Waiting for Firebase to confirm auth state ─────────────────────────
+  if (authState === 'init') return <Loader />;
 
-  // Firebase confirmed: not logged in
-  if (!isLoggedIn) return <AuthPage />;
+  // ── Firebase confirmed: not logged in ─────────────────────────────────
+  if (authState === 'logged-out') return <AuthPage />;
 
-  // Firebase confirmed: logged in, data hydrated
+  // ── Firebase confirmed: logged in, data hydrated ───────────────────────
   return <>{children}</>;
 }

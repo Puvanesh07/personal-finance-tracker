@@ -6,13 +6,16 @@ import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
+// ── FIX: BrowserRouter must wrap AuthWrapper so routing context
+//        is available before auth state resolves. Without this,
+//        navigating to /dashboard briefly shows the auth page.
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AuthWrapper>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthWrapper>
         <App />
-      </BrowserRouter>
-    </AuthWrapper>
+      </AuthWrapper>
+    </BrowserRouter>
   </React.StrictMode>,
 );
 

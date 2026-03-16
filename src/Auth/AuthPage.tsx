@@ -1,8 +1,17 @@
-// src/pages/Auth/AuthPage.tsx
-import { auth, googleProvider } from '../../src/services/firebase';
+// src/Auth/AuthPage.tsx
+//
+// FIXES:
+//  1. Added success toast on Google sign-in
+//  2. Added error toast with user-friendly message on sign-in failure
+//  3. Removed PWAInstallBanner from here — it belongs in AppLayout (dashboard)
+//     so authenticated users see it, not unauthenticated visitors on every load
+//  4. Added loading state on sign-in button to prevent double-clicks
+
+import { auth, googleProvider } from '../services/firebase';
 import { signInWithPopup } from 'firebase/auth';
 import { motion, type Variants } from 'framer-motion';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   FiTrendingUp,
   FiFileText,
@@ -24,12 +33,12 @@ import {
   FiSettings,
   FiDatabase,
   FiGlobe,
+  FiLoader,
 } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { SiNotion } from 'react-icons/si';
 import { BsBank2 } from 'react-icons/bs';
 import { GiWheat } from 'react-icons/gi';
-import { PWAInstallBanner } from '../components/PWAInstallBanner';
 
 // ── Animation Variants ────────────────────────────────────────────────────────
 
@@ -153,7 +162,7 @@ const features = [
     color: '#e2e8f0',
     glow: 'rgba(226,232,240,0.15)',
     label: 'Notion Sync',
-    desc: 'Connect your Notion workspace via API token and database ID. Push investment data, expenses, goals and snapshots directly into your Notion databases — keeping your life OS up to date automatically.',
+    desc: 'Connect your Notion workspace via API token and database ID. Push investment data, expenses, goals and snapshots directly into your Notion databases.',
     bullets: [
       'Connect via Notion API token & database ID',
       'Push investments to a Notion database',
@@ -209,7 +218,7 @@ const features = [
     color: '#38bdf8',
     glow: 'rgba(56,189,248,0.25)',
     label: 'NSE Stock Data',
-    desc: 'Built-in NSE stock metadata with sector and market-cap classification for 500+ Indian equities. Powers the sector allocation and market-cap charts on the dashboard automatically.',
+    desc: 'Built-in NSE stock metadata with sector and market-cap classification for 500+ Indian equities. Powers the sector allocation and market-cap charts automatically.',
     bullets: [
       '500+ NSE stock symbols pre-loaded',
       'Sector classification per stock',
@@ -223,7 +232,7 @@ const features = [
     color: '#06b6d4',
     glow: 'rgba(6,182,212,0.25)',
     label: 'Accounts',
-    desc: 'Track all your bank accounts and credit cards in one place. See total liquid balance, account-wise breakdown with a donut chart, and a bar chart comparing balances across all accounts.',
+    desc: 'Track all your bank accounts and credit cards in one place. See total liquid balance, account-wise breakdown with a donut chart, and a bar chart comparing balances.',
     bullets: [
       'Add bank accounts & credit cards',
       'Per-account balance tracking',
@@ -258,12 +267,43 @@ const glassBase: React.CSSProperties = {
 
 export default function AuthPage() {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
   const handleGoogleSignIn = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Error signing in', error);
+      toast.success('Welcome to FinTrackly! 🎉', {
+        duration: 3000,
+        style: {
+          background: '#0f172a',
+          color: '#f8fafc',
+          border: '1px solid rgba(16,185,129,0.4)',
+        },
+        iconTheme: { primary: '#10b981', secondary: '#f8fafc' },
+      });
+    } catch (error: any) {
+      // Don't show error if user just closed the popup
+      if (
+        error?.code !== 'auth/popup-closed-by-user' &&
+        error?.code !== 'auth/cancelled-popup-request'
+      ) {
+        toast.error(
+          error?.code === 'auth/network-request-failed'
+            ? 'Network error. Please check your connection.'
+            : 'Sign-in failed. Please try again.',
+          {
+            duration: 4000,
+            style: {
+              background: '#0f172a',
+              color: '#f8fafc',
+              border: '1px solid rgba(248,113,113,0.4)',
+            },
+          },
+        );
+      }
+      setSigningIn(false);
     }
   };
 
@@ -344,7 +384,8 @@ export default function AuthPage() {
 
           <motion.button
             onClick={handleGoogleSignIn}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white'
+            disabled={signingIn}
+            className='flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60'
             style={{
               background: 'rgba(16,185,129,0.15)',
               border: '1px solid rgba(16,185,129,0.35)',
@@ -355,7 +396,7 @@ export default function AuthPage() {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.15 }}
           >
-            Get Started Free
+            {signingIn ? 'Signing in…' : 'Get Started Free'}
             <FiArrowRight className='h-3.5 w-3.5' />
           </motion.button>
         </div>
@@ -422,7 +463,8 @@ export default function AuthPage() {
           >
             <motion.button
               onClick={handleGoogleSignIn}
-              className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white'
+              disabled={signingIn}
+              className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
               style={{
                 background: 'linear-gradient(135deg, #10b981, #059669)',
                 boxShadow:
@@ -438,8 +480,17 @@ export default function AuthPage() {
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.15 }}
             >
-              <FcGoogle className='text-xl' />
-              Continue with Google
+              {signingIn ? (
+                <>
+                  <FiLoader className='text-xl animate-spin' />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  <FcGoogle className='text-xl' />
+                  Continue with Google
+                </>
+              )}
             </motion.button>
           </motion.div>
 
@@ -812,7 +863,6 @@ export default function AuthPage() {
                   {f.desc}
                 </p>
 
-                {/* Bullet list — visible always on mobile, on hover on desktop */}
                 <div
                   className='overflow-hidden transition-all duration-300'
                   style={{
@@ -844,396 +894,6 @@ export default function AuthPage() {
             ))}
           </div>
         </motion.div>
-      </section>
-
-      {/* ── FEATURE DEEP DIVE ── */}
-      <section
-        className='px-6 py-20 relative'
-        id='deep-dive'
-        style={{ zIndex: 1 }}
-      >
-        <div className='max-w-5xl mx-auto'>
-          <motion.div
-            initial='hidden'
-            whileInView='show'
-            viewport={{ once: true, margin: '-60px' }}
-            variants={stagger}
-          >
-            <motion.div variants={fadeUp} className='text-center mb-12'>
-              <p
-                className='text-xs font-bold uppercase tracking-widest mb-3'
-                style={{ color: '#10b981' }}
-              >
-                What's inside
-              </p>
-              <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
-                A closer look at every module
-              </h2>
-              <p
-                className='mt-3 max-w-xl mx-auto text-sm'
-                style={{ color: 'rgba(226,232,240,0.42)' }}
-              >
-                Every feature below is fully built and live — not a mockup, not
-                a roadmap item.
-              </p>
-            </motion.div>
-
-            {/* Two-column feature detail rows */}
-            {[
-              {
-                icon: <FiBarChart2 />,
-                color: '#10b981',
-                label: 'Dashboard',
-                tagline: 'Your entire financial life, one scroll away',
-                detail:
-                  'The dashboard pulls from every other module in real time. Summary cards show net worth, total assets, total liabilities, and cashflow for the current month. Below that, asset allocation donuts and a maturity timeline help you see where your money is sitting. Sector and market-cap charts (powered by bundled NSE data) give equity investors a quick portfolio health check. At the bottom, a goals progress panel and a net worth growth chart using your snapshot history complete the picture.',
-                pills: [
-                  'Net Worth Cards',
-                  'Asset Allocation',
-                  'Maturity Timeline',
-                  'Sector Charts',
-                  'Goals Summary',
-                  'Growth Chart',
-                ],
-              },
-              {
-                icon: <FiBriefcase />,
-                color: '#a78bfa',
-                label: 'Investments',
-                tagline: 'Every asset class, one table',
-                detail:
-                  "The investments module handles Stocks, Mutual Funds, Bonds, Fixed Deposits, Gold, Silver, Crypto, PPF, NPS, and any 'Other' asset. You can add holdings manually via a detailed modal form, or import them from four platforms: Zerodha (CSV), Angel One (PDF), Groww (CSV), and INDmoney (XLSX). The table supports live search by name, symbol, or platform, and filtering by asset type. Each row shows invested amount, current value, and profit/loss.",
-                pills: [
-                  'Stocks & MFs',
-                  'Bonds & FDs',
-                  'Gold, Silver, Crypto, PPF, NPS',
-                  'Import 4 Platforms',
-                  'Search & Filter',
-                  'P&L Per Row',
-                ],
-              },
-              {
-                icon: <FiActivity />,
-                color: '#3b82f6',
-                label: 'Cashflow',
-                tagline: 'Monthly income and expense tracking, simplified',
-                detail:
-                  "A month picker lets you navigate up to 12 months of history. For each month, summary metric cards calculate your total income, total expenses, and savings rate automatically. Below that, every transaction is listed in a clean table with date, category, description, and amount. You can add, edit, or delete any entry at any time using a smooth modal form. Cashflow data also feeds the 'income vs expense' cards on the dashboard.",
-                pills: [
-                  '12-Month History',
-                  'Income & Expense Metrics',
-                  'Savings Rate',
-                  'Add / Edit / Delete',
-                  'Monthly Drill-down',
-                ],
-              },
-              {
-                icon: <FiFlag />,
-                color: '#ec4899',
-                label: 'Goals',
-                tagline: 'Track your milestones with visual progress bars',
-                detail:
-                  "Create any financial goal with a name, target amount, current amount saved, and an optional due date. The goals table renders a progress bar for each goal, auto-calculated from current vs target. Goals that reach 100% show a 'Completed' state. You can create as many goals as needed — retirement corpus, house down payment, emergency fund, education fund, or anything custom. The dashboard also shows a goals summary panel at a glance.",
-                pills: [
-                  'Name & Target Amount',
-                  'Progress Bar',
-                  'Due Date',
-                  'Completed State',
-                  'Dashboard Summary Panel',
-                ],
-              },
-              {
-                icon: <FiCreditCard />,
-                color: '#f87171',
-                label: 'Liabilities',
-                tagline: 'See exactly what you owe, all in one place',
-                detail:
-                  'The liabilities page tracks all outstanding debts: home loans, car loans, personal loans, credit cards, and custom types. Each entry stores the liability name, type, outstanding amount, and interest rate. A hero summary card at the top shows your total outstanding debt in bold. The table supports add, edit, and delete. Liabilities flow into your net worth calculation on the Dashboard automatically.',
-                pills: [
-                  'Loans & Credit Cards',
-                  'Outstanding Amount',
-                  'Interest Rate',
-                  'Total Debt Summary',
-                  'Net Worth Integration',
-                ],
-              },
-              {
-                icon: <FiCamera />,
-                color: '#fb923c',
-                label: 'Snapshots',
-                tagline: 'Freeze your net worth. Build your wealth history.',
-                detail:
-                  "Snapshots capture your portfolio state at any moment. Enter an optional label (like 'Jan 2026 Start') and click — the app records your total assets, total liabilities, and computed net worth from live data. All snapshots are stored chronologically in a table. The Dashboard's growth chart reads from this snapshot history to render your net worth curve over time. There's no limit to how many snapshots you can take.",
-                pills: [
-                  'Instant Snapshot',
-                  'Custom Labels',
-                  'Assets + Liabilities + Net Worth',
-                  'Snapshot History Table',
-                  'Feeds Growth Chart',
-                ],
-              },
-              {
-                icon: <FiFileText />,
-                color: '#22d3ee',
-                label: 'Reports',
-                tagline: 'Summarise, analyse, and export your portfolio',
-                detail:
-                  'The reports page gives you four panels: a Portfolio Summary showing total invested, current value, and net P&L; a Data Exports panel to download your entire investment dataset as CSV or Excel; an Asset Allocation table grouped by investment type; and an Interest Earnings panel showing expected returns from your bonds and fixed deposits. Exports include computed P&L columns, not just raw input data.',
-                pills: [
-                  'Portfolio Summary',
-                  'CSV & Excel Export',
-                  'Asset Allocation Table',
-                  'Interest Earnings',
-                  'P&L Computed',
-                ],
-              },
-              {
-                icon: <FiSettings />,
-                color: '#94a3b8',
-                label: 'Settings',
-                tagline: 'Manage data, safety net, and integrations',
-                detail:
-                  'Settings has three panels: Notion Integration (enter your Notion API token and database ID to enable sync), Essentials & Safety Net (record your term insurance cover, health cover, emergency fund target and current amount — shown on the Dashboard), and Data Management (export a full JSON backup of all your data, restore from a backup, or wipe all data if needed).',
-                pills: [
-                  'Notion API Config',
-                  'Term & Health Insurance Tracking',
-                  'Emergency Fund Tracker',
-                  'JSON Backup & Restore',
-                  'Full Data Wipe',
-                ],
-              },
-              {
-                icon: <BsBank2 />,
-                color: '#06b6d4',
-                label: 'Accounts',
-                tagline: 'All your bank accounts and cards, one clear view',
-                detail:
-                  'The Accounts module lets you track every bank account and credit card balance in one place. A summary card shows your total liquid balance at a glance. Below that, a donut chart visualises how your money is distributed across accounts, and a bar chart compares balances side by side. You can add, edit, or delete accounts anytime using a simple modal form that supports both bank and credit card types.',
-                pills: [
-                  'Bank & Credit Card accounts',
-                  'Total liquid balance card',
-                  'Donut chart breakdown',
-                  'Bar chart comparison',
-                  'Add / Edit / Delete',
-                ],
-              },
-              {
-                icon: <GiWheat />,
-                color: '#84cc16',
-                label: 'Agriculture',
-                tagline: 'Full farm management for Indian farmers',
-                detail:
-                  'Agriculture is a standalone module built for farmers who want to track their land alongside their finances. The Overview tab shows season-wise income, expenses, and net profit. The Crops tab tracks individual crop cycles with sowing date, harvest date, yield, and P&L per season. The Expenses tab logs farm costs across 12 categories including seeds, fertilizer, labor, and tractor fuel. Livestock registers animals with an events log (vaccination, purchase, sale). Milk tab records daily production and sales. Coconut tab tracks harvest batches and selling price.',
-                pills: [
-                  'Overview: P&L by season',
-                  'Crop cycles with yield & profit',
-                  'Farm expenses (12 categories)',
-                  'Livestock register & events',
-                  'Daily milk records',
-                  'Coconut harvest tracker',
-                ],
-              },
-            ].map((item, idx) => (
-              <motion.div
-                key={idx}
-                variants={fadeUp}
-                className='mb-6 rounded-2xl overflow-hidden'
-                style={glassBase}
-              >
-                <div
-                  className='flex items-center gap-4 px-6 py-5'
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-                >
-                  <div
-                    className='h-10 w-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0'
-                    style={{
-                      background: `${item.color}18`,
-                      border: `1px solid ${item.color}28`,
-                      color: item.color,
-                    }}
-                  >
-                    {item.icon}
-                  </div>
-                  <div>
-                    <div className='flex items-center gap-3 flex-wrap'>
-                      <h3 className='text-base font-black text-white'>
-                        {item.label}
-                      </h3>
-                      <span
-                        className='text-xs font-semibold px-2 py-0.5 rounded-full'
-                        style={{
-                          background: `${item.color}18`,
-                          color: item.color,
-                          border: `1px solid ${item.color}28`,
-                        }}
-                      >
-                        Live ✓
-                      </span>
-                    </div>
-                    <p
-                      className='text-xs mt-0.5'
-                      style={{ color: 'rgba(226,232,240,0.45)' }}
-                    >
-                      {item.tagline}
-                    </p>
-                  </div>
-                </div>
-                <div className='px-6 py-5'>
-                  <p
-                    className='text-sm leading-relaxed mb-5'
-                    style={{ color: 'rgba(226,232,240,0.55)' }}
-                  >
-                    {item.detail}
-                  </p>
-                  <div className='flex flex-wrap gap-2'>
-                    {item.pills.map((pill, pi) => (
-                      <span
-                        key={pi}
-                        className='text-xs px-3 py-1 rounded-full font-semibold'
-                        style={{
-                          background: 'rgba(255,255,255,0.05)',
-                          color: 'rgba(226,232,240,0.6)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                        }}
-                      >
-                        {pill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── NOTION SYNC ── */}
-      <section
-        className='px-6 py-20 max-w-5xl mx-auto relative'
-        style={{ zIndex: 1 }}
-      >
-        <div className='grid md:grid-cols-2 gap-12 items-center'>
-          <motion.div
-            initial={{ opacity: 0, x: -24 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div
-              className='h-12 w-12 rounded-2xl flex items-center justify-center mb-6'
-              style={glassBase}
-            >
-              <SiNotion className='text-white text-xl' />
-            </div>
-            <h2 className='text-3xl font-black text-white tracking-tight mb-4'>
-              Notion Ecosystem Integration
-            </h2>
-            <p
-              className='leading-relaxed mb-7 text-sm'
-              style={{ color: 'rgba(226,232,240,0.48)' }}
-            >
-              Keep your entire financial system inside Notion. FinTrackly's
-              serverless workers push live data to your workspace so Notion
-              remains your single source of truth.
-            </p>
-            <div className='space-y-3'>
-              {[
-                'Connect via Notion API token & database ID in Settings',
-                'Push investment holdings to a Notion database table',
-                'Sync cashflow and monthly expense summaries',
-                'Goal progress and snapshot data sync support',
-                'Serverless sync powered by Netlify functions',
-              ].map((item, i) => (
-                <div
-                  key={i}
-                  className='flex items-center gap-3 text-sm'
-                  style={{ color: 'rgba(226,232,240,0.62)' }}
-                >
-                  <div
-                    className='h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0'
-                    style={{
-                      background: 'rgba(16,185,129,0.14)',
-                      border: '1px solid rgba(16,185,129,0.28)',
-                    }}
-                  >
-                    <FiCheck className='text-emerald-400 text-xs' />
-                  </div>
-                  {item}
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className='rounded-2xl overflow-hidden' style={glassBase}>
-              <div
-                className='flex items-center justify-between px-5 py-4'
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-              >
-                <span className='text-sm font-semibold text-white'>
-                  Notion Sync Status
-                </span>
-                <div
-                  className='flex items-center gap-1.5 text-xs font-semibold'
-                  style={{ color: '#10b981' }}
-                >
-                  <div
-                    className='h-2 w-2 rounded-full bg-emerald-400'
-                    style={{ boxShadow: '0 0 6px #10b981' }}
-                  />
-                  LIVE
-                </div>
-              </div>
-              {[
-                {
-                  db: '📊 Investments',
-                  rows: '142 holdings',
-                  time: '2 min ago',
-                },
-                { db: '💸 Expenses', rows: '38 this month', time: '5 min ago' },
-                { db: '🎯 Goals', rows: '4 active goals', time: '1 hr ago' },
-                { db: '📸 Snapshots', rows: '12 snapshots', time: 'Yesterday' },
-              ].map((row, i) => (
-                <div
-                  key={i}
-                  className='flex items-center justify-between px-5 py-4'
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                >
-                  <div>
-                    <div className='text-sm font-medium text-white'>
-                      {row.db}
-                    </div>
-                    <div
-                      className='text-xs mt-0.5'
-                      style={{ color: 'rgba(226,232,240,0.35)' }}
-                    >
-                      {row.rows}
-                    </div>
-                  </div>
-                  <div className='text-right'>
-                    <div
-                      className='text-xs font-medium'
-                      style={{ color: '#10b981' }}
-                    >
-                      ✓ synced
-                    </div>
-                    <div
-                      className='text-xs mt-0.5'
-                      style={{ color: 'rgba(226,232,240,0.25)' }}
-                    >
-                      {row.time}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
       </section>
 
       {/* ── PRIVACY ── */}
@@ -1358,7 +1018,8 @@ export default function AuthPage() {
             </p>
             <motion.button
               onClick={handleGoogleSignIn}
-              className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white'
+              disabled={signingIn}
+              className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
               style={{
                 background: 'linear-gradient(135deg, #10b981, #059669)',
                 boxShadow:
@@ -1374,15 +1035,24 @@ export default function AuthPage() {
               whileTap={{ scale: 0.97 }}
               transition={{ duration: 0.15 }}
             >
-              <FcGoogle className='text-xl' />
-              Start Free with Google
-              <FiArrowRight />
+              {signingIn ? (
+                <>
+                  <FiLoader className='text-xl animate-spin' />
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  <FcGoogle className='text-xl' />
+                  Start Free with Google
+                  <FiArrowRight />
+                </>
+              )}
             </motion.button>
           </div>
         </motion.div>
       </section>
 
-      {/* ── SEO KEYWORD SECTION — visible, indexable, styled subtly ── */}
+      {/* ── SEO KEYWORD SECTION ── */}
       <section
         className='px-6 py-16 relative'
         style={{ zIndex: 1, borderTop: '1px solid rgba(255,255,255,0.04)' }}
@@ -1462,8 +1132,10 @@ export default function AuthPage() {
           portfolio manager for India
         </p>
       </footer>
-      {/* ── PWA INSTALL BANNER ── */}
-      <PWAInstallBanner />
+
+      {/* ── PWA BANNER IS INTENTIONALLY NOT HERE ──
+           It now lives in AppLayout so only authenticated users see it
+           once per install prompt. This prevents it spamming unauthenticated visitors. */}
     </div>
   );
 }
