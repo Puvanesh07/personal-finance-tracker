@@ -26,9 +26,14 @@ import {
   FiX,
   FiZap,
 } from 'react-icons/fi';
+import type {
+  FolioSyncResult,
+  FundamentalData,
+} from '../../utils/folioSyncEngine';
 import { currentValue, investedValue } from '../../utils/calculations';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { FolioSyncCell } from './FolioSyncScore';
 import { Modal } from '../ui/Modal';
 import { SellInvestmentModal } from './SellInvestmentModal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
@@ -935,6 +940,97 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     });
   }, [investments]);
 
+  // ── FolioSync Scores State ────────────────────────────────────────────────
+  type FolioSyncStore = Record<
+    string,
+    { fundamentals: FundamentalData; result: FolioSyncResult }
+  >;
+
+  const [folioSyncData, setFolioSyncData] = useState<FolioSyncStore>(() => {
+    try {
+      const raw = localStorage.getItem('foliosync_scores');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const handleFolioSyncSave = (
+    invId: string,
+    fundamentals: FundamentalData,
+    result: FolioSyncResult,
+  ) => {
+    setFolioSyncData((prev) => {
+      const next = { ...prev, [invId]: { fundamentals, result } };
+      try {
+        localStorage.setItem('foliosync_scores', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // ── FolioSync Bulk Auto-Fetch ─────────────────────────────────────────────
+  const [bulkFetching, setBulkFetching] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+
+  const handleBulkAutoFetch = async () => {
+    // Only fetch Indian equity stocks that have a symbol
+    const eligible = investments.filter(
+      (inv) =>
+        inv.type === 'stock' &&
+        inv.symbol &&
+        !(inv as any).usdPrice &&
+        !(inv as any).buyPriceUsd &&
+        !(inv as any).usdToInr,
+    );
+    if (eligible.length === 0) return;
+
+    setBulkFetching(true);
+    setBulkProgress({ done: 0, total: eligible.length });
+
+    const { fetchFundamentalsForSymbols } =
+      await import('../../services/fundamentalsService');
+    const { scoreFundamentals: scoreF } =
+      await import('../../utils/folioSyncEngine');
+
+    const symbols = eligible.map((inv) => inv.symbol!.toUpperCase());
+    const results = await fetchFundamentalsForSymbols(
+      symbols,
+      (done, total) => {
+        setBulkProgress({ done, total });
+      },
+    );
+
+    let saved = 0;
+    for (const inv of eligible) {
+      const sym = inv.symbol!.toUpperCase();
+      const data = results[sym];
+      if (!data || (data as any)._source === 'error') continue;
+      const { _source, _symbol, _fetchedAt, _url, _error, ...cleanData } =
+        data as any;
+      try {
+        const scored = scoreF(cleanData, 'equity');
+        handleFolioSyncSave(inv.id, cleanData, scored);
+        saved++;
+      } catch {}
+    }
+
+    setBulkProgress(null);
+    setBulkFetching(false);
+    if (saved > 0) {
+      toast.success(
+        `FolioSync: auto-scored ${saved} of ${eligible.length} stocks ✓`,
+      );
+    } else {
+      toast.error(
+        'FolioSync: fetch failed. Make sure the Cloudflare worker is deployed.',
+      );
+    }
+  };
+
   // ── Selection & Edit State ─────────────────────────────────────────────
   const [edit, setEdit] = useState<any | null>(null);
   const [sellTarget, setSellTarget] = useState<any | null>(null);
@@ -982,21 +1078,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     | 'current'
     | 'livePrice'
     | 'pl'
-    | 'plPct';
+    | 'plPct'
+    | 'folioScore';
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const handleSort = (col: SortCol) => {
     if (sortCol !== col) {
       setSortCol(col);
-      setSortDir('asc');
-    } // 1st click: asc
-    else if (sortDir === 'asc')
-      setSortDir('desc'); // 2nd click: desc
+      // Default FolioSync sort is descending (best first)
+      setSortDir(col === 'folioScore' ? 'desc' : 'asc');
+    } else if (sortDir === 'asc') setSortDir('desc');
     else {
       setSortCol(null);
       setSortDir('asc');
-    } // 3rd click: clear
+    }
   };
 
   const sortedRows = useMemo(() => {
@@ -1030,8 +1126,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           bv = b.current;
           break;
         case 'livePrice':
-          av = a.inv.currentPrice ?? a.inv.nav ?? 0;
-          bv = b.inv.currentPrice ?? b.inv.nav ?? 0;
+          av = a.inv.currentPrice ?? (a.inv as any).nav ?? 0;
+          bv = b.inv.currentPrice ?? (b.inv as any).nav ?? 0;
           break;
         case 'pl':
           av = a.pl;
@@ -1041,12 +1137,16 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           av = a.plPct;
           bv = b.plPct;
           break;
+        case 'folioScore':
+          av = folioSyncData[a.inv.id]?.result?.composite ?? -1;
+          bv = folioSyncData[b.inv.id]?.result?.composite ?? -1;
+          break;
       }
       if (av < bv) return sortDir === 'asc' ? -1 : 1;
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [rows, sortCol, sortDir]);
+  }, [rows, sortCol, sortDir, folioSyncData]);
 
   const isAllSelected =
     sortedRows.length > 0 && selectedIds.length === sortedRows.length;
@@ -1211,6 +1311,47 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 ? '…'
                 : 'Refresh All'}
           </button>
+
+          {/* FolioSync Score All */}
+          {investments.some(
+            (inv) =>
+              inv.type === 'stock' &&
+              inv.symbol &&
+              !(inv as any).usdPrice &&
+              !(inv as any).buyPriceUsd,
+          ) && (
+            <button
+              onClick={handleBulkAutoFetch}
+              disabled={bulkFetching}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
+                bulkFetching
+                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                  : 'bg-emerald-950/60 border-emerald-800/60 text-emerald-500 hover:bg-emerald-900/60 hover:border-emerald-700 hover:text-emerald-300 active:scale-95'
+              }`}
+              title='Auto-fetch fundamentals from Screener.in for all Indian equity stocks'
+            >
+              {bulkFetching ? (
+                <span className='animate-spin inline-block text-[11px]'>⟳</span>
+              ) : (
+                <svg
+                  className='w-3 h-3'
+                  fill='none'
+                  stroke='currentColor'
+                  viewBox='0 0 24 24'
+                >
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+                  />
+                </svg>
+              )}
+              {bulkFetching && bulkProgress
+                ? `Scoring ${bulkProgress.done}/${bulkProgress.total}…`
+                : 'Score All'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -1225,6 +1366,125 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           />
         </div>
       )}
+
+      {/* ── FolioSync Summary Banner ── */}
+      {(() => {
+        const scored = rows.filter((r) => folioSyncData[r.inv.id]?.result);
+        const unscored = rows.length - scored.length;
+        if (scored.length === 0) return null;
+
+        const dist = {
+          aggressiveBuy: scored.filter(
+            (r) => folioSyncData[r.inv.id].result.signal === 'AGGRESSIVE_BUY',
+          ).length,
+          buy: scored.filter(
+            (r) => folioSyncData[r.inv.id].result.signal === 'BUY',
+          ).length,
+          hold: scored.filter(
+            (r) => folioSyncData[r.inv.id].result.signal === 'HOLD',
+          ).length,
+          sell: scored.filter(
+            (r) => folioSyncData[r.inv.id].result.signal === 'SELL',
+          ).length,
+          aggressiveSell: scored.filter(
+            (r) => folioSyncData[r.inv.id].result.signal === 'AGGRESSIVE_SELL',
+          ).length,
+        };
+        const avgScore =
+          scored.reduce(
+            (sum, r) => sum + folioSyncData[r.inv.id].result.composite,
+            0,
+          ) / scored.length;
+
+        return (
+          <div className='flex items-center gap-3 px-3 py-2 rounded-xl bg-emerald-950/40 border border-emerald-900/50 overflow-x-auto no-scrollbar'>
+            {/* Label */}
+            <span className='text-[10px] font-black uppercase tracking-widest text-emerald-600 shrink-0 flex items-center gap-1.5'>
+              <svg
+                className='w-3 h-3'
+                fill='none'
+                stroke='currentColor'
+                viewBox='0 0 24 24'
+              >
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  strokeWidth={2}
+                  d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+                />
+              </svg>
+              FolioSync
+            </span>
+
+            <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
+
+            {/* Avg score */}
+            <div className='flex items-center gap-1 shrink-0'>
+              <span className='text-[10px] text-slate-500'>Avg</span>
+              <span
+                className='text-[13px] font-black tabular-nums'
+                style={{
+                  color:
+                    avgScore >= 7
+                      ? '#4ADE80'
+                      : avgScore >= 5
+                        ? '#FBBF24'
+                        : '#F87171',
+                }}
+              >
+                {avgScore.toFixed(1)}
+              </span>
+              <span className='text-[9px] text-slate-600'>/10</span>
+            </div>
+
+            <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
+
+            {/* Signal distribution */}
+            <div className='flex items-center gap-2 shrink-0'>
+              {dist.aggressiveBuy > 0 && (
+                <span className='flex items-center gap-1 text-[10px] font-bold text-teal-300'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-teal-400' />
+                  {dist.aggressiveBuy} Agg.Buy
+                </span>
+              )}
+              {dist.buy > 0 && (
+                <span className='flex items-center gap-1 text-[10px] font-bold text-emerald-400'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-emerald-500' />
+                  {dist.buy} Buy
+                </span>
+              )}
+              {dist.hold > 0 && (
+                <span className='flex items-center gap-1 text-[10px] font-bold text-amber-400'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-amber-500' />
+                  {dist.hold} Hold
+                </span>
+              )}
+              {dist.sell > 0 && (
+                <span className='flex items-center gap-1 text-[10px] font-bold text-red-400'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-red-500' />
+                  {dist.sell} Sell
+                </span>
+              )}
+              {dist.aggressiveSell > 0 && (
+                <span className='flex items-center gap-1 text-[10px] font-bold text-red-500'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse' />
+                  {dist.aggressiveSell} Agg.Sell
+                </span>
+              )}
+            </div>
+
+            {/* Unscored nudge */}
+            {unscored > 0 && (
+              <>
+                <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
+                <span className='text-[10px] text-slate-600 whitespace-nowrap'>
+                  {unscored} unscored
+                </span>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── MOBILE VIEW ── */}
       <div className='flex flex-col gap-2.5 md:hidden px-1'>
@@ -1346,6 +1606,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           />
                         </div>
                       )}
+
+                      {/* FolioSync Score (mobile) */}
+                      <div className='mt-2'>
+                        <FolioSyncCell
+                          inv={inv}
+                          storedFundamentals={
+                            folioSyncData[inv.id]?.fundamentals
+                          }
+                          storedResult={folioSyncData[inv.id]?.result}
+                          onSave={handleFolioSyncSave}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1528,6 +1800,25 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   ⚡
                 </th>
 
+                {/* FolioSync Score */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-3 py-2.5 border-b border-slate-700/60 min-w-[140px]'>
+                  <button
+                    onClick={() => handleSort('folioScore')}
+                    className='flex items-center gap-1.5 group/th'
+                  >
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-widest transition-colors ${sortCol === 'folioScore' ? 'text-emerald-400' : 'text-emerald-700 group-hover/th:text-emerald-500'}`}
+                    >
+                      FolioSync
+                    </span>
+                    <SortIcon
+                      col='folioScore'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                  </button>
+                </th>
+
                 {/* P&L — two sort options: abs value or % */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60 min-w-[120px]'>
                   <div className='flex items-center justify-end gap-2'>
@@ -1693,6 +1984,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         ) : (
                           <span className='text-slate-700 text-[10px]'>—</span>
                         )}
+                      </td>
+
+                      {/* ── FolioSync Score ── */}
+                      <td className={`px-3 py-2.5 ${bdClass}`}>
+                        <FolioSyncCell
+                          inv={inv}
+                          storedFundamentals={
+                            folioSyncData[inv.id]?.fundamentals
+                          }
+                          storedResult={folioSyncData[inv.id]?.result}
+                          onSave={handleFolioSyncSave}
+                        />
                       </td>
 
                       {/* ── P&L ── */}
