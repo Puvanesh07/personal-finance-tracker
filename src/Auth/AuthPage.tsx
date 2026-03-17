@@ -12,6 +12,8 @@ import { signInWithPopup } from 'firebase/auth';
 import { motion, type Variants } from 'framer-motion';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import RegisterPage from './RegisterPage';
+import LoginPage from './LoginPage';
 import {
   FiTrendingUp,
   FiFileText,
@@ -33,6 +35,7 @@ import {
   FiDatabase,
   FiGlobe,
   FiLoader,
+  FiMail,
 } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { SiNotion } from 'react-icons/si';
@@ -267,6 +270,8 @@ const glassBase: React.CSSProperties = {
 export default function AuthPage() {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   const handleGoogleSignIn = async () => {
     if (signingIn) return;
@@ -307,834 +312,950 @@ export default function AuthPage() {
   };
 
   return (
-    <div
-      className='min-h-screen overflow-x-hidden'
-      style={{
-        background: '#020b18',
-        color: '#e2e8f0',
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-      }}
-    >
-      {/* ── STATIC BG — pure CSS, zero JS cost ── */}
-      <div className='fixed inset-0 pointer-events-none' style={{ zIndex: 0 }}>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(ellipse 80% 55% at 50% -5%, rgba(16,185,129,0.14) 0%, transparent 65%)',
+    <>
+      {showRegister && (
+        <RegisterPage
+          onBack={() => setShowRegister(false)}
+          onSwitchToLogin={() => {
+            setShowRegister(false);
+            setShowLogin(true);
           }}
         />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(ellipse 55% 40% at 95% 80%, rgba(59,130,246,0.09) 0%, transparent 55%)',
+      )}
+      {showLogin && (
+        <LoginPage
+          onBack={() => setShowLogin(false)}
+          onSwitchToRegister={() => {
+            setShowLogin(false);
+            setShowRegister(true);
           }}
         />
+      )}
+      {!showRegister && !showLogin && (
         <div
+          className='min-h-screen overflow-x-hidden'
           style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(ellipse 45% 35% at 0% 55%, rgba(167,139,250,0.08) 0%, transparent 55%)',
-          }}
-        />
-      </div>
-
-      {/* ── NAVBAR ── */}
-      <motion.nav
-        initial={{ y: -16, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className='fixed top-0 w-full z-50'
-        style={{
-          background: 'rgba(2,11,24,0.75)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-        }}
-      >
-        <div className='flex items-center justify-between px-6 py-4 max-w-6xl mx-auto'>
-          <div className='flex items-center gap-2.5'>
-            <div
-              className='h-8 w-8 rounded-lg flex items-center justify-center'
-              style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                boxShadow: '0 0 14px rgba(16,185,129,0.45)',
-              }}
-            >
-              <FiTrendingUp className='text-white h-4 w-4' />
-            </div>
-            <span className='text-base font-bold tracking-tight text-white'>
-              FinTrackly
-            </span>
-            <span
-              className='ml-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest'
-              style={{
-                background: 'rgba(16,185,129,0.15)',
-                color: '#10b981',
-                border: '1px solid rgba(16,185,129,0.3)',
-              }}
-            >
-              Beta
-            </span>
-          </div>
-
-          <motion.button
-            onClick={handleGoogleSignIn}
-            disabled={signingIn}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60'
-            style={{
-              background: 'rgba(16,185,129,0.15)',
-              border: '1px solid rgba(16,185,129,0.35)',
-            }}
-            whileHover={
-              { scale: 1.04, background: 'rgba(16,185,129,0.25)' } as any
-            }
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-          >
-            {signingIn ? 'Signing in…' : 'Get Started Free'}
-            <FiArrowRight className='h-3.5 w-3.5' />
-          </motion.button>
-        </div>
-      </motion.nav>
-
-      {/* ── HERO ── */}
-      <section
-        className='relative px-6 pt-36 pb-20 max-w-6xl mx-auto text-center'
-        style={{ zIndex: 1 }}
-      >
-        <motion.div initial='hidden' animate='show' variants={stagger}>
-          <motion.div variants={fadeUp}>
-            <div
-              className='inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold'
-              style={{
-                background: 'rgba(16,185,129,0.1)',
-                color: '#34d399',
-                border: '1px solid rgba(16,185,129,0.25)',
-              }}
-            >
-              <FiZap className='h-3 w-3' />
-              Built for Indian investors · 100% private
-            </div>
-          </motion.div>
-
-          <motion.h1
-            variants={fadeUp}
-            className='font-black tracking-tighter mb-6'
-            style={{
-              fontSize: 'clamp(38px, 6.5vw, 78px)',
-              lineHeight: 1.06,
-              color: '#f8fafc',
-            }}
-          >
-            India's free personal
-            <br />
-            <span
-              style={{
-                background:
-                  'linear-gradient(135deg, #10b981, #34d399, #6ee7b7)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              finance tracker.
-            </span>
-          </motion.h1>
-
-          <motion.p
-            variants={fadeUp}
-            className='text-lg max-w-2xl mx-auto mb-10 leading-relaxed'
-            style={{ color: 'rgba(226,232,240,0.52)' }}
-          >
-            Track net worth, stocks, mutual funds, SIPs, crypto, gold, FDs, PPF
-            and expenses across 20+ asset classes. Import from Zerodha, Groww,
-            Angel One & INDmoney. No broker credentials. No third-party
-            tracking. Just you and your data.
-          </motion.p>
-
-          <motion.div
-            variants={fadeUp}
-            className='flex items-center justify-center gap-3 mb-12'
-          >
-            <motion.button
-              onClick={handleGoogleSignIn}
-              disabled={signingIn}
-              className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
-              style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                boxShadow:
-                  '0 0 36px rgba(16,185,129,0.35), 0 4px 20px rgba(0,0,0,0.35)',
-              }}
-              whileHover={
-                {
-                  scale: 1.04,
-                  boxShadow:
-                    '0 0 54px rgba(16,185,129,0.5), 0 4px 24px rgba(0,0,0,0.4)',
-                } as any
-              }
-              whileTap={{ scale: 0.97 }}
-              transition={{ duration: 0.15 }}
-            >
-              {signingIn ? (
-                <>
-                  <FiLoader className='text-xl animate-spin' />
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  <FcGoogle className='text-xl' />
-                  Continue with Google
-                </>
-              )}
-            </motion.button>
-          </motion.div>
-
-          {/* Trust pills */}
-          <motion.div
-            variants={fadeUp}
-            className='flex flex-wrap items-center justify-center gap-3 mb-16'
-          >
-            {[
-              '14 Built Modules',
-              'Stocks · MFs · SIPs · Crypto · Gold',
-              'Import Zerodha · Groww · Angel One',
-              'PPF · NPS · FD Tracker',
-              'Notion Sync',
-              '100% Free & Private',
-              'CSV & Excel Export',
-              'NSE 500+ Stocks',
-            ].map((s, i) => (
-              <div
-                key={i}
-                className='flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium'
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(226,232,240,0.55)',
-                }}
-              >
-                <FiCheck className='text-emerald-400 h-3 w-3 flex-shrink-0' />
-                {s}
-              </div>
-            ))}
-          </motion.div>
-        </motion.div>
-
-        {/* ── DASHBOARD MOCKUP ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 48 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className='rounded-2xl overflow-hidden mx-auto'
-          style={{
-            maxWidth: 860,
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(20px)',
-            boxShadow:
-              '0 32px 72px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
+            background: '#020b18',
+            color: '#e2e8f0',
+            fontFamily: "'DM Sans', system-ui, sans-serif",
           }}
         >
-          {/* Browser chrome */}
+          {/* ── STATIC BG — pure CSS, zero JS cost ── */}
           <div
-            className='flex items-center gap-2 px-4 py-3'
+            className='fixed inset-0 pointer-events-none'
+            style={{ zIndex: 0 }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'radial-gradient(ellipse 80% 55% at 50% -5%, rgba(16,185,129,0.14) 0%, transparent 65%)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'radial-gradient(ellipse 55% 40% at 95% 80%, rgba(59,130,246,0.09) 0%, transparent 55%)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'radial-gradient(ellipse 45% 35% at 0% 55%, rgba(167,139,250,0.08) 0%, transparent 55%)',
+              }}
+            />
+          </div>
+
+          {/* ── NAVBAR ── */}
+          <motion.nav
+            initial={{ y: -16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className='fixed top-0 w-full z-50'
             style={{
+              background: 'rgba(2,11,24,0.75)',
+              backdropFilter: 'blur(20px)',
               borderBottom: '1px solid rgba(255,255,255,0.06)',
-              background: 'rgba(0,0,0,0.2)',
             }}
           >
-            <div className='h-3 w-3 rounded-full bg-red-400' />
-            <div className='h-3 w-3 rounded-full bg-yellow-400' />
-            <div className='h-3 w-3 rounded-full bg-green-400' />
-            <div
-              className='ml-3 flex-1 max-w-xs rounded-md px-3 py-1 text-xs'
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                color: 'rgba(226,232,240,0.3)',
-              }}
-            >
-              fintrackly.app/dashboard
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className='p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left'>
-            {[
-              {
-                label: 'Net Worth',
-                value: '₹48.2L',
-                change: '+18.2%',
-                color: '#10b981',
-              },
-              {
-                label: 'Total Assets',
-                value: '₹54.6L',
-                change: '67 assets',
-                color: '#3b82f6',
-              },
-              {
-                label: 'Liabilities',
-                value: '₹6.4L',
-                change: '3 loans',
-                color: '#f87171',
-              },
-              {
-                label: 'Savings Rate',
-                value: '60%',
-                change: '↑ 5%',
-                color: '#a78bfa',
-              },
-            ].map((card) => (
-              <div
-                key={card.label}
-                className='rounded-xl p-4'
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                }}
-              >
-                <p
-                  className='text-xs mb-1'
-                  style={{ color: 'rgba(226,232,240,0.4)' }}
+            <div className='flex items-center justify-between px-6 py-4 max-w-6xl mx-auto'>
+              <div className='flex items-center gap-2.5'>
+                <div
+                  className='h-8 w-8 rounded-lg flex items-center justify-center'
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    boxShadow: '0 0 14px rgba(16,185,129,0.45)',
+                  }}
                 >
-                  {card.label}
-                </p>
-                <p className='text-xl font-bold text-white'>{card.value}</p>
-                <p
-                  className='text-xs font-semibold mt-1'
-                  style={{ color: card.color }}
-                >
-                  {card.change}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Chart */}
-          <div className='px-5 pb-5'>
-            <div
-              className='rounded-xl p-5'
-              style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
-              <div className='flex items-center justify-between mb-4'>
-                <p
-                  className='text-sm font-semibold'
-                  style={{ color: 'rgba(226,232,240,0.8)' }}
-                >
-                  Net Worth Over Time
-                </p>
+                  <FiTrendingUp className='text-white h-4 w-4' />
+                </div>
+                <span className='text-base font-bold tracking-tight text-white'>
+                  FinTrackly
+                </span>
                 <span
-                  className='text-xs px-2 py-1 rounded-full font-semibold'
+                  className='ml-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest'
                   style={{
                     background: 'rgba(16,185,129,0.15)',
                     color: '#10b981',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                  }}
+                >
+                  Beta
+                </span>
+              </div>
+
+              <motion.button
+                onClick={() => setShowRegister(true)}
+                className='flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white'
+                style={{
+                  background: 'rgba(16,185,129,0.15)',
+                  border: '1px solid rgba(16,185,129,0.35)',
+                }}
+                whileHover={
+                  { scale: 1.04, background: 'rgba(16,185,129,0.25)' } as any
+                }
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.15 }}
+              >
+                Get Started Free
+                <FiArrowRight className='h-3.5 w-3.5' />
+              </motion.button>
+            </div>
+          </motion.nav>
+
+          {/* ── HERO ── */}
+          <section
+            className='relative px-6 pt-36 pb-20 max-w-6xl mx-auto text-center'
+            style={{ zIndex: 1 }}
+          >
+            <motion.div initial='hidden' animate='show' variants={stagger}>
+              <motion.div variants={fadeUp}>
+                <div
+                  className='inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold'
+                  style={{
+                    background: 'rgba(16,185,129,0.1)',
+                    color: '#34d399',
                     border: '1px solid rgba(16,185,129,0.25)',
                   }}
                 >
-                  +18.2% YTD
+                  <FiZap className='h-3 w-3' />
+                  Built for Indian investors · 100% private
+                </div>
+              </motion.div>
+
+              <motion.h1
+                variants={fadeUp}
+                className='font-black tracking-tighter mb-6'
+                style={{
+                  fontSize: 'clamp(38px, 6.5vw, 78px)',
+                  lineHeight: 1.06,
+                  color: '#f8fafc',
+                }}
+              >
+                India's free personal
+                <br />
+                <span
+                  style={{
+                    background:
+                      'linear-gradient(135deg, #10b981, #34d399, #6ee7b7)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  finance tracker.
                 </span>
-              </div>
-              <svg
-                width='100%'
-                height='64'
-                viewBox='0 0 400 64'
-                preserveAspectRatio='none'
-              >
-                <defs>
-                  <linearGradient id='cg' x1='0' y1='0' x2='0' y2='1'>
-                    <stop offset='0%' stopColor='#10b981' stopOpacity='0.3' />
-                    <stop offset='100%' stopColor='#10b981' stopOpacity='0' />
-                  </linearGradient>
-                </defs>
-                <path
-                  d='M0,52 C40,48 70,44 100,38 C130,32 160,40 200,28 C240,16 270,22 300,14 C330,8 360,10 400,4'
-                  fill='none'
-                  stroke='#10b981'
-                  strokeWidth='2.5'
-                />
-                <path
-                  d='M0,52 C40,48 70,44 100,38 C130,32 160,40 200,28 C240,16 270,22 300,14 C330,8 360,10 400,4 L400,64 L0,64 Z'
-                  fill='url(#cg)'
-                />
-              </svg>
-              <div className='flex justify-between mt-2'>
-                {['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb'].map(
-                  (m) => (
-                    <span
-                      key={m}
-                      className='text-[11px] font-medium'
-                      style={{ color: 'rgba(148,163,184,0.85)' }}
-                    >
-                      {m}
-                    </span>
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </section>
+              </motion.h1>
 
-      {/* ── HOW IT WORKS ── */}
-      <section
-        className='px-6 py-20 relative'
-        id='how-it-works'
-        style={{ zIndex: 1 }}
-      >
-        <div className='max-w-5xl mx-auto'>
-          <motion.div
-            initial='hidden'
-            whileInView='show'
-            viewport={{ once: true, margin: '-60px' }}
-            variants={stagger}
-          >
-            <motion.div variants={fadeUp} className='text-center mb-12'>
-              <p
-                className='text-xs font-bold uppercase tracking-widest mb-3'
-                style={{ color: '#10b981' }}
+              <motion.p
+                variants={fadeUp}
+                className='text-lg max-w-2xl mx-auto mb-10 leading-relaxed'
+                style={{ color: 'rgba(226,232,240,0.52)' }}
               >
-                Simple as 1-2-3
-              </p>
-              <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
-                Get your net worth in under 5 minutes
-              </h2>
-            </motion.div>
+                Track net worth, stocks, mutual funds, SIPs, crypto, gold, FDs,
+                PPF and expenses across 20+ asset classes. Import from Zerodha,
+                Groww, Angel One & INDmoney. No broker credentials. No
+                third-party tracking. Just you and your data.
+              </motion.p>
 
-            <div className='grid md:grid-cols-3 gap-5'>
-              {[
-                {
-                  step: '01',
-                  title: 'Sign up in 10 seconds',
-                  desc: "One-click Google sign-in. Fill in a quick profile and you're in.",
-                  icon: <FcGoogle className='text-2xl' />,
-                },
-                {
-                  step: '02',
-                  title: 'Add your assets',
-                  desc: 'Enter manually, use CSV/Excel templates, or import directly from Zerodha or Groww.',
-                  icon: (
-                    <FiUpload
-                      style={{ color: '#10b981' }}
-                      className='text-xl'
-                    />
-                  ),
-                },
-                {
-                  step: '03',
-                  title: 'See your complete picture',
-                  desc: 'Dashboard shows net worth, income vs expenses, allocation breakdown and goal progress.',
-                  icon: (
-                    <FiBarChart2
-                      style={{ color: '#3b82f6' }}
-                      className='text-xl'
-                    />
-                  ),
-                },
-              ].map((item) => (
-                <motion.div
-                  key={item.step}
-                  variants={fadeUp}
-                  className='rounded-2xl p-7'
-                  style={glassBase}
+              <motion.div
+                variants={fadeUp}
+                className='flex flex-wrap items-center justify-center gap-3 mb-12'
+              >
+                <motion.button
+                  onClick={handleGoogleSignIn}
+                  disabled={signingIn}
+                  className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    boxShadow:
+                      '0 0 36px rgba(16,185,129,0.35), 0 4px 20px rgba(0,0,0,0.35)',
+                  }}
                   whileHover={
                     {
-                      y: -5,
-                      background: 'rgba(255,255,255,0.07)',
-                      border: '1px solid rgba(255,255,255,0.13)',
+                      scale: 1.04,
+                      boxShadow:
+                        '0 0 54px rgba(16,185,129,0.5), 0 4px 24px rgba(0,0,0,0.4)',
                     } as any
                   }
-                  transition={{ duration: 0.2 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
                 >
-                  <div className='flex items-center gap-3 mb-5'>
-                    <span
-                      className='text-xs font-black tracking-widest'
-                      style={{ color: 'rgba(255,255,255,0.14)' }}
+                  {signingIn ? (
+                    <>
+                      <FiLoader className='text-xl animate-spin' />
+                      Signing in…
+                    </>
+                  ) : (
+                    <>
+                      <FcGoogle className='text-xl' />
+                      Continue with Google
+                    </>
+                  )}
+                </motion.button>
+
+                <motion.button
+                  onClick={() => setShowRegister(true)}
+                  className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white'
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    backdropFilter: 'blur(10px)',
+                  }}
+                  whileHover={
+                    {
+                      scale: 1.04,
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                    } as any
+                  }
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <FiMail className='text-xl' style={{ color: '#60a5fa' }} />
+                  Sign up with Email
+                </motion.button>
+              </motion.div>
+
+              {/* Already have account */}
+              <motion.div variants={fadeUp} className='mb-4'>
+                <p
+                  className='text-sm'
+                  style={{ color: 'rgba(226,232,240,0.38)' }}
+                >
+                  Already have an account?{' '}
+                  <button
+                    onClick={() => setShowLogin(true)}
+                    style={{
+                      color: '#10b981',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    Sign in with email →
+                  </button>
+                </p>
+              </motion.div>
+
+              {/* Trust pills */}
+              <motion.div
+                variants={fadeUp}
+                className='flex flex-wrap items-center justify-center gap-3 mb-16'
+              >
+                {[
+                  '14 Built Modules',
+                  'Stocks · MFs · SIPs · Crypto · Gold',
+                  'Import Zerodha · Groww · Angel One',
+                  'PPF · NPS · FD Tracker',
+                  'Notion Sync',
+                  '100% Free & Private',
+                  'CSV & Excel Export',
+                  'NSE 500+ Stocks',
+                ].map((s, i) => (
+                  <div
+                    key={i}
+                    className='flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium'
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: 'rgba(226,232,240,0.55)',
+                    }}
+                  >
+                    <FiCheck className='text-emerald-400 h-3 w-3 flex-shrink-0' />
+                    {s}
+                  </div>
+                ))}
+              </motion.div>
+            </motion.div>
+
+            {/* ── DASHBOARD MOCKUP ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 48 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 0.4,
+                duration: 0.8,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className='rounded-2xl overflow-hidden mx-auto'
+              style={{
+                maxWidth: 860,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(20px)',
+                boxShadow:
+                  '0 32px 72px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
+              }}
+            >
+              {/* Browser chrome */}
+              <div
+                className='flex items-center gap-2 px-4 py-3'
+                style={{
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  background: 'rgba(0,0,0,0.2)',
+                }}
+              >
+                <div className='h-3 w-3 rounded-full bg-red-400' />
+                <div className='h-3 w-3 rounded-full bg-yellow-400' />
+                <div className='h-3 w-3 rounded-full bg-green-400' />
+                <div
+                  className='ml-3 flex-1 max-w-xs rounded-md px-3 py-1 text-xs'
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'rgba(226,232,240,0.3)',
+                  }}
+                >
+                  fintrackly.app/dashboard
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className='p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left'>
+                {[
+                  {
+                    label: 'Net Worth',
+                    value: '₹48.2L',
+                    change: '+18.2%',
+                    color: '#10b981',
+                  },
+                  {
+                    label: 'Total Assets',
+                    value: '₹54.6L',
+                    change: '67 assets',
+                    color: '#3b82f6',
+                  },
+                  {
+                    label: 'Liabilities',
+                    value: '₹6.4L',
+                    change: '3 loans',
+                    color: '#f87171',
+                  },
+                  {
+                    label: 'Savings Rate',
+                    value: '60%',
+                    change: '↑ 5%',
+                    color: '#a78bfa',
+                  },
+                ].map((card) => (
+                  <div
+                    key={card.label}
+                    className='rounded-xl p-4'
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                    }}
+                  >
+                    <p
+                      className='text-xs mb-1'
+                      style={{ color: 'rgba(226,232,240,0.4)' }}
                     >
-                      {item.step}
-                    </span>
-                    <div
-                      className='h-9 w-9 rounded-xl flex items-center justify-center'
+                      {card.label}
+                    </p>
+                    <p className='text-xl font-bold text-white'>{card.value}</p>
+                    <p
+                      className='text-xs font-semibold mt-1'
+                      style={{ color: card.color }}
+                    >
+                      {card.change}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart */}
+              <div className='px-5 pb-5'>
+                <div
+                  className='rounded-xl p-5'
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <div className='flex items-center justify-between mb-4'>
+                    <p
+                      className='text-sm font-semibold'
+                      style={{ color: 'rgba(226,232,240,0.8)' }}
+                    >
+                      Net Worth Over Time
+                    </p>
+                    <span
+                      className='text-xs px-2 py-1 rounded-full font-semibold'
                       style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'rgba(16,185,129,0.15)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16,185,129,0.25)',
+                      }}
+                    >
+                      +18.2% YTD
+                    </span>
+                  </div>
+                  <svg
+                    width='100%'
+                    height='64'
+                    viewBox='0 0 400 64'
+                    preserveAspectRatio='none'
+                  >
+                    <defs>
+                      <linearGradient id='cg' x1='0' y1='0' x2='0' y2='1'>
+                        <stop
+                          offset='0%'
+                          stopColor='#10b981'
+                          stopOpacity='0.3'
+                        />
+                        <stop
+                          offset='100%'
+                          stopColor='#10b981'
+                          stopOpacity='0'
+                        />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d='M0,52 C40,48 70,44 100,38 C130,32 160,40 200,28 C240,16 270,22 300,14 C330,8 360,10 400,4'
+                      fill='none'
+                      stroke='#10b981'
+                      strokeWidth='2.5'
+                    />
+                    <path
+                      d='M0,52 C40,48 70,44 100,38 C130,32 160,40 200,28 C240,16 270,22 300,14 C330,8 360,10 400,4 L400,64 L0,64 Z'
+                      fill='url(#cg)'
+                    />
+                  </svg>
+                  <div className='flex justify-between mt-2'>
+                    {[
+                      'Jul',
+                      'Aug',
+                      'Sep',
+                      'Oct',
+                      'Nov',
+                      'Dec',
+                      'Jan',
+                      'Feb',
+                    ].map((m) => (
+                      <span
+                        key={m}
+                        className='text-[11px] font-medium'
+                        style={{ color: 'rgba(148,163,184,0.85)' }}
+                      >
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </section>
+
+          {/* ── HOW IT WORKS ── */}
+          <section
+            className='px-6 py-20 relative'
+            id='how-it-works'
+            style={{ zIndex: 1 }}
+          >
+            <div className='max-w-5xl mx-auto'>
+              <motion.div
+                initial='hidden'
+                whileInView='show'
+                viewport={{ once: true, margin: '-60px' }}
+                variants={stagger}
+              >
+                <motion.div variants={fadeUp} className='text-center mb-12'>
+                  <p
+                    className='text-xs font-bold uppercase tracking-widest mb-3'
+                    style={{ color: '#10b981' }}
+                  >
+                    Simple as 1-2-3
+                  </p>
+                  <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
+                    Get your net worth in under 5 minutes
+                  </h2>
+                </motion.div>
+
+                <div className='grid md:grid-cols-3 gap-5'>
+                  {[
+                    {
+                      step: '01',
+                      title: 'Sign up in 10 seconds',
+                      desc: "One-click Google sign-in. Fill in a quick profile and you're in.",
+                      icon: <FcGoogle className='text-2xl' />,
+                    },
+                    {
+                      step: '02',
+                      title: 'Add your assets',
+                      desc: 'Enter manually, use CSV/Excel templates, or import directly from Zerodha or Groww.',
+                      icon: (
+                        <FiUpload
+                          style={{ color: '#10b981' }}
+                          className='text-xl'
+                        />
+                      ),
+                    },
+                    {
+                      step: '03',
+                      title: 'See your complete picture',
+                      desc: 'Dashboard shows net worth, income vs expenses, allocation breakdown and goal progress.',
+                      icon: (
+                        <FiBarChart2
+                          style={{ color: '#3b82f6' }}
+                          className='text-xl'
+                        />
+                      ),
+                    },
+                  ].map((item) => (
+                    <motion.div
+                      key={item.step}
+                      variants={fadeUp}
+                      className='rounded-2xl p-7'
+                      style={glassBase}
+                      whileHover={
+                        {
+                          y: -5,
+                          background: 'rgba(255,255,255,0.07)',
+                          border: '1px solid rgba(255,255,255,0.13)',
+                        } as any
+                      }
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className='flex items-center gap-3 mb-5'>
+                        <span
+                          className='text-xs font-black tracking-widest'
+                          style={{ color: 'rgba(255,255,255,0.14)' }}
+                        >
+                          {item.step}
+                        </span>
+                        <div
+                          className='h-9 w-9 rounded-xl flex items-center justify-center'
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                          }}
+                        >
+                          {item.icon}
+                        </div>
+                      </div>
+                      <h3 className='text-sm font-bold text-white mb-2'>
+                        {item.title}
+                      </h3>
+                      <p
+                        className='text-sm leading-relaxed'
+                        style={{ color: 'rgba(226,232,240,0.48)' }}
+                      >
+                        {item.desc}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* ── FEATURES GRID ── */}
+          <section
+            className='px-6 py-20 max-w-6xl mx-auto relative'
+            id='features'
+            style={{ zIndex: 1 }}
+          >
+            <motion.div
+              initial='hidden'
+              whileInView='show'
+              viewport={{ once: true, margin: '-60px' }}
+              variants={stagger}
+            >
+              <motion.div variants={fadeUp} className='text-center mb-12'>
+                <p
+                  className='text-xs font-bold uppercase tracking-widest mb-3'
+                  style={{ color: '#10b981' }}
+                >
+                  Everything you need
+                </p>
+                <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
+                  Built for how Indians actually invest
+                </h2>
+                <p
+                  className='mt-3 max-w-xl mx-auto text-sm'
+                  style={{ color: 'rgba(226,232,240,0.42)' }}
+                >
+                  14 fully built modules — track stocks, mutual funds, SIPs,
+                  crypto, gold, FDs, PPF, NPS, expenses, liabilities and goals.
+                  Every feature is live and ready to use.
+                </p>
+              </motion.div>
+
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
+                {features.map((f, i) => (
+                  <motion.div
+                    key={i}
+                    variants={fadeUp}
+                    className='p-6 rounded-2xl relative overflow-hidden cursor-default group'
+                    style={glassBase}
+                    onHoverStart={() => setHoveredFeature(i)}
+                    onHoverEnd={() => setHoveredFeature(null)}
+                    whileHover={
+                      {
+                        y: -4,
+                        background: 'rgba(255,255,255,0.07)',
+                        border: '1px solid rgba(255,255,255,0.13)',
+                      } as any
+                    }
+                    transition={{ duration: 0.2 }}
+                  >
+                    {/* Top accent line */}
+                    <div
+                      className='absolute top-0 left-0 right-0 h-px transition-opacity duration-300'
+                      style={{
+                        background: `linear-gradient(90deg, transparent, ${f.color}, transparent)`,
+                        opacity: hoveredFeature === i ? 1 : 0,
+                      }}
+                    />
+
+                    <div
+                      className='h-10 w-10 rounded-xl flex items-center justify-center text-lg mb-4'
+                      style={{
+                        background: `${f.glow.replace('0.25', '0.12')}`,
+                        border: `1px solid ${f.color}28`,
+                        color: f.color,
+                      }}
+                    >
+                      {f.icon}
+                    </div>
+                    <h3 className='text-sm font-bold text-white mb-2'>
+                      {f.label}
+                    </h3>
+                    <p
+                      className='text-sm leading-relaxed mb-4'
+                      style={{ color: 'rgba(226,232,240,0.44)' }}
+                    >
+                      {f.desc}
+                    </p>
+
+                    <div
+                      className='overflow-hidden transition-all duration-300'
+                      style={{
+                        maxHeight: hoveredFeature === i ? '200px' : '0px',
+                        opacity: hoveredFeature === i ? 1 : 0,
+                      }}
+                    >
+                      <div
+                        className='pt-3'
+                        style={{ borderTop: `1px solid ${f.color}20` }}
+                      >
+                        {f.bullets.map((b, bi) => (
+                          <div
+                            key={bi}
+                            className='flex items-start gap-2 mb-1.5'
+                          >
+                            <FiCheck
+                              className='mt-0.5 flex-shrink-0 h-3 w-3'
+                              style={{ color: f.color }}
+                            />
+                            <span
+                              className='text-xs leading-snug'
+                              style={{ color: 'rgba(226,232,240,0.55)' }}
+                            >
+                              {b}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </section>
+
+          {/* ── PRIVACY ── */}
+          <section
+            className='px-6 py-20 max-w-5xl mx-auto relative'
+            id='privacy'
+            style={{ zIndex: 1 }}
+          >
+            <motion.div
+              initial='hidden'
+              whileInView='show'
+              viewport={{ once: true, margin: '-60px' }}
+              variants={stagger}
+            >
+              <motion.div variants={fadeUp} className='text-center mb-12'>
+                <p
+                  className='text-xs font-bold uppercase tracking-widest mb-3'
+                  style={{ color: '#10b981' }}
+                >
+                  Your data, your rules
+                </p>
+                <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
+                  Privacy is not a feature.
+                  <br />
+                  It's the foundation.
+                </h2>
+              </motion.div>
+
+              <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+                {[
+                  {
+                    icon: <FiShield />,
+                    title: 'No Broker Access',
+                    desc: 'We never connect to your brokerage or bank accounts. You control what gets entered.',
+                    color: '#10b981',
+                  },
+                  {
+                    icon: <FiLock />,
+                    title: 'No Data Selling',
+                    desc: "Your financial data is yours alone. We don't sell, share, or monetize it. Ever.",
+                    color: '#3b82f6',
+                  },
+                  {
+                    icon: <FiDownload />,
+                    title: 'Full Data Export',
+                    desc: 'Export all your data as CSV or JSON anytime. Your data is always accessible.',
+                    color: '#a78bfa',
+                  },
+                  {
+                    icon: <FiAlertCircle />,
+                    title: 'Delete Any Time',
+                    desc: 'One click deletes your entire account and all data. No retention, no dark patterns.',
+                    color: '#f87171',
+                  },
+                ].map((item, i) => (
+                  <motion.div
+                    key={i}
+                    variants={fadeUp}
+                    className='p-6 rounded-2xl'
+                    style={glassBase}
+                    whileHover={
+                      {
+                        y: -4,
+                        background: 'rgba(255,255,255,0.07)',
+                        border: '1px solid rgba(255,255,255,0.13)',
+                      } as any
+                    }
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div
+                      className='h-10 w-10 rounded-xl flex items-center justify-center text-lg mb-4'
+                      style={{
+                        background: `${item.color}18`,
+                        border: `1px solid ${item.color}28`,
+                        color: item.color,
                       }}
                     >
                       {item.icon}
                     </div>
-                  </div>
-                  <h3 className='text-sm font-bold text-white mb-2'>
-                    {item.title}
-                  </h3>
-                  <p
-                    className='text-sm leading-relaxed'
-                    style={{ color: 'rgba(226,232,240,0.48)' }}
-                  >
-                    {item.desc}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
+                    <h3 className='text-sm font-bold text-white mb-2'>
+                      {item.title}
+                    </h3>
+                    <p
+                      className='text-sm leading-relaxed'
+                      style={{ color: 'rgba(226,232,240,0.44)' }}
+                    >
+                      {item.desc}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </section>
 
-      {/* ── FEATURES GRID ── */}
-      <section
-        className='px-6 py-20 max-w-6xl mx-auto relative'
-        id='features'
-        style={{ zIndex: 1 }}
-      >
-        <motion.div
-          initial='hidden'
-          whileInView='show'
-          viewport={{ once: true, margin: '-60px' }}
-          variants={stagger}
-        >
-          <motion.div variants={fadeUp} className='text-center mb-12'>
-            <p
-              className='text-xs font-bold uppercase tracking-widest mb-3'
-              style={{ color: '#10b981' }}
+          {/* ── CTA ── */}
+          <section className='px-6 py-20 relative' style={{ zIndex: 1 }}>
+            <motion.div
+              className='max-w-3xl mx-auto text-center rounded-3xl p-12 relative overflow-hidden'
+              style={glassBase}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
             >
-              Everything you need
-            </p>
-            <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
-              Built for how Indians actually invest
-            </h2>
-            <p
-              className='mt-3 max-w-xl mx-auto text-sm'
-              style={{ color: 'rgba(226,232,240,0.42)' }}
-            >
-              14 fully built modules — track stocks, mutual funds, SIPs, crypto,
-              gold, FDs, PPF, NPS, expenses, liabilities and goals. Every
-              feature is live and ready to use.
-            </p>
-          </motion.div>
-
-          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
-            {features.map((f, i) => (
-              <motion.div
-                key={i}
-                variants={fadeUp}
-                className='p-6 rounded-2xl relative overflow-hidden cursor-default group'
-                style={glassBase}
-                onHoverStart={() => setHoveredFeature(i)}
-                onHoverEnd={() => setHoveredFeature(null)}
-                whileHover={
-                  {
-                    y: -4,
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.13)',
-                  } as any
-                }
-                transition={{ duration: 0.2 }}
-              >
-                {/* Top accent line */}
-                <div
-                  className='absolute top-0 left-0 right-0 h-px transition-opacity duration-300'
-                  style={{
-                    background: `linear-gradient(90deg, transparent, ${f.color}, transparent)`,
-                    opacity: hoveredFeature === i ? 1 : 0,
-                  }}
-                />
-
-                <div
-                  className='h-10 w-10 rounded-xl flex items-center justify-center text-lg mb-4'
-                  style={{
-                    background: `${f.glow.replace('0.25', '0.12')}`,
-                    border: `1px solid ${f.color}28`,
-                    color: f.color,
-                  }}
-                >
-                  {f.icon}
-                </div>
-                <h3 className='text-sm font-bold text-white mb-2'>{f.label}</h3>
-                <p
-                  className='text-sm leading-relaxed mb-4'
-                  style={{ color: 'rgba(226,232,240,0.44)' }}
-                >
-                  {f.desc}
-                </p>
-
-                <div
-                  className='overflow-hidden transition-all duration-300'
-                  style={{
-                    maxHeight: hoveredFeature === i ? '200px' : '0px',
-                    opacity: hoveredFeature === i ? 1 : 0,
-                  }}
-                >
-                  <div
-                    className='pt-3'
-                    style={{ borderTop: `1px solid ${f.color}20` }}
-                  >
-                    {f.bullets.map((b, bi) => (
-                      <div key={bi} className='flex items-start gap-2 mb-1.5'>
-                        <FiCheck
-                          className='mt-0.5 flex-shrink-0 h-3 w-3'
-                          style={{ color: f.color }}
-                        />
-                        <span
-                          className='text-xs leading-snug'
-                          style={{ color: 'rgba(226,232,240,0.55)' }}
-                        >
-                          {b}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ── PRIVACY ── */}
-      <section
-        className='px-6 py-20 max-w-5xl mx-auto relative'
-        id='privacy'
-        style={{ zIndex: 1 }}
-      >
-        <motion.div
-          initial='hidden'
-          whileInView='show'
-          viewport={{ once: true, margin: '-60px' }}
-          variants={stagger}
-        >
-          <motion.div variants={fadeUp} className='text-center mb-12'>
-            <p
-              className='text-xs font-bold uppercase tracking-widest mb-3'
-              style={{ color: '#10b981' }}
-            >
-              Your data, your rules
-            </p>
-            <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight'>
-              Privacy is not a feature.
-              <br />
-              It's the foundation.
-            </h2>
-          </motion.div>
-
-          <div className='grid sm:grid-cols-2 lg:grid-cols-4 gap-4'>
-            {[
-              {
-                icon: <FiShield />,
-                title: 'No Broker Access',
-                desc: 'We never connect to your brokerage or bank accounts. You control what gets entered.',
-                color: '#10b981',
-              },
-              {
-                icon: <FiLock />,
-                title: 'No Data Selling',
-                desc: "Your financial data is yours alone. We don't sell, share, or monetize it. Ever.",
-                color: '#3b82f6',
-              },
-              {
-                icon: <FiDownload />,
-                title: 'Full Data Export',
-                desc: 'Export all your data as CSV or JSON anytime. Your data is always accessible.',
-                color: '#a78bfa',
-              },
-              {
-                icon: <FiAlertCircle />,
-                title: 'Delete Any Time',
-                desc: 'One click deletes your entire account and all data. No retention, no dark patterns.',
-                color: '#f87171',
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                variants={fadeUp}
-                className='p-6 rounded-2xl'
-                style={glassBase}
-                whileHover={
-                  {
-                    y: -4,
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.13)',
-                  } as any
-                }
-                transition={{ duration: 0.2 }}
-              >
-                <div
-                  className='h-10 w-10 rounded-xl flex items-center justify-center text-lg mb-4'
-                  style={{
-                    background: `${item.color}18`,
-                    border: `1px solid ${item.color}28`,
-                    color: item.color,
-                  }}
-                >
-                  {item.icon}
-                </div>
-                <h3 className='text-sm font-bold text-white mb-2'>
-                  {item.title}
-                </h3>
-                <p
-                  className='text-sm leading-relaxed'
-                  style={{ color: 'rgba(226,232,240,0.44)' }}
-                >
-                  {item.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section className='px-6 py-20 relative' style={{ zIndex: 1 }}>
-        <motion.div
-          className='max-w-3xl mx-auto text-center rounded-3xl p-12 relative overflow-hidden'
-          style={glassBase}
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div
-            className='absolute inset-0 pointer-events-none'
-            style={{
-              background:
-                'radial-gradient(ellipse 65% 45% at 50% 0%, rgba(16,185,129,0.1), transparent)',
-            }}
-          />
-          <div className='relative'>
-            <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight mb-4'>
-              Ready to see your true net worth?
-            </h2>
-            <p
-              className='mb-10 text-lg'
-              style={{ color: 'rgba(226,232,240,0.48)' }}
-            >
-              Join Indian investors who track stocks, mutual funds, SIPs,
-              crypto, gold, FDs, PPF and expenses on Fintrackly — free, forever.
-            </p>
-            <motion.button
-              onClick={handleGoogleSignIn}
-              disabled={signingIn}
-              className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
-              style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                boxShadow:
-                  '0 0 40px rgba(16,185,129,0.38), 0 6px 28px rgba(0,0,0,0.38)',
-              }}
-              whileHover={
-                {
-                  scale: 1.05,
-                  boxShadow:
-                    '0 0 60px rgba(16,185,129,0.55), 0 6px 32px rgba(0,0,0,0.42)',
-                } as any
-              }
-              whileTap={{ scale: 0.97 }}
-              transition={{ duration: 0.15 }}
-            >
-              {signingIn ? (
-                <>
-                  <FiLoader className='text-xl animate-spin' />
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  <FcGoogle className='text-xl' />
-                  Start Free with Google
-                  <FiArrowRight />
-                </>
-              )}
-            </motion.button>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ── SEO KEYWORD SECTION ── */}
-      <section
-        className='px-6 py-16 relative'
-        style={{ zIndex: 1, borderTop: '1px solid rgba(255,255,255,0.04)' }}
-      >
-        <div className='max-w-5xl mx-auto text-center'>
-          <p
-            className='text-xs font-bold uppercase tracking-widest mb-6'
-            style={{ color: 'rgba(16,185,129,0.5)' }}
-          >
-            What you can track with Fintrackly
-          </p>
-          <div className='flex flex-wrap justify-center gap-2'>
-            {[
-              'Net Worth Tracker',
-              'Stock Portfolio Tracker',
-              'Mutual Fund Tracker',
-              'SIP Tracker',
-              'Expense Tracker',
-              'Crypto Portfolio Tracker',
-              'Gold & Silver Tracker',
-              'Fixed Deposit Tracker',
-              'PPF Tracker',
-              'NPS Tracker',
-              'Financial Goal Tracker',
-              'Investment Portfolio Manager',
-              'Zerodha Import',
-              'Groww Import',
-              'Angel One Import',
-              'INDmoney Import',
-              'Loan Tracker',
-              'Bank Account Tracker',
-              'Notion Finance Sync',
-              'NSE Stock Data India',
-              'Free Finance App India',
-              'Personal Finance Dashboard',
-            ].map((tag, i) => (
-              <span
-                key={i}
-                className='px-3 py-1.5 rounded-full text-xs'
+              <div
+                className='absolute inset-0 pointer-events-none'
                 style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  color: 'rgba(226,232,240,0.3)',
+                  background:
+                    'radial-gradient(ellipse 65% 45% at 50% 0%, rgba(16,185,129,0.1), transparent)',
+                }}
+              />
+              <div className='relative'>
+                <h2 className='text-3xl md:text-4xl font-black text-white tracking-tight mb-4'>
+                  Ready to see your true net worth?
+                </h2>
+                <p
+                  className='mb-10 text-lg'
+                  style={{ color: 'rgba(226,232,240,0.48)' }}
+                >
+                  Join Indian investors who track stocks, mutual funds, SIPs,
+                  crypto, gold, FDs, PPF and expenses on Fintrackly — free,
+                  forever.
+                </p>
+                <div className='flex flex-wrap items-center justify-center gap-3'>
+                  <motion.button
+                    onClick={handleGoogleSignIn}
+                    disabled={signingIn}
+                    className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      boxShadow:
+                        '0 0 40px rgba(16,185,129,0.38), 0 6px 28px rgba(0,0,0,0.38)',
+                    }}
+                    whileHover={
+                      {
+                        scale: 1.05,
+                        boxShadow:
+                          '0 0 60px rgba(16,185,129,0.55), 0 6px 32px rgba(0,0,0,0.42)',
+                      } as any
+                    }
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {signingIn ? (
+                      <>
+                        <FiLoader className='text-xl animate-spin' />
+                        Signing in…
+                      </>
+                    ) : (
+                      <>
+                        <FcGoogle className='text-xl' />
+                        Start Free with Google
+                        <FiArrowRight />
+                      </>
+                    )}
+                  </motion.button>
+
+                  <motion.button
+                    onClick={() => setShowRegister(true)}
+                    className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white'
+                    style={{
+                      background: 'rgba(255,255,255,0.07)',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                    }}
+                    whileHover={
+                      {
+                        scale: 1.04,
+                        background: 'rgba(255,255,255,0.12)',
+                      } as any
+                    }
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <FiMail className='text-xl' style={{ color: '#60a5fa' }} />
+                    Sign up with Email
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </section>
+
+          {/* ── SEO KEYWORD SECTION ── */}
+          <section
+            className='px-6 py-16 relative'
+            style={{ zIndex: 1, borderTop: '1px solid rgba(255,255,255,0.04)' }}
+          >
+            <div className='max-w-5xl mx-auto text-center'>
+              <p
+                className='text-xs font-bold uppercase tracking-widest mb-6'
+                style={{ color: 'rgba(16,185,129,0.5)' }}
+              >
+                What you can track with Fintrackly
+              </p>
+              <div className='flex flex-wrap justify-center gap-2'>
+                {[
+                  'Net Worth Tracker',
+                  'Stock Portfolio Tracker',
+                  'Mutual Fund Tracker',
+                  'SIP Tracker',
+                  'Expense Tracker',
+                  'Crypto Portfolio Tracker',
+                  'Gold & Silver Tracker',
+                  'Fixed Deposit Tracker',
+                  'PPF Tracker',
+                  'NPS Tracker',
+                  'Financial Goal Tracker',
+                  'Investment Portfolio Manager',
+                  'Zerodha Import',
+                  'Groww Import',
+                  'Angel One Import',
+                  'INDmoney Import',
+                  'Loan Tracker',
+                  'Bank Account Tracker',
+                  'Notion Finance Sync',
+                  'NSE Stock Data India',
+                  'Free Finance App India',
+                  'Personal Finance Dashboard',
+                ].map((tag, i) => (
+                  <span
+                    key={i}
+                    className='px-3 py-1.5 rounded-full text-xs'
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      color: 'rgba(226,232,240,0.3)',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* ── FOOTER ── */}
+          <footer
+            className='py-10 px-6 text-center relative'
+            style={{ borderTop: '1px solid rgba(255,255,255,0.06)', zIndex: 1 }}
+          >
+            <div className='flex items-center justify-center gap-2 mb-3'>
+              <div
+                className='h-6 w-6 rounded-md flex items-center justify-center'
+                style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  boxShadow: '0 0 10px rgba(16,185,129,0.4)',
                 }}
               >
-                {tag}
+                <FiTrendingUp className='text-white h-3.5 w-3.5' />
+              </div>
+              <span
+                className='text-sm font-bold'
+                style={{ color: 'rgba(226,232,240,0.65)' }}
+              >
+                FinTrackly
               </span>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
+            <p className='text-xs' style={{ color: 'rgba(148,163,184,0.85)' }}>
+              © 2026 Fintrackly · Free personal finance tracker & investment
+              portfolio manager for India
+            </p>
+          </footer>
 
-      {/* ── FOOTER ── */}
-      <footer
-        className='py-10 px-6 text-center relative'
-        style={{ borderTop: '1px solid rgba(255,255,255,0.06)', zIndex: 1 }}
-      >
-        <div className='flex items-center justify-center gap-2 mb-3'>
-          <div
-            className='h-6 w-6 rounded-md flex items-center justify-center'
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              boxShadow: '0 0 10px rgba(16,185,129,0.4)',
-            }}
-          >
-            <FiTrendingUp className='text-white h-3.5 w-3.5' />
-          </div>
-          <span
-            className='text-sm font-bold'
-            style={{ color: 'rgba(226,232,240,0.65)' }}
-          >
-            FinTrackly
-          </span>
-        </div>
-        <p className='text-xs' style={{ color: 'rgba(148,163,184,0.85)' }}>
-          © 2026 Fintrackly · Free personal finance tracker & investment
-          portfolio manager for India
-        </p>
-      </footer>
-
-      {/* ── PWA BANNER IS INTENTIONALLY NOT HERE ──
+          {/* ── PWA BANNER IS INTENTIONALLY NOT HERE ──
            It now lives in AppLayout so only authenticated users see it
            once per install prompt. This prevents it spamming unauthenticated visitors. */}
-    </div>
+        </div>
+      )}
+    </>
   );
 }
