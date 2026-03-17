@@ -4,6 +4,7 @@ import type {
   EssentialsConfig,
   Goal,
   InsightSnapshot,
+  InsurancePolicy,
   Investment,
   Liability,
   NetWorthSnapshot,
@@ -65,6 +66,7 @@ type PortfolioState = {
   essentials: EssentialsConfig;
   accounts: Account[];
   soldTrades: SoldTrade[];
+  insurancePolicies: InsurancePolicy[]; // <-- Added
   _lastSnapshotDate: string | null;
 
   hydrate: (uid: string) => Promise<void>;
@@ -104,6 +106,17 @@ type PortfolioState = {
   ) => Promise<void>;
   updateSoldTrade: (id: string, patch: Partial<SoldTrade>) => Promise<void>;
   deleteSoldTrade: (id: string) => Promise<void>;
+
+  // <-- Added Insurance CRUD methods
+  addInsurancePolicy: (
+    policy: Omit<InsurancePolicy, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
+  ) => Promise<void>;
+  updateInsurancePolicy: (
+    id: string,
+    patch: Partial<InsurancePolicy>,
+  ) => Promise<void>;
+  deleteInsurancePolicy: (id: string) => Promise<void>;
+
   clearAllData: () => Promise<void>;
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
@@ -132,6 +145,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   essentials: DEFAULT_ESSENTIALS,
   accounts: [],
   soldTrades: [],
+  insurancePolicies: [], // <-- Initial state added
   _lastSnapshotDate: null,
 
   hydrate: async (uid) => {
@@ -147,6 +161,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         insights,
         accounts,
         soldTrades,
+        insurancePolicies, // <-- Added to Promise.all
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
@@ -157,6 +172,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<InsightSnapshot>(uid, 'insights'),
         fetchSub<Account>(uid, 'accounts'),
         fetchSub<SoldTrade>(uid, 'soldTrades'),
+        fetchSub<InsurancePolicy>(uid, 'insurancePolicies'), // <-- Added fetching
       ]);
 
       const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -199,6 +215,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         soldTrades: soldTrades.sort((a, b) =>
           b.soldDate.localeCompare(a.soldDate),
         ),
+        insurancePolicies: insurancePolicies.sort((a, b) =>
+          a.renewalDate.localeCompare(b.renewalDate),
+        ), // <-- Sorted policies added
         _lastSnapshotDate: alreadySnappedToday ? today : null,
       });
       if (investments.length > 0) await get().recordSnapshotIfNeeded();
@@ -208,6 +227,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       set({ ready: true });
     }
   },
+
+  // ... (All existing Investment, Liability, Cashflow, Goal, Account methods remain exactly the same)
 
   addInvestment: async (investment) => {
     const uid = get().uid;
@@ -499,6 +520,53 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ soldTrades: s.soldTrades.filter((x) => x.id !== id) }));
   },
 
+  // ── INSURANCE CRUD ADDED HERE ──
+  addInsurancePolicy: async (policy) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...policy,
+      id: createId('ins_pol'),
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as InsurancePolicy;
+    await setDoc(userDoc(uid, 'insurancePolicies', withMeta.id), withMeta);
+    set((s) => ({
+      insurancePolicies: [withMeta, ...s.insurancePolicies].sort((a, b) =>
+        a.renewalDate.localeCompare(b.renewalDate),
+      ),
+    }));
+  },
+  updateInsurancePolicy: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().insurancePolicies.find((x) => x.id === id);
+    if (!existing) return;
+    const updated = clean({
+      ...existing,
+      ...patch,
+      id,
+      updatedAt: now(),
+    }) as InsurancePolicy;
+    await setDoc(userDoc(uid, 'insurancePolicies', id), updated);
+    set((s) => ({
+      insurancePolicies: s.insurancePolicies.map((x) =>
+        x.id === id ? updated : x,
+      ),
+    }));
+  },
+  deleteInsurancePolicy: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'insurancePolicies', id));
+    set((s) => ({
+      insurancePolicies: s.insurancePolicies.filter((x) => x.id !== id),
+    }));
+  },
+  // ───────────────────────────────
+
   setNotionConfig: async (patch) => {
     const uid = get().uid;
     if (!uid) return;
@@ -614,6 +682,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriCoconut',
       'agriLivestockEvents',
       'soldTrades',
+      'insurancePolicies', // <-- Added to wipeout list
       // Attendance collections
       'attEmployees',
       'attRecords',
@@ -646,6 +715,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         essentials: {},
         accounts: [],
         soldTrades: [],
+        insurancePolicies: [], // <-- Cleared locally
         _lastSnapshotDate: null,
       });
     } catch (error) {

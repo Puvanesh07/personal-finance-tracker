@@ -31,6 +31,28 @@ import { createPortal } from 'react-dom';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
+const DEFAULT_INCOME_CATEGORIES = [
+  'Business',
+  'Bonus',
+  'Dividend',
+  'Interest',
+  'Salary',
+  'Other Income',
+];
+
+const DEFAULT_EXPENSE_CATEGORIES = [
+  'Dining',
+  'Entertainment',
+  'Groceries',
+  'Investment',
+  'Petrol',
+  'Rent',
+  'Shopping',
+  'Travel',
+  'Utilities',
+  'Other Expense',
+];
+
 // ── Portal Dropdown ────────────────────────────────────────────────────────
 function InvDropdown({
   value,
@@ -124,8 +146,10 @@ function InvDropdown({
               width: pos.width,
               zIndex: 9999,
               animation: 'none',
+              maxHeight: '300px',
+              overflowY: 'auto',
             }}
-            className='overflow-hidden rounded-xl border border-slate-800 bg-slate-900/95 shadow-2xl backdrop-blur-xl'
+            className='rounded-xl border border-slate-800 bg-slate-900/95 shadow-2xl backdrop-blur-xl custom-scrollbar'
           >
             <div className='p-1.5 flex flex-col'>
               {options.map((opt) => (
@@ -139,7 +163,9 @@ function InvDropdown({
                   className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${
                     value === opt.key
                       ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
-                      : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
+                      : opt.key === 'OTHER'
+                        ? 'text-emerald-400 hover:bg-slate-800/80 font-medium border-t border-slate-700/50 mt-1 pt-3'
+                        : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
                   }`}
                 >
                   <span>{opt.label}</span>
@@ -388,6 +414,7 @@ export function UpsertCashflowModal(props: Props) {
   const addCashflow = usePortfolioStore((s) => s.addCashflow);
   const updateCashflow = usePortfolioStore((s) => s.updateCashflow);
   const accounts = usePortfolioStore((s) => s.accounts);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
 
   const accountOptions = [
     { key: '', label: 'No Account' },
@@ -416,9 +443,29 @@ export function UpsertCashflowModal(props: Props) {
 
   const [state, setState] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+
+  // Auto-learn categories by looking at user's past transactions + defaults
+  const dynamicCategoryOptions = useMemo(() => {
+    const defaultCats =
+      state.type === 'income'
+        ? DEFAULT_INCOME_CATEGORIES
+        : DEFAULT_EXPENSE_CATEGORIES;
+    const userUsedCats = cashflows
+      .filter((cf) => cf.type === state.type && cf.category)
+      .map((cf) => cf.category);
+
+    const combined = Array.from(
+      new Set([...defaultCats, ...userUsedCats]),
+    ).sort();
+    return combined.map((cat) => ({ key: cat, label: cat }));
+  }, [state.type, cashflows]);
 
   useEffect(() => {
-    if (props.open) setState(initial);
+    if (props.open) {
+      setState(initial);
+      setIsCustomCategory(false);
+    }
   }, [props.open, initial]);
 
   async function onSubmit() {
@@ -459,9 +506,14 @@ export function UpsertCashflowModal(props: Props) {
             <label className={labelCls}>Transaction Type</label>
             <InvDropdown
               value={state.type}
-              onChange={(v) =>
-                setState((s) => ({ ...s, type: v as CashflowType }))
-              }
+              onChange={(v) => {
+                setState((s) => ({
+                  ...s,
+                  type: v as CashflowType,
+                  category: '',
+                }));
+                setIsCustomCategory(false);
+              }}
               options={TYPE_OPTIONS}
               label='Select type'
             />
@@ -480,14 +532,39 @@ export function UpsertCashflowModal(props: Props) {
         {/* Category */}
         <div>
           <label className={labelCls}>Category</label>
-          <input
-            className={inputCls}
-            value={state.category}
-            onChange={(e) =>
-              setState((s) => ({ ...s, category: e.target.value }))
-            }
-            placeholder='e.g. Rent, Groceries, Salary'
+          <InvDropdown
+            value={isCustomCategory ? 'OTHER' : state.category}
+            onChange={(val) => {
+              if (val === 'OTHER') {
+                setIsCustomCategory(true);
+                setState((s) => ({ ...s, category: '' }));
+              } else {
+                setIsCustomCategory(false);
+                setState((s) => ({ ...s, category: val }));
+              }
+            }}
+            options={[
+              ...dynamicCategoryOptions,
+              { key: 'OTHER', label: '+ Type custom category' },
+            ]}
+            label='Select a category'
           />
+
+          {/* Custom Category Input (Shows only if 'OTHER' is selected) */}
+          {isCustomCategory && (
+            <div className='mt-3 animate-in fade-in slide-in-from-top-1 duration-200'>
+              <input
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                className={inputCls}
+                value={state.category}
+                onChange={(e) =>
+                  setState((s) => ({ ...s, category: e.target.value }))
+                }
+                placeholder='Enter custom category name...'
+              />
+            </div>
+          )}
         </div>
 
         {/* Amount */}

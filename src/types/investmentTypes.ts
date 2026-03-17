@@ -140,9 +140,30 @@ export type NotionConfig = {
   lastSyncAt?: string;
 };
 
+export type InsuranceType =
+  | 'life'
+  | 'health'
+  | 'vehicle'
+  | 'property'
+  | 'other';
+
+export type InsurancePolicy = {
+  id: string;
+  type: InsuranceType;
+  provider: string; // e.g., HDFC Ergo, LIC
+  policyName: string;
+  coverageAmount: number;
+  premiumAmount: number;
+  premiumFrequency: 'monthly' | 'yearly';
+  renewalDate: string; // YYYY-MM-DD
+  nominee?: string;
+  notes?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type EssentialsConfig = {
-  termInsuranceCover?: number;
-  healthCover?: number;
   emergencyFundTarget?: number;
   emergencyFundCurrent?: number;
 };

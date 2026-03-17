@@ -1,97 +1,154 @@
-import { usePortfolioStore } from '../../store/portfolioStore'
-import { Card } from '../ui/Card'
-import { formatINR } from '../../utils/format'
-import { FiTarget, FiShield } from 'react-icons/fi'
+import {
+  FiActivity,
+  FiHeart,
+  FiShield,
+  FiTarget,
+  FiUmbrella,
+} from 'react-icons/fi';
+
+import { formatCurrency } from '../../utils/format';
+import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function GoalsEssentialsSummary() {
-  const goals = usePortfolioStore((s) => s.goals)
-  const essentials = usePortfolioStore((s) => s.essentials)
+  const goals = usePortfolioStore((s) => s.goals);
+  const essentials = usePortfolioStore((s) => s.essentials);
 
-  const activeGoals = goals.slice(0, 3)
+  // 1. Pull the new insurance policies from the store
+  const insurancePolicies = usePortfolioStore((s) => s.insurancePolicies) || [];
 
-  const emergencyCurrent = essentials.emergencyFundCurrent ?? 0
-  const emergencyTarget = essentials.emergencyFundTarget ?? 0
-  const emergencyPct = emergencyTarget > 0 ? Math.min(100, (emergencyCurrent / emergencyTarget) * 100) : 0
+  // 2. Dynamically calculate total coverage for Life and Health
+  const totalLifeCover = insurancePolicies
+    .filter((p) => p.type === 'life')
+    .reduce((sum, p) => sum + p.coverageAmount, 0);
+
+  const totalHealthCover = insurancePolicies
+    .filter((p) => p.type === 'health')
+    .reduce((sum, p) => sum + p.coverageAmount, 0);
+
+  // 3. Keep the Emergency Fund logic the same
+  const efTarget = essentials?.emergencyFundTarget || 0;
+  const efCurrent = essentials?.emergencyFundCurrent || 0;
+  const efProgress =
+    efTarget > 0 ? Math.min((efCurrent / efTarget) * 100, 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <Card title={<div className="flex items-center gap-2"><FiTarget className="text-purple-500"/> Active Goals</div>}>
-        {activeGoals.length === 0 ? (
-          <div className="flex h-full items-center justify-center rounded-xl bg-slate-50/50 p-6 text-sm font-medium text-slate-500 dark:bg-slate-800/30">
-            No goals yet. Add them in the Goals tab.
+    <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>
+      {/* Financial Goals (Left Side) */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm'>
+        <div className='mb-6 flex items-center justify-between'>
+          <h2 className='flex items-center gap-2 text-lg font-bold text-slate-100'>
+            <FiTarget className='text-emerald-400' />
+            Financial Goals
+          </h2>
+        </div>
+
+        {goals.length === 0 ? (
+          <div className='flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-900/30'>
+            <p className='text-sm text-slate-500'>No goals set yet.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {activeGoals.map((g) => {
-              const pct = g.targetAmount > 0 ? Math.min(100, (g.currentAmount / g.targetAmount) * 100) : 0
-              const isCompleted = pct >= 100
-              
+          <div className='space-y-5'>
+            {goals.slice(0, 4).map((goal) => {
+              const progress =
+                goal.targetAmount > 0
+                  ? Math.min(
+                      (goal.currentAmount / goal.targetAmount) * 100,
+                      100,
+                    )
+                  : 0;
               return (
-                <div key={g.id} className="rounded-xl border border-slate-100 bg-slate-50/30 p-4 transition-colors hover:bg-slate-50 dark:border-slate-800/60 dark:bg-slate-800/20 dark:hover:bg-slate-800/40">
-                  <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="font-bold text-slate-900 dark:text-slate-100">{g.name}</span>
-                    <span className={`text-xs font-bold ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>{pct.toFixed(0)}%</span>
+                <div key={goal.id}>
+                  <div className='mb-2 flex justify-between text-sm'>
+                    <span className='font-medium text-slate-300'>
+                      {goal.name}
+                    </span>
+                    <span className='text-slate-400'>
+                      {formatCurrency(goal.currentAmount)} /{' '}
+                      {formatCurrency(goal.targetAmount)}
+                    </span>
                   </div>
-                  <div className="my-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-200/60 shadow-inner dark:bg-slate-800">
+                  <div className='h-2 w-full overflow-hidden rounded-full bg-slate-800'>
                     <div
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        isCompleted 
-                          ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' 
-                          : 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                      }`}
-                      style={{ width: `${pct}%` }}
+                      className='h-full rounded-full bg-emerald-500 transition-all duration-500'
+                      style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    <span className="text-slate-700 dark:text-slate-300">{formatINR(g.currentAmount)} saved</span>
-                    <span>Target {formatINR(g.targetAmount)}</span>
-                  </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
-      </Card>
+      </div>
 
-      <Card title={<div className="flex items-center gap-2"><FiShield className="text-rose-500"/> Financial Safety Net</div>}>
-        <div className="flex flex-col gap-3 h-full justify-between">
-          <div className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-bold text-slate-800 dark:text-slate-200">Emergency Fund</span>
-              {emergencyTarget > 0 ? (
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">{emergencyPct.toFixed(0)}%</span>
-              ) : null}
+      {/* Protection & Essentials (Right Side) */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm'>
+        <div className='mb-6 flex items-center justify-between'>
+          <h2 className='flex items-center gap-2 text-lg font-bold text-slate-100'>
+            <FiShield className='text-emerald-400' />
+            Protection & Essentials
+          </h2>
+        </div>
+
+        <div className='space-y-6'>
+          {/* Emergency Fund Progress */}
+          <div>
+            <div className='mb-2 flex justify-between text-sm'>
+              <span className='flex items-center gap-2 font-medium text-slate-300'>
+                <FiActivity className='text-blue-400' /> Emergency Fund
+              </span>
+              <span className='text-slate-400'>
+                {formatCurrency(efCurrent)} / {formatCurrency(efTarget)}
+              </span>
             </div>
-            {emergencyTarget > 0 ? (
-              <>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-emerald-200/50 dark:bg-emerald-900/40">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${emergencyPct}%` }} />
-                </div>
-                <div className="flex justify-between text-[11px] font-semibold text-emerald-700/70 dark:text-emerald-400/70">
-                  <span>{formatINR(emergencyCurrent)}</span>
-                  <span>Target: {formatINR(emergencyTarget)}</span>
-                </div>
-              </>
-            ) : (
-              <span className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70">Set target in Settings → Essentials</span>
-            )}
+            <div className='h-2 w-full overflow-hidden rounded-full bg-slate-800'>
+              <div
+                className='h-full rounded-full bg-blue-500 transition-all duration-500'
+                style={{ width: `${efProgress}%` }}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800/60 dark:bg-slate-800/20">
-            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Term Insurance Cover</span>
-            <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-50">
-              {essentials.termInsuranceCover ? formatINR(essentials.termInsuranceCover) : <span className="text-slate-400 font-medium">Not set</span>}
-            </span>
+          {/* Life / Term Insurance */}
+          <div className='flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-800/30 p-4'>
+            <div className='flex items-center gap-3'>
+              <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400'>
+                <FiUmbrella size={20} />
+              </div>
+              <div>
+                <p className='text-sm font-medium text-slate-300'>
+                  Term Insurance
+                </p>
+                <p className='text-xs text-slate-500'>Total life coverage</p>
+              </div>
+            </div>
+            <div className='text-right'>
+              <p className='text-lg font-bold text-slate-100'>
+                {totalLifeCover > 0 ? formatCurrency(totalLifeCover) : '₹0'}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800/60 dark:bg-slate-800/20">
-            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Health Insurance Cover</span>
-            <span className="text-sm font-black tabular-nums text-slate-900 dark:text-slate-50">
-              {essentials.healthCover ? formatINR(essentials.healthCover) : <span className="text-slate-400 font-medium">Not set</span>}
-            </span>
+          {/* Health Insurance */}
+          <div className='flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-800/30 p-4'>
+            <div className='flex items-center gap-3'>
+              <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400'>
+                <FiHeart size={20} />
+              </div>
+              <div>
+                <p className='text-sm font-medium text-slate-300'>
+                  Health Insurance
+                </p>
+                <p className='text-xs text-slate-500'>Total medical coverage</p>
+              </div>
+            </div>
+            <div className='text-right'>
+              <p className='text-lg font-bold text-slate-100'>
+                {totalHealthCover > 0 ? formatCurrency(totalHealthCover) : '₹0'}
+              </p>
+            </div>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
-  )
+  );
 }

@@ -17,6 +17,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 
 import { AppLayout } from './components/layout/AppLayout';
+import { InsurancePage } from './pages/Insurance/InsurancePage';
 import { Loader } from './components/loader/Loader';
 import { Toaster } from 'react-hot-toast';
 
@@ -143,6 +144,7 @@ export default function App() {
                 </Suspense>
               }
             />
+            <Route path='/insurance' element={<InsurancePage />} />
             <Route
               path='/goals'
               element={
@@ -200,6 +202,7 @@ export default function App() {
               }
             />
           </Route>
+
           <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
       </Suspense>

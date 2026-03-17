@@ -17,6 +17,7 @@ import {
   FiHome,
   FiLogOut,
   FiSettings,
+  FiShield,
   FiTrendingUp,
   FiX,
   FiZap,
@@ -161,6 +162,14 @@ export function AppLayout() {
               <FiCreditCard className='h-4 w-4 shrink-0' />
               <span>Liabilities</span>
             </NavLink>
+            <NavLink
+              to='/insurance'
+              className={({ isActive }) => desktopLinkClass(isActive)}
+            >
+              <FiShield className='h-4 w-4 shrink-0' />
+              <span>Insurance</span>
+            </NavLink>
+
             <NavLink
               to='/cashflow'
               className={({ isActive }) => desktopLinkClass(isActive)}

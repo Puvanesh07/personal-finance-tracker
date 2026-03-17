@@ -1,109 +1,115 @@
+import { FiSave, FiShield } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
 
-import { Card } from '../ui/Card';
-import { FiShield } from 'react-icons/fi';
 import { NumericInput } from '../ui/NumericInput';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-function EssentialField({
-  label,
-  storedValue,
-  onSave,
-  inputCls,
-  labelCls,
-}: {
-  label: string;
-  storedValue: number | undefined;
-  onSave: (n: number | undefined) => void;
-  inputCls: string;
-  labelCls: string;
-}) {
-  const [localVal, setLocalVal] = useState(
-    storedValue != null && storedValue > 0 ? String(storedValue) : '0',
-  );
-
-  // FIX: re-sync local state when store value changes externally
-  // (e.g. after clearAllData resets essentials to {})
-  useEffect(() => {
-    setLocalVal(
-      storedValue != null && storedValue > 0 ? String(storedValue) : '0',
-    );
-  }, [storedValue]);
-
-  function handleBlur() {
-    const n = parseFloat(localVal);
-    onSave(Number.isFinite(n) && n > 0 ? n : undefined);
-  }
-
-  return (
-    <label className='block'>
-      <span className={labelCls}>{label}</span>
-      <NumericInput
-        className={inputCls}
-        value={localVal}
-        onChange={setLocalVal}
-        onBlur={handleBlur}
-        placeholder='e.g. 10,00,000'
-      />
-    </label>
-  );
-}
-
 export function EssentialsSettings() {
   const essentials = usePortfolioStore((s) => s.essentials);
+  // 1. Bring back the setEssentialsConfig function from the store
   const setEssentialsConfig = usePortfolioStore((s) => s.setEssentialsConfig);
 
+  const [local, setLocal] = useState({
+    emergencyFundTarget: '0',
+    emergencyFundCurrent: '0',
+  });
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // Sync state when store updates (Safely handling undefined on first load)
+  useEffect(() => {
+    setLocal({
+      emergencyFundTarget: String(essentials?.emergencyFundTarget || 0),
+      emergencyFundCurrent: String(essentials?.emergencyFundCurrent || 0),
+    });
+  }, [essentials?.emergencyFundTarget, essentials?.emergencyFundCurrent]);
+
+  // 2. Add back the handleSave function
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await setEssentialsConfig({
+        emergencyFundTarget: Number(local.emergencyFundTarget) || 0,
+        emergencyFundCurrent: Number(local.emergencyFundCurrent) || 0,
+      });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to save essentials config:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const inputCls =
-    'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500';
+    'mt-1 w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block';
+    'block text-xs font-bold uppercase tracking-wider text-slate-400';
 
   return (
-    <Card
-      title={
-        <div className='flex items-center gap-2'>
-          <div className='rounded-lg bg-emerald-100/50 p-1.5 dark:bg-emerald-500/10'>
-            <FiShield className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
-          </div>
-          <span>Essentials & Safety Net</span>
-        </div>
-      }
-    >
-      <div className='flex flex-col gap-5'>
-        <EssentialField
-          label='Term Insurance Cover (₹)'
-          storedValue={essentials.termInsuranceCover}
-          onSave={(n) => void setEssentialsConfig({ termInsuranceCover: n })}
-          inputCls={inputCls}
-          labelCls={labelCls}
-        />
-        <EssentialField
-          label='Health Cover (₹)'
-          storedValue={essentials.healthCover}
-          onSave={(n) => void setEssentialsConfig({ healthCover: n })}
-          inputCls={inputCls}
-          labelCls={labelCls}
-        />
-
-        <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
-
-        <EssentialField
-          label='Emergency Fund Target (₹)'
-          storedValue={essentials.emergencyFundTarget}
-          onSave={(n) => void setEssentialsConfig({ emergencyFundTarget: n })}
-          inputCls={inputCls}
-          labelCls={labelCls}
-        />
-        <EssentialField
-          label='Emergency Fund Saved (₹)'
-          storedValue={essentials.emergencyFundCurrent}
-          onSave={(n) =>
-            void setEssentialsConfig({ emergencyFundCurrent: n ?? 0 })
-          }
-          inputCls={inputCls}
-          labelCls={labelCls}
-        />
+    <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+      <div className='mb-6'>
+        <h2 className='flex items-center gap-2 text-xl font-bold text-slate-100'>
+          <FiShield className='text-emerald-400' />
+          Financial Essentials
+        </h2>
+        <p className='mt-1 text-sm text-slate-400'>
+          Configure your emergency fund targets to track your financial safety
+          net.
+        </p>
       </div>
-    </Card>
+
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/30 p-5 sm:p-6'>
+        <div className='grid gap-6 sm:grid-cols-2'>
+          {/* Emergency Fund Inputs */}
+          <div>
+            <label className={labelCls}>Emergency Fund Target (₹)</label>
+            <p className='mb-2 text-xs text-slate-500'>
+              Recommended: 6x Monthly Expenses
+            </p>
+            <NumericInput
+              className={inputCls}
+              value={local.emergencyFundTarget}
+              onChange={(v) =>
+                setLocal((s) => ({ ...s, emergencyFundTarget: v }))
+              }
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>Current Emergency Fund (₹)</label>
+            <p className='mb-2 text-xs text-slate-500'>
+              How much you currently have saved
+            </p>
+            <NumericInput
+              className={inputCls}
+              value={local.emergencyFundCurrent}
+              onChange={(v) =>
+                setLocal((s) => ({ ...s, emergencyFundCurrent: v }))
+              }
+            />
+          </div>
+        </div>
+
+        <div className='mt-8 flex items-center justify-between border-t border-slate-800/60 pt-6'>
+          {success ? (
+            <span className='text-sm font-medium text-emerald-400 animate-pulse'>
+              Saved successfully!
+            </span>
+          ) : (
+            <span />
+          )}
+
+          <button
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:opacity-50 disabled:hover:translate-y-0'
+          >
+            <FiSave className='h-4 w-4' />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
