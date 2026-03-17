@@ -1,5 +1,4 @@
-import { FiCreditCard, FiTrendingUp } from 'react-icons/fi';
-
+import { FiCreditCard } from 'react-icons/fi';
 import { formatCurrency } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
