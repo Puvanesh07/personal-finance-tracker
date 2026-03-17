@@ -14,7 +14,7 @@ import {
   canAutoFetch,
   getCacheAge,
   invalidateFundamentalsCache,
-  type FetchedFundamentals,
+  getFundamentalsSymbol,
 } from '../../services/fundamentalsService';
 import { createPortal } from 'react-dom';
 
@@ -1348,56 +1348,68 @@ export function FolioSyncCell({
   const cellRef = useRef<HTMLDivElement>(null);
 
   const result = storedResult;
-  // Use local fundamentals if available (just fetched), otherwise use stored prop
   const fundamentals = localFundamentals ?? storedFundamentals ?? {};
   const assetClass = detectAssetClass(inv);
   const eligible = canAutoFetch(inv);
-  const cacheAge = eligible ? getCacheAge(inv.symbol) : null;
+  // Build the correct symbol for this asset (e.g. "TCS" or "MF:119551")
+  const fetchSymbol = eligible ? getFundamentalsSymbol(inv) : null;
+  const cacheKey = fetchSymbol ?? inv.symbol ?? inv.id;
+  const cacheAge = eligible ? getCacheAge(cacheKey) : null;
+  const isMF = assetClass === 'mutual_fund';
 
-  // ── Auto-fetch from Screener.in ─────────────────────────────────────────
+  // ── Auto-fetch: Screener.in for equity, mfapi.in for MF ─────────────────
   const handleAutoFetch = async (forceRefresh = false) => {
-    if (!eligible || !inv.symbol) return;
+    if (!eligible || !fetchSymbol) return;
 
-    if (forceRefresh) invalidateFundamentalsCache([inv.symbol]);
+    if (forceRefresh) invalidateFundamentalsCache([cacheKey]);
 
     setFetchStatus('fetching');
     try {
-      const data = await fetchFundamentalsForSymbol(inv.symbol);
+      const data = await fetchFundamentalsForSymbol(fetchSymbol);
       if (!data || data._source === 'error') {
         setFetchStatus('error');
         setShowForm(true);
         return;
       }
 
-      // Count how many key fields were actually populated
-      const keyFields: (keyof FundamentalData)[] = [
-        'pe',
-        'roe',
-        'roce',
-        'debtToEquity',
-        'revenueGrowthYoY',
-        'netMargin',
-        'operatingMargin',
-      ];
+      // Key fields differ by asset type — MF only has return-based fields
+      const keyFields: (keyof FundamentalData)[] = isMF
+        ? [
+            'salesCagr3yr',
+            'salesCagr5yr',
+            'revenueGrowthYoY',
+            'fiftyTwoWeekPosition',
+          ]
+        : [
+            'pe',
+            'roe',
+            'roce',
+            'debtToEquity',
+            'revenueGrowthYoY',
+            'netMargin',
+            'operatingMargin',
+          ];
       const filled = keyFields.filter(
         (k) => data[k] !== null && data[k] !== undefined,
       ).length;
-      setFetchStatus(filled >= 3 ? 'success' : 'partial');
+      setFetchStatus(filled >= 2 ? 'success' : 'partial');
 
-      // Strip internal meta keys
-      const { _source, _symbol, _fetchedAt, _url, _error, ...cleanData } =
-        data as FetchedFundamentals;
+      // Strip all internal meta keys (_source, _symbol, _mfName, etc.)
+      const cleanData: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (!k.startsWith('_')) cleanData[k] = v;
+      }
       const typedData = cleanData as FundamentalData;
 
-      // Save locally FIRST so form pre-fills immediately
+      // Save locally first so form pre-fills immediately (before parent re-renders)
       setLocalFundamentals(typedData);
 
       // Score and save to parent
       const scored = scoreFundamentals(typedData, assetClass);
       onSave(inv.id, typedData, scored);
 
-      // Open detail drawer on success, form on partial (pre-filled)
-      if (filled >= 3) {
+      // Open detail drawer on success, pre-filled form on partial
+      if (filled >= 2) {
         setShowDetail(true);
       } else {
         setShowForm(true);

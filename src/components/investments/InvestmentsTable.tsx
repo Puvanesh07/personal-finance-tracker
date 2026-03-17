@@ -977,26 +977,22 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   } | null>(null);
 
   const handleBulkAutoFetch = async () => {
-    // Only fetch Indian equity stocks that have a symbol
-    const eligible = investments.filter(
-      (inv) =>
-        inv.type === 'stock' &&
-        inv.symbol &&
-        !(inv as any).usdPrice &&
-        !(inv as any).buyPriceUsd &&
-        !(inv as any).usdToInr,
-    );
+    // Support Indian equity AND mutual funds with scheme codes
+    const { fetchFundamentalsForSymbols, getFundamentalsSymbol } =
+      await import('../../services/fundamentalsService');
+    const { scoreFundamentals: scoreF } =
+      await import('../../utils/folioSyncEngine');
+
+    const eligible = investments
+      .map((inv: any) => ({ inv, sym: getFundamentalsSymbol(inv) }))
+      .filter(({ sym }: any) => sym !== null) as { inv: any; sym: string }[];
+
     if (eligible.length === 0) return;
 
     setBulkFetching(true);
     setBulkProgress({ done: 0, total: eligible.length });
 
-    const { fetchFundamentalsForSymbols } =
-      await import('../../services/fundamentalsService');
-    const { scoreFundamentals: scoreF } =
-      await import('../../utils/folioSyncEngine');
-
-    const symbols = eligible.map((inv) => inv.symbol!.toUpperCase());
+    const symbols = [...new Set(eligible.map((e: any) => e.sym))];
     const results = await fetchFundamentalsForSymbols(
       symbols,
       (done, total) => {
@@ -1005,30 +1001,31 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     );
 
     let saved = 0;
-    for (const inv of eligible) {
-      const sym = inv.symbol!.toUpperCase();
-      const data = results[sym];
-      if (!data || (data as any)._source === 'error') continue;
-      const { _source, _symbol, _fetchedAt, _url, _error, ...cleanData } =
-        data as any;
+    for (const { inv, sym } of eligible) {
+      const data = (results as any)[sym];
+      if (!data || data._source === 'error') continue;
+      // Strip all internal meta keys
+      const cleanData: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (!k.startsWith('_')) cleanData[k] = v;
+      }
       try {
-        const scored = scoreF(cleanData, 'equity');
-        handleFolioSyncSave(inv.id, cleanData, scored);
+        const assetClass: any =
+          inv.type === 'mutual_fund' ? 'mutual_fund' : 'equity';
+        const scored = scoreF(cleanData as any, assetClass);
+        handleFolioSyncSave(inv.id, cleanData as any, scored);
         saved++;
       } catch {}
     }
 
     setBulkProgress(null);
     setBulkFetching(false);
-    if (saved > 0) {
-      toast.success(
-        `FolioSync: auto-scored ${saved} of ${eligible.length} stocks ✓`,
-      );
-    } else {
+    if (saved > 0)
+      toast.success(`FolioSync: scored ${saved}/${eligible.length} assets ✓`);
+    else
       toast.error(
         'FolioSync: fetch failed. Make sure the Cloudflare worker is deployed.',
       );
-    }
   };
 
   // ── Selection & Edit State ─────────────────────────────────────────────
@@ -1313,13 +1310,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </button>
 
           {/* FolioSync Score All */}
-          {investments.some(
-            (inv) =>
+          {investments.some((inv) => {
+            if (
               inv.type === 'stock' &&
               inv.symbol &&
               !(inv as any).usdPrice &&
-              !(inv as any).buyPriceUsd,
-          ) && (
+              !(inv as any).buyPriceUsd
+            )
+              return true;
+            if (inv.type === 'mutual_fund') {
+              const c =
+                (inv as any).schemeCode || (inv as any).amfiCode || inv.symbol;
+              return c && /^\d{5,6}$/.test(String(c));
+            }
+            return false;
+          }) && (
             <button
               onClick={handleBulkAutoFetch}
               disabled={bulkFetching}

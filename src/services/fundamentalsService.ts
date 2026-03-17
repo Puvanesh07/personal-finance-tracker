@@ -1,36 +1,33 @@
 // src/services/fundamentalsService.ts
+// Fetches fundamentals from the Cloudflare Worker /fundamentals endpoint.
 //
-// Fetches fundamental data from the Cloudflare Worker's /fundamentals endpoint.
-// The worker scrapes Screener.in for each NSE symbol and returns all FolioSync
-// metrics: PE, ROE, ROCE, D/E, CAGRs, promoter holding, quarterly flags, etc.
+// Asset routing:
+//   Indian equity:  symbol like "TCS"       → worker scrapes Screener.in
+//   Mutual Fund:    "MF:119551"              → worker fetches mfapi.in NAV history
+//   Gold/Silver ETF, US stocks, Crypto:      not supported — manual entry only
 //
-// Pattern mirrors livePriceService.ts:
-//   - In-memory cache with 6h TTL (fundamentals change daily, not by the second)
-//   - Same chunking + concurrency model
-//   - Progress callback for UI feedback
-//   - Graceful fallback: null values for unavailable metrics
+// Pattern mirrors livePriceService.ts: in-memory cache, chunking, progress callback.
 
 import type { FundamentalData } from '../utils/folioSyncEngine';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type FetchedFundamentals = FundamentalData & {
-  _source?: 'screener' | 'error';
+  _source?: 'screener' | 'mfapi' | 'error';
   _symbol?: string;
   _fetchedAt?: string;
   _url?: string;
   _error?: string;
-};
-
-export type FundamentalsResponse = {
-  fundamentals: Record<string, FetchedFundamentals>;
-  fetchedAt: string;
-  count: number;
-};
-
-export type FundamentalsFetchResult = {
-  data: FetchedFundamentals;
-  fromCache: boolean;
+  // MF-specific metadata
+  _mfName?: string;
+  _mfCategory?: string;
+  _mfType?: string;
+  _nav?: number;
+  _returns1yr?: number | null;
+  _returns3yr?: number | null;
+  _returns5yr?: number | null;
+  _maxDrawdown?: number | null;
+  _navCount?: number;
 };
 
 export type FundamentalsProgressCallback = (
@@ -39,138 +36,180 @@ export type FundamentalsProgressCallback = (
 ) => void;
 
 // ── Cache ──────────────────────────────────────────────────────────────────────
-// Fundamentals change daily — 6h TTL is generous but avoids hammering Screener
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const CHUNK_SIZE = 5; // 5 symbols per worker request
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CHUNK_SIZE = 5;
 const CHUNK_DELAY_MS = 200;
 
 type CacheEntry = { data: FetchedFundamentals; expiresAt: number };
-const fundamentalsCache = new Map<string, CacheEntry>();
+const cache = new Map<string, CacheEntry>();
 
-function getCached(symbol: string): FetchedFundamentals | null {
-  const entry = fundamentalsCache.get(symbol.toUpperCase());
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    fundamentalsCache.delete(symbol.toUpperCase());
+function getCached(key: string): FetchedFundamentals | null {
+  const e = cache.get(key.toUpperCase());
+  if (!e) return null;
+  if (Date.now() > e.expiresAt) {
+    cache.delete(key.toUpperCase());
     return null;
   }
-  return entry.data;
+  return e.data;
 }
-
-function setCached(symbol: string, data: FetchedFundamentals) {
-  fundamentalsCache.set(symbol.toUpperCase(), {
-    data,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
+function setCached(key: string, data: FetchedFundamentals) {
+  cache.set(key.toUpperCase(), { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
-
-export function invalidateFundamentalsCache(symbols?: string[]) {
-  if (!symbols) {
-    fundamentalsCache.clear();
+export function invalidateFundamentalsCache(keys?: string[]) {
+  if (!keys) {
+    cache.clear();
     return;
   }
-  symbols.forEach((s) => fundamentalsCache.delete(s.toUpperCase()));
+  keys.forEach((k) => cache.delete(k.toUpperCase()));
+}
+export function getCacheAge(key: string): string | null {
+  const e = cache.get(key.toUpperCase());
+  if (!e) return null;
+  const mins = Math.floor((Date.now() - (e.expiresAt - CACHE_TTL_MS)) / 60000);
+  return mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function getWorkerUrl(): string {
+function workerUrl(): string {
   const url = import.meta.env.VITE_LIVE_PRICE_WORKER_URL as string | undefined;
-  if (!url) throw new Error('VITE_LIVE_PRICE_WORKER_URL is not set in .env');
+  if (!url) throw new Error('VITE_LIVE_PRICE_WORKER_URL not set');
   return url.replace(/\/$/, '');
 }
-
-function chunkArray<T>(arr: T[], size: number): T[][] {
+function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchBatch(
-  workerUrl: string,
-  symbols: string[],
-): Promise<Record<string, FetchedFundamentals>> {
-  const url = `${workerUrl}/fundamentals?symbols=${symbols.join(',')}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(45_000) });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Worker ${res.status}: ${body}`);
+// ── Build the correct worker symbol for an investment ─────────────────────────
+// Returns null if auto-fetch is not supported for this asset type.
+export function getFundamentalsSymbol(inv: {
+  type: string;
+  assetType?: string;
+  usdPrice?: number;
+  buyPriceUsd?: number;
+  usdToInr?: number;
+  symbol?: string;
+  schemeCode?: string;
+  amfiCode?: string;
+}): string | null {
+  // Indian equity stock
+  if (
+    inv.type === 'stock' &&
+    inv.symbol &&
+    !inv.usdPrice &&
+    !inv.buyPriceUsd &&
+    !inv.usdToInr
+  )
+    return inv.symbol.toUpperCase();
+  // Mutual fund (needs 5-6 digit scheme code)
+  if (inv.type === 'mutual_fund') {
+    const raw = inv.schemeCode || inv.amfiCode || inv.symbol;
+    if (raw && /^\d{5,6}$/.test(String(raw).trim()))
+      return `MF:${String(raw).trim()}`;
   }
-  const data = (await res.json()) as FundamentalsResponse;
-  return data.fundamentals ?? {};
+  return null; // Gold ETF, US stock, crypto → manual only
 }
 
-// ── Main export ────────────────────────────────────────────────────────────────
+export function canAutoFetch(inv: {
+  type: string;
+  assetType?: string;
+  usdPrice?: number;
+  buyPriceUsd?: number;
+  usdToInr?: number;
+  symbol?: string;
+  schemeCode?: string;
+  amfiCode?: string;
+}): boolean {
+  return getFundamentalsSymbol(inv) !== null;
+}
+
+// ── Core fetch functions ───────────────────────────────────────────────────────
+
+async function fetchBatch(
+  base: string,
+  syms: string[],
+): Promise<Record<string, FetchedFundamentals>> {
+  const res = await fetch(`${base}/fundamentals?symbols=${syms.join(',')}`, {
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (!res.ok)
+    throw new Error(
+      `Worker ${res.status}: ${await res.text().catch(() => '')}`,
+    );
+  const d = (await res.json()) as {
+    fundamentals: Record<string, FetchedFundamentals>;
+  };
+  return d.fundamentals ?? {};
+}
 
 /**
- * Fetch fundamentals for one or more NSE equity symbols.
- * Only works for Indian equity stocks — pass raw NSE symbol (e.g. "TCS", "RELIANCE").
- * Returns null data for MF, US stocks, Gold, Crypto — those are scored manually.
+ * Fetch fundamentals for one or more symbols.
+ * Pass raw NSE symbols ("TCS") for equity, or "MF:119551" for mutual funds.
  */
 export async function fetchFundamentalsForSymbols(
   symbols: string[],
   onProgress?: FundamentalsProgressCallback,
 ): Promise<Record<string, FetchedFundamentals>> {
-  const clean = [
+  const keys = [
     ...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean)),
   ];
-  if (clean.length === 0) return {};
+  if (!keys.length) return {};
 
   const merged: Record<string, FetchedFundamentals> = {};
   const needsFetch: string[] = [];
 
-  // Serve from cache first
-  for (const sym of clean) {
-    const cached = getCached(sym);
-    if (cached) merged[sym] = cached;
-    else needsFetch.push(sym);
+  for (const k of keys) {
+    const cached = getCached(k);
+    if (cached) merged[k] = cached;
+    else needsFetch.push(k);
   }
 
   if (needsFetch.length > 0) {
-    const workerUrl = getWorkerUrl();
-    const chunks = chunkArray(needsFetch, CHUNK_SIZE);
-    let doneCount = Object.keys(merged).length;
+    const base = workerUrl();
+    const chunks = chunk(needsFetch, CHUNK_SIZE);
+    let done = Object.keys(merged).length;
 
     for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
+      const c = chunks[i];
       try {
-        const batchResult = await fetchBatch(workerUrl, chunk);
-        for (const [sym, data] of Object.entries(batchResult)) {
-          merged[sym] = data;
-          if (data._source !== 'error') setCached(sym, data);
+        const batch = await fetchBatch(base, c);
+        for (const [k, data] of Object.entries(batch)) {
+          merged[k] = data;
+          if (data._source !== 'error') setCached(k, data);
         }
       } catch (e) {
-        console.error(
-          `[fundamentalsService] Batch failed (${chunk.join(',')}):`,
-          e,
-        );
-        for (const sym of chunk) {
-          merged[sym] = { _source: 'error', _symbol: sym, _error: String(e) };
-        }
+        console.error(`[fundamentals] batch failed (${c.join(',')})`, e);
+        for (const k of c)
+          merged[k] = { _source: 'error', _symbol: k, _error: String(e) };
       }
-      doneCount += chunk.length;
-      onProgress?.(Math.min(doneCount, clean.length), clean.length);
+      done += c.length;
+      onProgress?.(Math.min(done, keys.length), keys.length);
       if (i < chunks.length - 1) await sleep(CHUNK_DELAY_MS);
     }
   } else {
-    onProgress?.(clean.length, clean.length);
+    onProgress?.(keys.length, keys.length);
   }
 
   if (import.meta.env.DEV) {
-    for (const [sym, data] of Object.entries(merged)) {
-      if (data._source === 'error') {
+    for (const [k, d] of Object.entries(merged)) {
+      if (d._source === 'error')
         console.warn(
-          `%c[Fundamentals] ${sym} → ERROR: ${data._error}`,
+          `%c[Fund] ${k} ERROR: ${d._error}`,
           'color:#f87171;font-weight:bold;',
         );
-      } else {
+      else if (d._source === 'mfapi')
         console.log(
-          `%c[Fundamentals] ${sym} → PE:${data.pe} ROE:${data.roe} ROCE:${data.roce} D/E:${data.debtToEquity}`,
+          `%c[Fund] ${k} MF: 1yr=${d._returns1yr}% 3yr=${d._returns3yr}% 52W=${d.fiftyTwoWeekPosition}%`,
+          'color:#818cf8;font-weight:bold;',
+        );
+      else
+        console.log(
+          `%c[Fund] ${k} PE:${d.pe} ROE:${d.roe} ROCE:${d.roce} D/E:${d.debtToEquity} CR:${d.currentRatio}`,
           'color:#10b981;font-weight:bold;',
         );
-      }
     }
   }
 
@@ -179,41 +218,11 @@ export async function fetchFundamentalsForSymbols(
 
 /**
  * Fetch fundamentals for a single symbol.
+ * For MF, pass "MF:119551". For equity, pass "TCS".
  */
 export async function fetchFundamentalsForSymbol(
   symbol: string,
 ): Promise<FetchedFundamentals | null> {
   const result = await fetchFundamentalsForSymbols([symbol.toUpperCase()]);
   return result[symbol.toUpperCase()] ?? null;
-}
-
-/**
- * Check if a symbol is eligible for auto-fetch (Indian equity only).
- */
-export function canAutoFetch(inv: {
-  type: string;
-  assetType?: string;
-  usdPrice?: number;
-  buyPriceUsd?: number;
-  usdToInr?: number;
-  symbol?: string;
-}): boolean {
-  if (!inv.symbol) return false;
-  if (inv.type !== 'stock') return false;
-  // Not a US stock
-  if (inv.usdPrice || inv.buyPriceUsd || inv.usdToInr) return false;
-  return true;
-}
-
-/**
- * Get cache age string for display (e.g. "2h ago")
- */
-export function getCacheAge(symbol: string): string | null {
-  const entry = fundamentalsCache.get(symbol.toUpperCase());
-  if (!entry) return null;
-  const ageMs = Date.now() - (entry.expiresAt - CACHE_TTL_MS);
-  const ageMins = Math.floor(ageMs / 60000);
-  if (ageMins < 60) return `${ageMins}m ago`;
-  const ageHrs = Math.floor(ageMins / 60);
-  return `${ageHrs}h ago`;
 }
