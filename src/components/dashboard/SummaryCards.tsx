@@ -3,8 +3,7 @@
 // FIX: Added redirect arrow icons to all dashboard metric cards so users
 //      can click through to the relevant section page.
 
-import { FiArrowUpRight, FiExternalLink } from 'react-icons/fi';
-
+import { FiExternalLink } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
 import { summarizePortfolio } from '../../utils/calculations';
 import { useMemo } from 'react';
