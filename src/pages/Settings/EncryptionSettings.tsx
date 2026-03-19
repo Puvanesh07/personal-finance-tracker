@@ -9,13 +9,13 @@
 //    <EncryptionSettings uid={currentUserId} />
 // ============================================================
 
-import React, { useCallback, useEffect, useState } from 'react';
 import {
   isEncryptionEnabled,
   migrateAllDataToEncrypted,
   migrateAllDataToPlain,
   setEncryptionEnabled,
 } from '../../services/encryptionService';
+import { useCallback, useEffect, useState } from 'react';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
