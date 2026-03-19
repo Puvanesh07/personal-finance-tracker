@@ -15,13 +15,16 @@ import {
 import { useEffect, useState } from 'react';
 
 import { DataManagement } from '../../components/settings/DataManagement';
+import EncryptionSettings from './EncryptionSettings';
 import { EssentialsSettings } from '../../components/settings/EssentialsSettings';
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
+import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function SettingsPage() {
+  const { uid } = usePortfolioStore();
   const user = auth.currentUser;
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -255,6 +258,7 @@ export function SettingsPage() {
         </div>
 
         {/* ── Other Sections ── */}
+        <EncryptionSettings uid={uid} />
         <NotionSettings />
         <EssentialsSettings />
         <DataManagement />

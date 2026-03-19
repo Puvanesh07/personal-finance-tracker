@@ -1,3 +1,24 @@
+/**
+ * portfolioStore.ts  —  ENCRYPTION-ENABLED version
+ *
+ * Changes from original:
+ *  1. fetchSub() now decrypts each document via decryptDoc()
+ *  2. Every setDoc() call wraps the payload in encryptDoc()
+ *  3. importInvestments batch writes also encrypt each doc
+ *
+ * The ONLY file you also need to add is:
+ *   src/services/encryptionService.ts  (provided separately)
+ *
+ * .env — add ONE line:
+ *   VITE_ENCRYPTION_SALT=some-long-random-secret-string
+ *
+ * To TOGGLE encryption on/off:
+ *   import { setEncryptionEnabled } from '../services/encryptionService';
+ *   await setEncryptionEnabled(uid, true);   // ON
+ *   await setEncryptionEnabled(uid, false);  // OFF
+ *   → This sets  users/{uid}/settings/config → { encryptionEnabled: true|false }
+ */
+
 import type {
   Account,
   CashflowEntry,
@@ -19,9 +40,16 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
+
+// ── Encryption imports (the only addition) ────────────────────────────────────
+import {
+  decryptDoc,
+  encryptDoc,
+  type FirestoreDoc,
+} from '../services/encryptionService';
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { create } from 'zustand';
 import { createId } from '../utils/id';
@@ -42,14 +70,31 @@ function clean<T extends object>(obj: T): T {
 }
 const now = () => new Date().toISOString();
 
+// ── Encrypted fetchSub — auto-decrypts documents ──────────────────────────────
 async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   const snap = await getDocs(userCol(uid, col));
-  return snap.docs.map((d) => d.data() as T);
+  return Promise.all(
+    snap.docs.map((d) => decryptDoc<T>(uid, d.data() as FirestoreDoc)),
+  );
+}
+
+// ── Encrypted write helper ────────────────────────────────────────────────────
+async function saveDoc<
+  T extends {
+    id: string;
+    userId?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  },
+>(uid: string, col: string, data: T): Promise<void> {
+  const payload = await encryptDoc(uid, data);
+  await setDoc(userDoc(uid, col, data.id), payload);
 }
 
 export type SettingsRecord = {
   notion: NotionConfig;
   essentials?: EssentialsConfig;
+  encryptionEnabled?: boolean; // ← the Firebase boolean flag you asked for
 };
 
 type PortfolioState = {
@@ -66,8 +111,8 @@ type PortfolioState = {
   essentials: EssentialsConfig;
   accounts: Account[];
   soldTrades: SoldTrade[];
-  insurancePolicies: InsurancePolicy[]; // <-- Added
-  sipPlans: any[]; // Monthly SIP plan (Firestore)
+  insurancePolicies: InsurancePolicy[];
+  sipPlans: any[];
   _lastSnapshotDate: string | null;
 
   hydrate: (uid: string) => Promise<void>;
@@ -107,8 +152,6 @@ type PortfolioState = {
   ) => Promise<void>;
   updateSoldTrade: (id: string, patch: Partial<SoldTrade>) => Promise<void>;
   deleteSoldTrade: (id: string) => Promise<void>;
-
-  // <-- Added Insurance CRUD methods
   addInsurancePolicy: (
     policy: Omit<InsurancePolicy, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -117,8 +160,6 @@ type PortfolioState = {
     patch: Partial<InsurancePolicy>,
   ) => Promise<void>;
   deleteInsurancePolicy: (id: string) => Promise<void>;
-
-  // Monthly SIP Plan
   addSipInstrument: (instrument: {
     name: string;
     percentage: number;
@@ -128,7 +169,6 @@ type PortfolioState = {
   deleteSipInstrument: (id: string) => Promise<void>;
   upsertSipBudget: (budget: number) => Promise<string>;
   deleteSipBudget: () => Promise<void>;
-
   clearAllData: () => Promise<void>;
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
@@ -157,7 +197,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   essentials: DEFAULT_ESSENTIALS,
   accounts: [],
   soldTrades: [],
-  insurancePolicies: [], // <-- Initial state added
+  insurancePolicies: [],
   sipPlans: [],
   _lastSnapshotDate: null,
 
@@ -174,7 +214,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         insights,
         accounts,
         soldTrades,
-        insurancePolicies, // <-- Added to Promise.all
+        insurancePolicies,
         sipPlans,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
@@ -186,7 +226,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<InsightSnapshot>(uid, 'insights'),
         fetchSub<Account>(uid, 'accounts'),
         fetchSub<SoldTrade>(uid, 'soldTrades'),
-        fetchSub<InsurancePolicy>(uid, 'insurancePolicies'), // <-- Added fetching
+        fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
         fetchSub<any>(uid, 'sipPlans'),
       ]);
 
@@ -232,7 +272,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ),
         insurancePolicies: insurancePolicies.sort((a, b) =>
           a.renewalDate.localeCompare(b.renewalDate),
-        ), // <-- Sorted policies added
+        ),
         sipPlans: sipPlans.sort((a: any, b: any) =>
           (a.createdAt || '').localeCompare(b.createdAt || ''),
         ),
@@ -241,12 +281,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       if (investments.length > 0) await get().recordSnapshotIfNeeded();
     } catch (err) {
       console.error('[PortfolioStore] hydrate failed:', err);
-      // Always set ready so the app never stays blank after F5
       set({ ready: true });
     }
   },
 
-  // ... (All existing Investment, Liability, Cashflow, Goal, Account methods remain exactly the same)
+  // ── Investments ──────────────────────────────────────────────────────────────
 
   addInvestment: async (investment) => {
     const uid = get().uid;
@@ -259,7 +298,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as Investment;
-    await setDoc(userDoc(uid, 'investments', withMeta.id), withMeta);
+    await saveDoc(uid, 'investments', withMeta); // ← encrypted write
     set((s) => ({ investments: [withMeta, ...s.investments] }));
     await get().recordSnapshotIfNeeded();
   },
@@ -293,10 +332,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             draft.currentPrice !== (match as any).currentPrice) ||
           ('nav' in draft && draft.nav !== (match as any).nav);
         if (hasChanged) {
-          await updateDoc(
-            userDoc(uid, 'investments', match.id),
-            clean({ ...draft, updatedAt: t }),
-          );
+          // For updated docs, re-encrypt the full merged document
+          const mergedDoc = clean({
+            ...match,
+            ...draft,
+            updatedAt: t,
+          }) as Investment;
+          const payload = await encryptDoc(uid, mergedDoc);
+          await setDoc(userDoc(uid, 'investments', match.id), payload);
           updated++;
         } else skipped++;
       } else {
@@ -307,7 +350,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           updatedAt: t,
           userId: uid,
         }) as Investment;
-        batch.set(userDoc(uid, 'investments', withMeta.id), withMeta);
+        // Encrypt each document before adding to batch
+        const payload = await encryptDoc(uid, withMeta);
+        batch.set(userDoc(uid, 'investments', withMeta.id), payload);
         newDocs.push(withMeta);
         added++;
       }
@@ -331,7 +376,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as Investment;
-    await setDoc(userDoc(uid, 'investments', id), updated);
+    await saveDoc(uid, 'investments', updated); // ← encrypted write
     set((s) => ({
       investments: s.investments.map((x) => (x.id === id ? updated : x)),
     }));
@@ -346,6 +391,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await get().recordSnapshotIfNeeded();
   },
 
+  // ── Liabilities ──────────────────────────────────────────────────────────────
+
   addLiability: async (liability) => {
     const uid = get().uid;
     if (!uid) return;
@@ -357,7 +404,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as Liability;
-    await setDoc(userDoc(uid, 'liabilities', withMeta.id), withMeta);
+    await saveDoc(uid, 'liabilities', withMeta);
     set((s) => ({ liabilities: [withMeta, ...s.liabilities] }));
   },
   updateLiability: async (id, patch) => {
@@ -371,7 +418,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as Liability;
-    await setDoc(userDoc(uid, 'liabilities', id), updated);
+    await saveDoc(uid, 'liabilities', updated);
     set((s) => ({
       liabilities: s.liabilities.map((x) => (x.id === id ? updated : x)),
     }));
@@ -382,6 +429,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'liabilities', id));
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }));
   },
+
+  // ── Cashflows ────────────────────────────────────────────────────────────────
 
   addCashflow: async (entry) => {
     const uid = get().uid;
@@ -394,7 +443,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as CashflowEntry;
-    await setDoc(userDoc(uid, 'cashflows', withMeta.id), withMeta);
+    await saveDoc(uid, 'cashflows', withMeta);
     set((s) => ({
       cashflows: [withMeta, ...s.cashflows].sort((a, b) =>
         b.date.localeCompare(a.date),
@@ -412,7 +461,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as CashflowEntry;
-    await setDoc(userDoc(uid, 'cashflows', id), updated);
+    await saveDoc(uid, 'cashflows', updated);
     set((s) => ({
       cashflows: s.cashflows.map((x) => (x.id === id ? updated : x)),
     }));
@@ -423,6 +472,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'cashflows', id));
     set((s) => ({ cashflows: s.cashflows.filter((x) => x.id !== id) }));
   },
+
+  // ── Goals ────────────────────────────────────────────────────────────────────
 
   addGoal: async (goal) => {
     const uid = get().uid;
@@ -435,7 +486,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as Goal;
-    await setDoc(userDoc(uid, 'goals', withMeta.id), withMeta);
+    await saveDoc(uid, 'goals', withMeta);
     set((s) => ({ goals: [withMeta, ...s.goals] }));
   },
   updateGoal: async (id, patch) => {
@@ -449,7 +500,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as Goal;
-    await setDoc(userDoc(uid, 'goals', id), updated);
+    await saveDoc(uid, 'goals', updated);
     set((s) => ({ goals: s.goals.map((x) => (x.id === id ? updated : x)) }));
   },
   deleteGoal: async (id) => {
@@ -458,6 +509,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'goals', id));
     set((s) => ({ goals: s.goals.filter((x) => x.id !== id) }));
   },
+
+  // ── Accounts ─────────────────────────────────────────────────────────────────
 
   addAccount: async (account) => {
     const uid = get().uid;
@@ -470,7 +523,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as Account;
-    await setDoc(userDoc(uid, 'accounts', raw.id), raw);
+    await saveDoc(uid, 'accounts', raw);
     set((s) => ({ accounts: [raw, ...s.accounts] }));
   },
   updateAccount: async (id, patch) => {
@@ -484,7 +537,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as Account;
-    await setDoc(userDoc(uid, 'accounts', id), raw);
+    await saveDoc(uid, 'accounts', raw);
     set((s) => ({ accounts: s.accounts.map((x) => (x.id === id ? raw : x)) }));
   },
   deleteAccount: async (id) => {
@@ -493,6 +546,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'accounts', id));
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
   },
+
+  // ── Sold Trades ──────────────────────────────────────────────────────────────
 
   addSoldTrade: async (trade) => {
     const uid = get().uid;
@@ -509,7 +564,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       createdAt: t,
       updatedAt: t,
     }) as SoldTrade;
-    await setDoc(userDoc(uid, 'soldTrades', raw.id), raw);
+    await saveDoc(uid, 'soldTrades', raw);
     set((s) => ({
       soldTrades: [raw, ...s.soldTrades].sort((a, b) =>
         b.soldDate.localeCompare(a.soldDate),
@@ -526,7 +581,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const profitPct =
       merged.buyPrice > 0 ? (profit / merged.buyPrice) * 100 : 0;
     const updated = clean({ ...merged, profit, profitPct }) as SoldTrade;
-    await setDoc(userDoc(uid, 'soldTrades', id), updated);
+    await saveDoc(uid, 'soldTrades', updated);
     set((s) => ({
       soldTrades: s.soldTrades.map((x) => (x.id === id ? updated : x)),
     }));
@@ -538,7 +593,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ soldTrades: s.soldTrades.filter((x) => x.id !== id) }));
   },
 
-  // ── INSURANCE CRUD ADDED HERE ──
+  // ── Insurance ────────────────────────────────────────────────────────────────
+
   addInsurancePolicy: async (policy) => {
     const uid = get().uid;
     if (!uid) return;
@@ -550,7 +606,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as InsurancePolicy;
-    await setDoc(userDoc(uid, 'insurancePolicies', withMeta.id), withMeta);
+    await saveDoc(uid, 'insurancePolicies', withMeta);
     set((s) => ({
       insurancePolicies: [withMeta, ...s.insurancePolicies].sort((a, b) =>
         a.renewalDate.localeCompare(b.renewalDate),
@@ -568,7 +624,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as InsurancePolicy;
-    await setDoc(userDoc(uid, 'insurancePolicies', id), updated);
+    await saveDoc(uid, 'insurancePolicies', updated);
     set((s) => ({
       insurancePolicies: s.insurancePolicies.map((x) =>
         x.id === id ? updated : x,
@@ -584,7 +640,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ── Monthly SIP Plan CRUD ──────────────────────────────────────────────────
+  // ── Monthly SIP Plan ─────────────────────────────────────────────────────────
+
   addSipInstrument: async (instrument) => {
     const uid = get().uid;
     if (!uid) return;
@@ -597,7 +654,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       createdAt: t,
       updatedAt: t,
     });
-    await setDoc(userDoc(uid, 'sipPlans', item.id), item);
+    await saveDoc(uid, 'sipPlans', item as any);
     set((s) => ({ sipPlans: [...s.sipPlans, item] }));
   },
   updateSipInstrument: async (id, patch) => {
@@ -606,7 +663,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const existing = get().sipPlans.find((x: any) => x.id === id);
     if (!existing) return;
     const updated = clean({ ...existing, ...patch, id, updatedAt: now() });
-    await setDoc(userDoc(uid, 'sipPlans', id), updated);
+    await saveDoc(uid, 'sipPlans', updated as any);
     set((s) => ({
       sipPlans: s.sipPlans.map((x: any) => (x.id === id ? updated : x)),
     }));
@@ -624,7 +681,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const t = now();
     if (existing) {
       const updated = clean({ ...existing, budget, updatedAt: t });
-      await setDoc(userDoc(uid, 'sipPlans', existing.id), updated);
+      await saveDoc(uid, 'sipPlans', updated as any);
       set((s) => ({
         sipPlans: s.sipPlans.map((x: any) =>
           x.id === existing.id ? updated : x,
@@ -640,7 +697,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         createdAt: t,
         updatedAt: t,
       });
-      await setDoc(userDoc(uid, 'sipPlans', item.id), item);
+      await saveDoc(uid, 'sipPlans', item as any);
       set((s) => ({ sipPlans: [...s.sipPlans, item] }));
       return item.id;
     }
@@ -656,7 +713,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ───────────────────────────────
+  // ── Settings ─────────────────────────────────────────────────────────────────
 
   setNotionConfig: async (patch) => {
     const uid = get().uid;
@@ -681,6 +738,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set({ essentials });
   },
 
+  // ── Snapshots ────────────────────────────────────────────────────────────────
+
   recordSnapshotIfNeeded: async () => {
     const uid = get().uid;
     if (!uid) return;
@@ -690,7 +749,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const existing = get().snapshots.find((x) => x.date === date);
     if (existing) {
       const updated: PortfolioSnapshot = { ...existing, totalValue };
-      await setDoc(userDoc(uid, 'snapshots', updated.id), updated);
+      await saveDoc(uid, 'snapshots', updated);
       set((s) => ({
         snapshots: s.snapshots.map((x) => (x.id === updated.id ? updated : x)),
         _lastSnapshotDate: date,
@@ -703,7 +762,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       totalValue,
       userId: uid,
     }) as any;
-    await setDoc(userDoc(uid, 'snapshots', snap.id), snap);
+    await saveDoc(uid, 'snapshots', snap);
     set((s) => ({
       snapshots: [...s.snapshots, snap as PortfolioSnapshot].sort((a, b) =>
         a.date.localeCompare(b.date),
@@ -735,7 +794,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       userId: uid,
       ...(label?.trim() ? { label: label.trim() } : {}),
     };
-    await setDoc(userDoc(uid, 'networthSnapshots', snap.id), snap);
+    await saveDoc(uid, 'networthSnapshots', snap);
     set((s) => ({ networthSnapshots: [snap, ...s.networthSnapshots] }));
   },
 
@@ -749,9 +808,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       userId: uid,
       createdAt: t,
     }) as InsightSnapshot;
-    await setDoc(userDoc(uid, 'insights', snapshot.id), snapshot);
+    await saveDoc(uid, 'insights', snapshot);
     set({ latestInsight: snapshot });
   },
+
+  // ── Clear All ────────────────────────────────────────────────────────────────
 
   clearAllData: async () => {
     const uid = get().uid;
@@ -773,9 +834,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriCoconut',
       'agriLivestockEvents',
       'soldTrades',
-      'insurancePolicies', // <-- Added to wipeout list
+      'insurancePolicies',
       'sipPlans',
-      // Attendance collections
       'attEmployees',
       'attRecords',
       'attTransactions',
@@ -807,7 +867,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         essentials: {},
         accounts: [],
         soldTrades: [],
-        insurancePolicies: [], // <-- Cleared locally
+        insurancePolicies: [],
         sipPlans: [],
         _lastSnapshotDate: null,
       });
