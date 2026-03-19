@@ -1,3 +1,10 @@
+// src/components/dashboard/SummaryCards.tsx
+//
+// FIX: Added redirect arrow icons to all dashboard metric cards so users
+//      can click through to the relevant section page.
+
+import { FiArrowUpRight, FiExternalLink } from 'react-icons/fi';
+
 import { formatINR } from '../../utils/format';
 import { summarizePortfolio } from '../../utils/calculations';
 import { useMemo } from 'react';
@@ -11,6 +18,7 @@ function MetricCard({
   trend,
   onClick,
   badge,
+  navigateTo,
 }: {
   label: string;
   value: string;
@@ -18,7 +26,10 @@ function MetricCard({
   trend?: 'up' | 'down' | 'neutral';
   onClick?: () => void;
   badge?: string;
+  navigateTo?: string;
 }) {
+  const navigate = useNavigate();
+
   let bgClass =
     'bg-white/80 dark:bg-slate-900/50 border-slate-200/60 dark:border-slate-800/60';
   let textClass = 'text-slate-900 dark:text-slate-50';
@@ -40,11 +51,27 @@ function MetricCard({
   if (trend === 'up') trendColor = 'text-emerald-500 dark:text-emerald-400';
   if (trend === 'down') trendColor = 'text-rose-500 dark:text-rose-400';
 
+  const handleClick = () => {
+    if (onClick) onClick();
+    if (navigateTo) navigate(navigateTo);
+  };
+
+  const isClickable = !!(onClick || navigateTo);
+
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg backdrop-blur-sm ${bgClass} ${onClick ? 'cursor-pointer' : ''}`}
-      onClick={onClick}
+      className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg backdrop-blur-sm ${bgClass} ${isClickable ? 'cursor-pointer group' : ''}`}
+      onClick={isClickable ? handleClick : undefined}
     >
+      {/* ✅ FIX: Redirect arrow shown on hover for clickable cards */}
+      {isClickable && (
+        <div
+          className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${variant === 'primary' || variant === 'danger' ? 'text-white/70' : 'text-slate-400'}`}
+        >
+          <FiExternalLink className='h-3.5 w-3.5' />
+        </div>
+      )}
+
       <div
         className={`text-sm font-medium tracking-wide flex items-center gap-2 ${labelClass}`}
       >
@@ -92,20 +119,24 @@ export function SummaryCards() {
         <MetricCard
           label='Total Assets'
           value={formatINR(summary.totalValue)}
+          navigateTo='/investments'
         />
         <MetricCard
           label='Liabilities'
           value={formatINR(liabilitiesTotal)}
           variant={liabilitiesTotal > 0 ? 'danger' : 'default'}
+          navigateTo='/liabilities'
         />
         <MetricCard
           label='Net Worth'
           value={formatINR(netWorth)}
           variant='primary'
-        />{' '}
+          navigateTo='/snapshots'
+        />
         <MetricCard
           label='Snapshots Taken'
           value={String(networthSnapshots.length)}
+          navigateTo='/snapshots'
         />
       </div>
 
@@ -114,28 +145,34 @@ export function SummaryCards() {
         <MetricCard
           label='Stocks Value'
           value={formatINR(summary.byType.stock.current)}
+          navigateTo='/investments'
         />
         <MetricCard
           label='Mutual Funds'
           value={formatINR(summary.byType.mutual_fund.current)}
+          navigateTo='/investments'
         />
         <MetricCard
           label='Bonds Investment'
           value={formatINR(summary.byType.bond.invested)}
+          navigateTo='/investments'
         />
         <MetricCard
           label='Fixed Deposits'
           value={formatINR(summary.byType.fixed_deposit.current)}
+          navigateTo='/investments'
         />
 
         <MetricCard
           label='Invested Total'
           value={formatINR(summary.investedTotal)}
+          navigateTo='/investments'
         />
         <MetricCard
           label='Unrealized P&L'
           value={`${isProfit ? '+' : ''}${formatINR(summary.profitLossTotal)}`}
           trend={isProfit ? 'up' : 'down'}
+          navigateTo='/investments'
         />
         <MetricCard
           label='Realized Profit'
@@ -155,6 +192,7 @@ export function SummaryCards() {
         <MetricCard
           label='Expected Interest'
           value={formatINR(summary.expectedInterest.total)}
+          navigateTo='/investments'
         />
       </div>
     </div>

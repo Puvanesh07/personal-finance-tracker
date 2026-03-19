@@ -1,3 +1,9 @@
+// src/components/dashboard/MarketCapAllocationChart.tsx
+//
+// FIX: Clickable market cap pills — clicking Large Cap / Mid Cap / Small Cap
+//      navigates to /investments with that market cap pre-filtered via URL state.
+//      All list rows are also clickable to filter.
+
 import {
   Bar,
   BarChart,
@@ -7,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { FiBarChart2, FiRefreshCw } from 'react-icons/fi';
+import { FiArrowUpRight, FiBarChart2, FiRefreshCw } from 'react-icons/fi';
 import { useMemo, useState } from 'react';
 
 import { Card } from '../ui/Card';
@@ -15,6 +21,7 @@ import type { MarketCapCategory } from '../../services/stockMetadataService';
 import { MetadataLoader } from '../ui/SectionLoader';
 import { currentValue } from '../../utils/calculations';
 import { formatINR } from '../../utils/format';
+import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useStockMetadata } from '../../hooks/useStockMetadata';
 
@@ -48,17 +55,17 @@ const CustomTooltip = ({ active, payload }: any) => {
   return (
     <div
       style={{
-        borderRadius: 16,
-        border: '1px solid rgba(255,255,255,0.1)',
-        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-        backdropFilter: 'blur(8px)',
+        borderRadius: 14,
+        border: '1px solid rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(15,23,42,0.96)',
+        backdropFilter: 'blur(10px)',
         color: '#F8FAFC',
-        padding: '12px',
-        fontSize: 13,
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+        padding: '10px 14px',
+        fontSize: 12,
+        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
+      <div style={{ fontWeight: 700, marginBottom: 3, fontSize: 13 }}>
         {name}
       </div>
       <div style={{ fontWeight: 600 }}>{formatINR(value)}</div>
@@ -71,14 +78,7 @@ const CustomTooltip = ({ active, payload }: any) => {
       >
         {pct}% of Portfolio
       </div>
-      <div
-        style={{
-          color: '#94A3B8',
-          fontSize: 12,
-          marginTop: 4,
-          fontWeight: 500,
-        }}
-      >
+      <div style={{ color: '#94A3B8', fontSize: 11, marginTop: 3 }}>
         {stocks} holding{stocks !== 1 ? 's' : ''}
       </div>
     </div>
@@ -88,18 +88,23 @@ const CustomTooltip = ({ active, payload }: any) => {
 export function MarketCapAllocationChart() {
   const investments = usePortfolioStore((s) => s.investments);
   const { metadata, isLoading, refresh } = useStockMetadata(investments);
-
-  // State to force chart re-animation on refresh
+  const navigate = useNavigate();
   const [chartKey, setChartKey] = useState(0);
+  const [hoveredCap, setHoveredCap] = useState<string | null>(null);
 
   const handleRefresh = () => {
-    setChartKey((prev) => prev + 1); // Force remount of the chart
-    refresh(); // Trigger actual data refresh
+    setChartKey((p) => p + 1);
+    refresh();
+  };
+
+  // ✅ Navigate to investments page with marketCap filter via sessionStorage
+  const handleCapClick = (cap: string) => {
+    sessionStorage.setItem('inv_marketcap_filter', cap);
+    navigate('/investments');
   };
 
   const { chartData, pills } = useMemo(() => {
     const capMap = new Map<string, { value: number; count: number }>();
-
     for (const inv of investments) {
       if (inv.type === 'fixed_deposit' || inv.type === 'bond') continue;
       const meta = metadata.get(inv.id);
@@ -110,7 +115,6 @@ export function MarketCapAllocationChart() {
         count: prev.count + 1,
       });
     }
-
     const total = Array.from(capMap.values()).reduce((a, b) => a + b.value, 0);
     const allData = Array.from(capMap.entries())
       .filter(([, v]) => v.value > 0)
@@ -126,7 +130,6 @@ export function MarketCapAllocationChart() {
       const d = allData.find((x) => x.name === cat);
       return { cat, pct: d?.pct ?? '0.0', stocks: d?.stocks ?? 0 };
     });
-
     return { chartData: allData, pills: pillsData };
   }, [investments, metadata]);
 
@@ -165,36 +168,47 @@ export function MarketCapAllocationChart() {
         </div>
       ) : (
         <div className='flex flex-col gap-5 pt-2'>
+          {/* ✅ Clickable Pills — Large / Mid / Small Cap */}
           <div className='grid grid-cols-3 gap-3'>
             {pills.map(({ cat, pct, stocks }) => (
-              <div
+              <button
                 key={cat}
-                className='rounded-xl p-3 flex flex-col gap-1 backdrop-blur-sm transition-transform hover:-translate-y-0.5'
+                type='button'
+                onClick={() => handleCapClick(cat)}
+                className='group rounded-xl p-3 flex flex-col gap-1.5 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg text-left cursor-pointer'
                 style={{
                   backgroundColor: CAP_BG[cat],
                   border: `1px solid ${CAP_COLORS[cat]}40`,
                 }}
+                title={`Filter investments by ${cat}`}
               >
-                <span
-                  className='text-[10px] font-black uppercase tracking-wider'
-                  style={{ color: CAP_COLORS[cat] }}
-                >
-                  {cat}
-                </span>
+                <div className='flex items-center justify-between'>
+                  <span
+                    className='text-[10px] font-black uppercase tracking-wider'
+                    style={{ color: CAP_COLORS[cat] }}
+                  >
+                    {cat}
+                  </span>
+                  {/* ✅ Direction/redirect icon */}
+                  <FiArrowUpRight
+                    className='h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity'
+                    style={{ color: CAP_COLORS[cat] }}
+                  />
+                </div>
                 <span className='text-xl font-black text-slate-900 dark:text-slate-50 tabular-nums'>
                   {pct}%
                 </span>
                 <span className='text-[11px] font-semibold text-slate-500 dark:text-slate-400'>
                   {stocks} asset{stocks !== 1 ? 's' : ''}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
 
+          {/* Bar chart */}
           {chartData.length > 0 && (
             <div className='h-44 w-full'>
               <ResponsiveContainer width='100%' height='100%'>
-                {/* Adding the dynamic key here forces the chart to remount and re-animate */}
                 <BarChart
                   key={chartKey}
                   data={chartData}
@@ -213,18 +227,24 @@ export function MarketCapAllocationChart() {
                     content={<CustomTooltip />}
                     cursor={{ fill: 'rgba(148,163,184,0.05)', radius: 8 }}
                   />
-                  {/* Ensure animation is explicitly active */}
                   <Bar
                     dataKey='value'
                     radius={[6, 6, 0, 0]}
-                    isAnimationActive={true}
+                    isAnimationActive
                     animationDuration={1000}
                     animationEasing='ease-out'
+                    onClick={(data) =>
+                      data.name && handleCapClick(data.name as string)
+                    }
+                    cursor='pointer'
                   >
                     {chartData.map((e) => (
                       <Cell
                         key={e.name}
                         fill={CAP_COLORS[e.name] ?? '#94A3B8'}
+                        opacity={
+                          hoveredCap === null || hoveredCap === e.name ? 1 : 0.4
+                        }
                       />
                     ))}
                   </Bar>
@@ -233,11 +253,17 @@ export function MarketCapAllocationChart() {
             </div>
           )}
 
-          <div className='flex flex-col gap-1 border-t border-slate-100 pt-4 dark:border-slate-800/60'>
+          {/* ✅ Clickable list rows */}
+          <div className='flex flex-col gap-0.5 border-t border-slate-100 pt-3 dark:border-slate-800/60'>
             {chartData.map((e) => (
-              <div
+              <button
                 key={e.name}
-                className='flex items-center justify-between rounded-lg px-2 py-2 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-sm'
+                type='button'
+                onClick={() => handleCapClick(e.name)}
+                className='group flex items-center justify-between rounded-lg px-2 py-2 text-sm transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 w-full text-left'
+                onMouseEnter={() => setHoveredCap(e.name)}
+                onMouseLeave={() => setHoveredCap(null)}
+                title={`Filter by ${e.name}`}
               >
                 <div className='flex items-center gap-2.5'>
                   <span
@@ -261,8 +287,9 @@ export function MarketCapAllocationChart() {
                   >
                     {e.pct}%
                   </span>
+                  <FiArrowUpRight className='h-3.5 w-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 

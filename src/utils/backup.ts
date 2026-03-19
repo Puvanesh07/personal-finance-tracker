@@ -33,7 +33,7 @@ import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
@@ -56,6 +56,9 @@ export type BackupPayload = {
   attRecords?: AttendanceRecord[];
   attTransactions?: AttendanceTransaction[];
   attSalary?: SalaryRecord[];
+  // New sections
+  insurancePolicies?: any[];
+  sipPlans?: any[];
 };
 
 const userSubCol = (uid: string, col: string) =>
@@ -102,6 +105,8 @@ export async function exportFullBackup(uid: string) {
     attRecords,
     attTransactions,
     attSalary,
+    insurancePolicies,
+    sipPlans,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
     fetchSub<Liability>(uid, 'liabilities'),
@@ -121,13 +126,15 @@ export async function exportFullBackup(uid: string) {
     fetchSub<AttendanceRecord>(uid, 'attRecords'),
     fetchSub<AttendanceTransaction>(uid, 'attTransactions'),
     fetchSub<SalaryRecord>(uid, 'attSalary'),
+    fetchSub<any>(uid, 'insurancePolicies'),
+    fetchSub<any>(uid, 'sipPlans'),
   ]);
   const settingsSnap = await getDoc(settingsDocRef(uid));
   const settings = settingsSnap.exists()
     ? (settingsSnap.data() as SettingsRecord)
     : null;
   const payload: BackupPayload = {
-    version: 3,
+    version: 4,
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
@@ -149,6 +156,8 @@ export async function exportFullBackup(uid: string) {
     attRecords,
     attTransactions,
     attSalary,
+    insurancePolicies,
+    sipPlans,
   };
   saveAs(
     new Blob([JSON.stringify(payload, null, 2)], {
@@ -161,7 +170,7 @@ export async function exportFullBackup(uid: string) {
 export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
   const parsed = JSON.parse(jsonText) as BackupPayload;
-  if (!parsed || ![1, 2, 3].includes(parsed.version))
+  if (!parsed || ![1, 2, 3, 4].includes(parsed.version))
     throw new Error('Unsupported backup format. Expected version 1, 2, or 3.');
   await Promise.all([
     batchSet(uid, 'investments', parsed.investments ?? []),
@@ -182,6 +191,8 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'attRecords', parsed.attRecords ?? []),
     batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
     batchSet(uid, 'attSalary', parsed.attSalary ?? []),
+    batchSet(uid, 'insurancePolicies', (parsed as any).insurancePolicies ?? []),
+    batchSet(uid, 'sipPlans', (parsed as any).sipPlans ?? []),
   ]);
   const batch = writeBatch(db);
   batch.set(settingsDocRef(uid), {

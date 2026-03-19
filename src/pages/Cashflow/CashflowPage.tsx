@@ -1,3 +1,10 @@
+// src/pages/Cashflow/CashflowPage.tsx
+//
+// FIXES:
+//  1. Added sort options: Date (newest/oldest), Amount (high→low, low→high)
+//  2. Added type filter: All / Income only / Expense only
+//  3. Sort & filter bar appears above the data table
+
 import {
   Cell,
   Legend,
@@ -8,6 +15,8 @@ import {
 } from 'recharts';
 import {
   FiActivity,
+  FiArrowDown,
+  FiArrowUp,
   FiCalendar,
   FiCheck,
   FiChevronDown,
@@ -85,6 +94,10 @@ const EXPENSE_COLORS = [
   '#8b5cf6',
 ];
 
+// Sort options type
+type SortKey = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+type TypeFilter = 'all' | 'income' | 'expense';
+
 // ── Segmented Control ──────────────────────────────────────────────────────
 function SegmentedControl({
   value,
@@ -114,6 +127,136 @@ function SegmentedControl({
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+// ── Type Filter Tabs ───────────────────────────────────────────────────────
+function TypeFilterTabs({
+  value,
+  onChange,
+  counts,
+}: {
+  value: TypeFilter;
+  onChange: (v: TypeFilter) => void;
+  counts: { all: number; income: number; expense: number };
+}) {
+  const tabs: { value: TypeFilter; label: string; color: string }[] = [
+    { value: 'all', label: 'All', color: 'text-slate-400' },
+    { value: 'income', label: 'Income', color: 'text-emerald-400' },
+    { value: 'expense', label: 'Expense', color: 'text-rose-400' },
+  ];
+  return (
+    <div className='flex items-center gap-1 rounded-xl bg-slate-800/60 p-1 border border-slate-700/60'>
+      {tabs.map((t) => (
+        <button
+          key={t.value}
+          type='button'
+          onClick={() => onChange(t.value)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${
+            value === t.value
+              ? 'bg-slate-700 text-slate-100 shadow-sm'
+              : 'text-slate-500 hover:text-slate-200'
+          }`}
+        >
+          <span className={value === t.value ? '' : t.color}>{t.label}</span>
+          <span className='rounded-md bg-slate-600/60 px-1.5 py-0.5 text-[9px] font-bold text-slate-300'>
+            {counts[t.value]}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Sort Button ────────────────────────────────────────────────────────────
+function SortButton({
+  value,
+  onChange,
+}: {
+  value: SortKey;
+  onChange: (v: SortKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const options: { value: SortKey; label: string; icon: React.ReactNode }[] = [
+    {
+      value: 'date-desc',
+      label: 'Date: Newest first',
+      icon: <FiArrowDown className='h-3 w-3' />,
+    },
+    {
+      value: 'date-asc',
+      label: 'Date: Oldest first',
+      icon: <FiArrowUp className='h-3 w-3' />,
+    },
+    {
+      value: 'amount-desc',
+      label: 'Amount: High → Low',
+      icon: <FiArrowDown className='h-3 w-3 text-emerald-400' />,
+    },
+    {
+      value: 'amount-asc',
+      label: 'Amount: Low → High',
+      icon: <FiArrowUp className='h-3 w-3 text-rose-400' />,
+    },
+  ];
+
+  const selected = options.find((o) => o.value === value)!;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className='relative'>
+      <button
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+          open
+            ? 'border-emerald-500/50 bg-slate-800 text-emerald-400'
+            : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+        }`}
+      >
+        {selected.icon}
+        <span className='hidden sm:inline'>{selected.label}</span>
+        <span className='sm:hidden'>Sort</span>
+        <FiChevronDown
+          className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div className='absolute right-0 top-full mt-2 z-50 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden'>
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type='button'
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
+                value === opt.value
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+              }`}
+            >
+              {opt.icon}
+              {opt.label}
+              {value === opt.value && <FiCheck className='ml-auto h-3 w-3' />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -236,13 +379,13 @@ function InvDropdown({
   );
 }
 
-// ── Custom Calendar Picker (portalled) ────────────────────────────────────
+// ── Custom Calendar Picker ─────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
   label,
 }: {
-  value: string; // yyyy-MM-dd
+  value: string;
   onChange: (v: string) => void;
   label: string;
 }) {
@@ -268,7 +411,6 @@ function CalendarPicker({
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
-    // Prefer opening downward; if near bottom flip up
     const spaceBelow = window.innerHeight - r.bottom;
     const panelH = 320;
     const top =
@@ -301,7 +443,6 @@ function CalendarPicker({
     };
   }, [open, updatePos]);
 
-  // Build calendar grid
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(viewDate), { weekStartsOn: 0 });
     const end = endOfWeek(endOfMonth(viewDate), { weekStartsOn: 0 });
@@ -318,8 +459,6 @@ function CalendarPicker({
       <label className='text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1'>
         {label}
       </label>
-
-      {/* Trigger */}
       <button
         ref={triggerRef}
         type='button'
@@ -339,7 +478,6 @@ function CalendarPicker({
         />
       </button>
 
-      {/* Calendar panel portalled to body */}
       {open &&
         createPortal(
           <div
@@ -353,7 +491,6 @@ function CalendarPicker({
             }}
             className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
-            {/* Month nav */}
             <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
               <button
                 type='button'
@@ -373,8 +510,6 @@ function CalendarPicker({
                 <FiChevronRight className='h-4 w-4' />
               </button>
             </div>
-
-            {/* Day-of-week headers */}
             <div className='grid grid-cols-7 px-3 pt-3 pb-1'>
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
@@ -385,8 +520,6 @@ function CalendarPicker({
                 </div>
               ))}
             </div>
-
-            {/* Days grid */}
             <div className='grid grid-cols-7 px-3 pb-3 gap-y-0.5'>
               {days.map((day) => {
                 const isSelected = selectedDate
@@ -399,9 +532,7 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`
-                    flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all
-                    ${
+                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${
                       isSelected
                         ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30'
                         : isTodayDay
@@ -409,16 +540,13 @@ function CalendarPicker({
                           : isCurrentMonth
                             ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
                             : 'text-slate-600 hover:bg-slate-800/50'
-                    }
-                  `}
+                    }`}
                   >
                     {format(day, 'd')}
                   </button>
                 );
               })}
             </div>
-
-            {/* Footer */}
             <div className='px-3 pb-3 flex justify-between gap-2 border-t border-slate-800 pt-2'>
               <button
                 type='button'
@@ -432,9 +560,7 @@ function CalendarPicker({
               </button>
               <button
                 type='button'
-                onClick={() => {
-                  selectDay(new Date());
-                }}
+                onClick={() => selectDay(new Date())}
                 className='text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors px-2 py-1'
               >
                 Today
@@ -493,6 +619,50 @@ function SummaryCard({
   );
 }
 
+// ── Sortable Column Header ─────────────────────────────────────────────────
+function SortableHeader({
+  label,
+  sortKey,
+  currentSort,
+  onSort,
+  className = '',
+}: {
+  label: string;
+  sortKey: 'date' | 'amount';
+  currentSort: SortKey;
+  onSort: (k: SortKey) => void;
+  className?: string;
+}) {
+  const isActive = currentSort.startsWith(sortKey);
+  const isDesc = currentSort === `${sortKey}-desc`;
+
+  const toggle = () => {
+    if (!isActive) onSort(`${sortKey}-desc` as SortKey);
+    else onSort((isDesc ? `${sortKey}-asc` : `${sortKey}-desc`) as SortKey);
+  };
+
+  return (
+    <th
+      className={`px-5 py-4 text-xs font-bold uppercase tracking-wider cursor-pointer select-none group ${className}`}
+      onClick={toggle}
+    >
+      <span
+        className={`flex items-center gap-1.5 ${isActive ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-300'}`}
+      >
+        {label}
+        <span className='flex flex-col gap-0.5'>
+          <FiArrowUp
+            className={`h-2.5 w-2.5 transition-opacity ${isActive && !isDesc ? 'opacity-100' : 'opacity-30'}`}
+          />
+          <FiArrowDown
+            className={`h-2.5 w-2.5 transition-opacity ${isActive && isDesc ? 'opacity-100' : 'opacity-30'}`}
+          />
+        </span>
+      </span>
+    </th>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 
 export function CashflowPage() {
@@ -520,7 +690,12 @@ export function CashflowPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
 
-  const filteredRows = useMemo(() => {
+  // ✅ NEW: Sort and type-filter state
+  const [sortKey, setSortKey] = useState<SortKey>('date-desc');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+
+  // Period-filtered rows (before sort & type filter)
+  const periodFilteredRows = useMemo(() => {
     let rows = [...cashflows];
     if (filterMode === 'fy') {
       const [startYear, endYear] = fy.split('-');
@@ -531,41 +706,71 @@ export function CashflowPage() {
       if (customStart) rows = rows.filter((e) => e.date >= customStart);
       if (customEnd) rows = rows.filter((e) => e.date <= customEnd);
     }
-    return rows.sort((a, b) => b.date.localeCompare(a.date));
+    return rows;
   }, [cashflows, filterMode, fy, customStart, customEnd]);
+
+  // Counts for type filter tabs
+  const typeCounts = useMemo(
+    () => ({
+      all: periodFilteredRows.length,
+      income: periodFilteredRows.filter((r) => r.type === 'income').length,
+      expense: periodFilteredRows.filter((r) => r.type === 'expense').length,
+    }),
+    [periodFilteredRows],
+  );
+
+  // ✅ FIX: Apply type filter + sort to table rows
+  const filteredRows = useMemo(() => {
+    let rows = [...periodFilteredRows];
+
+    // Type filter
+    if (typeFilter !== 'all') {
+      rows = rows.filter((r) => r.type === typeFilter);
+    }
+
+    // Sort
+    rows.sort((a, b) => {
+      if (sortKey === 'date-desc') return b.date.localeCompare(a.date);
+      if (sortKey === 'date-asc') return a.date.localeCompare(b.date);
+      if (sortKey === 'amount-desc') return b.amount - a.amount;
+      if (sortKey === 'amount-asc') return a.amount - b.amount;
+      return 0;
+    });
+
+    return rows;
+  }, [periodFilteredRows, typeFilter, sortKey]);
 
   const summary = useMemo(() => {
     let income = 0,
       expense = 0;
-    for (const r of filteredRows) {
+    for (const r of periodFilteredRows) {
       if (r.type === 'income') income += r.amount;
       else expense += r.amount;
     }
     return { income, expense, savings: income - expense };
-  }, [filteredRows]);
+  }, [periodFilteredRows]);
 
-  // --- Grouped Data for Charts ---
   const incomeByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
-    filteredRows.forEach((r) => {
+    periodFilteredRows.forEach((r) => {
       if (r.type === 'income')
         grouped[r.category] = (grouped[r.category] || 0) + r.amount;
     });
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredRows]);
+  }, [periodFilteredRows]);
 
   const expenseByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
-    filteredRows.forEach((r) => {
+    periodFilteredRows.forEach((r) => {
       if (r.type === 'expense')
         grouped[r.category] = (grouped[r.category] || 0) + r.amount;
     });
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredRows]);
+  }, [periodFilteredRows]);
 
   const openDeleteModal = (id: string) => {
     setSelectedDeleteId(id);
@@ -577,9 +782,7 @@ export function CashflowPage() {
     setSelectedDeleteId(null);
   };
 
-  if (!ready) {
-    return <CashflowSkeleton />;
-  }
+  if (!ready) return <CashflowSkeleton />;
 
   return (
     <div className='flex flex-col gap-6 pb-8'>
@@ -612,9 +815,8 @@ export function CashflowPage() {
         </div>
       </header>
 
-      {/* ── Filter Bar ─────────────────────────────────────────────── */}
+      {/* ── Period Filter Bar ────────────────────────────────────────── */}
       <div className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md shadow-sm'>
-        {/* Top row */}
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/60 rounded-t-2xl'>
           <div className='flex items-center gap-2'>
             <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15'>
@@ -627,7 +829,6 @@ export function CashflowPage() {
           <SegmentedControl value={filterMode} onChange={setFilterMode} />
         </div>
 
-        {/* Bottom row */}
         <div className='px-5 py-4 flex flex-wrap items-end gap-3 min-h-[76px]'>
           {filterMode === 'fy' && (
             <>
@@ -643,15 +844,14 @@ export function CashflowPage() {
                 />
               </div>
               <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
-                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400 ' />
+                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                 <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                  {filteredRows.length} transaction
-                  {filteredRows.length !== 1 ? 's' : ''}
+                  {periodFilteredRows.length} transaction
+                  {periodFilteredRows.length !== 1 ? 's' : ''}
                 </span>
               </div>
             </>
           )}
-
           {filterMode === 'custom' && (
             <>
               <CalendarPicker
@@ -670,15 +870,14 @@ export function CashflowPage() {
                 label='To'
               />
               <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
-                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400 ' />
+                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                 <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                  {filteredRows.length} transaction
-                  {filteredRows.length !== 1 ? 's' : ''}
+                  {periodFilteredRows.length} transaction
+                  {periodFilteredRows.length !== 1 ? 's' : ''}
                 </span>
               </div>
             </>
           )}
-
           {filterMode === 'all' && (
             <div className='flex items-center gap-3'>
               <span className='text-sm font-medium text-slate-400 dark:text-slate-500'>
@@ -687,7 +886,7 @@ export function CashflowPage() {
               <div className='flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2'>
                 <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                 <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                  {filteredRows.length} total
+                  {periodFilteredRows.length} total
                 </span>
               </div>
             </div>
@@ -695,7 +894,7 @@ export function CashflowPage() {
         </div>
       </div>
 
-      {/* ── Analytics Grid (3 Columns) ─────────────────────────────────────────── */}
+      {/* ── Analytics Grid ────────────────────────────────────────────── */}
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
         {/* Column 1: Summary Cards */}
         <div className='flex flex-col gap-4'>
@@ -846,26 +1045,58 @@ export function CashflowPage() {
 
       {/* ── Data Table ─────────────────────────────────────────────── */}
       <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md'>
+        {/* ✅ NEW: Table toolbar — type filter tabs + sort dropdown */}
+        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800/60'>
+          <TypeFilterTabs
+            value={typeFilter}
+            onChange={setTypeFilter}
+            counts={typeCounts}
+          />
+          <div className='flex items-center gap-2'>
+            <span className='text-xs font-medium text-slate-500 hidden sm:inline'>
+              Sort by:
+            </span>
+            <SortButton value={sortKey} onChange={setSortKey} />
+            <span className='text-xs text-slate-500 font-medium ml-1'>
+              {filteredRows.length} row{filteredRows.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
         <div className='overflow-x-auto'>
           <table className='min-w-full text-left text-sm whitespace-nowrap'>
             <thead className='border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30'>
               <tr>
-                {[
-                  'Date',
-                  'Type',
-                  'Category',
-                  'Account',
-                  'Notes',
-                  'Amount',
-                  'Actions',
-                ].map((h, i) => (
-                  <th
-                    key={h}
-                    className={`px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 ${i === 5 ? 'text-right' : i === 6 ? 'text-center' : ''}`}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {/* ✅ Date & Amount headers are now sortable */}
+                <SortableHeader
+                  label='Date'
+                  sortKey='date'
+                  currentSort={sortKey}
+                  onSort={setSortKey}
+                  className='px-5 py-4'
+                />
+                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                  Type
+                </th>
+                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                  Category
+                </th>
+                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                  Account
+                </th>
+                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                  Notes
+                </th>
+                <SortableHeader
+                  label='Amount'
+                  sortKey='amount'
+                  currentSort={sortKey}
+                  onSort={setSortKey}
+                  className='px-5 py-4 text-right'
+                />
+                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center'>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
@@ -874,7 +1105,7 @@ export function CashflowPage() {
                   <td colSpan={7} className='px-5 py-14 text-center'>
                     <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
                     <p className='text-sm font-medium text-slate-400'>
-                      No transactions found for the selected period.
+                      No transactions found.
                     </p>
                   </td>
                 </tr>

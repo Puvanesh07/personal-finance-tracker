@@ -3,8 +3,7 @@
 // FIXES:
 //  1. PWAInstallBanner moved HERE from AuthPage — it now shows only for
 //     authenticated users inside the app, not on the public landing page
-//  2. This prevents unauthenticated visitors from being spammed with the
-//     install prompt before they've even signed in
+//  2. Insurance section added to MOBILE menu (was missing)
 
 import {
   FiActivity,
@@ -35,7 +34,7 @@ import { signOut } from 'firebase/auth';
 
 function desktopLinkClass(isActive: boolean) {
   const base =
-    'flex flex-row items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 text-sm font-semibold';
+    'flex flex-row items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 text-sm font-semibold w-full overflow-hidden';
   return isActive
     ? `${base} bg-emerald-500/10 text-emerald-400 shadow-[inset_4px_0_0_0_rgba(16,185,129,1)]`
     : `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-100`;
@@ -67,6 +66,7 @@ export function AppLayout() {
     };
   }, [isMobileMenuOpen]);
 
+  // FIX: Added Insurance (/insurance) to MOBILE_MENU_ITEMS
   const MOBILE_MENU_ITEMS = [
     { to: '/dashboard', icon: FiHome, label: 'Dashboard' },
     { to: '/investments', icon: FiTrendingUp, label: 'Investments' },
@@ -77,6 +77,13 @@ export function AppLayout() {
       color: 'text-emerald-400',
     },
     { to: '/liabilities', icon: FiCreditCard, label: 'Liabilities' },
+    // ✅ Insurance added here
+    {
+      to: '/insurance',
+      icon: FiShield,
+      label: 'Insure',
+      color: 'text-sky-400',
+    },
     { to: '/accounts', icon: BsBank2, label: 'Accounts' },
     { to: '/cashflow', icon: FiActivity, label: 'Cashflow' },
     { to: '/goals', icon: FiFlag, label: 'Goals' },
@@ -299,13 +306,14 @@ export function AppLayout() {
 
       {/* ── MOBILE BOTTOM SHEET ── */}
       <div
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-[70] bg-slate-900 border-t border-slate-800 rounded-t-3xl pt-5 pb-24 px-6 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-[70] bg-slate-900 border-t border-slate-800 rounded-t-3xl pt-5 pb-24 px-4 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
-        <div className='w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-8' />
+        <div className='w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-6' />
 
-        <div className='grid grid-cols-4 gap-y-8 gap-x-2'>
+        {/* FIX: Slightly smaller icons/text to fit 14 items + logout = 15 in 4-col grid */}
+        <div className='grid grid-cols-4 gap-y-5 gap-x-2'>
           {MOBILE_MENU_ITEMS.map((item) => (
             <NavLink
               key={item.to}
@@ -313,20 +321,20 @@ export function AppLayout() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               {({ isActive }) => (
-                <div className='flex flex-col items-center gap-2 transition-transform active:scale-95'>
+                <div className='flex flex-col items-center gap-1.5 transition-transform active:scale-95'>
                   <div
-                    className={`flex h-[56px] w-[56px] items-center justify-center rounded-2xl transition-colors ${
+                    className={`flex h-[50px] w-[50px] items-center justify-center rounded-2xl transition-colors ${
                       isActive
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
                         : 'bg-slate-800/80 text-slate-300 border border-slate-700/50 hover:bg-slate-700'
                     }`}
                   >
                     <item.icon
-                      className={`h-[22px] w-[22px] ${!isActive && item.color ? item.color : ''}`}
+                      className={`h-[20px] w-[20px] ${!isActive && item.color ? item.color : ''}`}
                     />
                   </div>
                   <span
-                    className={`text-[10px] font-bold tracking-wide ${isActive ? 'text-emerald-400' : 'text-slate-400'}`}
+                    className={`text-[9px] font-bold tracking-wide text-center leading-tight ${isActive ? 'text-emerald-400' : 'text-slate-400'}`}
                   >
                     {item.label}
                   </span>
@@ -341,12 +349,12 @@ export function AppLayout() {
               setIsMobileMenuOpen(false);
               setTimeout(() => setLogoutOpen(true), 250);
             }}
-            className='flex flex-col items-center gap-2 transition-transform active:scale-95'
+            className='flex flex-col items-center gap-1.5 transition-transform active:scale-95'
           >
-            <div className='flex h-[56px] w-[56px] items-center justify-center rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400'>
-              <FiLogOut className='h-[22px] w-[22px]' />
+            <div className='flex h-[50px] w-[50px] items-center justify-center rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400'>
+              <FiLogOut className='h-[20px] w-[20px]' />
             </div>
-            <span className='text-[10px] font-bold tracking-wide text-rose-400'>
+            <span className='text-[9px] font-bold tracking-wide text-rose-400'>
               Logout
             </span>
           </button>

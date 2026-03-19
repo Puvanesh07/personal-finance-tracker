@@ -67,6 +67,7 @@ type PortfolioState = {
   accounts: Account[];
   soldTrades: SoldTrade[];
   insurancePolicies: InsurancePolicy[]; // <-- Added
+  sipPlans: any[]; // Monthly SIP plan (Firestore)
   _lastSnapshotDate: string | null;
 
   hydrate: (uid: string) => Promise<void>;
@@ -117,6 +118,17 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteInsurancePolicy: (id: string) => Promise<void>;
 
+  // Monthly SIP Plan
+  addSipInstrument: (instrument: {
+    name: string;
+    percentage: number;
+    fromAsset?: boolean;
+  }) => Promise<void>;
+  updateSipInstrument: (id: string, patch: any) => Promise<void>;
+  deleteSipInstrument: (id: string) => Promise<void>;
+  upsertSipBudget: (budget: number) => Promise<string>;
+  deleteSipBudget: () => Promise<void>;
+
   clearAllData: () => Promise<void>;
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
@@ -146,6 +158,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   accounts: [],
   soldTrades: [],
   insurancePolicies: [], // <-- Initial state added
+  sipPlans: [],
   _lastSnapshotDate: null,
 
   hydrate: async (uid) => {
@@ -162,6 +175,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts,
         soldTrades,
         insurancePolicies, // <-- Added to Promise.all
+        sipPlans,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
@@ -173,6 +187,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<Account>(uid, 'accounts'),
         fetchSub<SoldTrade>(uid, 'soldTrades'),
         fetchSub<InsurancePolicy>(uid, 'insurancePolicies'), // <-- Added fetching
+        fetchSub<any>(uid, 'sipPlans'),
       ]);
 
       const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -218,6 +233,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         insurancePolicies: insurancePolicies.sort((a, b) =>
           a.renewalDate.localeCompare(b.renewalDate),
         ), // <-- Sorted policies added
+        sipPlans: sipPlans.sort((a: any, b: any) =>
+          (a.createdAt || '').localeCompare(b.createdAt || ''),
+        ),
         _lastSnapshotDate: alreadySnappedToday ? today : null,
       });
       if (investments.length > 0) await get().recordSnapshotIfNeeded();
@@ -565,6 +583,79 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       insurancePolicies: s.insurancePolicies.filter((x) => x.id !== id),
     }));
   },
+
+  // ── Monthly SIP Plan CRUD ──────────────────────────────────────────────────
+  addSipInstrument: async (instrument) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const item = clean({
+      ...instrument,
+      id: createId('sip'),
+      type: 'instrument',
+      userId: uid,
+      createdAt: t,
+      updatedAt: t,
+    });
+    await setDoc(userDoc(uid, 'sipPlans', item.id), item);
+    set((s) => ({ sipPlans: [...s.sipPlans, item] }));
+  },
+  updateSipInstrument: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().sipPlans.find((x: any) => x.id === id);
+    if (!existing) return;
+    const updated = clean({ ...existing, ...patch, id, updatedAt: now() });
+    await setDoc(userDoc(uid, 'sipPlans', id), updated);
+    set((s) => ({
+      sipPlans: s.sipPlans.map((x: any) => (x.id === id ? updated : x)),
+    }));
+  },
+  deleteSipInstrument: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'sipPlans', id));
+    set((s) => ({ sipPlans: s.sipPlans.filter((x: any) => x.id !== id) }));
+  },
+  upsertSipBudget: async (budget) => {
+    const uid = get().uid;
+    if (!uid) return '';
+    const existing = get().sipPlans.find((x: any) => x.type === 'budget');
+    const t = now();
+    if (existing) {
+      const updated = clean({ ...existing, budget, updatedAt: t });
+      await setDoc(userDoc(uid, 'sipPlans', existing.id), updated);
+      set((s) => ({
+        sipPlans: s.sipPlans.map((x: any) =>
+          x.id === existing.id ? updated : x,
+        ),
+      }));
+      return existing.id;
+    } else {
+      const item = clean({
+        id: createId('sipb'),
+        type: 'budget',
+        budget,
+        userId: uid,
+        createdAt: t,
+        updatedAt: t,
+      });
+      await setDoc(userDoc(uid, 'sipPlans', item.id), item);
+      set((s) => ({ sipPlans: [...s.sipPlans, item] }));
+      return item.id;
+    }
+  },
+  deleteSipBudget: async () => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().sipPlans.find((x: any) => x.type === 'budget');
+    if (!existing) return;
+    await deleteDoc(userDoc(uid, 'sipPlans', existing.id));
+    set((s) => ({
+      sipPlans: s.sipPlans.filter((x: any) => x.id !== existing.id),
+    }));
+  },
+
   // ───────────────────────────────
 
   setNotionConfig: async (patch) => {
@@ -683,6 +774,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriLivestockEvents',
       'soldTrades',
       'insurancePolicies', // <-- Added to wipeout list
+      'sipPlans',
       // Attendance collections
       'attEmployees',
       'attRecords',
@@ -716,6 +808,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts: [],
         soldTrades: [],
         insurancePolicies: [], // <-- Cleared locally
+        sipPlans: [],
         _lastSnapshotDate: null,
       });
     } catch (error) {

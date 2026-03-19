@@ -1,11 +1,17 @@
+// src/components/dashboard/DashboardCashflowSummary.tsx
+//
+// FIX: Added redirect icon so clicking navigates to the Cashflow page
+
 import { FiActivity, FiArrowDownRight, FiArrowUpRight } from 'react-icons/fi';
 import { isSameMonth, parseISO } from 'date-fns';
 
 import { formatCurrency } from '../../utils/format';
+import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function DashboardCashflowSummary() {
   const cashflows = usePortfolioStore((s) => s.cashflows);
+  const navigate = useNavigate();
 
   // Calculate current month's cashflow
   const now = new Date();
@@ -34,6 +40,14 @@ export function DashboardCashflowSummary() {
           <FiActivity className='text-purple-400' />
           This Month's Cashflow
         </h2>
+        {/* ✅ FIX: Redirect icon to navigate to Cashflow page */}
+        <button
+          onClick={() => navigate('/cashflow')}
+          title='Go to Cashflow'
+          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-purple-400 transition-colors'
+        >
+          <FiArrowUpRight className='h-4 w-4' />
+        </button>
       </div>
 
       <div className='mb-5'>

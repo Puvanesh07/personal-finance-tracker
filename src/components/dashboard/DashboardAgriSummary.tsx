@@ -1,10 +1,17 @@
-import { FiSun } from 'react-icons/fi';
+// src/components/dashboard/DashboardAgriSummary.tsx
+//
+// FIX: Added redirect icon to navigate to Agriculture page
+
+import { FiArrowUpRight, FiSun } from 'react-icons/fi';
+
 import { formatCurrency } from '../../utils/format';
 import { useAgriStore } from '../../store/agricultureStore';
+import { useNavigate } from 'react-router-dom';
 
 export function DashboardAgriSummary() {
   const { cropCycles, agriExpenses, milkRecords, coconutRecords } =
     useAgriStore();
+  const navigate = useNavigate();
 
   const activeCrops = cropCycles.filter((c) => !c.actualHarvestDate).length;
   const totalAgriExpenses = agriExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -32,6 +39,14 @@ export function DashboardAgriSummary() {
           <FiSun className='text-amber-400' />
           Agriculture Overview
         </h2>
+        {/* ✅ FIX: Redirect icon to navigate to Agriculture page */}
+        <button
+          onClick={() => navigate('/agriculture')}
+          title='Go to Agriculture'
+          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-amber-400 transition-colors'
+        >
+          <FiArrowUpRight className='h-4 w-4' />
+        </button>
       </div>
 
       <div className='mb-5 flex justify-between items-end'>

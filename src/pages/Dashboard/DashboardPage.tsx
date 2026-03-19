@@ -1,3 +1,8 @@
+// src/pages/Dashboard/DashboardPage.tsx
+//
+// UPDATED: Added Top Holdings + Insights section (like FinBoom)
+//          between the summary cards and the quick account/cashflow overviews
+
 import { FiHome, FiPieChart } from 'react-icons/fi';
 
 import { AllocationCharts } from '../../components/dashboard/AllocationCharts';
@@ -5,6 +10,7 @@ import { DashboardAccountsSummary } from '../../components/dashboard/DashboardAc
 import { DashboardAgriSummary } from '../../components/dashboard/DashboardAgriSummary';
 import { DashboardCashflowSummary } from '../../components/dashboard/DashboardCashflowSummary';
 import { DashboardSkeleton } from '../../components/loader/skeletons';
+import { DashboardTopHoldingsInsights } from '../../components/dashboard/DashboardTopHoldingsInsights';
 import { GoalsEssentialsSummary } from '../../components/dashboard/GoalsEssentialsSummary';
 import { GrowthChart } from '../../components/dashboard/GrowthChart';
 import { MarketCapAllocationChart } from '../../components/dashboard/MarketCapAllocationChart';
@@ -41,7 +47,12 @@ export function DashboardPage() {
         <SummaryCards />
       </section>
 
-      {/* NEW: Quick Overviews (Accounts, Cashflow, Agri) */}
+      {/* ✅ NEW: Top Holdings + Smart Insights (FinBoom-style) */}
+      <section>
+        <DashboardTopHoldingsInsights />
+      </section>
+
+      {/* Quick Overviews (Accounts, Cashflow, Agri) */}
       <section className='grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3'>
         <div className='min-w-0'>
           <DashboardAccountsSummary />

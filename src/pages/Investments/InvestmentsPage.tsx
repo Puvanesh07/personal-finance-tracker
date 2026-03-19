@@ -1,4 +1,7 @@
 // src/pages/Investments/InvestmentsPage.tsx
+//
+// UPDATED: Added "Monthly SIP Plan" tab beside the main investments view
+//          Tab strip shown in header — "Investments" | "Monthly SIP Plan"
 
 import {
   FiBox,
@@ -9,6 +12,7 @@ import {
   FiGlobe,
   FiHome,
   FiMonitor,
+  FiPercent,
   FiPieChart,
   FiPlus,
   FiSearch,
@@ -24,6 +28,7 @@ import { ImportGrowwButton } from '../../components/investments/ImportGrowButton
 import { ImportIndmoneyButton } from '../../components/investments/ImportIndmoneyButton';
 import { InvestmentsSkeleton } from '../../components/loader/skeletons';
 import { InvestmentsTable } from '../../components/investments/InvestmentsTable';
+import { MonthlySipPlanPage } from './MonthlySipPlanPage';
 import { UpsertInvestmentModal } from '../../components/investments/UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -238,6 +243,12 @@ function normalisePlatform(platform?: string): string {
 export function InvestmentsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const investments = usePortfolioStore((s) => s.investments);
+
+  // ✅ NEW: Tab state — 'investments' | 'sip'
+  const [activeTab, setActiveTab] = useState<'investments' | 'sip'>(
+    'investments',
+  );
+
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [brokerFilter, setBrokerFilter] = useState<string>('all');
@@ -310,110 +321,151 @@ export function InvestmentsPage() {
             </div>
           </div>
 
+          {/* Only show Add Asset button on investments tab */}
+          {activeTab === 'investments' && (
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className='flex h-10 w-10 md:w-auto md:px-4 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-colors'
+            >
+              <FiPlus className='h-5 w-5' />
+              <span className='hidden md:inline'>Add Asset</span>
+            </button>
+          )}
+        </div>
+
+        {/* ✅ NEW: Tab strip — Investments | Monthly SIP Plan */}
+        <div className='flex items-center gap-2'>
           <button
-            onClick={() => setIsAddOpen(true)}
-            className='flex h-10 w-10 md:w-auto md:px-4 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-colors'
+            onClick={() => setActiveTab('investments')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+              activeTab === 'investments'
+                ? 'bg-slate-700 text-slate-100 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
           >
-            <FiPlus className='h-5 w-5' />
-            <span className='hidden md:inline'>Add Asset</span>
+            Investments
+          </button>
+          <button
+            onClick={() => setActiveTab('sip')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+              activeTab === 'sip'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <FiPercent className='h-3.5 w-3.5' />
+            Monthly SIP Plan
           </button>
         </div>
 
-        <div className='flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar'>
-          <div className='flex items-center gap-2 rounded-xl bg-slate-800/50 p-1 border border-slate-700/50'>
-            <ImportAngelOnePdfButton />
-            <ImportCsvButton />
-            <ImportIndmoneyButton />
-            <ImportGrowwButton />
-          </div>
-        </div>
-      </header>
-
-      {/* ── Filters Row ── */}
-      <div className='flex flex-col gap-3'>
-        {/* Search */}
-        <div className='relative group'>
-          <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors' />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className='w-full rounded-xl border border-slate-800 bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all'
-            placeholder='Search by name, symbol, or broker…'
-          />
-        </div>
-
-        {/* Asset Type + Broker dropdowns side by side */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-          <div className='relative'>
-            <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
-              Asset Type
-            </p>
-            <FilterDropdown
-              options={FILTER_CATEGORIES}
-              value={typeFilter}
-              onChange={setTypeFilter}
-              accentColor='emerald'
-            />
-          </div>
-
-          <div className='relative'>
-            <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
-              Broker / Platform
-            </p>
-            <FilterDropdown
-              options={activeBrokers}
-              value={brokerFilter}
-              onChange={setBrokerFilter}
-              accentColor='blue'
-            />
-          </div>
-        </div>
-
-        {/* Active filter pills */}
-        {(showBrokerBadge || typeFilter !== 'all') && (
-          <div className='flex items-center gap-2 flex-wrap'>
-            <span className='text-[10px] text-slate-500 font-semibold uppercase tracking-widest'>
-              Filters:
-            </span>
-            {typeFilter !== 'all' && (
-              <button
-                onClick={() => setTypeFilter('all')}
-                className='flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
-              >
-                {FILTER_CATEGORIES.find((c) => c.id === typeFilter)?.label}
-                <span className='text-emerald-300 text-xs ml-0.5'>✕</span>
-              </button>
-            )}
-            {showBrokerBadge && (
-              <button
-                onClick={() => setBrokerFilter('all')}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold hover:opacity-80 transition-opacity ${getBrokerBadgeStyle(brokerFilter)}`}
-              >
-                {activeBrokerLabel}
-                <span className='text-xs ml-0.5'>✕</span>
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setTypeFilter('all');
-                setBrokerFilter('all');
-                setQuery('');
-              }}
-              className='text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'
-            >
-              Clear all
-            </button>
+        {/* Import buttons — only on investments tab */}
+        {activeTab === 'investments' && (
+          <div className='flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar'>
+            <div className='flex items-center gap-2 rounded-xl bg-slate-800/50 p-1 border border-slate-700/50'>
+              <ImportAngelOnePdfButton />
+              <ImportCsvButton />
+              <ImportIndmoneyButton />
+              <ImportGrowwButton />
+            </div>
           </div>
         )}
-      </div>
+      </header>
 
-      <InvestmentsTable investments={filtered} />
+      {/* ── Tab Content ─────────────────────────────────────────────── */}
 
-      <UpsertInvestmentModal
-        open={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        mode='create'
-      />
+      {activeTab === 'sip' ? (
+        /* ✅ Monthly SIP Plan tab */
+        <MonthlySipPlanPage />
+      ) : (
+        /* ── Investments tab (original content) ── */
+        <>
+          {/* Filters Row */}
+          <div className='flex flex-col gap-3'>
+            {/* Search */}
+            <div className='relative group'>
+              <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors' />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className='w-full rounded-xl border border-slate-800 bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all'
+                placeholder='Search by name, symbol, or broker…'
+              />
+            </div>
+
+            {/* Asset Type + Broker dropdowns side by side */}
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='relative'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
+                  Asset Type
+                </p>
+                <FilterDropdown
+                  options={FILTER_CATEGORIES}
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  accentColor='emerald'
+                />
+              </div>
+
+              <div className='relative'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
+                  Broker / Platform
+                </p>
+                <FilterDropdown
+                  options={activeBrokers}
+                  value={brokerFilter}
+                  onChange={setBrokerFilter}
+                  accentColor='blue'
+                />
+              </div>
+            </div>
+
+            {/* Active filter pills */}
+            {(showBrokerBadge || typeFilter !== 'all') && (
+              <div className='flex items-center gap-2 flex-wrap'>
+                <span className='text-[10px] text-slate-500 font-semibold uppercase tracking-widest'>
+                  Filters:
+                </span>
+                {typeFilter !== 'all' && (
+                  <button
+                    onClick={() => setTypeFilter('all')}
+                    className='flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
+                  >
+                    {FILTER_CATEGORIES.find((c) => c.id === typeFilter)?.label}
+                    <span className='text-emerald-300 text-xs ml-0.5'>✕</span>
+                  </button>
+                )}
+                {showBrokerBadge && (
+                  <button
+                    onClick={() => setBrokerFilter('all')}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold hover:opacity-80 transition-opacity ${getBrokerBadgeStyle(brokerFilter)}`}
+                  >
+                    {activeBrokerLabel}
+                    <span className='text-xs ml-0.5'>✕</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setTypeFilter('all');
+                    setBrokerFilter('all');
+                    setQuery('');
+                  }}
+                  className='text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+          </div>
+
+          <InvestmentsTable investments={filtered} />
+
+          <UpsertInvestmentModal
+            open={isAddOpen}
+            onClose={() => setIsAddOpen(false)}
+            mode='create'
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -1,3 +1,8 @@
+// src/components/dashboard/SectorAllocationChart.tsx
+//
+// FIX: Better layout — chart + legend side by side, no wasted bottom space
+//      More beautiful card with colored sector rows
+
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { FiGrid, FiRefreshCw } from 'react-icons/fi';
 import { useMemo, useState } from 'react';
@@ -30,17 +35,17 @@ const CustomTooltip = ({ active, payload }: any) => {
   return (
     <div
       style={{
-        borderRadius: 16,
-        border: '1px solid rgba(255,255,255,0.1)',
-        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-        backdropFilter: 'blur(8px)',
+        borderRadius: 14,
+        border: '1px solid rgba(255,255,255,0.08)',
+        backgroundColor: 'rgba(15,23,42,0.96)',
+        backdropFilter: 'blur(10px)',
         color: '#F8FAFC',
-        padding: '12px',
-        fontSize: 13,
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+        padding: '10px 14px',
+        fontSize: 12,
+        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
       }}
     >
-      <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
+      <div style={{ fontWeight: 700, marginBottom: 3, fontSize: 13 }}>
         {name}
       </div>
       <div style={{ fontWeight: 600 }}>{formatINR(value)}</div>
@@ -54,11 +59,11 @@ const CustomTooltip = ({ active, payload }: any) => {
 export function SectorAllocationChart() {
   const investments = usePortfolioStore((s) => s.investments);
   const { metadata, isLoading, refresh } = useStockMetadata(investments);
-
   const [chartKey, setChartKey] = useState(0);
+  const [hoveredSector, setHoveredSector] = useState<string | null>(null);
 
   const handleRefresh = () => {
-    setChartKey((prev) => prev + 1);
+    setChartKey((p) => p + 1);
     refresh();
   };
 
@@ -115,72 +120,115 @@ export function SectorAllocationChart() {
       }
     >
       {data.length === 0 ? (
-        <div className='grid h-72 place-items-center text-sm font-medium text-slate-500 dark:text-slate-400'>
+        <div className='grid h-52 place-items-center text-sm font-medium text-slate-500 dark:text-slate-400'>
           {isLoading
             ? 'Fetching sector data…'
             : 'Add equities to see sector allocation.'}
         </div>
       ) : (
-        /* Fixed Grid width using minmax(0, 1fr) to prevent horizontal overflow */
-        <div className='grid grid-cols-1 gap-4 sm:grid-cols-[220px_minmax(0,1fr)] items-center'>
-          <div className='h-64 sm:h-full min-h-[240px] w-full'>
-            <ResponsiveContainer width='100%' height='100%'>
-              <PieChart key={chartKey}>
-                <Pie
-                  data={data}
-                  dataKey='value'
-                  nameKey='name'
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  stroke='none'
-                  isAnimationActive
-                  animationDuration={1000}
-                  animationEasing='ease-out'
+        <div className='flex flex-col gap-4'>
+          {/* Top section: donut + legend side by side */}
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-[200px_minmax(0,1fr)] items-start'>
+            {/* Donut */}
+            <div className='h-[200px] w-full'>
+              <ResponsiveContainer width='100%' height='100%'>
+                <PieChart key={chartKey}>
+                  <Pie
+                    data={data}
+                    dataKey='value'
+                    nameKey='name'
+                    innerRadius={55}
+                    outerRadius={85}
+                    paddingAngle={2}
+                    stroke='none'
+                    isAnimationActive
+                    animationDuration={900}
+                    animationEasing='ease-out'
+                  >
+                    {data.map((_, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={COLORS[idx % COLORS.length]}
+                        opacity={
+                          hoveredSector === null ||
+                          hoveredSector === data[idx].name
+                            ? 1
+                            : 0.35
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Legend rows - scrollable, compact */}
+            <div className='flex flex-col gap-0.5 w-full max-h-[200px] overflow-y-auto overflow-x-hidden custom-scrollbar pr-1'>
+              {data.map((d, idx) => (
+                <div
+                  key={d.name}
+                  className='flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 cursor-default transition-colors hover:bg-white/60 dark:hover:bg-slate-800/60'
+                  onMouseEnter={() => setHoveredSector(d.name)}
+                  onMouseLeave={() => setHoveredSector(null)}
                 >
-                  {data.map((_, idx) => (
-                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+                  <div className='flex items-center gap-2 min-w-0 flex-1'>
+                    <span
+                      className='h-2 w-2 shrink-0 rounded-full'
+                      style={{ background: COLORS[idx % COLORS.length] }}
+                    />
+                    <span
+                      className='truncate text-xs font-semibold text-slate-700 dark:text-slate-300'
+                      title={d.name}
+                    >
+                      {d.name}
+                    </span>
+                  </div>
+                  <div className='flex shrink-0 items-center gap-2 tabular-nums'>
+                    <span className='text-[11px] font-bold text-slate-400'>
+                      {d.pct}%
+                    </span>
+                    <span className='text-xs font-black text-slate-900 dark:text-slate-50'>
+                      {formatINR(d.value)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {isLoading && pendingCount > 0 && (
+                <MetadataLoader count={pendingCount} />
+              )}
+            </div>
           </div>
 
-          {/* Restored max height and vertical scrolling, forced hidden horizontal scroll */}
-          <div className='flex flex-col gap-1 rounded-xl bg-slate-50/50 p-2 dark:bg-slate-900/20 w-full max-h-64 overflow-y-auto overflow-x-hidden custom-scrollbar pr-1.5'>
-            {data.map((d, idx) => (
-              <div
-                key={d.name}
-                className='flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-white dark:hover:bg-slate-800/60 transition-colors text-sm min-w-0'
-              >
-                {/* min-w-0 and flex-1 allows the text to truncate without pushing width */}
-                <div className='flex items-center gap-2.5 min-w-0 flex-1'>
+          {/* Bottom: top 4 sectors as mini progress bars */}
+          <div className='border-t border-slate-100 dark:border-slate-800/50 pt-3 grid grid-cols-2 gap-x-6 gap-y-2.5'>
+            {data.slice(0, 6).map((d, idx) => (
+              <div key={d.name} className='flex flex-col gap-1'>
+                <div className='flex items-center justify-between'>
                   <span
-                    className='inline-block h-2.5 w-2.5 shrink-0 rounded-full shadow-sm'
-                    style={{ background: COLORS[idx % COLORS.length] }}
-                  />
-                  <span
-                    className='truncate font-semibold text-slate-700 dark:text-slate-300'
+                    className='text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate pr-1'
                     title={d.name}
                   >
-                    {d.name}
+                    {d.name.length > 18 ? d.name.slice(0, 18) + '…' : d.name}
                   </span>
-                </div>
-
-                <div className='flex shrink-0 items-center gap-2.5 tabular-nums'>
-                  <span className='text-xs font-bold text-slate-400'>
+                  <span
+                    className='text-[10px] font-black tabular-nums shrink-0'
+                    style={{ color: COLORS[idx % COLORS.length] }}
+                  >
                     {d.pct}%
                   </span>
-                  <span className='font-black text-slate-900 dark:text-slate-50'>
-                    {formatINR(d.value)}
-                  </span>
+                </div>
+                <div className='h-1 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden'>
+                  <div
+                    className='h-full rounded-full transition-all duration-700'
+                    style={{
+                      width: `${d.pct}%`,
+                      background: COLORS[idx % COLORS.length],
+                    }}
+                  />
                 </div>
               </div>
             ))}
-            {isLoading && pendingCount > 0 && (
-              <MetadataLoader count={pendingCount} />
-            )}
           </div>
         </div>
       )}

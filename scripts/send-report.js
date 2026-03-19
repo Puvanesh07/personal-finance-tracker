@@ -343,6 +343,106 @@ async function buildReport(uid) {
     );
   }
 
+  // 8. Insurance Policies
+  const insurancePolicies = await fetchCol(uid, 'insurancePolicies');
+  if (insurancePolicies.length > 0) {
+    const totalCoverage = insurancePolicies.reduce(
+      (s, p) => s + (p.coverageAmount || 0),
+      0,
+    );
+    const totalYearlyPremium = insurancePolicies.reduce((s, p) => {
+      return (
+        s +
+        (p.premiumFrequency === 'monthly'
+          ? (p.premiumAmount || 0) * 12
+          : p.premiumAmount || 0)
+      );
+    }, 0);
+    const expiringSoon = insurancePolicies.filter((p) => {
+      if (!p.renewalDate) return false;
+      const renewal = new Date(p.renewalDate);
+      const today = new Date();
+      const diffDays = Math.ceil((renewal - today) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 30;
+    });
+    const expired = insurancePolicies.filter(
+      (p) => p.renewalDate && new Date(p.renewalDate) < new Date(),
+    );
+
+    const insRows = [
+      ['Total Policies', `${insurancePolicies.length}`, '#e2e8f0'],
+      ['Total Coverage', fmt(totalCoverage), '#a78bfa'],
+      ['Yearly Premium', fmt(totalYearlyPremium), '#94a3b8'],
+    ];
+    if (expiringSoon.length > 0)
+      insRows.push([
+        `⏰ Renewing Soon`,
+        `${expiringSoon.length} policy`,
+        '#f59e0b',
+      ]);
+    if (expired.length > 0)
+      insRows.push([
+        `⚠ Expired Policies`,
+        `${expired.length} policy`,
+        '#ef4444',
+      ]);
+
+    // Top policies
+    insurancePolicies.slice(0, 4).forEach((p) => {
+      insRows.push([
+        `${p.type?.toUpperCase() || 'POLICY'} — ${p.policyName || p.provider || ''}`,
+        fmt(p.coverageAmount || 0),
+        '#cbd5e1',
+      ]);
+    });
+
+    sections.push(
+      section(
+        `🛡 Insurance (${insurancePolicies.length} policies)`,
+        '#a78bfa',
+        tableRows(insRows),
+      ),
+    );
+  }
+
+  // 9. Monthly SIP Plan
+  const sipPlanDocs = await fetchCol(uid, 'sipPlans');
+  if (sipPlanDocs.length > 0) {
+    const budgetDoc = sipPlanDocs.find((d) => d.type === 'budget');
+    const instruments = sipPlanDocs.filter((d) => d.type === 'instrument');
+    const budget = budgetDoc?.budget || 0;
+    const totalPct = instruments.reduce((s, i) => s + (i.percentage || 0), 0);
+    const allocatedAmt = budget > 0 ? (budget * totalPct) / 100 : 0;
+
+    if (budget > 0 || instruments.length > 0) {
+      const sipRows = [];
+      if (budget > 0) sipRows.push(['Monthly Budget', fmt(budget), '#22c55e']);
+      if (instruments.length > 0)
+        sipRows.push(['Instruments', `${instruments.length}`, '#e2e8f0']);
+      if (budget > 0)
+        sipRows.push(['Allocated Amount', fmt(allocatedAmt), '#22c55e']);
+      if (totalPct > 0)
+        sipRows.push([
+          `Allocation`,
+          `${totalPct.toFixed(0)}%`,
+          totalPct > 100 ? '#ef4444' : '#22c55e',
+        ]);
+
+      instruments.slice(0, 6).forEach((inst) => {
+        const amt = budget > 0 ? (budget * (inst.percentage || 0)) / 100 : 0;
+        sipRows.push([
+          `${inst.name || 'Instrument'} (${inst.percentage || 0}%)`,
+          budget > 0 ? fmt(amt) : `${inst.percentage || 0}%`,
+          '#94a3b8',
+        ]);
+      });
+
+      sections.push(
+        section('📅 Monthly SIP Plan', '#06b6d4', tableRows(sipRows)),
+      );
+    }
+  }
+
   // If no data at all — send a basic welcome email
   if (sections.length === 0) {
     sections.push(`
