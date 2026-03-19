@@ -211,7 +211,7 @@ export async function decryptDoc<T>(
   let plaintextBuffer: ArrayBuffer;
   try {
     plaintextBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
+      { name: 'AES-GCM', iv: iv as Uint8Array },
       key,
       ciphertextBytes,
     );
