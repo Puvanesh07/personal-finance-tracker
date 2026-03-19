@@ -213,7 +213,7 @@ export async function decryptDoc<T>(
     plaintextBuffer = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: iv as BufferSource },
       key,
-      ciphertextBytes,
+      ciphertextBytes as BufferSource,
     );
   } catch {
     throw new Error(
