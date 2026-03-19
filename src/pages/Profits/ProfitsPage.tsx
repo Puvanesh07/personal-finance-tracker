@@ -763,86 +763,123 @@ export function ProfitsPage() {
           {/* ── DESKTOP TABLE ── */}
           <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
             <div className='overflow-x-auto'>
-              <table className='w-full text-sm border-separate border-spacing-0'>
+              <table className='w-full text-sm border-collapse table-fixed'>
+                {/* Fixed column widths — guarantees every row aligns perfectly */}
+                <colgroup>
+                  <col style={{ width: '30%' }} /> {/* Asset */}
+                  <col style={{ width: '7%' }} /> {/* Type */}
+                  <col style={{ width: '12%' }} /> {/* Date */}
+                  <col style={{ width: '13%' }} /> {/* Buy Cost */}
+                  <col style={{ width: '13%' }} /> {/* Sell Value */}
+                  <col style={{ width: '13%' }} /> {/* P&L */}
+                  <col style={{ width: '8%' }} /> {/* % */}
+                  <col style={{ width: '4%' }} /> {/* Actions */}
+                </colgroup>
                 <thead>
-                  <tr className='whitespace-nowrap'>
-                    {[
-                      { col: 'name', label: 'Asset', align: 'left' },
-                      { col: null, label: 'Type', align: 'left' },
-                      { col: null, label: 'Date', align: 'left' },
-                      { col: null, label: 'Buy Cost', align: 'right' },
-                      { col: null, label: 'Sell Value', align: 'right' },
-                      { col: 'profit', label: 'P&L', align: 'right' },
-                      { col: 'profitPct', label: '%', align: 'right' },
-                      { col: null, label: '', align: 'right' },
-                    ].map((h, i) => (
-                      <th
-                        key={i}
-                        className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'
+                  <tr className='border-b border-slate-700/60 bg-slate-900'>
+                    {/* Asset — left aligned, sortable */}
+                    <th className='px-4 py-3 text-left'>
+                      <button
+                        onClick={() => handleSort('name')}
+                        className='flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
                       >
-                        {h.col ? (
-                          <button
-                            onClick={() => handleSort(h.col as any)}
-                            className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors ${h.align === 'right' ? 'justify-end w-full' : ''}`}
-                          >
-                            {h.align === 'right' && (
-                              <SortIcon
-                                col={h.col}
-                                sortCol={sortCol}
-                                sortDir={sortDir}
-                              />
-                            )}
-                            {h.label}
-                            {h.align !== 'right' && (
-                              <SortIcon
-                                col={h.col}
-                                sortCol={sortCol}
-                                sortDir={sortDir}
-                              />
-                            )}
-                          </button>
-                        ) : (
-                          <span
-                            className={`text-[10px] font-semibold uppercase tracking-widest text-slate-500 ${h.align === 'right' ? 'block text-right' : ''}`}
-                          >
-                            {h.label}
-                          </span>
-                        )}
-                      </th>
-                    ))}
+                        Asset{' '}
+                        <SortIcon
+                          col='name'
+                          sortCol={sortCol}
+                          sortDir={sortDir}
+                        />
+                      </button>
+                    </th>
+                    {/* Type */}
+                    <th className='px-3 py-3 text-left'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                        Type
+                      </span>
+                    </th>
+                    {/* Date */}
+                    <th className='px-3 py-3 text-left'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                        Date
+                      </span>
+                    </th>
+                    {/* Buy Cost */}
+                    <th className='px-3 py-3 text-right'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                        Buy Cost
+                      </span>
+                    </th>
+                    {/* Sell Value */}
+                    <th className='px-3 py-3 text-right'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                        Sell Value
+                      </span>
+                    </th>
+                    {/* P&L — sortable */}
+                    <th className='px-3 py-3 text-right'>
+                      <button
+                        onClick={() => handleSort('profit')}
+                        className='flex items-center gap-1 justify-end w-full text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                      >
+                        <SortIcon
+                          col='profit'
+                          sortCol={sortCol}
+                          sortDir={sortDir}
+                        />{' '}
+                        P&L
+                      </button>
+                    </th>
+                    {/* % — sortable */}
+                    <th className='px-3 py-3 text-right'>
+                      <button
+                        onClick={() => handleSort('profitPct')}
+                        className='flex items-center gap-1 justify-end w-full text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                      >
+                        <SortIcon
+                          col='profitPct'
+                          sortCol={sortCol}
+                          sortDir={sortDir}
+                        />{' '}
+                        %
+                      </button>
+                    </th>
+                    {/* Actions */}
+                    <th className='px-2 py-3' />
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredTrades.map((trade, rowIdx) => {
+                <tbody className='divide-y divide-slate-800/60'>
+                  {filteredTrades.map((trade) => {
                     const isProfit = trade.profit >= 0;
-                    const isLast = rowIdx === filteredTrades.length - 1;
-                    const bdClass = !isLast
-                      ? 'border-b border-slate-800/70'
-                      : '';
                     return (
                       <tr
                         key={trade.id}
-                        className='group hover:bg-slate-800/50 transition-colors'
+                        className='group hover:bg-slate-800/40 transition-colors'
                       >
-                        {/* Asset */}
-                        <td className={`pl-4 pr-3 py-3.5 ${bdClass}`}>
-                          <div className='flex flex-col gap-0.5 min-w-[160px]'>
-                            <span className='font-semibold text-[13px] text-slate-100 leading-tight'>
+                        {/* Asset — truncated with tooltip */}
+                        <td className='px-4 py-3.5 align-middle'>
+                          <div className='flex flex-col gap-0.5'>
+                            <span
+                              className='font-semibold text-[13px] text-slate-100 leading-tight truncate block'
+                              title={trade.investmentName}
+                            >
                               {trade.investmentName}
                             </span>
                             {trade.notes && (
-                              <span className='text-[10px] text-slate-600 italic truncate max-w-[160px]'>
+                              <span
+                                className='text-[10px] text-slate-500 italic truncate block'
+                                title={trade.notes}
+                              >
                                 {trade.notes}
                               </span>
                             )}
                           </div>
                         </td>
                         {/* Type */}
-                        <td className={`px-4 py-3.5 ${bdClass}`}>
+                        <td className='px-3 py-3.5 align-middle'>
                           <TypeBadge type={trade.investmentType} />
                         </td>
                         {/* Date */}
-                        <td className={`px-4 py-3.5 ${bdClass}`}>
+                        <td className='px-3 py-3.5 align-middle whitespace-nowrap'>
                           <span className='text-[12px] text-slate-400 tabular-nums'>
                             {(() => {
                               try {
@@ -860,47 +897,39 @@ export function ProfitsPage() {
                             })()}
                           </span>
                         </td>
-                        {/* Buy */}
-                        <td
-                          className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
-                        >
-                          <span className='text-[13px] text-slate-400'>
+                        {/* Buy Cost */}
+                        <td className='px-3 py-3.5 text-right align-middle whitespace-nowrap'>
+                          <span className='text-[13px] text-slate-400 tabular-nums'>
                             {formatINR(trade.buyPrice)}
                           </span>
                         </td>
-                        {/* Sell */}
-                        <td
-                          className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
-                        >
-                          <span className='text-[13px] font-bold text-white'>
+                        {/* Sell Value */}
+                        <td className='px-3 py-3.5 text-right align-middle whitespace-nowrap'>
+                          <span className='text-[13px] font-semibold text-white tabular-nums'>
                             {formatINR(trade.sellPrice)}
                           </span>
                         </td>
                         {/* P&L */}
-                        <td
-                          className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
-                        >
+                        <td className='px-3 py-3.5 text-right align-middle whitespace-nowrap'>
                           <span
-                            className={`text-[13px] font-bold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}
+                            className={`text-[13px] font-bold tabular-nums ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}
                           >
                             {isProfit ? '+' : ''}
                             {formatINR(trade.profit)}
                           </span>
                         </td>
                         {/* % */}
-                        <td
-                          className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
-                        >
+                        <td className='px-3 py-3.5 text-right align-middle whitespace-nowrap'>
                           <span
-                            className={`text-[12px] font-semibold ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
+                            className={`text-[12px] font-semibold tabular-nums ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
                           >
                             {isProfit ? '▲' : '▼'}{' '}
                             {Math.abs(trade.profitPct).toFixed(2)}%
                           </span>
                         </td>
                         {/* Actions */}
-                        <td className={`px-3 py-3.5 ${bdClass}`}>
-                          <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                        <td className='px-2 py-3.5 align-middle'>
+                          <div className='flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
                             <button
                               onClick={() => setEditTrade(trade)}
                               className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
@@ -919,29 +948,30 @@ export function ProfitsPage() {
                     );
                   })}
                 </tbody>
-                {/* Footer totals row */}
+                {/* Footer totals — cols match exactly */}
                 <tfoot>
-                  <tr className='bg-slate-900/80 border-t border-slate-700/60'>
-                    <td colSpan={3} className='px-4 py-3'>
-                      <span className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
-                        {filteredTrades.length} trades
+                  <tr className='border-t-2 border-slate-700/80 bg-slate-900/80'>
+                    <td className='px-4 py-3 align-middle' colSpan={3}>
+                      <span className='text-[11px] font-black uppercase tracking-widest text-slate-500'>
+                        {filteredTrades.length}{' '}
+                        {filteredTrades.length === 1 ? 'Trade' : 'Trades'}
                       </span>
                     </td>
-                    <td className='px-4 py-3 text-right'>
+                    <td className='px-3 py-3 text-right align-middle whitespace-nowrap'>
                       <span className='text-[13px] font-bold text-slate-400 tabular-nums'>
                         {formatINR(
                           filteredTrades.reduce((s, t) => s + t.buyPrice, 0),
                         )}
                       </span>
                     </td>
-                    <td className='px-4 py-3 text-right'>
+                    <td className='px-3 py-3 text-right align-middle whitespace-nowrap'>
                       <span className='text-[13px] font-bold text-white tabular-nums'>
                         {formatINR(
                           filteredTrades.reduce((s, t) => s + t.sellPrice, 0),
                         )}
                       </span>
                     </td>
-                    <td className='px-4 py-3 text-right' colSpan={3}>
+                    <td className='px-3 py-3 text-right align-middle whitespace-nowrap'>
                       {(() => {
                         const total = filteredTrades.reduce(
                           (s, t) => s + t.profit,
@@ -950,7 +980,7 @@ export function ProfitsPage() {
                         const isPos = total >= 0;
                         return (
                           <span
-                            className={`text-[14px] font-bold tabular-nums ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
+                            className={`text-[14px] font-black tabular-nums ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
                           >
                             {isPos ? '+' : ''}
                             {formatINR(total)}
@@ -958,6 +988,7 @@ export function ProfitsPage() {
                         );
                       })()}
                     </td>
+                    <td colSpan={2} />
                   </tr>
                 </tfoot>
               </table>

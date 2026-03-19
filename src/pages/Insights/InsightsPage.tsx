@@ -510,281 +510,276 @@ export default function InsightsPage() {
   })();
 
   return (
-    <div className='max-w-full mx-auto pb-4'>
+    <div className='flex flex-col gap-6 pb-10 max-w-5xl mx-auto'>
       {/* Header */}
-      <header className='flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm mb-6'>
+      <header className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent p-5 border border-amber-500/20 shadow-sm'>
         <div className='flex items-center gap-4'>
-          <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
+          <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30'>
             <FiZap className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+            <h1 className='text-2xl font-bold text-white'>
               Financial Insights
             </h1>
-            <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
+            <p className='text-sm text-slate-400 mt-0.5'>
               {latestInsight
-                ? `Last saved ${new Date(latestInsight.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                : 'Analyse your portfolio health and track FIRE progress.'}
+                ? `Last snapshot saved ${new Date(latestInsight.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                : 'Track your financial health, emergency fund, and FIRE progress.'}
             </p>
           </div>
         </div>
         <button
           onClick={handleSave}
           disabled={saving || investments.length === 0}
-          className='group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0'
+          className='flex items-center gap-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg disabled:opacity-40 hover:-translate-y-0.5 transition-all'
           type='button'
         >
-          <div className='absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0' />
-          <FiSave className='relative h-4 w-4' />
-          <span className='relative whitespace-nowrap'>
-            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Snapshot'}
-          </span>
+          <FiSave className='h-4 w-4' />
+          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Snapshot'}
         </button>
       </header>
 
       {noData ? (
-        <div className='bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-12 text-center'>
-          <div className='text-4xl mb-3'>📊</div>
-          <div className='text-sm font-semibold text-slate-300 mb-1'>
+        <div className='rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-14 text-center'>
+          <div className='text-5xl mb-4'>📊</div>
+          <p className='text-base font-semibold text-slate-300 mb-1'>
             No data yet
-          </div>
-          <div className='text-xs text-slate-500 max-w-xs mx-auto'>
-            Add investments, cashflow entries, or set your emergency fund in
-            Settings → Essentials to see insights.
-          </div>
+          </p>
+          <p className='text-sm text-slate-500 max-w-xs mx-auto'>
+            Add investments, cashflow entries, or set your emergency fund in{' '}
+            <span className='text-emerald-400 font-semibold'>
+              Settings → Essentials
+            </span>{' '}
+            to see your insights.
+          </p>
         </div>
       ) : (
-        <div className='flex flex-col gap-4'>
-          {/* Health Score */}
-          <div className='bg-slate-900 max-w-2xl mx-auto w-full border border-slate-800 rounded-2xl p-4'>
-            <div className='flex gap-4 items-center flex-wrap'>
-              <ScoreRing score={health.total} />
-              <div className='flex-1 min-w-[160px]'>
-                <div className='flex items-center gap-2 mb-3'>
-                  <span className='text-sm font-bold text-slate-100'>
-                    Health Score
-                  </span>
-                  <span
-                    className='text-[11px] font-semibold px-2 py-0.5 rounded-full'
-                    style={{
-                      background: `${healthColor}22`,
-                      color: healthColor,
-                    }}
-                  >
-                    {healthLabel}
-                  </span>
-                </div>
+        <div className='flex flex-col gap-6'>
+          {/* ── Health Score + Breakdown ── */}
+          <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
+            <h2 className='text-sm font-bold uppercase tracking-wider text-slate-400 mb-4'>
+              Financial Health Score
+            </h2>
+            <div className='flex flex-col sm:flex-row gap-6 items-start'>
+              {/* Ring */}
+              <div className='flex flex-col items-center gap-2 shrink-0'>
+                <ScoreRing score={health.total} />
+                <span
+                  className='text-sm font-bold px-3 py-1 rounded-full'
+                  style={{ background: `${healthColor}22`, color: healthColor }}
+                >
+                  {healthLabel}
+                </span>
+              </div>
+              {/* Bars */}
+              <div className='flex-1 w-full flex flex-col gap-0.5'>
                 <MiniBar
-                  label='Debt Management'
+                  label='Debt Management (30 pts)'
                   value={health.debtScore}
                   max={30}
                   color='#60a5fa'
                 />
                 <MiniBar
-                  label='Emergency Fund'
+                  label='Emergency Fund (20 pts)'
                   value={health.emergencyScore}
                   max={20}
                   color='#a78bfa'
                 />
                 <MiniBar
-                  label='Savings Rate'
+                  label='Savings Rate (25 pts)'
                   value={health.savingsScore}
                   max={25}
                   color='#34d399'
                 />
                 <MiniBar
-                  label='Diversification'
+                  label='Diversification (25 pts)'
                   value={health.divScore}
                   max={25}
                   color='#f59e0b'
                 />
               </div>
-            </div>
-            {/* Score hints row */}
-            <div className='mt-4 pt-3 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2'>
-              {[
-                {
-                  label: 'Debt',
-                  hint:
-                    liabilities.length === 0
-                      ? 'No liabilities ✓'
-                      : `${formatNumber(health.debtRatio * 100, 0)}% of assets`,
-                  color: '#60a5fa',
-                },
-                {
-                  label: 'Emergency',
-                  hint: hasExpenseData
-                    ? `${formatNumber(health.runway, 1)} mo runway`
-                    : health.emergencyTarget > 0
-                      ? `${formatNumber(Math.min(100, (health.totalLiquid / health.emergencyTarget) * 100), 0)}% of target`
-                      : 'Set target in Essentials',
-                  color: '#a78bfa',
-                },
-                {
-                  label: 'Savings',
-                  hint:
-                    metrics.avgIncome > 0
-                      ? `${formatNumber(health.savingsRate, 0)}% rate`
-                      : 'Add cashflow data',
-                  color: '#34d399',
-                },
-                {
-                  label: 'Assets',
-                  hint: `${health.assetClassCount}/5 classes`,
-                  color: '#f59e0b',
-                },
-              ].map(({ label, hint, color }) => (
-                <div
-                  key={label}
-                  className='rounded-lg p-2 bg-slate-800/50 text-center'
-                >
+              {/* Score hints */}
+              <div className='grid grid-cols-2 sm:grid-cols-1 gap-2 shrink-0 w-full sm:w-36'>
+                {[
+                  {
+                    label: '🏦 Debt',
+                    hint:
+                      liabilities.length === 0
+                        ? 'No liabilities ✓'
+                        : `${formatNumber(health.debtRatio * 100, 0)}% of assets`,
+                    color: '#60a5fa',
+                  },
+                  {
+                    label: '🛡 Emergency',
+                    hint: hasExpenseData
+                      ? `${formatNumber(health.runway, 1)} mo runway`
+                      : health.emergencyTarget > 0
+                        ? `${formatNumber(Math.min(100, (health.totalLiquid / health.emergencyTarget) * 100), 0)}% of target`
+                        : 'Set in Essentials',
+                    color: '#a78bfa',
+                  },
+                  {
+                    label: '💸 Savings',
+                    hint:
+                      metrics.avgIncome > 0
+                        ? `${formatNumber(health.savingsRate, 0)}% rate`
+                        : 'Add cashflow',
+                    color: '#34d399',
+                  },
+                  {
+                    label: '📦 Assets',
+                    hint: `${health.assetClassCount}/5 classes`,
+                    color: '#f59e0b',
+                  },
+                ].map(({ label, hint, color }) => (
                   <div
-                    className='text-[10px] font-bold uppercase tracking-wider mb-0.5'
-                    style={{ color }}
+                    key={label}
+                    className='rounded-lg p-2.5 bg-slate-800/60 flex flex-col gap-0.5'
                   >
-                    {label}
+                    <p className='text-[10px] font-bold' style={{ color }}>
+                      {label}
+                    </p>
+                    <p className='text-[10px] text-slate-400 leading-tight'>
+                      {hint}
+                    </p>
                   </div>
-                  <div className='text-[10px] text-slate-400'>{hint}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Metrics Grid */}
-          <div className='grid grid-cols-2 sm:grid-cols-4 gap-2.5'>
-            <MetricCard
-              icon='💰'
-              label='Net Worth'
-              value={formatINR(metrics.netWorth)}
-              color={metrics.netWorth >= 0 ? '#22c55e' : '#ef4444'}
-            />
-            <MetricCard
-              icon='🏦'
-              label='Total Assets'
-              value={formatINR(metrics.totalValue)}
-              color='#64748b'
-            />
-            <MetricCard
-              icon='📉'
-              label='Liabilities'
-              value={formatINR(metrics.totalLiabilities)}
-              color={
-                metrics.totalLiabilities === 0
-                  ? '#22c55e'
-                  : health.debtRatio > 0.5
-                    ? '#ef4444'
-                    : '#f59e0b'
-              }
-            />
-            <MetricCard
-              icon='📊'
-              label='Debt/Asset'
-              value={
-                metrics.totalValue === 0 && metrics.totalLiabilities === 0
-                  ? '—'
-                  : `${formatNumber(health.debtRatio * 100, 1)}%`
-              }
-              sub={
-                metrics.totalValue === 0 && metrics.totalLiabilities === 0
-                  ? 'No data'
-                  : health.debtRatio < 0.3
+          {/* ── Key Metrics ── */}
+          <div>
+            <h2 className='text-sm font-bold uppercase tracking-wider text-slate-400 mb-3'>
+              Key Metrics
+            </h2>
+            <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+              <MetricCard
+                icon='💰'
+                label='Net Worth'
+                value={formatINR(metrics.netWorth)}
+                color={metrics.netWorth >= 0 ? '#22c55e' : '#ef4444'}
+              />
+              <MetricCard
+                icon='🏦'
+                label='Total Assets'
+                value={formatINR(metrics.totalValue)}
+                color='#64748b'
+              />
+              <MetricCard
+                icon='📉'
+                label='Liabilities'
+                value={formatINR(metrics.totalLiabilities)}
+                color={
+                  metrics.totalLiabilities === 0
+                    ? '#22c55e'
+                    : health.debtRatio > 0.5
+                      ? '#ef4444'
+                      : '#f59e0b'
+                }
+              />
+              <MetricCard
+                icon='📊'
+                label='Debt / Asset'
+                value={
+                  metrics.totalValue === 0 && metrics.totalLiabilities === 0
+                    ? '—'
+                    : `${formatNumber(health.debtRatio * 100, 1)}%`
+                }
+                sub={
+                  health.debtRatio < 0.3
                     ? 'Healthy'
                     : health.debtRatio < 0.6
                       ? 'Moderate'
                       : 'High'
-              }
-              color={
-                health.debtRatio < 0.3
-                  ? '#22c55e'
-                  : health.debtRatio < 0.6
-                    ? '#f59e0b'
-                    : '#ef4444'
-              }
-            />
-
-            <MetricCard
-              icon='🛡️'
-              label='Emergency'
-              value={emergencyCardValue}
-              sub={emergencyCardSub}
-              color={emergencyColor}
-            />
-            <MetricCard
-              icon='💹'
-              label='Savings/mo'
-              value={formatINR(metrics.monthlySavings)}
-              sub={
-                metrics.avgIncome > 0
-                  ? `${formatNumber((metrics.monthlySavings / metrics.avgIncome) * 100, 0)}% of income`
-                  : 'Add cashflow data'
-              }
-              color={
-                metrics.monthlySavings > 0
-                  ? '#22c55e'
-                  : metrics.avgIncome === 0
-                    ? '#64748b'
-                    : '#ef4444'
-              }
-            />
-            <MetricCard
-              icon='📈'
-              label='Equity'
-              value={
-                investments.length > 0
-                  ? `${formatNumber(metrics.equityPct, 1)}%`
-                  : '—'
-              }
-              sub={
-                investments.length === 0
-                  ? 'No investments yet'
-                  : metrics.equityPct > 80
-                    ? 'Over-weight'
+                }
+                color={
+                  health.debtRatio < 0.3
+                    ? '#22c55e'
+                    : health.debtRatio < 0.6
+                      ? '#f59e0b'
+                      : '#ef4444'
+                }
+              />
+              <MetricCard
+                icon='🛡'
+                label='Emergency Fund'
+                value={emergencyCardValue}
+                sub={emergencyCardSub}
+                color={emergencyColor}
+              />
+              <MetricCard
+                icon='📈'
+                label='Monthly Savings'
+                value={formatINR(Math.abs(metrics.monthlySavings))}
+                sub={
+                  metrics.monthlySavings < 0
+                    ? '⚠ Spending > income'
+                    : metrics.avgIncome > 0
+                      ? `${formatNumber(health.savingsRate, 0)}% of income`
+                      : 'Add cashflow data'
+                }
+                color={metrics.monthlySavings >= 0 ? '#22c55e' : '#ef4444'}
+              />
+              <MetricCard
+                icon='📈'
+                label='Equity %'
+                value={
+                  investments.length > 0
+                    ? `${formatNumber(metrics.equityPct, 1)}%`
+                    : '—'
+                }
+                sub={
+                  metrics.equityPct > 80
+                    ? 'Over-weight equity'
                     : metrics.equityPct < 20
-                      ? 'Under-weight'
+                      ? 'Under-weight equity'
                       : 'Balanced'
-              }
-              color={
-                investments.length === 0
-                  ? '#64748b'
-                  : metrics.equityPct > 80 || metrics.equityPct < 20
-                    ? '#f59e0b'
-                    : '#22c55e'
-              }
-            />
-            <MetricCard
-              icon='🧾'
-              label='Tax Loss'
-              value={investments.length > 0 ? formatINR(metrics.taxLoss) : '—'}
-              sub={
-                investments.length === 0
-                  ? 'No investments yet'
-                  : metrics.taxLoss > 0
-                    ? 'Harvest opportunity'
-                    : 'No losses'
-              }
-              color={
-                metrics.taxLoss > 0
-                  ? '#f59e0b'
-                  : investments.length === 0
+                }
+                color={
+                  investments.length === 0
                     ? '#64748b'
-                    : '#22c55e'
-              }
-            />
+                    : metrics.equityPct > 80 || metrics.equityPct < 20
+                      ? '#f59e0b'
+                      : '#22c55e'
+                }
+              />
+              <MetricCard
+                icon='🧾'
+                label='Tax Loss Harvest'
+                value={
+                  investments.length > 0 ? formatINR(metrics.taxLoss) : '—'
+                }
+                sub={
+                  metrics.taxLoss > 0
+                    ? 'Harvest opportunity'
+                    : 'No losses to harvest'
+                }
+                color={
+                  metrics.taxLoss > 0
+                    ? '#f59e0b'
+                    : investments.length === 0
+                      ? '#64748b'
+                      : '#22c55e'
+                }
+              />
+            </div>
           </div>
 
-          {/* FIRE Projection */}
-          <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
-            <div className='flex items-center gap-2 mb-3'>
-              <span className='text-sm font-bold text-slate-100'>
-                🔥 FIRE Projection
-              </span>
-              <span className='text-[11px] text-slate-500'>
+          {/* ── FIRE Projection ── */}
+          <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
+            <div className='flex items-center gap-2 mb-4'>
+              <span className='text-xl'>🔥</span>
+              <h2 className='text-base font-bold text-slate-100'>
+                FIRE Projection
+              </h2>
+              <span className='text-xs text-slate-500 hidden sm:block'>
                 Financial Independence, Retire Early
               </span>
             </div>
             {fire.uncalculable ? (
               <div className='rounded-xl bg-slate-800/60 p-4 text-center'>
-                <p className='text-xs text-slate-400'>
+                <p className='text-sm text-slate-400'>
                   Add cashflow entries or set an Emergency Fund Target in{' '}
                   <span className='text-emerald-400 font-semibold'>
                     Settings → Essentials
@@ -793,7 +788,7 @@ export default function InsightsPage() {
                 </p>
               </div>
             ) : (
-              <div className='grid grid-cols-2 sm:grid-cols-4 gap-2.5'>
+              <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
                 <FireCard
                   label='Target Corpus'
                   value={formatINR(fire.target)}
@@ -804,7 +799,7 @@ export default function InsightsPage() {
                   label='Years to FIRE'
                   value={
                     fire.yearsToFIRE === 0
-                      ? '🎉 Achieved!'
+                      ? '🎉 Done!'
                       : fire.achievable
                         ? `${fire.yearsToFIRE} yrs`
                         : '50+ yrs'
@@ -846,79 +841,87 @@ export default function InsightsPage() {
             )}
           </div>
 
-          {/* Priority Debt Alert */}
-          {metrics.topDebt && (
-            <div
-              className='bg-slate-900 rounded-2xl p-4 flex gap-3 items-start'
-              style={{
-                border: '1px solid #ef444422',
-                borderLeft: '3px solid #ef4444',
-              }}
-            >
-              <span className='text-2xl'>⚠️</span>
-              <div>
-                <div className='text-sm font-semibold text-slate-100'>
-                  Priority Debt: {metrics.topDebt.name}
-                </div>
-                <div className='text-[12px] text-slate-400 mt-1'>
-                  {formatINR(metrics.topDebt.outstanding)} outstanding
-                  {metrics.topDebt.interestRate
-                    ? ` at ${metrics.topDebt.interestRate}% p.a.`
-                    : ''}{' '}
-                  — pay this down first to improve your health score.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Rebalance Alert — only when investments actually exist */}
-          {investments.length > 0 &&
-            (metrics.equityPct > 80 || metrics.equityPct < 20) && (
-              <div
-                className='bg-slate-900 rounded-2xl p-4 flex gap-3 items-start'
-                style={{
-                  border: '1px solid #f59e0b22',
-                  borderLeft: '3px solid #f59e0b',
-                }}
-              >
-                <span className='text-2xl'>⚖️</span>
-                <div>
-                  <div className='text-sm font-semibold text-slate-100'>
-                    Rebalancing Recommended
+          {/* ── Action Items / Alerts ── */}
+          {(metrics.topDebt ||
+            (investments.length > 0 &&
+              (metrics.equityPct > 80 || metrics.equityPct < 20)) ||
+            (health.totalLiquid === 0 && health.emergencyTarget === 0)) && (
+            <div>
+              <h2 className='text-sm font-bold uppercase tracking-wider text-slate-400 mb-3'>
+                Action Items
+              </h2>
+              <div className='flex flex-col gap-3'>
+                {metrics.topDebt && (
+                  <div
+                    className='flex gap-3 items-start rounded-2xl p-4 bg-slate-900/60'
+                    style={{
+                      border: '1px solid #ef444422',
+                      borderLeft: '3px solid #ef4444',
+                    }}
+                  >
+                    <span className='text-xl shrink-0'>⚠️</span>
+                    <div>
+                      <p className='text-sm font-semibold text-slate-100'>
+                        Priority Debt: {metrics.topDebt.name}
+                      </p>
+                      <p className='text-xs text-slate-400 mt-1'>
+                        {formatINR(metrics.topDebt.outstanding)} outstanding
+                        {metrics.topDebt.interestRate
+                          ? ` at ${metrics.topDebt.interestRate}% p.a.`
+                          : ''}{' '}
+                        — pay this down first to improve your score.
+                      </p>
+                    </div>
                   </div>
-                  <div className='text-[12px] text-slate-400 mt-1'>
-                    Equity is at {formatNumber(metrics.equityPct, 1)}% of total
-                    assets.{' '}
-                    {metrics.equityPct > 80
-                      ? 'Consider adding debt instruments (bonds, FDs) to reduce risk.'
-                      : 'Consider increasing equity (stocks, mutual funds) for better long-term growth.'}
+                )}
+                {investments.length > 0 &&
+                  (metrics.equityPct > 80 || metrics.equityPct < 20) && (
+                    <div
+                      className='flex gap-3 items-start rounded-2xl p-4 bg-slate-900/60'
+                      style={{
+                        border: '1px solid #f59e0b22',
+                        borderLeft: '3px solid #f59e0b',
+                      }}
+                    >
+                      <span className='text-xl shrink-0'>⚖️</span>
+                      <div>
+                        <p className='text-sm font-semibold text-slate-100'>
+                          Rebalancing Recommended
+                        </p>
+                        <p className='text-xs text-slate-400 mt-1'>
+                          Equity is at {formatNumber(metrics.equityPct, 1)}% of
+                          total assets.{' '}
+                          {metrics.equityPct > 80
+                            ? 'Consider adding bonds or FDs to reduce risk.'
+                            : 'Consider adding stocks or mutual funds for better growth.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                {health.totalLiquid === 0 && health.emergencyTarget === 0 && (
+                  <div
+                    className='flex gap-3 items-start rounded-2xl p-4 bg-slate-900/60'
+                    style={{
+                      border: '1px solid #a78bfa22',
+                      borderLeft: '3px solid #a78bfa',
+                    }}
+                  >
+                    <span className='text-xl shrink-0'>🛡️</span>
+                    <div>
+                      <p className='text-sm font-semibold text-slate-100'>
+                        Set Up Your Emergency Fund
+                      </p>
+                      <p className='text-xs text-slate-400 mt-1'>
+                        A 6-month emergency fund is the foundation of financial
+                        health. Go to{' '}
+                        <span className='text-violet-400 font-semibold'>
+                          Settings → Essentials
+                        </span>{' '}
+                        to set your target.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-          {/* Emergency Fund setup nudge */}
-          {health.totalLiquid === 0 && health.emergencyTarget === 0 && (
-            <div
-              className='bg-slate-900 rounded-2xl p-4 flex gap-3 items-start'
-              style={{
-                border: '1px solid #a78bfa22',
-                borderLeft: '3px solid #a78bfa',
-              }}
-            >
-              <span className='text-2xl'>🛡️</span>
-              <div>
-                <div className='text-sm font-semibold text-slate-100'>
-                  Set Up Your Emergency Fund
-                </div>
-                <div className='text-[12px] text-slate-400 mt-1'>
-                  A 6-month emergency fund is the foundation of financial
-                  health. Go to{' '}
-                  <span className='text-violet-400 font-semibold'>
-                    Settings → Essentials
-                  </span>{' '}
-                  to set your target and track progress here.
-                </div>
+                )}
               </div>
             </div>
           )}

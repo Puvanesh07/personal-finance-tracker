@@ -32,6 +32,7 @@ import { MonthlySipPlanPage } from './MonthlySipPlanPage';
 import { UpsertInvestmentModal } from '../../components/investments/UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useStockMetadata } from '../../hooks/useStockMetadata';
 
 // ── Asset Type Filter Categories ───────────────────────────────────────────
 const FILTER_CATEGORIES = [
@@ -253,6 +254,17 @@ export function InvestmentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [brokerFilter, setBrokerFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  // ✅ Market cap filter — reads from sessionStorage (set by MarketCapAllocationChart)
+  const [marketCapFilter, setMarketCapFilter] = useState<string>('all');
+  const { metadata } = useStockMetadata(investments);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('inv_marketcap_filter');
+    if (saved) {
+      setMarketCapFilter(saved);
+      sessionStorage.removeItem('inv_marketcap_filter');
+    }
+  }, []);
 
   // Derive active brokers from actual data so the dropdown only shows relevant options
   const activeBrokers = useMemo(() => {
@@ -278,7 +290,14 @@ export function InvestmentsPage() {
         }
       }
 
-      // 2. Broker filter
+      // 2. Market Cap filter
+      if (marketCapFilter !== 'all') {
+        const meta = metadata.get(inv.id);
+        const cap = meta?.marketCapCategory ?? 'Unknown';
+        if (cap !== marketCapFilter) return false;
+      }
+
+      // 3. Broker filter
       if (brokerFilter !== 'all') {
         if (normalisePlatform(inv.platform) !== brokerFilter) return false;
       }
@@ -291,7 +310,7 @@ export function InvestmentsPage() {
         (inv.platform ?? '').toLowerCase().includes(q)
       );
     });
-  }, [investments, query, typeFilter, brokerFilter]);
+  }, [investments, query, typeFilter, brokerFilter, marketCapFilter, metadata]);
 
   // Active broker label for the results bar
   const activeBrokerLabel =
@@ -420,7 +439,9 @@ export function InvestmentsPage() {
             </div>
 
             {/* Active filter pills */}
-            {(showBrokerBadge || typeFilter !== 'all') && (
+            {(showBrokerBadge ||
+              typeFilter !== 'all' ||
+              marketCapFilter !== 'all') && (
               <div className='flex items-center gap-2 flex-wrap'>
                 <span className='text-[10px] text-slate-500 font-semibold uppercase tracking-widest'>
                   Filters:
@@ -443,10 +464,20 @@ export function InvestmentsPage() {
                     <span className='text-xs ml-0.5'>✕</span>
                   </button>
                 )}
+                {marketCapFilter !== 'all' && (
+                  <button
+                    onClick={() => setMarketCapFilter('all')}
+                    className='flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors'
+                  >
+                    {marketCapFilter}
+                    <span className='text-indigo-300 text-xs ml-0.5'>✕</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setTypeFilter('all');
                     setBrokerFilter('all');
+                    setMarketCapFilter('all');
                     setQuery('');
                   }}
                   className='text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'

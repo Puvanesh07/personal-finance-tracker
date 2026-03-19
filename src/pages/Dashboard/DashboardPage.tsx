@@ -1,8 +1,3 @@
-// src/pages/Dashboard/DashboardPage.tsx
-//
-// UPDATED: Added Top Holdings + Insights section (like FinBoom)
-//          between the summary cards and the quick account/cashflow overviews
-
 import { FiHome, FiPieChart } from 'react-icons/fi';
 
 import { AllocationCharts } from '../../components/dashboard/AllocationCharts';
@@ -15,7 +10,6 @@ import { GoalsEssentialsSummary } from '../../components/dashboard/GoalsEssentia
 import { GrowthChart } from '../../components/dashboard/GrowthChart';
 import { MarketCapAllocationChart } from '../../components/dashboard/MarketCapAllocationChart';
 import { MaturityTimeline } from '../../components/dashboard/MaturityTimeline';
-import { SectorAllocationChart } from '../../components/dashboard/SectorAllocationChart';
 import { SummaryCards } from '../../components/dashboard/SummaryCards';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -89,13 +83,8 @@ export function DashboardPage() {
       </section>
 
       {/* Secondary Analytics Section */}
-      <section className='grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2'>
-        <div className='min-w-0'>
-          <SectorAllocationChart />
-        </div>
-        <div className='min-w-0'>
-          <MarketCapAllocationChart />
-        </div>
+      <section className='min-w-0'>
+        <MarketCapAllocationChart />
       </section>
 
       {/* Growth History */}
