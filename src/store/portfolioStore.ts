@@ -1,22 +1,5 @@
 /**
- * portfolioStore.ts  —  ENCRYPTION-ENABLED version
- *
- * Changes from original:
- *  1. fetchSub() now decrypts each document via decryptDoc()
- *  2. Every setDoc() call wraps the payload in encryptDoc()
- *  3. importInvestments batch writes also encrypt each doc
- *
- * The ONLY file you also need to add is:
- *   src/services/encryptionService.ts  (provided separately)
- *
- * .env — add ONE line:
- *   VITE_ENCRYPTION_SALT=some-long-random-secret-string
- *
- * To TOGGLE encryption on/off:
- *   import { setEncryptionEnabled } from '../services/encryptionService';
- *   await setEncryptionEnabled(uid, true);   // ON
- *   await setEncryptionEnabled(uid, false);  // OFF
- *   → This sets  users/{uid}/settings/config → { encryptionEnabled: true|false }
+ * portfolioStore.ts  —  ENCRYPTION-ENABLED version with Offline & Crash Fixes
  */
 
 import type {
@@ -43,13 +26,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 
-// ── Encryption imports (the only addition) ────────────────────────────────────
 import {
   decryptDoc,
   encryptDoc,
   type FirestoreDoc,
 } from '../services/encryptionService';
-// ─────────────────────────────────────────────────────────────────────────────
 
 import { create } from 'zustand';
 import { createId } from '../utils/id';
@@ -63,6 +44,13 @@ const userDoc = (uid: string, col: string, id: string) =>
 const settingsDocRef = (uid: string) =>
   doc(db, 'users', uid, 'settings', 'config');
 
+/**
+ * Fix for: TypeError: Cannot read properties of undefined (reading 'localeCompare')
+ * Ensures sorting doesn't crash if dates are missing.
+ */
+const safeCompare = (a: string | undefined, b: string | undefined) =>
+  (a || '').localeCompare(b || '');
+
 function clean<T extends object>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined),
@@ -70,7 +58,6 @@ function clean<T extends object>(obj: T): T {
 }
 const now = () => new Date().toISOString();
 
-// ── Encrypted fetchSub — auto-decrypts documents ──────────────────────────────
 async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   const snap = await getDocs(userCol(uid, col));
   return Promise.all(
@@ -78,7 +65,6 @@ async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   );
 }
 
-// ── Encrypted write helper ────────────────────────────────────────────────────
 async function saveDoc<
   T extends {
     id: string;
@@ -94,7 +80,7 @@ async function saveDoc<
 export type SettingsRecord = {
   notion: NotionConfig;
   essentials?: EssentialsConfig;
-  encryptionEnabled?: boolean; // ← the Firebase boolean flag you asked for
+  encryptionEnabled?: boolean;
 };
 
 type PortfolioState = {
@@ -236,7 +222,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         : { notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS };
 
       const sortedSnapshots = snapshots.sort((a, b) =>
-        a.date.localeCompare(b.date),
+        safeCompare(a.date, b.date),
       );
       const today = todayISO();
       const alreadySnappedToday = sortedSnapshots.some((s) => s.date === today);
@@ -244,37 +230,37 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       set({
         ready: true,
         investments: investments.sort((a, b) =>
-          b.updatedAt.localeCompare(a.updatedAt),
+          safeCompare(b.updatedAt, a.updatedAt),
         ),
         snapshots: sortedSnapshots,
         liabilities: liabilities.sort((a, b) =>
-          b.updatedAt.localeCompare(a.updatedAt),
+          safeCompare(b.updatedAt, a.updatedAt),
         ),
         cashflows: cashflows.sort(
           (a, b) =>
-            b.date.localeCompare(a.date) ||
-            b.updatedAt.localeCompare(a.updatedAt),
+            safeCompare(b.date, a.date) ||
+            safeCompare(b.updatedAt, a.updatedAt),
         ),
-        goals: goals.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+        goals: goals.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)),
         networthSnapshots: networthSnapshots.sort((a, b) =>
-          b.createdAt.localeCompare(a.createdAt),
+          safeCompare(b.createdAt, a.createdAt),
         ),
         latestInsight:
-          insights.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ??
+          insights.sort((a, b) => safeCompare(b.createdAt, a.createdAt))[0] ??
           null,
         notion: settings.notion ?? DEFAULT_NOTION,
         essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
         accounts: accounts.sort((a, b) =>
-          b.createdAt.localeCompare(a.createdAt),
+          safeCompare(b.createdAt, a.createdAt),
         ),
         soldTrades: soldTrades.sort((a, b) =>
-          b.soldDate.localeCompare(a.soldDate),
+          safeCompare(b.soldDate, a.soldDate),
         ),
         insurancePolicies: insurancePolicies.sort((a, b) =>
-          a.renewalDate.localeCompare(b.renewalDate),
+          safeCompare(a.renewalDate, b.renewalDate),
         ),
         sipPlans: sipPlans.sort((a: any, b: any) =>
-          (a.createdAt || '').localeCompare(b.createdAt || ''),
+          safeCompare(a.createdAt, b.createdAt),
         ),
         _lastSnapshotDate: alreadySnappedToday ? today : null,
       });
@@ -284,8 +270,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       set({ ready: true });
     }
   },
-
-  // ── Investments ──────────────────────────────────────────────────────────────
 
   addInvestment: async (investment) => {
     const uid = get().uid;
@@ -298,7 +282,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as Investment;
-    await saveDoc(uid, 'investments', withMeta); // ← encrypted write
+    await saveDoc(uid, 'investments', withMeta);
     set((s) => ({ investments: [withMeta, ...s.investments] }));
     await get().recordSnapshotIfNeeded();
   },
@@ -332,7 +316,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             draft.currentPrice !== (match as any).currentPrice) ||
           ('nav' in draft && draft.nav !== (match as any).nav);
         if (hasChanged) {
-          // For updated docs, re-encrypt the full merged document
           const mergedDoc = clean({
             ...match,
             ...draft,
@@ -350,7 +333,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           updatedAt: t,
           userId: uid,
         }) as Investment;
-        // Encrypt each document before adding to batch
         const payload = await encryptDoc(uid, withMeta);
         batch.set(userDoc(uid, 'investments', withMeta.id), payload);
         newDocs.push(withMeta);
@@ -376,7 +358,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       id,
       updatedAt: now(),
     }) as Investment;
-    await saveDoc(uid, 'investments', updated); // ← encrypted write
+    await saveDoc(uid, 'investments', updated);
     set((s) => ({
       investments: s.investments.map((x) => (x.id === id ? updated : x)),
     }));
@@ -390,8 +372,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ investments: s.investments.filter((x) => x.id !== id) }));
     await get().recordSnapshotIfNeeded();
   },
-
-  // ── Liabilities ──────────────────────────────────────────────────────────────
 
   addLiability: async (liability) => {
     const uid = get().uid;
@@ -430,8 +410,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }));
   },
 
-  // ── Cashflows ────────────────────────────────────────────────────────────────
-
   addCashflow: async (entry) => {
     const uid = get().uid;
     if (!uid) return;
@@ -446,7 +424,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'cashflows', withMeta);
     set((s) => ({
       cashflows: [withMeta, ...s.cashflows].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -472,8 +450,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'cashflows', id));
     set((s) => ({ cashflows: s.cashflows.filter((x) => x.id !== id) }));
   },
-
-  // ── Goals ────────────────────────────────────────────────────────────────────
 
   addGoal: async (goal) => {
     const uid = get().uid;
@@ -510,8 +486,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ goals: s.goals.filter((x) => x.id !== id) }));
   },
 
-  // ── Accounts ─────────────────────────────────────────────────────────────────
-
   addAccount: async (account) => {
     const uid = get().uid;
     if (!uid) return;
@@ -547,8 +521,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
   },
 
-  // ── Sold Trades ──────────────────────────────────────────────────────────────
-
   addSoldTrade: async (trade) => {
     const uid = get().uid;
     if (!uid) return;
@@ -567,7 +539,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'soldTrades', raw);
     set((s) => ({
       soldTrades: [raw, ...s.soldTrades].sort((a, b) =>
-        b.soldDate.localeCompare(a.soldDate),
+        safeCompare(b.soldDate, a.soldDate),
       ),
     }));
   },
@@ -593,8 +565,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ soldTrades: s.soldTrades.filter((x) => x.id !== id) }));
   },
 
-  // ── Insurance ────────────────────────────────────────────────────────────────
-
   addInsurancePolicy: async (policy) => {
     const uid = get().uid;
     if (!uid) return;
@@ -609,7 +579,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'insurancePolicies', withMeta);
     set((s) => ({
       insurancePolicies: [withMeta, ...s.insurancePolicies].sort((a, b) =>
-        a.renewalDate.localeCompare(b.renewalDate),
+        safeCompare(a.renewalDate, b.renewalDate),
       ),
     }));
   },
@@ -639,8 +609,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       insurancePolicies: s.insurancePolicies.filter((x) => x.id !== id),
     }));
   },
-
-  // ── Monthly SIP Plan ─────────────────────────────────────────────────────────
 
   addSipInstrument: async (instrument) => {
     const uid = get().uid;
@@ -713,8 +681,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ── Settings ─────────────────────────────────────────────────────────────────
-
   setNotionConfig: async (patch) => {
     const uid = get().uid;
     if (!uid) return;
@@ -737,8 +703,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     );
     set({ essentials });
   },
-
-  // ── Snapshots ────────────────────────────────────────────────────────────────
 
   recordSnapshotIfNeeded: async () => {
     const uid = get().uid;
@@ -765,7 +729,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'snapshots', snap);
     set((s) => ({
       snapshots: [...s.snapshots, snap as PortfolioSnapshot].sort((a, b) =>
-        a.date.localeCompare(b.date),
+        safeCompare(a.date, b.date),
       ),
       _lastSnapshotDate: date,
     }));
@@ -811,8 +775,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'insights', snapshot);
     set({ latestInsight: snapshot });
   },
-
-  // ── Clear All ────────────────────────────────────────────────────────────────
 
   clearAllData: async () => {
     const uid = get().uid;
