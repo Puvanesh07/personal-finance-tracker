@@ -1,6 +1,6 @@
-import { FiPlus, FiSave } from 'react-icons/fi';
+import { FiCalendar, FiChevronDown, FiPlus, FiSave } from 'react-icons/fi';
 import type { Liability, LiabilityType } from '../../types/investmentTypes';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
 import { NumericInput } from '../ui/NumericInput';
@@ -21,6 +21,7 @@ type FormState = {
   principal: string;
   outstanding: string;
   interestRate: string;
+  endDate: string;
 };
 
 function toNum(v: string) {
@@ -32,6 +33,9 @@ export function UpsertLiabilityModal(props: Props) {
   const addLiability = usePortfolioStore((s) => s.addLiability);
   const updateLiability = usePortfolioStore((s) => s.updateLiability);
 
+  // Create a reference to control the native date picker
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
   const initial = useMemo<FormState>(() => {
     const base: FormState = {
       type: 'loan',
@@ -39,6 +43,7 @@ export function UpsertLiabilityModal(props: Props) {
       principal: '0',
       outstanding: '0',
       interestRate: '',
+      endDate: '',
     };
     if (props.mode === 'edit') {
       base.type = props.liability.type;
@@ -49,15 +54,20 @@ export function UpsertLiabilityModal(props: Props) {
         props.liability.interestRate == null
           ? ''
           : String(props.liability.interestRate);
+      base.endDate = props.liability.endDate || '';
     }
     return base;
   }, [props.mode, (props as any).liability]);
 
   const [state, setState] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    if (props.open) setState(initial);
+    if (props.open) {
+      setState(initial);
+      setIsDropdownOpen(false);
+    }
   }, [props.open, initial]);
 
   async function onSubmit() {
@@ -71,6 +81,7 @@ export function UpsertLiabilityModal(props: Props) {
         ...(state.interestRate.trim()
           ? { interestRate: toNum(state.interestRate) }
           : {}),
+        ...(state.endDate.trim() ? { endDate: state.endDate } : {}),
       };
       if (props.mode === 'create') await addLiability(payload as any);
       else await updateLiability(props.liability.id, payload as any);
@@ -80,51 +91,108 @@ export function UpsertLiabilityModal(props: Props) {
     }
   }
 
+  const formatDateLabel = (dateStr: string) => {
+    if (!dateStr) return 'Select date...';
+    const [year, month, day] = dateStr.split('-');
+    const d = new Date(Number(year), Number(month) - 1, Number(day));
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  // Helper function to force open the date picker
+  const handleDateClick = () => {
+    if (dateInputRef.current) {
+      try {
+        // Modern browsers: forces the calendar popup to appear and auto-position
+        dateInputRef.current.showPicker();
+      } catch (error) {
+        // Fallback for older browsers
+        dateInputRef.current.focus();
+      }
+    }
+  };
+
   const inputCls =
     'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500';
   const labelCls =
     'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block';
 
+  const typeOptions = [
+    { id: 'loan', label: 'Formal Loan (Bank/App)' },
+    { id: 'credit_card', label: 'Credit Card Bill' },
+    { id: 'other', label: 'Personal / Hand Loan (Friends/Family)' },
+  ];
+
   return (
     <Modal
       open={props.open}
       onClose={props.onClose}
-      title={props.mode === 'create' ? 'Add Liability' : 'Edit Liability'}
+      title={
+        props.mode === 'create' ? 'Add Borrowed Money' : 'Edit Borrowed Money'
+      }
     >
       <div className='grid grid-cols-1 gap-5'>
         {props.mode === 'create' ? (
-          <label className='block'>
-            <span className={labelCls}>Liability Type</span>
-            <select
-              className={`${inputCls} appearance-none`}
-              value={state.type}
-              onChange={(e) =>
-                setState((s) => ({
-                  ...s,
-                  type: e.target.value as LiabilityType,
-                }))
-              }
+          <div className='block relative'>
+            <span className={labelCls}>Type of Debt</span>
+            <button
+              type='button'
+              className={`${inputCls} flex items-center justify-between text-left`}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <option value='loan'>Loan</option>
-              <option value='credit_card'>Credit Card</option>
-              <option value='other'>Other</option>
-            </select>
-          </label>
+              <span className='truncate'>
+                {typeOptions.find((opt) => opt.id === state.type)?.label}
+              </span>
+              <FiChevronDown
+                className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {isDropdownOpen && (
+              <>
+                <div
+                  className='fixed inset-0 z-40'
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                {/* Changed to top-full to ensure it positions directly below the button automatically */}
+                <div className='absolute left-0 top-full mt-2 z-50 w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800'>
+                  {typeOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type='button'
+                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                      onClick={() => {
+                        setState((s) => ({
+                          ...s,
+                          type: opt.id as LiabilityType,
+                        }));
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         ) : null}
 
         <label className='block'>
-          <span className={labelCls}>Name</span>
+          <span className={labelCls}>Name / Description</span>
           <input
             className={inputCls}
             value={state.name}
             onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
-            placeholder='e.g. Home loan, Car loan'
+            placeholder='e.g., Rent money from friend, Car EMI'
           />
         </label>
 
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
-            <span className={labelCls}>Principal Amount</span>
+            <span className={labelCls}>Total Borrowed (Initial)</span>
             <NumericInput
               className={inputCls}
               value={state.principal}
@@ -132,7 +200,7 @@ export function UpsertLiabilityModal(props: Props) {
             />
           </label>
           <label className='block'>
-            <span className={labelCls}>Outstanding Balance</span>
+            <span className={labelCls}>Amount Left to Pay (Pending)</span>
             <NumericInput
               className={inputCls}
               value={state.outstanding}
@@ -141,15 +209,52 @@ export function UpsertLiabilityModal(props: Props) {
           </label>
         </div>
 
-        <label className='block'>
-          <span className={labelCls}>Interest Rate (% p.a., Optional)</span>
-          <NumericInput
-            className={inputCls}
-            value={state.interestRate}
-            onChange={(v) => setState((s) => ({ ...s, interestRate: v }))}
-            placeholder='e.g. 9.25'
-          />
-        </label>
+        <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+          <label className='block'>
+            <span className={labelCls}>Interest Rate (% Yearly)</span>
+            <NumericInput
+              className={inputCls}
+              value={state.interestRate}
+              onChange={(v) => setState((s) => ({ ...s, interestRate: v }))}
+              placeholder='e.g. 0 for friends'
+            />
+          </label>
+
+          <label className='block'>
+            <span className={labelCls}>Expected Repayment Date</span>
+            <div className='relative'>
+              {/* This visual box now acts as a giant button that triggers the hidden input */}
+              <div
+                className={`${inputCls} flex items-center justify-between cursor-pointer`}
+                onClick={handleDateClick}
+              >
+                <span
+                  className={
+                    state.endDate
+                      ? 'text-slate-900 dark:text-slate-100'
+                      : 'text-slate-400'
+                  }
+                >
+                  {formatDateLabel(state.endDate)}
+                </span>
+                <FiCalendar className='h-4 w-4 shrink-0 text-slate-400' />
+              </div>
+
+              {/* Hidden Native Input: We make it pointer-events-none so it doesn't block clicks,
+                but it remains visible to the browser so showPicker() works perfectly.
+              */}
+              <input
+                ref={dateInputRef}
+                type='date'
+                className='absolute inset-0 h-full w-full opacity-0 pointer-events-none'
+                value={state.endDate}
+                onChange={(e) =>
+                  setState((s) => ({ ...s, endDate: e.target.value }))
+                }
+              />
+            </div>
+          </label>
+        </div>
 
         <div className='mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60'>
           <button
@@ -174,7 +279,7 @@ export function UpsertLiabilityModal(props: Props) {
             ) : props.mode === 'create' ? (
               <>
                 <FiPlus className='h-4 w-4' />
-                <span>Add Liability</span>
+                <span>Add Record</span>
               </>
             ) : (
               <>

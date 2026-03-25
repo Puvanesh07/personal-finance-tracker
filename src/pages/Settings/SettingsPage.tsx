@@ -1,32 +1,269 @@
 // src/pages/Settings/SettingsPage.tsx
-// UPDATED: Attractive, user-friendly layout with cleaner sections
-//          Install App card opens the PWA install prompt or links to correct tab
+//
+// REDESIGNED — Full tabbed Settings page with:
+//   1. Profile tab  — edit display name, view email, avatar
+//   2. Export/Import tab — CSV export, JSON backup/restore
+//   3. App tab       — PWA install, encryption toggle
+//   4. Essentials tab — emergency fund config
+//   5. Integrations tab — Notion sync
+//   6. Danger Zone tab — clear data, delete account
+//
+// Responsive: stacked pill-tabs on mobile, icon-tabs on desktop sidebar
 
 import {
+  DangerZone,
+  ExportImport,
+} from '../../components/settings/DataManagement';
+import {
+  FiAlertOctagon,
   FiCheckCircle,
+  FiCloud,
+  FiDatabase,
   FiDownload,
+  FiEdit2,
   FiExternalLink,
   FiLogOut,
   FiMail,
+  FiSave,
   FiSettings,
+  FiShield,
   FiSmartphone,
   FiUser,
 } from 'react-icons/fi';
+import { signOut, updateProfile } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 
-import { DataManagement } from '../../components/settings/DataManagement';
 import EncryptionSettings from './EncryptionSettings';
 import { EssentialsSettings } from '../../components/settings/EssentialsSettings';
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
 import { auth } from '../../services/firebase';
-import { signOut } from 'firebase/auth';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-export function SettingsPage() {
-  const { uid } = usePortfolioStore();
+// ─── Tab config ─────────────────────────────────────────────────────────────
+
+type TabId =
+  | 'profile'
+  | 'data'
+  | 'app'
+  | 'essentials'
+  | 'integrations'
+  | 'danger';
+
+const TABS: {
+  id: TabId;
+  label: string;
+  icon: React.ElementType;
+  color?: string;
+}[] = [
+  { id: 'profile', label: 'Profile', icon: FiUser },
+  { id: 'data', label: 'Export / Import', icon: FiDatabase },
+  { id: 'app', label: 'App & Security', icon: FiSmartphone },
+  { id: 'essentials', label: 'Essentials', icon: FiShield },
+  { id: 'integrations', label: 'Integrations', icon: FiCloud },
+  {
+    id: 'danger',
+    label: 'Danger Zone',
+    icon: FiAlertOctagon,
+    color: 'text-rose-400',
+  },
+];
+
+// ─── Profile Tab ─────────────────────────────────────────────────────────────
+
+function ProfileTab() {
   const user = auth.currentUser;
+  const [editingName, setEditingName] = useState(false);
+  const [name, setName] = useState(user?.displayName || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+
+  const handleSaveName = async () => {
+    if (!user || !name.trim()) return;
+    setSaving(true);
+    try {
+      await updateProfile(user, { displayName: name.trim() });
+      setSaved(true);
+      setEditingName(false);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error('Failed to update name:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmLogout = async () => {
+    try {
+      await signOut(auth);
+      window.location.href = '/';
+    } catch {}
+  };
+
+  // First letter of display name, or first letter of email, or 'U'
+  const firstLetter = (user?.displayName ||
+    user?.email ||
+    'U')[0].toUpperCase();
+
+  const [imgError, setImgError] = useState(false);
+  const showInitials = !user?.photoURL || imgError;
+
+  return (
+    <div className='flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500'>
+      {/* Avatar + Name Block */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6'>
+        {/* Avatar */}
+        <div className='relative shrink-0'>
+          {showInitials ? (
+            <div className='h-24 w-24 rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-emerald-700/30 flex items-center justify-center shadow-xl'>
+              <span className='text-4xl font-black text-emerald-400 select-none'>
+                {firstLetter}
+              </span>
+            </div>
+          ) : (
+            <img
+              src={user!.photoURL!}
+              alt='Profile'
+              className='h-24 w-24 rounded-2xl border-2 border-emerald-500/30 object-cover shadow-xl'
+              onError={() => setImgError(true)}
+            />
+          )}
+          <span className='absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-slate-900 bg-emerald-500 shadow' />
+        </div>
+
+        {/* Info */}
+        <div className='flex-1 min-w-0 text-center sm:text-left'>
+          {/* Display Name */}
+          {editingName ? (
+            <div className='flex items-center gap-2'>
+              <input
+                className='flex-1 rounded-xl border border-emerald-500/40 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-emerald-500/30 transition'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                autoFocus
+                placeholder='Your display name'
+              />
+              <button
+                onClick={handleSaveName}
+                disabled={saving || !name.trim()}
+                className='inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors'
+              >
+                <FiSave className='h-3.5 w-3.5' />
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingName(false);
+                  setName(user?.displayName || '');
+                }}
+                className='rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className='flex items-center justify-center sm:justify-start gap-3'>
+              <h2 className='text-xl font-black text-white truncate'>
+                {user?.displayName || 'FinTrackly User'}
+              </h2>
+              <button
+                onClick={() => setEditingName(true)}
+                className='flex items-center gap-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors'
+              >
+                <FiEdit2 className='h-3 w-3' /> Edit
+              </button>
+            </div>
+          )}
+
+          {saved && (
+            <p className='mt-1 text-xs font-semibold text-emerald-400 animate-pulse'>
+              ✓ Name updated successfully
+            </p>
+          )}
+
+          {/* Email */}
+          <p className='mt-2 flex items-center justify-center sm:justify-start gap-1.5 text-sm text-slate-400'>
+            <FiMail className='h-3.5 w-3.5' />
+            {user?.email || 'No email linked'}
+          </p>
+
+          {/* Auth badge */}
+          <div className='mt-3 flex items-center justify-center sm:justify-start gap-2'>
+            <span className='inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-400'>
+              <FiCheckCircle className='h-3 w-3' />
+              {user?.providerData?.[0]?.providerId === 'google.com'
+                ? 'Google Auth'
+                : 'Email Auth'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* UID card */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/40 p-5'>
+        <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2'>
+          Account ID
+        </p>
+        <p className='font-mono text-xs text-emerald-400 break-all'>
+          {user?.uid}
+        </p>
+        <p className='mt-2 text-[11px] text-slate-500'>
+          Your data is stored securely on Firebase, tied to this unique ID.
+        </p>
+      </div>
+
+      {/* Sign out */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/40 p-5 flex items-center justify-between gap-4'>
+        <div>
+          <p className='text-sm font-bold text-slate-200'>Sign Out</p>
+          <p className='text-xs text-slate-500 mt-0.5'>
+            You will need to log in again to access your data.
+          </p>
+        </div>
+        <button
+          onClick={() => setLogoutOpen(true)}
+          className='flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-400 hover:bg-rose-500/20 transition-colors whitespace-nowrap'
+        >
+          <FiLogOut className='h-4 w-4' /> Sign Out
+        </button>
+      </div>
+
+      {/* Logout modal */}
+      <Modal
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        title='Confirm Sign Out'
+      >
+        <div className='space-y-6'>
+          <p className='text-sm text-slate-400'>
+            Are you sure you want to sign out?
+          </p>
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+            <button
+              onClick={() => setLogoutOpen(false)}
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmLogout}
+              className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
+            >
+              Yes, Sign Out
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── App & Security Tab (PWA + Encryption) ───────────────────────────────────
+
+function AppSecurityTab() {
+  const { uid } = usePortfolioStore();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installPrompted, setInstallPrompted] = useState(false);
@@ -56,19 +293,189 @@ export function SettingsPage() {
     setInstallPrompted(true);
   };
 
-  const confirmLogout = async () => {
-    try {
-      await signOut(auth);
-      setLogoutOpen(false);
-    } catch {}
-  };
-
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isAndroid = /android/i.test(navigator.userAgent);
 
   return (
+    <div className='flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500'>
+      {/* Install App */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-6'>
+        <div className='flex items-center gap-3 mb-4'>
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800'>
+            <FiSmartphone className='h-4 w-4 text-slate-300' />
+          </div>
+          <div>
+            <h2 className='text-base font-bold text-slate-100'>Install App</h2>
+            <p className='text-xs text-slate-500'>
+              Add to home screen for native-like experience
+            </p>
+          </div>
+        </div>
+
+        {isInstalled ? (
+          <div className='flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3'>
+            <FiCheckCircle className='h-5 w-5 shrink-0 text-emerald-400' />
+            <div>
+              <p className='text-sm font-bold text-emerald-300'>
+                App Installed ✓
+              </p>
+              <p className='text-xs text-emerald-400/70 mt-0.5'>
+                FinTrackly is running as a native app.
+              </p>
+            </div>
+          </div>
+        ) : deferredPrompt ? (
+          <button
+            onClick={handleInstall}
+            className='flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3.5 text-sm font-bold text-white shadow-lg hover:from-emerald-500 hover:to-emerald-600 transition-all'
+          >
+            <FiDownload className='h-4 w-4' />
+            Install FinTrackly
+          </button>
+        ) : (
+          <div className='flex flex-col gap-3'>
+            <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
+              <span className='text-lg shrink-0'>🤖</span>
+              <div>
+                <p className='text-xs font-bold text-slate-200'>
+                  Android / Chrome
+                </p>
+                <p className='text-xs text-slate-400 mt-0.5'>
+                  Tap the <strong className='text-slate-200'>⋮ menu</strong> →{' '}
+                  <strong className='text-slate-200'>
+                    "Add to Home screen"
+                  </strong>
+                </p>
+                {isAndroid && (
+                  <button
+                    onClick={() => window.open(window.location.href, '_blank')}
+                    className='mt-2 flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
+                  >
+                    Open in Chrome <FiExternalLink className='h-3 w-3' />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
+              <span className='text-lg shrink-0'>🍎</span>
+              <div>
+                <p className='text-xs font-bold text-slate-200'>
+                  iPhone / Safari
+                </p>
+                <p className='text-xs text-slate-400 mt-0.5'>
+                  Tap <strong className='text-slate-200'>Share ⬆</strong> →{' '}
+                  <strong className='text-slate-200'>
+                    "Add to Home Screen"
+                  </strong>
+                </p>
+                {isIOS && (
+                  <button
+                    onClick={() => window.open(window.location.href, '_blank')}
+                    className='mt-2 flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
+                  >
+                    Open in Safari <FiExternalLink className='h-3 w-3' />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
+              <span className='text-lg shrink-0'>💻</span>
+              <div>
+                <p className='text-xs font-bold text-slate-200'>
+                  Desktop Chrome / Edge
+                </p>
+                <p className='text-xs text-slate-400 mt-0.5'>
+                  Click{' '}
+                  <strong className='text-slate-200'>⊕ install icon</strong> in
+                  the address bar
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        {installPrompted && !isInstalled && (
+          <p className='mt-3 text-xs text-slate-500 text-center'>
+            Prompt dismissed — refresh the page to try again.
+          </p>
+        )}
+      </div>
+
+      {/* Encryption */}
+      <EncryptionSettings uid={uid} />
+    </div>
+  );
+}
+
+// ─── Danger Zone Tab ─────────────────────────────────────────────────────────
+
+function DangerZoneTab() {
+  return (
+    <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+      <div className='mb-5 flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4'>
+        <FiAlertOctagon className='h-5 w-5 shrink-0 text-rose-400' />
+        <div>
+          <p className='text-sm font-bold text-rose-300'>Danger Zone</p>
+          <p className='text-xs text-rose-400/70 mt-0.5'>
+            Actions here are permanent and cannot be undone. Please be careful.
+          </p>
+        </div>
+      </div>
+      <DangerZone />
+    </div>
+  );
+}
+
+// ─── Main SettingsPage ────────────────────────────────────────────────────────
+
+export function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'profile':
+        return <ProfileTab />;
+      case 'data':
+        return (
+          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+            <div className='mb-4'>
+              <h2 className='flex items-center gap-2 text-xl font-bold text-slate-100'>
+                <FiDatabase className='text-emerald-400' /> Export &amp; Import
+              </h2>
+              <p className='mt-1 text-sm text-slate-400'>
+                Download your data as CSV or take a full JSON backup. Restore
+                from a backup anytime.
+              </p>
+            </div>
+            <ExportImport />
+          </div>
+        );
+      case 'app':
+        return <AppSecurityTab />;
+      case 'essentials':
+        return <EssentialsSettings />;
+      case 'integrations':
+        return (
+          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+            <div className='mb-4'>
+              <h2 className='flex items-center gap-2 text-xl font-bold text-slate-100'>
+                <FiCloud className='text-emerald-400' /> Integrations
+              </h2>
+              <p className='mt-1 text-sm text-slate-400'>
+                Connect third-party tools to sync your portfolio data
+                automatically.
+              </p>
+            </div>
+            <NotionSettings />
+          </div>
+        );
+      case 'danger':
+        return <DangerZoneTab />;
+    }
+  };
+
+  return (
     <div className='flex flex-col gap-6 pb-10'>
-      {/* Header */}
+      {/* ── Page Header ── */}
       <header className='flex items-center gap-4 rounded-2xl bg-gradient-to-r from-slate-800/80 to-slate-900/40 p-5 border border-slate-700/60 shadow-sm'>
         <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-lg'>
           <FiSettings className='h-6 w-6' />
@@ -76,220 +483,66 @@ export function SettingsPage() {
         <div>
           <h1 className='text-2xl font-bold text-white'>Settings</h1>
           <p className='text-sm text-slate-400 mt-0.5'>
-            Manage your account, data, integrations, and app installation.
+            Manage your profile, data, security, and app preferences.
           </p>
         </div>
       </header>
 
-      <div className='grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3'>
-        {/* ── User Profile ── */}
-        <div className='flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm'>
-          <div className='flex items-center justify-between border-b border-slate-800/60 pb-4'>
-            <div className='flex items-center gap-2.5'>
-              <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800'>
-                <FiUser className='h-4 w-4 text-slate-400' />
-              </div>
-              <h2 className='text-base font-bold text-slate-100'>
-                User Profile
-              </h2>
-            </div>
-            <button
-              onClick={() => setLogoutOpen(true)}
-              className='flex items-center gap-1.5 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-colors'
-            >
-              <FiLogOut className='h-3 w-3' /> Sign Out
-            </button>
-          </div>
+      {/* ── Layout: sidebar tabs on md+, scrollable tabs on mobile ── */}
+      <div className='flex flex-col md:flex-row gap-6'>
+        {/* ── MOBILE / TABLET: Horizontal scrollable pills ── */}
+        <div className='md:hidden flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none'>
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all shrink-0 ${
+                  isActive
+                    ? tab.id === 'danger'
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                    : 'bg-slate-800/60 text-slate-400 border border-slate-700/50 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`h-3.5 w-3.5 ${tab.color || ''}`} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Avatar */}
-          <div className='flex items-center gap-4'>
-            <div className='relative shrink-0'>
-              {user?.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt='Profile'
-                  className='h-16 w-16 rounded-full border-2 border-emerald-500/30 object-cover shadow-xl'
+        {/* ── DESKTOP: Vertical sidebar tabs ── */}
+        <aside className='hidden md:flex flex-col gap-1 w-52 shrink-0'>
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-left transition-all ${
+                  isActive
+                    ? tab.id === 'danger'
+                      ? 'bg-rose-500/15 text-rose-400 shadow-[inset_4px_0_0_0_rgba(244,63,94,1)]'
+                      : 'bg-emerald-500/10 text-emerald-400 shadow-[inset_4px_0_0_0_rgba(16,185,129,1)]'
+                    : `text-slate-400 hover:bg-slate-800 hover:text-slate-100 ${tab.id === 'danger' ? 'hover:text-rose-400' : ''}`
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${isActive ? '' : tab.color || ''}`}
                 />
-              ) : (
-                <div className='flex h-16 w-16 items-center justify-center rounded-full bg-slate-800 border-2 border-slate-700'>
-                  <FiUser className='h-7 w-7 text-slate-400' />
-                </div>
-              )}
-              <span className='absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-slate-900 bg-emerald-500' />
-            </div>
-            <div className='min-w-0'>
-              <p className='font-bold text-slate-100 truncate'>
-                {user?.displayName || 'FinTrackly User'}
-              </p>
-              <p className='flex items-center gap-1 text-xs text-slate-400 mt-0.5 truncate'>
-                <FiMail className='h-3 w-3 shrink-0' />{' '}
-                {user?.email || 'No email'}
-              </p>
-              <span className='mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full'>
-                <FiCheckCircle className='h-3 w-3' /> Google Auth
-              </span>
-            </div>
-          </div>
+                {tab.label}
+              </button>
+            );
+          })}
+        </aside>
 
-          {/* UID */}
-          <div className='rounded-xl bg-slate-800/50 px-4 py-3'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1'>
-              User ID
-            </p>
-            <p className='font-mono text-xs text-emerald-400 break-all'>
-              {user?.uid?.slice(0, 12)}…
-            </p>
-            <p className='text-[10px] text-slate-500 mt-1'>
-              Your data is encrypted and synced via Firebase.
-            </p>
-          </div>
-        </div>
-
-        {/* ── Install App ── */}
-        <div className='flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm'>
-          <div className='flex items-center gap-2.5 border-b border-slate-800/60 pb-4'>
-            <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800'>
-              <FiSmartphone className='h-4 w-4 text-slate-400' />
-            </div>
-            <h2 className='text-base font-bold text-slate-100'>Install App</h2>
-          </div>
-
-          <p className='text-sm text-slate-400'>
-            Add FinTrackly to your home screen for instant access. Works like a
-            native app — offline support, no browser UI.
-          </p>
-
-          {isInstalled ? (
-            <div className='flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3'>
-              <FiCheckCircle className='h-5 w-5 shrink-0 text-emerald-400' />
-              <div>
-                <p className='text-sm font-bold text-emerald-300'>
-                  App Installed ✓
-                </p>
-                <p className='text-xs text-emerald-400/70 mt-0.5'>
-                  FinTrackly is running as a native app.
-                </p>
-              </div>
-            </div>
-          ) : deferredPrompt ? (
-            <button
-              onClick={handleInstall}
-              className='flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-emerald-600 transition-all'
-            >
-              <FiDownload className='h-4 w-4' />
-              Install FinTrackly
-            </button>
-          ) : (
-            <div className='flex flex-col gap-3'>
-              {/* Android step */}
-              <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
-                <span className='text-lg shrink-0'>🤖</span>
-                <div>
-                  <p className='text-xs font-bold text-slate-200'>
-                    Android / Chrome
-                  </p>
-                  <p className='text-xs text-slate-400 mt-0.5'>
-                    Tap the <strong className='text-slate-200'>⋮ menu</strong> →{' '}
-                    <strong className='text-slate-200'>
-                      "Add to Home screen"
-                    </strong>
-                  </p>
-                  {isAndroid && (
-                    <button
-                      onClick={() =>
-                        window.open(window.location.href, '_blank')
-                      }
-                      className='mt-2 flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
-                    >
-                      Open in Chrome <FiExternalLink className='h-3 w-3' />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* iOS step */}
-              <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
-                <span className='text-lg shrink-0'>🍎</span>
-                <div>
-                  <p className='text-xs font-bold text-slate-200'>
-                    iPhone / Safari
-                  </p>
-                  <p className='text-xs text-slate-400 mt-0.5'>
-                    Tap <strong className='text-slate-200'>Share ⬆</strong> →{' '}
-                    <strong className='text-slate-200'>
-                      "Add to Home Screen"
-                    </strong>
-                  </p>
-                  {isIOS && (
-                    <button
-                      onClick={() =>
-                        window.open(window.location.href, '_blank')
-                      }
-                      className='mt-2 flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
-                    >
-                      Open in Safari <FiExternalLink className='h-3 w-3' />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Desktop step */}
-              <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
-                <span className='text-lg shrink-0'>💻</span>
-                <div>
-                  <p className='text-xs font-bold text-slate-200'>
-                    Desktop Chrome / Edge
-                  </p>
-                  <p className='text-xs text-slate-400 mt-0.5'>
-                    Click{' '}
-                    <strong className='text-slate-200'>⊕ install icon</strong>{' '}
-                    in the address bar
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {installPrompted && !isInstalled && (
-            <p className='text-xs text-slate-500 text-center'>
-              Prompt dismissed — refresh the page to try again.
-            </p>
-          )}
-        </div>
-
-        {/* ── Other Sections ── */}
-        <EncryptionSettings uid={uid} />
-        <NotionSettings />
-        <EssentialsSettings />
-        <DataManagement />
+        {/* ── Content panel ── */}
+        <div className='flex-1 min-w-0'>{renderContent()}</div>
       </div>
-
-      {/* Logout Modal */}
-      <Modal
-        open={logoutOpen}
-        onClose={() => setLogoutOpen(false)}
-        title='Confirm Sign Out'
-      >
-        <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
-            Are you sure you want to sign out?
-          </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
-            <button
-              onClick={() => setLogoutOpen(false)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmLogout}
-              className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
-            >
-              Yes, Sign Out
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

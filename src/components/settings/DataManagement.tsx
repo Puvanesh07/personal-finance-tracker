@@ -1,14 +1,16 @@
 // src/components/settings/DataManagement.tsx
 //
-// UPDATED:
-//  1. Clear All Data now also clears localStorage SIP plan cache
-//  2. Added "Delete Account" button — deletes Firebase Auth user + all Firestore data
-//  3. Export/Import JSON now includes insurancePolicies + sipPlans (via backup.ts v4)
+// Two separate named exports — use the right one per tab:
+//   <ExportImport /> → "Export / Import" tab (CSV + JSON backup + restore only)
+//   <DangerZone />   → "Danger Zone" tab (Clear data + Delete account only)
+//
+// DataManagement (default) kept for legacy compatibility only.
 
 import {
-  FiAlertOctagon,
-  FiDatabase,
+  FiArrowDown,
+  FiArrowUp,
   FiDownload,
+  FiTable,
   FiTrash2,
   FiUpload,
   FiUserX,
@@ -20,7 +22,6 @@ import {
 import { exportFullBackup, importFullBackup } from '../../utils/backup';
 import { useRef, useState } from 'react';
 
-import { Card } from '../ui/Card';
 import { Modal } from '../ui/Modal';
 import { auth } from '../../services/firebase';
 import { deleteUser } from 'firebase/auth';
@@ -29,30 +30,24 @@ import { useAgriStore } from '../../store/agricultureStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-const SIP_STORAGE_KEY = 'fintrackly_sip_plan'; // legacy localStorage key — cleared on wipe
+const SIP_STORAGE_KEY = 'fintrackly_sip_plan';
 
-export function DataManagement() {
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT / IMPORT — shown only in the "Export / Import" tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function ExportImport() {
   const state = usePortfolioStore();
-  const { clearAllData, hydrate, uid } = state;
+  const { hydrate, uid } = state;
 
   const agriState = useAgriStore();
   const agriHydrate = agriState.hydrate;
-  const agriClear = agriState.clearAll;
 
   const attState = useAttendanceStore();
   const attHydrate = attState.hydrate;
-  const attClear = attState.clearAll;
 
   const importRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
-
-  // Clear all data modal
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
-
-  // Delete account modal
-  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [deleteAccountText, setDeleteAccountText] = useState('');
 
   const handleExportCSV = () => {
     const hasFinance =
@@ -62,7 +57,6 @@ export function DataManagement() {
       state.goals?.length ||
       state.accounts?.length ||
       state.soldTrades?.length;
-
     const hasAgri =
       agriState.fields?.length ||
       agriState.cropCycles?.length ||
@@ -70,7 +64,6 @@ export function DataManagement() {
       agriState.livestockEvents?.length ||
       agriState.milkRecords?.length ||
       agriState.coconutRecords?.length;
-
     const hasAtt =
       attState.employees?.length ||
       attState.attendanceRecords?.length ||
@@ -81,17 +74,14 @@ export function DataManagement() {
       toast.error('Nothing to export — add some data first.');
       return;
     }
-    if (hasFinance || hasAgri) {
-      exportAllSectionsAsCSV(state, agriState);
-    }
-    if (hasAtt) {
+    if (hasFinance || hasAgri) exportAllSectionsAsCSV(state, agriState);
+    if (hasAtt)
       exportAttendanceCSV({
         employees: attState.employees,
         attendanceRecords: attState.attendanceRecords,
         transactions: attState.transactions,
         salaryRecords: attState.salaryRecords,
       });
-    }
     toast.success('All data exported as CSV files.');
   };
 
@@ -103,9 +93,7 @@ export function DataManagement() {
     setBusy(true);
     try {
       await exportFullBackup(uid);
-      toast.success(
-        'Full backup downloaded — finance, agriculture, attendance, insurance & SIP plan included.',
-      );
+      toast.success('Full backup downloaded.');
     } catch (err: any) {
       toast.error(err.message || 'Export failed.');
     } finally {
@@ -132,6 +120,109 @@ export function DataManagement() {
     }
   };
 
+  return (
+    <div className='flex flex-col gap-4'>
+      {/* Export CSV */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
+        <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20'>
+          <FiTable className='h-5 w-5 text-emerald-400' />
+        </div>
+        <div className='flex-1 min-w-0'>
+          <p className='font-bold text-slate-100 text-sm'>Export as CSV</p>
+          <p className='text-xs text-slate-500 mt-0.5'>
+            Download all sections as separate CSV files — open in Excel or
+            Google Sheets. Includes finance, agriculture, attendance &amp;
+            salary data.
+          </p>
+        </div>
+        <button
+          onClick={handleExportCSV}
+          disabled={busy}
+          className='flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
+        >
+          <FiDownload className='h-4 w-4' /> Export CSV
+        </button>
+      </div>
+
+      {/* Export JSON */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
+        <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20'>
+          <FiArrowDown className='h-5 w-5 text-indigo-400' />
+        </div>
+        <div className='flex-1 min-w-0'>
+          <p className='font-bold text-slate-100 text-sm'>Full Backup (JSON)</p>
+          <p className='text-xs text-slate-500 mt-0.5'>
+            Complete backup of your entire account — finance, agriculture,
+            attendance, insurance &amp; SIP plan in one file. Use this to
+            restore your data later.
+          </p>
+        </div>
+        <button
+          onClick={handleExportJSON}
+          disabled={busy}
+          className='flex items-center gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-sm font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
+        >
+          <FiDownload className='h-4 w-4' />
+          {busy ? 'Exporting…' : 'Export JSON'}
+        </button>
+      </div>
+
+      {/* Import JSON */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
+        <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 border border-sky-500/20'>
+          <FiArrowUp className='h-5 w-5 text-sky-400' />
+        </div>
+        <div className='flex-1 min-w-0'>
+          <p className='font-bold text-slate-100 text-sm'>
+            Restore from Backup
+          </p>
+          <p className='text-xs text-slate-500 mt-0.5'>
+            Import a previously exported JSON backup file to restore all your
+            data. This will overwrite your current data.
+          </p>
+        </div>
+        <input
+          ref={importRef}
+          type='file'
+          accept='.json'
+          className='hidden'
+          onChange={handleImportFile}
+        />
+        <button
+          onClick={() => importRef.current?.click()}
+          disabled={busy}
+          className='flex items-center gap-2 rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-2.5 text-sm font-bold text-sky-400 hover:bg-sky-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
+        >
+          <FiUpload className='h-4 w-4' />
+          {busy ? 'Importing…' : 'Import JSON'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DANGER ZONE — shown only in the "Danger Zone" tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function DangerZone() {
+  const state = usePortfolioStore();
+  const { clearAllData } = state;
+
+  const agriState = useAgriStore();
+  const agriClear = agriState.clearAll;
+
+  const attState = useAttendanceStore();
+  const attClear = attState.clearAll;
+
+  const [busy, setBusy] = useState(false);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteAccountText, setDeleteAccountText] = useState('');
+
   const handleClearData = async () => {
     if (confirmText.trim().toLowerCase() !== 'delete') return;
     setBusy(true);
@@ -139,7 +230,6 @@ export function DataManagement() {
       await clearAllData();
       agriClear();
       attClear();
-      // ✅ Also clear legacy localStorage SIP cache
       try {
         localStorage.removeItem(SIP_STORAGE_KEY);
       } catch {}
@@ -153,32 +243,23 @@ export function DataManagement() {
     }
   };
 
-  // ✅ Delete Account — wipes Firestore data then deletes Firebase Auth user
   const handleDeleteAccount = async () => {
     if (deleteAccountText.trim().toLowerCase() !== 'delete my account') return;
     setBusy(true);
     try {
-      // 1. Wipe all Firestore data first
       await clearAllData();
       agriClear();
       attClear();
       try {
         localStorage.removeItem(SIP_STORAGE_KEY);
       } catch {}
-
-      // 2. Delete Firebase Auth user
       const user = auth.currentUser;
-      if (user) {
-        await deleteUser(user);
-      }
-
+      if (user) await deleteUser(user);
       toast.success('Account deleted. Goodbye!');
-      // Redirect to home after short delay
       setTimeout(() => {
         window.location.href = '/';
       }, 1500);
     } catch (err: any) {
-      // Firebase requires recent login for deleteUser — handle re-auth error
       if (err.code === 'auth/requires-recent-login') {
         toast.error(
           'For security, please log out and log back in before deleting your account.',
@@ -191,132 +272,58 @@ export function DataManagement() {
     }
   };
 
-  const btnBase =
-    'flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold disabled:opacity-50 transition-colors';
-  const btnDefault = `${btnBase} border-slate-200/80 bg-white/50 text-slate-700 hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200`;
-  const btnIndigo = `${btnBase} border-indigo-200/80 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400`;
-
   return (
     <>
-      <Card
-        title={
-          <div className='flex items-center gap-2'>
-            <FiDatabase className='text-slate-500 dark:text-slate-400' /> Data
-            Management
+      <div className='flex flex-col gap-4'>
+        {/* Clear All Data */}
+        <div className='flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
+          <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/20'>
+            <FiTrash2 className='h-5 w-5 text-rose-400' />
           </div>
-        }
-      >
-        <div className='flex flex-col gap-6'>
-          <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
-
-          <p className='text-xs text-slate-500 dark:text-slate-400 leading-relaxed'>
-            Export all your data as CSV (open in Excel / Google Sheets) or as a
-            full JSON backup that includes finance, agriculture, attendance,
-            insurance policies and monthly SIP plan. Use Import to restore from
-            a backup.
-          </p>
-
-          <div className='flex flex-col gap-3'>
-            {/* Export CSV */}
-            <div className='flex flex-col gap-1'>
-              <button
-                className={btnDefault}
-                onClick={handleExportCSV}
-                disabled={busy}
-              >
-                <FiDownload className='h-4 w-4 text-emerald-500' /> Export All
-                Data (CSV)
-              </button>
-              <p className='text-[11px] text-slate-400 dark:text-slate-500 text-center'>
-                Finance · Agriculture · Workers · Attendance · Salary — as
-                separate CSV files
-              </p>
-            </div>
-
-            <div className='h-px w-full bg-slate-200/60 dark:bg-slate-800/60' />
-
-            {/* Export JSON */}
-            <div className='flex flex-col gap-1'>
-              <button
-                className={btnIndigo}
-                onClick={handleExportJSON}
-                disabled={busy}
-              >
-                <FiDownload className='h-4 w-4' />
-                {busy ? 'Exporting…' : 'Export Full Backup (JSON)'}
-              </button>
-              <p className='text-[11px] text-slate-400 dark:text-slate-500 text-center'>
-                Complete backup — finance, agri, attendance, insurance & SIP
-                plan in one file
-              </p>
-            </div>
-
-            {/* Import JSON */}
-            <div className='flex flex-col gap-1'>
-              <input
-                ref={importRef}
-                type='file'
-                accept='.json'
-                className='hidden'
-                onChange={handleImportFile}
-              />
-              <button
-                className={btnIndigo}
-                onClick={() => importRef.current?.click()}
-                disabled={busy}
-              >
-                <FiUpload className='h-4 w-4' />
-                {busy ? 'Importing…' : 'Import Full Backup (JSON)'}
-              </button>
-              <p className='text-[11px] text-slate-400 dark:text-slate-500 text-center'>
-                Restore from a previously exported JSON backup file
-              </p>
-            </div>
-          </div>
-
-          {/* Danger Zone */}
-          <div className='rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10'>
-            <div className='flex items-center gap-2 text-sm font-bold text-rose-700 dark:text-rose-400'>
-              <FiAlertOctagon className='h-5 w-5' /> Danger Zone
-            </div>
-            <p className='mt-2 text-xs text-rose-600 dark:text-rose-400'>
-              Permanently wipes <strong>all</strong> data from Firebase —
-              investments, liabilities, cashflows, goals, accounts, snapshots,
-              settings, insurance, SIP plan,{' '}
-              <strong>all agriculture data</strong> and{' '}
-              <strong>all attendance data</strong>. This cannot be undone.
-            </p>
-
-            {/* Clear All Data */}
-            <button
-              disabled={busy}
-              className='mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50'
-              onClick={() => {
-                setConfirmText('');
-                setConfirmOpen(true);
-              }}
-            >
-              <FiTrash2 className='h-4 w-4' /> Clear All Data
-            </button>
-
-            {/* ✅ Delete Account */}
-            <button
-              disabled={busy}
-              className='mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-600 bg-transparent px-4 py-2.5 text-sm font-bold text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 transition-colors'
-              onClick={() => {
-                setDeleteAccountText('');
-                setDeleteAccountOpen(true);
-              }}
-            >
-              <FiUserX className='h-4 w-4' /> Delete My Account
-            </button>
-            <p className='mt-2 text-[10px] text-rose-400/70 text-center'>
-              Deletes all your data AND removes your login credentials
-              permanently.
+          <div className='flex-1 min-w-0'>
+            <p className='font-bold text-slate-100 text-sm'>Clear All Data</p>
+            <p className='text-xs text-slate-500 mt-0.5'>
+              Permanently wipes all investments, accounts, goals, cashflows,
+              agriculture, attendance &amp; settings. Your login credentials
+              remain intact.
             </p>
           </div>
+          <button
+            disabled={busy}
+            onClick={() => {
+              setConfirmText('');
+              setConfirmOpen(true);
+            }}
+            className='flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50 transition-colors whitespace-nowrap'
+          >
+            <FiTrash2 className='h-4 w-4' /> Clear Data
+          </button>
         </div>
-      </Card>
+
+        {/* Delete Account */}
+        <div className='flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5'>
+          <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 border border-rose-500/30'>
+            <FiUserX className='h-5 w-5 text-rose-400' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='font-bold text-rose-300 text-sm'>Delete My Account</p>
+            <p className='text-xs text-slate-500 mt-0.5'>
+              Permanently deletes all your data AND removes your login
+              credentials. You will not be able to sign back in after this.
+            </p>
+          </div>
+          <button
+            disabled={busy}
+            onClick={() => {
+              setDeleteAccountText('');
+              setDeleteAccountOpen(true);
+            }}
+            className='flex items-center gap-2 rounded-xl border border-rose-500/50 bg-transparent px-4 py-2.5 text-sm font-bold text-rose-400 hover:bg-rose-500/15 disabled:opacity-50 transition-colors whitespace-nowrap'
+          >
+            <FiUserX className='h-4 w-4' /> Delete Account
+          </button>
+        </div>
+      </div>
 
       {/* ── Clear All Data Modal ── */}
       <Modal
@@ -325,12 +332,12 @@ export function DataManagement() {
         title='⚠ Confirm — Delete Everything'
       >
         <div className='space-y-5'>
-          <p className='text-sm text-slate-500 dark:text-slate-300'>
+          <p className='text-sm text-slate-400'>
             This will{' '}
-            <strong className='text-rose-500'>permanently delete</strong> every
+            <strong className='text-rose-400'>permanently delete</strong> every
             record — finance, agriculture and attendance data. Cannot be undone.
           </p>
-          <ul className='text-xs text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-5'>
+          <ul className='text-xs text-slate-500 space-y-1 list-disc pl-5'>
             <li>Investments, Sold Trades, Liabilities, Cashflows, Goals</li>
             <li>Accounts, Snapshots, Net Worth history, Insights</li>
             <li>Insurance Policies, Monthly SIP Plan</li>
@@ -338,26 +345,26 @@ export function DataManagement() {
             <li>Attendance — workers, daily records, advances, salary</li>
             <li>Settings (Essentials, Notion)</li>
           </ul>
-          <div className='rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10 p-3'>
-            <p className='text-xs font-bold text-rose-700 dark:text-rose-400 mb-2'>
+          <div className='rounded-xl border border-rose-500/20 bg-rose-500/10 p-3'>
+            <p className='text-xs font-bold text-rose-400 mb-2'>
               Type <span className='font-mono'>delete</span> to confirm:
             </p>
             <input
-              className='w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-mono text-rose-700 outline-none focus:ring-2 focus:ring-rose-400 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-300'
+              className='w-full rounded-lg border border-rose-500/30 bg-slate-900 px-3 py-2 text-sm font-mono text-rose-300 outline-none focus:ring-2 focus:ring-rose-500/30'
               placeholder='delete'
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               autoComplete='off'
             />
           </div>
-          <div className='flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800'>
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
             <button
               disabled={busy}
               onClick={() => {
                 setConfirmOpen(false);
                 setConfirmText('');
               }}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 disabled:opacity-50'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-50'
             >
               Cancel
             </button>
@@ -372,7 +379,7 @@ export function DataManagement() {
         </div>
       </Modal>
 
-      {/* ✅ Delete Account Modal */}
+      {/* ── Delete Account Modal ── */}
       <Modal
         open={deleteAccountOpen}
         onClose={() => !busy && setDeleteAccountOpen(false)}
@@ -383,13 +390,10 @@ export function DataManagement() {
             <p className='text-sm font-bold text-rose-400 mb-2'>
               ⚠ This is permanent and irreversible
             </p>
-            <p className='text-sm text-slate-400'>
-              This will permanently delete:
-            </p>
-            <ul className='text-xs text-slate-400 mt-2 space-y-1 list-disc pl-4'>
+            <ul className='text-xs text-slate-400 space-y-1 list-disc pl-4'>
               <li>
-                All your financial data (investments, cashflow, goals,
-                insurance, SIP plan…)
+                All financial data (investments, cashflow, goals, insurance, SIP
+                plan…)
               </li>
               <li>All agriculture and attendance records</li>
               <li>
@@ -397,13 +401,13 @@ export function DataManagement() {
               </li>
             </ul>
           </div>
-          <div className='rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10 p-3'>
-            <p className='text-xs font-bold text-rose-700 dark:text-rose-400 mb-2'>
+          <div className='rounded-xl border border-rose-500/20 bg-rose-500/10 p-3'>
+            <p className='text-xs font-bold text-rose-400 mb-2'>
               Type <span className='font-mono'>delete my account</span> to
               confirm:
             </p>
             <input
-              className='w-full rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-mono text-rose-700 outline-none focus:ring-2 focus:ring-rose-400 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-300'
+              className='w-full rounded-lg border border-rose-500/30 bg-slate-900 px-3 py-2 text-sm font-mono text-rose-300 outline-none focus:ring-2 focus:ring-rose-500/30'
               placeholder='delete my account'
               value={deleteAccountText}
               onChange={(e) => setDeleteAccountText(e.target.value)}
@@ -415,14 +419,14 @@ export function DataManagement() {
             a recent login to delete your account. If you see an error, please
             log out and log back in first, then try again.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800'>
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
             <button
               disabled={busy}
               onClick={() => {
                 setDeleteAccountOpen(false);
                 setDeleteAccountText('');
               }}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 disabled:opacity-50'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-50'
             >
               Cancel
             </button>
@@ -440,6 +444,18 @@ export function DataManagement() {
           </div>
         </div>
       </Modal>
+    </>
+  );
+}
+
+// Legacy default export — wraps both for any old imports
+export function DataManagement() {
+  return (
+    <>
+      <ExportImport />
+      <div className='mt-6'>
+        <DangerZone />
+      </div>
     </>
   );
 }
