@@ -76,6 +76,21 @@ const BULK_CATEGORIES = [
   { id: 'other', label: 'Other Asset', type: 'other', icon: FiBox },
 ];
 
+const MONTHS = [
+  { val: '0', label: 'January' },
+  { val: '1', label: 'February' },
+  { val: '2', label: 'March' },
+  { val: '3', label: 'April' },
+  { val: '4', label: 'May' },
+  { val: '5', label: 'June' },
+  { val: '6', label: 'July' },
+  { val: '7', label: 'August' },
+  { val: '8', label: 'September' },
+  { val: '9', label: 'October' },
+  { val: '10', label: 'November' },
+  { val: '11', label: 'December' },
+];
+
 // ── UI Helpers ─────────────────────────────────────────────────────────────
 
 function formatPlatformName(platformStr?: string) {
@@ -91,6 +106,18 @@ function formatPlatformName(platformStr?: string) {
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+function getFinancialYear(dateString: string) {
+  const d = new Date(dateString);
+  const year = d.getFullYear();
+  const month = d.getMonth(); // 0 = Jan, 3 = Apr
+  // In India, FY starts April 1st
+  if (month >= 3) {
+    return `FY ${year}-${(year + 1).toString().slice(-2)}`;
+  } else {
+    return `FY ${year - 1}-${year.toString().slice(-2)}`;
+  }
 }
 
 // ── Bulk Edit Category Dropdown ────────────────────────────────────────────
@@ -236,7 +263,6 @@ function SectorCapCell({
     const r = triggerRef.current.getBoundingClientRect();
     const panelWidth = 240;
 
-    // Prevent the modal from opening off the right edge of the screen
     let left = r.left + window.scrollX;
     if (left + panelWidth > window.innerWidth) {
       left = window.innerWidth - panelWidth - 16;
@@ -395,7 +421,6 @@ function TypeChip({ inv }: { inv: any }) {
   let Icon = FiBox;
 
   if (type === 'stock') {
-    // Detect US Stock based on the presence of usdPrice
     if (inv.usdPrice || inv.usdToInr || inv.buyPriceUsd) {
       label = 'Intl Equity';
       color = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
@@ -485,12 +510,11 @@ function PriceCell({
   let label = '';
 
   if (inv.type === 'stock') {
-    // Show USD Price for US Stocks
     if (inv.usdPrice) {
       price = inv.usdPrice;
       label = 'USD';
     } else if (inv.usdToInr && inv.currentPrice) {
-      price = inv.currentPrice / inv.usdToInr; // fallback
+      price = inv.currentPrice / inv.usdToInr;
       label = 'USD';
     } else {
       price = inv.currentPrice ?? null;
@@ -584,9 +608,8 @@ function getLivePriceSymbol(inv: any): string | null {
   const assetType = (inv.assetType || '').toLowerCase();
 
   if (type === 'stock') {
-    if (!inv.symbol) return null; // Protect against missing symbol preventing Live button
+    if (!inv.symbol) return null;
     const isUS = !!inv.usdPrice || !!inv.buyPriceUsd || !!inv.usdToInr;
-    // Optimize: Pre-tag US stocks so Cloudflare Worker fetches immediately
     return isUS ? `US:${inv.symbol.toUpperCase()}` : inv.symbol.toUpperCase();
   }
 
@@ -630,7 +653,6 @@ function SortIcon({
     );
   if (sortDir === 'asc')
     return <FiArrowUp size={11} className='text-emerald-400' />;
-  /* desc — show ↓ in amber to hint "click again to clear" */
   return <FiArrowDown size={11} className='text-amber-400' />;
 }
 
@@ -639,8 +661,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
   const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
 
-  // ── Live Price State ───────────────────────────────────────────────────
-  // Global refresh state
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [fetchProgress, setFetchProgress] = useState<{
     done: number;
@@ -651,18 +671,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const [flashMap, setFlashMap] = useState<
     Record<string, 'up' | 'down' | 'none'>
   >({});
-
-  // ✅ Per-row refresh state: rowId → boolean
   const [rowRefreshingMap, setRowRefreshingMap] = useState<
     Record<string, boolean>
   >({});
 
-  // ── Helper: show a grouped "failed symbols" toast ─────────────────────
+  // Establish the Current Financial Year dynamically based on today
+  const currentFYLabel = useMemo(
+    () => getFinancialYear(todayISO() || new Date().toISOString()),
+    [],
+  );
+  const shortFYLabel = currentFYLabel.replace('FY ', ''); // Output: "25-26"
+
   const showFailedSymbolsToast = (
     failed: { name: string; symbol: string; reason: string }[],
   ) => {
     if (failed.length === 0) return;
-
     if (failed.length === 1) {
       const f = failed[0];
       toast.error(
@@ -683,12 +706,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     }
   };
 
-  // ── Core refresh logic (shared by both global and per-row) ─────────────
   const refreshPricesForAssets = async (
     targetInvestments: any[],
     onDone?: (updatedCount: number) => void,
   ) => {
-    // Assets with no symbol at all — warn immediately
     const noSymbolAssets = targetInvestments.filter(
       (inv) => getLivePriceSymbol(inv) === null,
     );
@@ -711,7 +732,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       return;
     }
 
-    // Resolve MF name codes
     const mfNameAssets = liveAssets.filter(({ sym }) =>
       sym.startsWith('MF_NAME:'),
     );
@@ -745,15 +765,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
     const newFlash: Record<string, 'up' | 'down' | 'none'> = {};
     const updates: Promise<void>[] = [];
-
-    // Track which assets failed to fetch a price
     const failedAssets: { name: string; symbol: string; reason: string }[] = [];
 
     for (const { inv, sym } of fetchableAssets) {
       const fetched = result.prices[sym.toUpperCase()];
 
       if (!fetched || fetched.price === null) {
-        // Collect failures for toast
         const rawSym = inv.symbol || sym.replace(/^(MF:|US:)/, '');
         const reason = !fetched
           ? 'Symbol not found on exchange'
@@ -812,7 +829,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       2000,
     );
 
-    // Show failed symbols toast (max 10 in one toast)
     const allFailed = [
       ...failedAssets,
       ...noSymbolAssets.map((inv: any) => ({
@@ -828,7 +844,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     onDone?.(Object.keys(newFlash).length);
   };
 
-  // ── Refresh ALL visible rows ───────────────────────────────────────────
   const handleRefreshAll = async () => {
     setRefreshingAll(true);
     setRefreshError(null);
@@ -856,7 +871,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     }
   };
 
-  // ── Refresh SINGLE row ────────────────────────────────────────────────
   const handleRefreshRow = async (inv: any) => {
     const sym = getLivePriceSymbol(inv);
     if (!sym) {
@@ -890,7 +904,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     }
   };
 
-  // ── ✅ Refresh SELECTED rows (checkbox-picked) ────────────────────────
   const [refreshingSelected, setRefreshingSelected] = useState(false);
 
   const handleRefreshSelected = async () => {
@@ -917,7 +930,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     }
   };
 
-  // ── Extended data (market cap from metadata) ───────────────────────────
   const [extendedData, setExtendedData] = useState<
     Record<string, { cap?: string }>
   >({});
@@ -969,7 +981,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     });
   };
 
-  // ── FolioSync Bulk Auto-Fetch ─────────────────────────────────────────────
   const [bulkFetching, setBulkFetching] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{
     done: number;
@@ -977,7 +988,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   } | null>(null);
 
   const handleBulkAutoFetch = async () => {
-    // Support Indian equity AND mutual funds with scheme codes
     const { fetchFundamentalsForSymbols, getFundamentalsSymbol } =
       await import('../../services/fundamentalsService');
     const { scoreFundamentals: scoreF } =
@@ -1004,7 +1014,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     for (const { inv, sym } of eligible) {
       const data = (results as any)[sym];
       if (!data || data._source === 'error') continue;
-      // Strip all internal meta keys
       const cleanData: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(data)) {
         if (!k.startsWith('_')) cleanData[k] = v;
@@ -1028,6 +1037,117 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       );
   };
 
+  // ── HISTORICAL DIVIDEND DATA FETCHER ───────────────────────────────────────
+
+  type DividendEvent = { date: string; amount: number; total: number };
+
+  const [dividendData, setDividendData] = useState<
+    Record<string, { history: DividendEvent[]; totalAllTime: number }>
+  >({});
+
+  const [divRefreshingAll, setDivRefreshingAll] = useState(false);
+  const [divFetchProgress, setDivFetchProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const [divRowRefreshingMap, setDivRowRefreshingMap] = useState<
+    Record<string, boolean>
+  >({});
+
+  // Dividend Filter State
+  const [divDetailsTarget, setDivDetailsTarget] = useState<any | null>(null);
+  const [divFilterFY, setDivFilterFY] = useState<string>('All');
+  const [divFilterMonth, setDivFilterMonth] = useState<string>('All');
+
+  const fetchDividendsForAssets = async (
+    targetInvestments: any[],
+    onDone?: (count: number) => void,
+  ) => {
+    const eligible = targetInvestments.filter((inv) => {
+      const isUS =
+        !!inv.usdPrice ||
+        !!inv.usdToInr ||
+        !!inv.buyPriceUsd ||
+        (inv.assetType || '').toLowerCase() === 'international_equity';
+      return inv.type === 'stock' && !isUS && !!inv.symbol;
+    });
+
+    if (eligible.length === 0) {
+      onDone?.(0);
+      return;
+    }
+
+    // Pull the base URL from your .env file
+    const baseUrl = import.meta.env.VITE_LIVE_PRICE_WORKER_URL;
+
+    // Append your specific endpoint
+    const WORKER_URL = `${baseUrl}/dividends`;
+
+    const fetchedDivs: Record<
+      string,
+      { history: DividendEvent[]; totalAllTime: number }
+    > = {};
+    let doneCount = 0;
+
+    for (const inv of eligible) {
+      try {
+        const symbolForYahoo = `${inv.symbol}.NS`;
+        const response = await fetch(`${WORKER_URL}?symbol=${symbolForYahoo}`);
+
+        if (!response.ok) throw new Error('Failed to fetch from worker');
+
+        const data = await response.json();
+
+        const qty = inv.quantity || 0;
+        let totalAllTime = 0;
+        const history: DividendEvent[] = [];
+
+        if (Array.isArray(data)) {
+          data.forEach((item) => {
+            const dps = Number(item.amount);
+            const eventTotal = dps * qty;
+            totalAllTime += eventTotal;
+
+            history.push({
+              date: item.date,
+              amount: dps,
+              total: eventTotal,
+            });
+
+            console.log(
+              `[Dividend] ${inv.symbol} | Date: ${item.date} | Qty: ${qty} | DPS: ₹${dps} | Total: ₹${eventTotal}`,
+            );
+          });
+        }
+
+        fetchedDivs[inv.id] = { history, totalAllTime };
+      } catch (e) {
+        console.error(`Failed to fetch dividends for ${inv.symbol}`, e);
+        fetchedDivs[inv.id] = { history: [], totalAllTime: 0 };
+      }
+
+      doneCount++;
+      setDivFetchProgress({ done: doneCount, total: eligible.length });
+    }
+
+    setDividendData((prev) => ({ ...prev, ...fetchedDivs }));
+    onDone?.(Object.keys(fetchedDivs).length);
+  };
+
+  const handleRefreshAllDivs = async () => {
+    setDivRefreshingAll(true);
+    setDivFetchProgress({ done: 0, total: investments.length });
+    await fetchDividendsForAssets(investments);
+    setDivRefreshingAll(false);
+    setDivFetchProgress(null);
+  };
+
+  const handleRefreshRowDiv = async (inv: any) => {
+    setDivRowRefreshingMap((prev) => ({ ...prev, [inv.id]: true }));
+    await fetchDividendsForAssets([inv]);
+    setDivRowRefreshingMap((prev) => ({ ...prev, [inv.id]: false }));
+  };
+
   // ── Selection & Edit State ─────────────────────────────────────────────
   const [edit, setEdit] = useState<any | null>(null);
   const [sellTarget, setSellTarget] = useState<any | null>(null);
@@ -1047,6 +1167,27 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             : inv.type === 'mutual_fund'
               ? inv.units
               : null;
+
+        const isUS =
+          !!inv.usdPrice ||
+          !!inv.usdToInr ||
+          !!inv.buyPriceUsd ||
+          (inv.assetType || '').toLowerCase() === 'international_equity';
+
+        const divInfo = dividendData[inv.id];
+        const isDivLoading = !!divRowRefreshingMap[inv.id];
+        const canFetchDiv = inv.type === 'stock' && !isUS && !!inv.symbol;
+
+        // Calculate Dividend only for the current Financial Year to display in the main table
+        let dividendCurrentFY = null;
+        if (divInfo && divInfo.history.length > 0) {
+          dividendCurrentFY = divInfo.history
+            .filter((h) => getFinancialYear(h.date) === currentFYLabel)
+            .reduce((sum, h) => sum + h.total, 0);
+        } else if (divInfo) {
+          dividendCurrentFY = 0; // Data fetched but empty history
+        }
+
         return {
           inv,
           invested: investedValue(inv),
@@ -1060,9 +1201,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               : 0,
           marketCap: inv.marketCap || extendedData[inv.id]?.cap,
           qty,
+          dividendCurrentFY,
+          isDivLoading,
+          canFetchDiv,
         };
       }),
-    [investments, extendedData],
+    [
+      investments,
+      extendedData,
+      dividendData,
+      divRowRefreshingMap,
+      currentFYLabel,
+    ],
   );
 
   // ── Sort ──────────────────────────────────────────────────────────────────
@@ -1074,16 +1224,17 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     | 'invested'
     | 'current'
     | 'livePrice'
+    | 'dividend'
     | 'pl'
     | 'plPct'
     | 'folioScore';
+
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const handleSort = (col: SortCol) => {
     if (sortCol !== col) {
       setSortCol(col);
-      // Default FolioSync sort is descending (best first)
       setSortDir(col === 'folioScore' ? 'desc' : 'asc');
     } else if (sortDir === 'asc') setSortDir('desc');
     else {
@@ -1125,6 +1276,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         case 'livePrice':
           av = a.inv.currentPrice ?? (a.inv as any).nav ?? 0;
           bv = b.inv.currentPrice ?? (b.inv as any).nav ?? 0;
+          break;
+        case 'dividend':
+          av = a.dividendCurrentFY ?? -1;
+          bv = b.dividendCurrentFY ?? -1;
           break;
         case 'pl':
           av = a.pl;
@@ -1274,8 +1429,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         {/* Divider */}
         <span className='w-px h-4 bg-slate-700 shrink-0' />
 
-        {/* Right: last updated + Refresh All button */}
-        <div className='flex items-center gap-2 shrink-0'>
+        {/* Right: Actions */}
+        <div className='flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar'>
           {lastUpdated && !refreshError && (
             <span className='text-[10px] text-slate-500 whitespace-nowrap hidden md:block'>
               Updated {lastUpdated}
@@ -1287,6 +1442,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             </span>
           )}
 
+          {/* Refresh All Live Prices */}
           <button
             onClick={handleRefreshAll}
             disabled={refreshingAll}
@@ -1308,6 +1464,36 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 ? '…'
                 : 'Refresh All'}
           </button>
+
+          {/* Dividend All */}
+          {investments.some((inv) => {
+            const isUS =
+              !!inv.usdPrice ||
+              !!inv.usdToInr ||
+              !!inv.buyPriceUsd ||
+              (inv.assetType || '').toLowerCase() === 'international_equity';
+            return inv.type === 'stock' && !isUS && !!inv.symbol;
+          }) && (
+            <button
+              onClick={handleRefreshAllDivs}
+              disabled={divRefreshingAll}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
+                divRefreshingAll
+                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                  : 'bg-indigo-950/60 border-indigo-800/60 text-indigo-400 hover:bg-indigo-900/60 hover:border-indigo-700 hover:text-indigo-300 active:scale-95'
+              }`}
+              title='Fetch historical dividends for all Indian stocks'
+            >
+              {divRefreshingAll ? (
+                <FiRefreshCw size={11} className='animate-spin' />
+              ) : (
+                <FiDollarSign size={11} />
+              )}
+              {divRefreshingAll && divFetchProgress
+                ? `Divs ${divFetchProgress.done}/${divFetchProgress.total}…`
+                : 'Fetch Divs'}
+            </button>
+          )}
 
           {/* FolioSync Score All */}
           {investments.some((inv) => {
@@ -1512,7 +1698,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         </div>
 
         {sortedRows.map(
-          ({ inv, invested, current, pl, plPct, marketCap, qty }) => {
+          ({
+            inv,
+            invested,
+            current,
+            pl,
+            plPct,
+            marketCap,
+            qty,
+            dividendCurrentFY,
+            isDivLoading,
+            canFetchDiv,
+          }) => {
             const isSelected = selectedIds.includes(inv.id);
             const isRowRefreshing = !!rowRefreshingMap[inv.id];
             const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
@@ -1628,7 +1825,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                   {/* ── Row 2: Stats grid ── */}
                   <div
-                    className={`mt-3 pt-3 border-t grid grid-cols-3 gap-0 ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/60'}`}
+                    className={`mt-3 pt-3 border-t grid grid-cols-4 gap-1 ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/60'}`}
                   >
                     {/* Invested */}
                     <div className='flex flex-col gap-0.5'>
@@ -1654,6 +1851,62 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           flashState={flashMap[inv.id] ?? 'none'}
                           isRefreshing={isRowRefreshing}
                         />
+                      )}
+                    </div>
+
+                    {/* Dividend */}
+                    <div className='flex flex-col gap-0.5 items-center'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        Div ({shortFYLabel})
+                      </span>
+                      {canFetchDiv ? (
+                        isDivLoading ? (
+                          <span className='text-[10px] text-slate-500 mt-1'>
+                            <FiRefreshCw size={10} className='animate-spin' />
+                          </span>
+                        ) : dividendCurrentFY !== null &&
+                          dividendCurrentFY > 0 ? (
+                          <div
+                            className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
+                            title='Click to view full history'
+                            onClick={() => setDivDetailsTarget(inv)}
+                          >
+                            <span className='text-[13px] font-bold text-emerald-400 tabular-nums'>
+                              {formatINR(dividendCurrentFY)}
+                            </span>
+                            <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
+                              History
+                            </span>
+                          </div>
+                        ) : dividendCurrentFY !== null &&
+                          dividendCurrentFY === 0 ? (
+                          <div
+                            className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
+                            title='Click to view full history'
+                            onClick={() => setDivDetailsTarget(inv)}
+                          >
+                            <span className='text-[13px] font-medium text-slate-600'>
+                              ₹0
+                            </span>
+                            <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
+                              History
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRefreshRowDiv(inv);
+                            }}
+                            className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                          >
+                            <FiRefreshCw size={8} /> Fetch
+                          </button>
+                        )
+                      ) : (
+                        <span className='text-[13px] font-medium text-slate-600'>
+                          —
+                        </span>
                       )}
                     </div>
 
@@ -1703,7 +1956,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Asset — sortable left */}
+                {/* Asset */}
                 <th className='sticky top-0 z-10 bg-slate-900 pl-2 pr-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('name')}
@@ -1714,7 +1967,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Broker — sortable left */}
+                {/* Broker */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('broker')}
@@ -1729,7 +1982,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Sector · Cap — sortable left */}
+                {/* Sector · Cap */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('sector')}
@@ -1744,7 +1997,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Qty — sortable right */}
+                {/* Qty */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('qty')}
@@ -1755,7 +2008,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Invested — sortable right */}
+                {/* Invested */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('invested')}
@@ -1770,7 +2023,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Curr. Value — sortable right */}
+                {/* Curr. Value */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('current')}
@@ -1785,7 +2038,22 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Live Price — sortable right */}
+                {/* Dividend */}
+                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                  <button
+                    onClick={() => handleSort('dividend')}
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                  >
+                    <SortIcon
+                      col='dividend'
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                    />
+                    Div ({shortFYLabel})
+                  </button>
+                </th>
+
+                {/* Live Price */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
                   <button
                     onClick={() => handleSort('livePrice')}
@@ -1800,7 +2068,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* Refresh — not sortable */}
+                {/* Refresh */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-2 py-2.5 w-10 text-center text-[10px] font-semibold text-slate-600 border-b border-slate-700/60'>
                   ⚡
                 </th>
@@ -1824,7 +2092,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </button>
                 </th>
 
-                {/* P&L — two sort options: abs value or % */}
+                {/* P&L */}
                 <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60 min-w-[120px]'>
                   <div className='flex items-center justify-end gap-2'>
                     <button
@@ -1866,7 +2134,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <tbody>
               {sortedRows.map(
                 (
-                  { inv, invested, current, pl, plPct, marketCap, qty },
+                  {
+                    inv,
+                    invested,
+                    current,
+                    pl,
+                    plPct,
+                    marketCap,
+                    qty,
+                    dividendCurrentFY,
+                    isDivLoading,
+                    canFetchDiv,
+                  },
                   rowIdx,
                 ) => {
                   const isSelected = selectedIds.includes(inv.id);
@@ -1966,6 +2245,63 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         </span>
                       </td>
 
+                      {/* ── Dividend ── */}
+                      <td
+                        className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
+                      >
+                        {canFetchDiv ? (
+                          isDivLoading ? (
+                            <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-500'>
+                              <FiRefreshCw size={10} className='animate-spin' />
+                            </span>
+                          ) : dividendCurrentFY !== null &&
+                            dividendCurrentFY > 0 ? (
+                            <div
+                              className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                              title='Click to view full history'
+                              onClick={() => setDivDetailsTarget(inv)}
+                            >
+                              <span className='text-[13px] font-bold text-emerald-400'>
+                                {formatINR(dividendCurrentFY)}
+                              </span>
+                              <span className='text-[9px] text-slate-500 font-medium'>
+                                History
+                              </span>
+                            </div>
+                          ) : dividendCurrentFY !== null &&
+                            dividendCurrentFY === 0 ? (
+                            <div
+                              className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                              title='Click to view full history'
+                              onClick={() => setDivDetailsTarget(inv)}
+                            >
+                              <span className='text-[13px] font-medium text-slate-600'>
+                                ₹0
+                              </span>
+                              <span className='text-[9px] text-slate-500 font-medium'>
+                                History
+                              </span>
+                            </div>
+                          ) : (
+                            <div className='flex justify-end opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRefreshRowDiv(inv);
+                                }}
+                                className='inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                              >
+                                <FiRefreshCw size={10} /> Get Div
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <span className='text-[13px] font-medium text-slate-600'>
+                            —
+                          </span>
+                        )}
+                      </td>
+
                       {/* ── Live Price ── */}
                       <td
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
@@ -2052,6 +2388,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </table>
         </div>
       </div>
+
       {selectedIds.length > 0 && (
         <div className='fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-in slide-in-from-bottom-8 fade-in duration-300'>
           <div className='flex items-center gap-2'>
@@ -2064,7 +2401,6 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           </div>
           <div className='w-px h-6 bg-slate-700 mx-1' />
 
-          {/* ✅ Bulk Live Price Refresh for selected rows */}
           <button
             onClick={handleRefreshSelected}
             disabled={refreshingSelected}
@@ -2111,6 +2447,150 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       )}
 
       {/* ── Modals ── */}
+
+      {/* Dividend Details Modal */}
+      {divDetailsTarget &&
+        (() => {
+          const inv = divDetailsTarget;
+          const dData = dividendData[inv.id];
+          const qty = inv.quantity || 0;
+          const fullHistory = dData?.history || [];
+
+          // 1. Extract Unique Financial Years from history
+          const availableFYs = Array.from(
+            new Set(fullHistory.map((h) => getFinancialYear(h.date))),
+          )
+            .sort()
+            .reverse();
+
+          // 2. Apply Filters
+          const history = fullHistory.filter((h) => {
+            const matchFY =
+              divFilterFY === 'All' || getFinancialYear(h.date) === divFilterFY;
+            const matchMonth =
+              divFilterMonth === 'All' ||
+              new Date(h.date).getMonth().toString() === divFilterMonth;
+            return matchFY && matchMonth;
+          });
+
+          // 3. Calculate Filtered Total
+          const filteredTotal = history.reduce((sum, h) => sum + h.total, 0);
+
+          return (
+            <Modal
+              open={!!divDetailsTarget}
+              onClose={() => {
+                setDivDetailsTarget(null);
+                setDivFilterFY('All');
+                setDivFilterMonth('All');
+              }}
+              title={`Dividend History: ${inv.name}`}
+            >
+              <div className='space-y-4'>
+                <div className='bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between'>
+                  <div className='flex flex-col'>
+                    <span className='text-[10px] text-slate-500 uppercase font-bold tracking-widest'>
+                      Current Holdings
+                    </span>
+                    <span className='text-base font-bold text-slate-200 mt-1'>
+                      {qty} Shares
+                    </span>
+                  </div>
+                  <div className='flex flex-col text-right'>
+                    <span className='text-[10px] text-slate-500 uppercase font-bold tracking-widest'>
+                      {divFilterFY !== 'All' || divFilterMonth !== 'All'
+                        ? 'Filtered Earned'
+                        : 'Total Earned'}
+                    </span>
+                    <span className='text-base font-bold text-emerald-400 mt-1'>
+                      ₹{filteredTotal.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='text-sm text-slate-300 pt-2'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <h4 className='font-bold text-slate-400 uppercase text-[10px] tracking-wider'>
+                      Payout Timeline
+                    </h4>
+
+                    {/* Filters */}
+                    <div className='flex items-center gap-2'>
+                      <select
+                        value={divFilterFY}
+                        onChange={(e) => setDivFilterFY(e.target.value)}
+                        className='bg-slate-900 border border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
+                      >
+                        <option value='All'>All FYs</option>
+                        {availableFYs.map((fy) => (
+                          <option key={fy} value={fy}>
+                            {fy}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={divFilterMonth}
+                        onChange={(e) => setDivFilterMonth(e.target.value)}
+                        className='bg-slate-900 border border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
+                      >
+                        <option value='All'>All Months</option>
+                        {MONTHS.map((m) => (
+                          <option key={m.val} value={m.val}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {history.length > 0 ? (
+                    <div className='space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1'>
+                      {history.map((h, i) => {
+                        const formattedDate = new Date(
+                          h.date,
+                        ).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'short',
+                        });
+
+                        return (
+                          <div
+                            key={i}
+                            className='flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 gap-2 hover:bg-slate-800/40 transition-colors'
+                          >
+                            <div className='flex flex-col'>
+                              <span className='font-semibold text-slate-200'>
+                                {formattedDate}
+                              </span>
+                              <span className='text-[9px] font-bold text-slate-500 mt-0.5'>
+                                {getFinancialYear(h.date)}
+                              </span>
+                            </div>
+                            <div className='flex items-center flex-1 justify-between text-xs bg-slate-800/50 rounded px-2 py-1.5 sm:ml-4'>
+                              <span className='text-slate-400'>Qty: {qty}</span>
+                              <span className='text-slate-400'>
+                                ₹{h.amount.toFixed(2)}/sh
+                              </span>
+                              <span className='font-bold text-emerald-400 ml-2'>
+                                Total: ₹{h.total.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className='text-center text-slate-500 py-8 text-xs italic bg-slate-900/30 rounded-xl border border-dashed border-slate-800'>
+                      No historical dividend data found for this filter.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Modal>
+          );
+        })()}
+
       {edit && (
         <UpsertInvestmentModal
           open={!!edit}

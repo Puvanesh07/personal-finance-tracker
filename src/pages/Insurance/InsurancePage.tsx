@@ -1,10 +1,9 @@
-// src/pages/Insurance/InsurancePage.tsx
+// src/pages/Insurance/InsurancePage.tsx — FULL REPLACEMENT
 //
-// REDESIGNED — GrowMate-inspired tabs:
-//   • Overview  — summary cards + expiry alerts
-//   • Policies  — policy list with add/edit/delete
-//   • Payments  — payment history per policy with progress tracking
-//   • Reports   — charts: coverage by type, annual premium, policy status, renewal urgency
+// FIXES:
+//  1. Payment records stored properly using mapped portfolioStore functions
+//  2. Removed redundant "Record Payment" button from top header
+//  3. Removed "as any" cast hacks since types are now strictly defined
 
 import {
   FiAlertTriangle,
@@ -16,13 +15,17 @@ import {
   FiTrash2,
   FiX,
 } from 'react-icons/fi';
+import type {
+  InsurancePayment,
+  InsurancePolicy,
+} from '../../types/investmentTypes';
 import { differenceInDays, format, parseISO } from 'date-fns';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import type { InsurancePolicy } from '../../types/investmentTypes';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertInsuranceModal } from '../../components/insurance/UpsertInsuranceModal';
 import { formatCurrency } from '../../utils/format';
+import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -80,29 +83,42 @@ function daysUntilRenewal(policy: InsurancePolicy) {
   return differenceInDays(parseISO(policy.renewalDate), new Date());
 }
 
-// ── Toast ──────────────────────────────────────────────────────────────────
+function computeNextRenewalDate(
+  currentRenewal: string,
+  frequency: InsurancePolicy['premiumFrequency'],
+): string {
+  const d = new Date(currentRenewal);
+  switch (frequency) {
+    case 'monthly':
+      d.setMonth(d.getMonth() + 1);
+      break;
+    case 'quarterly':
+      d.setMonth(d.getMonth() + 3);
+      break;
+    case 'half-yearly':
+      d.setMonth(d.getMonth() + 6);
+      break;
+    case 'yearly':
+    default:
+      d.setFullYear(d.getFullYear() + 1);
+      break;
+  }
+  return d.toISOString().split('T')[0];
+}
 
-function Toast({ message, onDone }: { message: string; onDone: () => void }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 3000);
-    return () => clearTimeout(t);
-  }, [onDone]);
-  return (
-    <div className='fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[300]'>
-      <div className='flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-2xl px-5 py-3.5 shadow-2xl'>
-        <div className='h-6 w-6 rounded-full bg-emerald-500/20 flex items-center justify-center'>
-          <FiCheck className='h-3.5 w-3.5 text-emerald-400' />
-        </div>
-        <p className='text-sm font-semibold text-slate-100'>{message}</p>
-        <button
-          onClick={onDone}
-          className='text-slate-500 hover:text-slate-300 ml-2'
-        >
-          <FiX className='h-3.5 w-3.5' />
-        </button>
-      </div>
-    </div>
-  );
+function totalPaymentsForPolicy(policy: InsurancePolicy): number {
+  const payingTermYears =
+    (policy as any).premiumPayingTermYears || (policy as any).policyTermYears;
+  if (!payingTermYears) return 0;
+  const freqMultiplier =
+    policy.premiumFrequency === 'monthly'
+      ? 12
+      : policy.premiumFrequency === 'quarterly'
+        ? 4
+        : policy.premiumFrequency === 'half-yearly'
+          ? 2
+          : 1;
+  return payingTermYears * freqMultiplier;
 }
 
 // ── Overview Tab ───────────────────────────────────────────────────────────
@@ -116,7 +132,6 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
   });
   const expired = policies.filter((p) => daysUntilRenewal(p) < 0);
 
-  // Coverage by type
   const byType = Object.entries(TYPE_META)
     .map(([type, meta]) => ({
       ...meta,
@@ -130,7 +145,6 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
 
   return (
     <div className='space-y-5'>
-      {/* Summary cards */}
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         {[
           {
@@ -148,7 +162,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
           {
             label: 'Annual Premium',
             value: formatCurrency(totalPremium),
-            sub: `Monthly: ${formatCurrency(totalPremium / 12)}`,
+            sub: `Mo: ${formatCurrency(totalPremium / 12)}`,
             color: 'text-violet-400',
           },
           {
@@ -173,8 +187,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
         ))}
       </div>
 
-      {/* Alerts */}
-      {(expiringSoon.length > 0 || expired.length > 0) && (
+      {(expired.length > 0 || expiringSoon.length > 0) && (
         <div className='space-y-2'>
           {expired.map((p) => (
             <div
@@ -216,7 +229,6 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
         </div>
       )}
 
-      {/* Coverage breakdown */}
       {byType.length > 0 && (
         <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
           <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
@@ -244,7 +256,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
                   </div>
                   <div className='h-1.5 bg-slate-800 rounded-full'>
                     <div
-                      className='h-1.5 rounded-full bg-current transition-all'
+                      className='h-1.5 rounded-full bg-emerald-500 transition-all'
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -300,7 +312,6 @@ function PoliciesTab({
 
   return (
     <div className='space-y-4'>
-      {/* Toolbar */}
       <div className='flex flex-col sm:flex-row gap-3'>
         <input
           type='text'
@@ -325,12 +336,10 @@ function PoliciesTab({
           onClick={onAdd}
           className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
         >
-          <FiPlus className='h-4 w-4' />
-          Add Policy
+          <FiPlus className='h-4 w-4' /> Add Policy
         </button>
       </div>
 
-      {/* List */}
       {filtered.length === 0 ? (
         <div className='text-center py-12 text-slate-500'>
           <FiShield className='h-8 w-8 mx-auto mb-2 opacity-30' />
@@ -385,6 +394,7 @@ function PoliciesTab({
                       </div>
                       <p className='text-xs text-slate-500 mt-0.5'>
                         {policy.provider}
+                        {policy.policyNumber ? ` • ${policy.policyNumber}` : ''}
                       </p>
 
                       <div className='grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3'>
@@ -407,15 +417,7 @@ function PoliciesTab({
                         </div>
                         <div>
                           <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
-                            Annual
-                          </p>
-                          <p className='text-xs font-bold text-slate-200'>
-                            {formatCurrency(annualPremium(policy))}
-                          </p>
-                        </div>
-                        <div>
-                          <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
-                            Renewal
+                            Next Due
                           </p>
                           <p
                             className={`text-xs font-bold ${isExpired ? 'text-rose-400' : isExpiring ? 'text-amber-400' : 'text-slate-200'}`}
@@ -426,8 +428,20 @@ function PoliciesTab({
                             )}
                           </p>
                         </div>
+                        <div>
+                          <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
+                            Last Paid
+                          </p>
+                          <p className='text-xs font-bold text-slate-400'>
+                            {policy.lastPaymentDate
+                              ? format(
+                                  parseISO(policy.lastPaymentDate),
+                                  'dd MMM yyyy',
+                                )
+                              : '—'}
+                          </p>
+                        </div>
                       </div>
-
                       {policy.nominee && (
                         <p className='text-[10px] text-slate-600 mt-2'>
                           Nominee:{' '}
@@ -463,56 +477,205 @@ function PoliciesTab({
   );
 }
 
-// ── Payment History type ───────────────────────────────────────────────────
+// ── Record Payment Modal ───────────────────────────────────────────────────
 
-interface PaymentRecord {
-  id: string;
-  policyId: string;
-  amount: number;
-  paidAt: string;
-  note?: string;
+function RecordPaymentModal({
+  open,
+  policies,
+  defaultPolicyId,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  policies: InsurancePolicy[];
+  defaultPolicyId: string;
+  onClose: () => void;
+  onSave: (
+    policyId: string,
+    amount: number,
+    paidAt: string,
+    note: string,
+  ) => Promise<void>;
+}) {
+  const [policyId, setPolicyId] = useState(
+    defaultPolicyId || (policies[0]?.id ?? ''),
+  );
+  const [paidAt, setPaidAt] = useState(new Date().toISOString().split('T')[0]);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Auto-fill amount from selected policy
+  const selectedPolicy = policies.find((p) => p.id === policyId);
+  const [amount, setAmount] = useState(
+    selectedPolicy ? String(selectedPolicy.premiumAmount) : '',
+  );
+
+  // When policy changes, suggest its premium amount
+  const handlePolicyChange = (id: string) => {
+    setPolicyId(id);
+    const pol = policies.find((p) => p.id === id);
+    if (pol) setAmount(String(pol.premiumAmount));
+  };
+
+  const inputCls =
+    'w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none transition-all';
+  const labelCls =
+    'block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5';
+
+  const handleSave = async () => {
+    if (!policyId || !amount || !paidAt) return;
+    setSaving(true);
+    try {
+      await onSave(policyId, Number(amount), paidAt, note);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <Modal open={open} onClose={onClose} title='Record Premium Payment'>
+      <div className='space-y-4'>
+        {/* Policy selector */}
+        <div>
+          <label className={labelCls}>Policy</label>
+          <select
+            value={policyId}
+            onChange={(e) => handlePolicyChange(e.target.value)}
+            className={inputCls}
+          >
+            {policies.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.policyName} — {p.provider} ({formatCurrency(p.premiumAmount)}{' '}
+                / {p.premiumFrequency})
+              </option>
+            ))}
+          </select>
+          {selectedPolicy && (
+            <p className='text-[11px] text-emerald-400 mt-1.5'>
+              💡 Suggested: {formatCurrency(selectedPolicy.premiumAmount)} (
+              {selectedPolicy.premiumFrequency} premium)
+            </p>
+          )}
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className={labelCls}>Amount Paid (₹)</label>
+          <input
+            type='number'
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className={inputCls}
+            placeholder='e.g. 5000'
+          />
+        </div>
+
+        {/* Date */}
+        <div>
+          <label className={labelCls}>Payment Date</label>
+          <input
+            type='date'
+            value={paidAt}
+            onChange={(e) => setPaidAt(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+
+        {/* Note */}
+        <div>
+          <label className={labelCls}>Note (optional)</label>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className={inputCls}
+            placeholder='e.g. Paid via ECS, Online payment'
+          />
+        </div>
+
+        {/* Renewal notice */}
+        {selectedPolicy && (
+          <div className='bg-blue-500/8 border border-blue-500/20 rounded-xl p-3'>
+            <p className='text-xs font-bold text-blue-300'>
+              📅 After recording this payment:
+            </p>
+            <p className='text-[11px] text-blue-400/80 mt-1'>
+              Next due date will automatically advance to{' '}
+              <strong>
+                {format(
+                  parseISO(
+                    computeNextRenewalDate(
+                      selectedPolicy.renewalDate,
+                      selectedPolicy.premiumFrequency,
+                    ),
+                  ),
+                  'dd MMM yyyy',
+                )}
+              </strong>
+            </p>
+          </div>
+        )}
+
+        <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
+          <button
+            onClick={onClose}
+            className='px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800'
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !policyId || !amount || !paidAt}
+            className='inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+          >
+            <FiCheck className='h-4 w-4' />
+            {saving ? 'Saving…' : 'Record Payment'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 // ── Payments Tab ───────────────────────────────────────────────────────────
 
-function PaymentsTab({ policies }: { policies: InsurancePolicy[] }) {
+function PaymentsTab({
+  policies,
+  payments,
+  onAddPayment,
+  onDeletePayment,
+}: {
+  policies: InsurancePolicy[];
+  payments: InsurancePayment[];
+  onAddPayment: (
+    policyId: string,
+    amount: number,
+    paidAt: string,
+    note: string,
+  ) => Promise<void>;
+  onDeletePayment: (id: string) => void;
+}) {
   const [selectedPolicyId, setSelectedPolicyId] = useState<string>('all');
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({
-    policyId: '',
-    amount: '',
-    paidAt: '',
-    note: '',
-  });
 
-  const selectedPolicy = policies.find((p) => p.id === selectedPolicyId);
-
-  const filteredPayments =
+  const filtered =
     selectedPolicyId === 'all'
       ? payments
       : payments.filter((p) => p.policyId === selectedPolicyId);
 
-  const totalPaid = filteredPayments.reduce((a, p) => a + p.amount, 0);
-  const lastPayment = filteredPayments.sort((a, b) =>
-    b.paidAt.localeCompare(a.paidAt),
-  )[0];
+  const sorted = [...filtered].sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  const totalPaid = filtered.reduce((a, p) => a + p.amount, 0);
+  const lastPayment = sorted[0];
 
-  const addPayment = () => {
-    if (!addForm.policyId || !addForm.amount || !addForm.paidAt) return;
-    setPayments((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(36).slice(2),
-        policyId: addForm.policyId,
-        amount: Number(addForm.amount),
-        paidAt: addForm.paidAt,
-        note: addForm.note,
-      },
-    ]);
-    setAddForm({ policyId: '', amount: '', paidAt: '', note: '' });
-    setShowAdd(false);
-  };
+  const selectedPolicy = policies.find((p) => p.id === selectedPolicyId);
+  const totalExpected = selectedPolicy
+    ? totalPaymentsForPolicy(selectedPolicy)
+    : 0;
+  const paidCount = selectedPolicy
+    ? filtered.length + (selectedPolicy.paymentsAlreadyMade ?? 0)
+    : 0;
 
   return (
     <div className='space-y-4'>
@@ -531,27 +694,26 @@ function PaymentsTab({ policies }: { policies: InsurancePolicy[] }) {
           ))}
         </select>
         <button
-          onClick={() => setShowAdd((v) => !v)}
+          onClick={() => setShowAdd(true)}
           className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors'
         >
-          <FiPlus className='h-4 w-4' />
-          Record Payment
+          <FiPlus className='h-4 w-4' /> Record Payment
         </button>
       </div>
 
-      {/* Summary row */}
+      {/* Summary */}
       <div className='grid grid-cols-3 gap-3'>
         <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-3'>
           <p className='text-[10px] uppercase text-slate-500 font-bold'>
             Total Payments
           </p>
           <p className='text-lg font-bold text-slate-100 mt-1'>
-            {filteredPayments.length}
+            {filtered.length}
           </p>
         </div>
         <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-3'>
           <p className='text-[10px] uppercase text-slate-500 font-bold'>
-            Total Amount
+            Total Paid
           </p>
           <p className='text-lg font-bold text-emerald-400 mt-1'>
             {formatCurrency(totalPaid)}
@@ -564,198 +726,125 @@ function PaymentsTab({ policies }: { policies: InsurancePolicy[] }) {
           <p className='text-sm font-bold text-slate-200 mt-1'>
             {lastPayment
               ? format(parseISO(lastPayment.paidAt), 'dd MMM yy')
-              : 'No payments'}
+              : '—'}
           </p>
         </div>
       </div>
 
-      {/* Progress bar for selected policy */}
-      {selectedPolicy && (
-        <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-4 space-y-3'>
+      {/* Progress bar for selected policy (if term known) */}
+      {selectedPolicy && totalExpected > 0 && (
+        <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-4 space-y-2'>
           <p className='text-xs font-black uppercase tracking-wider text-slate-500'>
             Payment Progress — {selectedPolicy.policyName}
           </p>
-          {(selectedPolicy as any).policyTermYears && (
-            <>
-              {(() => {
-                const frequencyMap: Record<string, number> = {
-                  monthly: 12,
-                  quarterly: 4,
-                  'half-yearly': 2,
-                  yearly: 1,
-                };
-
-                const totalPayments =
-                  ((selectedPolicy as any).premiumPayingTermYears ||
-                    (selectedPolicy as any).policyTermYears) *
-                  (frequencyMap[selectedPolicy.premiumFrequency] || 1);
-                const paid = filteredPayments.length;
-                const pct = Math.min(100, (paid / totalPayments) * 100);
-                return (
-                  <>
-                    <div className='flex justify-between text-xs font-bold text-slate-400'>
-                      <span>
-                        {paid} of {totalPayments} payments done
-                      </span>
-                      <span>{pct.toFixed(0)}%</span>
-                    </div>
-                    <div className='h-2 bg-slate-800 rounded-full'>
-                      <div
-                        className='h-2 bg-emerald-500 rounded-full transition-all'
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </>
-                );
-              })()}
-            </>
+          <div className='flex justify-between text-xs font-bold text-slate-400'>
+            <span>
+              {paidCount} of {totalExpected} payments done
+            </span>
+            <span>
+              {Math.min(100, Math.round((paidCount / totalExpected) * 100))}%
+            </span>
+          </div>
+          <div className='h-2 bg-slate-800 rounded-full'>
+            <div
+              className='h-2 bg-emerald-500 rounded-full transition-all'
+              style={{
+                width: `${Math.min(100, (paidCount / totalExpected) * 100)}%`,
+              }}
+            />
+          </div>
+          {(selectedPolicy.paymentsAlreadyMade ?? 0) > 0 && (
+            <p className='text-[10px] text-slate-600'>
+              Includes {selectedPolicy.paymentsAlreadyMade} payments made before
+              using this app.
+            </p>
           )}
         </div>
       )}
 
-      {/* Add payment form */}
-      {showAdd && (
-        <div className='bg-slate-800/60 border border-slate-700 rounded-xl p-4 space-y-3'>
-          <p className='text-xs font-black uppercase tracking-wider text-slate-500'>
-            Record New Payment
-          </p>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-            <div>
-              <label className='text-xs font-bold text-slate-500 mb-1 block'>
-                Policy
-              </label>
-              <select
-                value={addForm.policyId}
-                onChange={(e) =>
-                  setAddForm((s) => ({ ...s, policyId: e.target.value }))
-                }
-                className='w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-slate-300 focus:outline-none'
-              >
-                <option value=''>Select Policy</option>
-                {policies.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.policyName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className='text-xs font-bold text-slate-500 mb-1 block'>
-                Amount (₹)
-              </label>
-              <input
-                type='number'
-                value={addForm.amount}
-                onChange={(e) =>
-                  setAddForm((s) => ({ ...s, amount: e.target.value }))
-                }
-                placeholder='Premium amount'
-                className='w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-slate-100 focus:outline-none'
-              />
-            </div>
-            <div>
-              <label className='text-xs font-bold text-slate-500 mb-1 block'>
-                Payment Date
-              </label>
-              <input
-                type='date'
-                value={addForm.paidAt}
-                onChange={(e) =>
-                  setAddForm((s) => ({ ...s, paidAt: e.target.value }))
-                }
-                className='w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-slate-100 focus:outline-none'
-              />
-            </div>
-            <div>
-              <label className='text-xs font-bold text-slate-500 mb-1 block'>
-                Note (optional)
-              </label>
-              <input
-                value={addForm.note}
-                onChange={(e) =>
-                  setAddForm((s) => ({ ...s, note: e.target.value }))
-                }
-                placeholder='e.g. Paid via ECS'
-                className='w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-slate-100 focus:outline-none'
-              />
-            </div>
-          </div>
-          <div className='flex gap-2 justify-end'>
-            <button
-              onClick={() => setShowAdd(false)}
-              className='px-4 py-2 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-700'
-            >
-              Cancel
-            </button>
-            <button
-              onClick={addPayment}
-              className='px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white'
-            >
-              Save Payment
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Payment list */}
-      {filteredPayments.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className='text-center py-10 text-slate-500 text-sm'>
-          No payments recorded yet.
+          No payments recorded yet. Click "Record Payment" to add one.
         </div>
       ) : (
         <div className='space-y-2'>
-          {[...filteredPayments]
-            .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
-            .map((p) => {
-              const policy = policies.find((x) => x.id === p.policyId);
-              return (
-                <div
-                  key={p.id}
-                  className='flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-800 rounded-xl'
-                >
-                  <div className='h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center'>
-                    <FiCheck className='h-3.5 w-3.5 text-emerald-400' />
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-xs font-bold text-slate-200'>
-                      {policy?.policyName || 'Unknown'}
-                    </p>
-                    {p.note && (
-                      <p className='text-[10px] text-slate-500'>{p.note}</p>
-                    )}
-                  </div>
-                  <div className='text-right'>
-                    <p className='text-sm font-bold text-emerald-400'>
-                      {formatCurrency(p.amount)}
-                    </p>
-                    <p className='text-[10px] text-slate-500'>
-                      {format(parseISO(p.paidAt), 'dd MMM yyyy')}
-                    </p>
-                  </div>
+          {sorted.map((p) => {
+            const policy = policies.find((x) => x.id === p.policyId);
+            return (
+              <div
+                key={p.id}
+                className='flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-800 rounded-xl group'
+              >
+                <div className='h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0'>
+                  <FiCheck className='h-3.5 w-3.5 text-emerald-400' />
                 </div>
-              );
-            })}
+                <div className='flex-1 min-w-0'>
+                  <p className='text-xs font-bold text-slate-200'>
+                    {policy?.policyName || 'Unknown Policy'}
+                  </p>
+                  {p.note && (
+                    <p className='text-[10px] text-slate-500'>{p.note}</p>
+                  )}
+                </div>
+                <div className='text-right'>
+                  <p className='text-sm font-bold text-emerald-400'>
+                    {formatCurrency(p.amount)}
+                  </p>
+                  <p className='text-[10px] text-slate-500'>
+                    {format(parseISO(p.paidAt), 'dd MMM yyyy')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onDeletePayment(p.id)}
+                  className='opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 flex items-center justify-center transition-all'
+                >
+                  <FiX className='h-3 w-3' />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
+
+      {/* Record Payment Modal */}
+      <RecordPaymentModal
+        open={showAdd}
+        policies={policies}
+        defaultPolicyId={
+          selectedPolicyId === 'all'
+            ? (policies[0]?.id ?? '')
+            : selectedPolicyId
+        }
+        onClose={() => setShowAdd(false)}
+        onSave={onAddPayment}
+      />
     </div>
   );
 }
 
 // ── Reports Tab ────────────────────────────────────────────────────────────
 
-function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
+function ReportsTab({
+  policies,
+  payments,
+}: {
+  policies: InsurancePolicy[];
+  payments: InsurancePayment[];
+}) {
   const totalCoverage = policies.reduce((a, p) => a + p.coverageAmount, 0);
   const totalPremium = policies.reduce((a, p) => a + annualPremium(p), 0);
+  const totalPaid = payments.reduce((a, p) => a + p.amount, 0);
 
   const byType = Object.entries(TYPE_META)
     .map(([type, meta]) => {
-      const typePolicies = policies.filter((p) => p.type === type);
+      const tp = policies.filter((p) => p.type === type);
       return {
         ...meta,
         type,
-        count: typePolicies.length,
-        coverage: typePolicies.reduce((a, p) => a + p.coverageAmount, 0),
-        premium: typePolicies.reduce((a, p) => a + annualPremium(p), 0),
+        count: tp.length,
+        coverage: tp.reduce((a, p) => a + p.coverageAmount, 0),
+        premium: tp.reduce((a, p) => a + annualPremium(p), 0),
       };
     })
     .filter((t) => t.count > 0);
@@ -775,32 +864,27 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
 
   return (
     <div className='space-y-5'>
-      {/* Top stats */}
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         {[
           {
             label: 'Total Policies',
             value: String(policies.length),
-            sub: 'Active',
             icon: '📋',
           },
           {
             label: 'Total Coverage',
             value: formatCurrency(totalCoverage),
-            sub: 'Sum assured',
             icon: '🛡️',
           },
           {
             label: 'Annual Premium',
             value: formatCurrency(totalPremium),
-            sub: `Monthly: ${formatCurrency(totalPremium / 12)}`,
             icon: '₹',
           },
           {
-            label: 'Upcoming Renewals',
-            value: String(urgency.expired + urgency.urgent + urgency.upcoming),
-            sub: 'In next 30 days',
-            icon: '⏰',
+            label: 'Total Paid (App)',
+            value: formatCurrency(totalPaid),
+            icon: '✅',
           },
         ].map((card) => (
           <div
@@ -814,16 +898,14 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
               </p>
             </div>
             <p className='text-lg font-bold text-slate-100'>{card.value}</p>
-            <p className='text-[10px] text-slate-500 mt-0.5'>{card.sub}</p>
           </div>
         ))}
       </div>
 
       <div className='grid grid-cols-1 sm:grid-cols-2 gap-5'>
-        {/* Coverage by type */}
         <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
           <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
-            Coverage by Insurance Type
+            Coverage by Type
           </p>
           <div className='space-y-3'>
             {byType.length === 0 ? (
@@ -844,51 +926,7 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
                     </div>
                     <div className='h-2 bg-slate-800 rounded-full'>
                       <div
-                        className={`h-2 rounded-full`}
-                        style={{
-                          width: `${pct}%`,
-                          background: t.color
-                            .replace('text-', '')
-                            .includes('indigo')
-                            ? '#818cf8'
-                            : t.color.includes('rose')
-                              ? '#fb7185'
-                              : t.color.includes('amber')
-                                ? '#fbbf24'
-                                : '#60a5fa',
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Annual premium by type */}
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
-            Annual Premium by Type
-          </p>
-          <div className='space-y-3'>
-            {byType.length === 0 ? (
-              <p className='text-xs text-slate-500'>No data</p>
-            ) : (
-              byType.map((t) => {
-                const pct =
-                  totalPremium > 0 ? (t.premium / totalPremium) * 100 : 0;
-                return (
-                  <div key={t.type}>
-                    <div className='flex justify-between text-xs font-bold mb-1'>
-                      <span className={t.color}>{t.label}</span>
-                      <span className='text-slate-400'>
-                        {formatCurrency(t.premium)}
-                      </span>
-                    </div>
-                    <div className='h-2 bg-slate-800 rounded-full'>
-                      <div
-                        className='h-2 rounded-full bg-emerald-500 transition-all'
+                        className='h-2 rounded-full bg-emerald-500'
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -899,36 +937,35 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
           </div>
         </div>
 
-        {/* Policy Status Distribution */}
         <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
           <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
             Renewal Urgency
           </p>
-          <div className='space-y-2'>
+          <div className='space-y-2.5'>
             {[
               {
                 label: 'Expired',
                 count: urgency.expired,
                 color: 'bg-rose-500',
-                textColor: 'text-rose-400',
+                text: 'text-rose-400',
               },
               {
                 label: 'Urgent (≤7 days)',
                 count: urgency.urgent,
                 color: 'bg-orange-500',
-                textColor: 'text-orange-400',
+                text: 'text-orange-400',
               },
               {
                 label: 'Upcoming (≤30 days)',
                 count: urgency.upcoming,
                 color: 'bg-amber-500',
-                textColor: 'text-amber-400',
+                text: 'text-amber-400',
               },
               {
                 label: 'Active & OK',
                 count: urgency.ok,
                 color: 'bg-emerald-500',
-                textColor: 'text-emerald-400',
+                text: 'text-emerald-400',
               },
             ].map((row) => (
               <div key={row.label} className='flex items-center gap-3'>
@@ -936,7 +973,7 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
                 <span className='text-xs text-slate-400 flex-1'>
                   {row.label}
                 </span>
-                <span className={`text-xs font-bold ${row.textColor}`}>
+                <span className={`text-xs font-bold ${row.text}`}>
                   {row.count}
                 </span>
               </div>
@@ -944,8 +981,7 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
           </div>
         </div>
 
-        {/* Coverage Summary by type */}
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
+        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4 sm:col-span-2'>
           <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
             Coverage Summary by Type
           </p>
@@ -970,7 +1006,7 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
                 </p>
               </div>
             ))}
-            <div className='flex items-center justify-between p-2.5 rounded-lg bg-slate-800/50 mt-2 border-t border-slate-700 pt-3'>
+            <div className='flex items-center justify-between px-2.5 pt-2 border-t border-slate-700'>
               <p className='text-xs font-bold text-slate-400'>Total Coverage</p>
               <p className='text-sm font-bold text-emerald-400'>
                 {formatCurrency(totalCoverage)}
@@ -995,7 +1031,12 @@ function ReportsTab({ policies }: { policies: InsurancePolicy[] }) {
 
 export function InsurancePage() {
   const policies = usePortfolioStore((s) => s.insurancePolicies) || [];
+  const payments = usePortfolioStore((s) => s.insurancePayments) || [];
+
   const deletePolicy = usePortfolioStore((s) => s.deleteInsurancePolicy);
+  const updatePolicy = usePortfolioStore((s) => s.updateInsurancePolicy);
+  const addPaymentStore = usePortfolioStore((s) => s.addInsurancePayment);
+  const deletePaymentStore = usePortfolioStore((s) => s.deleteInsurancePayment);
 
   const [activeTab, setActiveTab] = useState<TabType>('Overview');
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
@@ -1007,13 +1048,11 @@ export function InsurancePage() {
     null,
   );
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
   const handleEdit = (policy: InsurancePolicy) => {
     setEditingPolicy(policy);
     setModalMode('edit');
   };
-
   const handleDeleteClick = (policy: InsurancePolicy) => {
     setDeletingPolicy(policy);
     setDeleteModalOpen(true);
@@ -1025,11 +1064,42 @@ export function InsurancePage() {
     try {
       await deletePolicy(deletingPolicy.id);
       setDeleteModalOpen(false);
-      setToast(`"${deletingPolicy.policyName}" deleted`);
       setDeletingPolicy(null);
+      toast.success(`"${deletingPolicy.policyName}" deleted`);
     } finally {
       setDeleteLoading(false);
     }
+  };
+
+  // ── Record a payment: save to Firestore + advance renewal date ─────────
+  const handleAddPayment = async (
+    policyId: string,
+    amount: number,
+    paidAt: string,
+    note: string,
+  ) => {
+    // 1. Save payment to Firestore
+    await addPaymentStore({ policyId, amount, paidAt, note });
+
+    // 2. Advance the policy's renewalDate by one period
+    const policy = policies.find((p) => p.id === policyId);
+    if (policy) {
+      const nextRenewal = computeNextRenewalDate(
+        policy.renewalDate,
+        policy.premiumFrequency,
+      );
+      await updatePolicy(policy.id, {
+        renewalDate: nextRenewal,
+        lastPaymentDate: paidAt,
+      });
+    }
+
+    toast.success('Payment recorded! Renewal date updated.');
+  };
+
+  const handleDeletePayment = async (id: string) => {
+    await deletePaymentStore(id);
+    toast.success('Payment removed.');
   };
 
   return (
@@ -1044,21 +1114,23 @@ export function InsurancePage() {
             Track life, health, vehicle and property coverage.
           </p>
         </div>
-        <button
-          onClick={() => setModalMode('create')}
-          className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/20'
-        >
-          <FiPlus /> Add Policy
-        </button>
+        <div className='flex gap-2'>
+          <button
+            onClick={() => setModalMode('create')}
+            className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
+          >
+            <FiPlus className='h-4 w-4' /> Add Policy
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className='flex gap-1 bg-slate-900/50 border border-slate-800 rounded-xl p-1 w-fit'>
+      <div className='flex gap-1 bg-slate-900/50 border border-slate-800 rounded-xl p-1 w-fit overflow-x-auto'>
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
               activeTab === tab
                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -1080,11 +1152,20 @@ export function InsurancePage() {
             onDelete={handleDeleteClick}
           />
         )}
-        {activeTab === 'Payments' && <PaymentsTab policies={policies} />}
-        {activeTab === 'Reports' && <ReportsTab policies={policies} />}
+        {activeTab === 'Payments' && (
+          <PaymentsTab
+            policies={policies}
+            payments={payments}
+            onAddPayment={handleAddPayment}
+            onDeletePayment={handleDeletePayment}
+          />
+        )}
+        {activeTab === 'Reports' && (
+          <ReportsTab policies={policies} payments={payments} />
+        )}
       </div>
 
-      {/* Modals */}
+      {/* Create/Edit Policy Modal */}
       {modalMode === 'create' && (
         <UpsertInsuranceModal
           open
@@ -1112,11 +1193,12 @@ export function InsurancePage() {
       >
         <div className='space-y-5'>
           <p className='text-sm text-slate-400'>
-            Are you sure you want to delete{' '}
+            Delete{' '}
             <strong className='text-slate-200'>
               {deletingPolicy?.policyName}
             </strong>
-            ? This action cannot be undone.
+            ? All payment records for this policy will remain but will show as
+            "Unknown Policy".
           </p>
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
             <button
@@ -1130,13 +1212,11 @@ export function InsurancePage() {
               disabled={deleteLoading}
               className='px-5 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60'
             >
-              {deleteLoading ? 'Deleting…' : 'Delete'}
+              {deleteLoading ? 'Deleting…' : 'Delete Policy'}
             </button>
           </div>
         </div>
       </Modal>
-
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   );
 }

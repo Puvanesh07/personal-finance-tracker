@@ -1,3 +1,7 @@
+// FILE 4 OF 5
+// src/utils/backup.ts — FULL REPLACEMENT
+// Adds insurancePayments to export and import
+
 import type {
   Account,
   AgriExpense,
@@ -10,6 +14,7 @@ import type {
   EssentialsConfig,
   Field,
   Goal,
+  InsurancePayment,
   Investment,
   Liability,
   Livestock,
@@ -33,7 +38,7 @@ import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
@@ -51,13 +56,12 @@ export type BackupPayload = {
   agriMilkRecords?: MilkRecord[];
   agriCoconut?: CoconutRecord[];
   agriLivestockEvents?: LivestockEvent[];
-  // Attendance
   attEmployees?: AttendanceEmployee[];
   attRecords?: AttendanceRecord[];
   attTransactions?: AttendanceTransaction[];
   attSalary?: SalaryRecord[];
-  // New sections
   insurancePolicies?: any[];
+  insurancePayments?: InsurancePayment[]; // ← NEW
   sipPlans?: any[];
 };
 
@@ -86,6 +90,7 @@ async function batchSet(uid: string, colName: string, items: any[]) {
 
 export async function exportFullBackup(uid: string) {
   if (!uid) throw new Error('You must be logged in to export data.');
+
   const [
     investments,
     liabilities,
@@ -106,6 +111,7 @@ export async function exportFullBackup(uid: string) {
     attTransactions,
     attSalary,
     insurancePolicies,
+    insurancePayments, // ← NEW
     sipPlans,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
@@ -127,14 +133,17 @@ export async function exportFullBackup(uid: string) {
     fetchSub<AttendanceTransaction>(uid, 'attTransactions'),
     fetchSub<SalaryRecord>(uid, 'attSalary'),
     fetchSub<any>(uid, 'insurancePolicies'),
+    fetchSub<InsurancePayment>(uid, 'insurancePayments'), // ← NEW
     fetchSub<any>(uid, 'sipPlans'),
   ]);
+
   const settingsSnap = await getDoc(settingsDocRef(uid));
   const settings = settingsSnap.exists()
     ? (settingsSnap.data() as SettingsRecord)
     : null;
+
   const payload: BackupPayload = {
-    version: 4,
+    version: 5, // bumped from 4 → 5
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
@@ -157,21 +166,27 @@ export async function exportFullBackup(uid: string) {
     attTransactions,
     attSalary,
     insurancePolicies,
+    insurancePayments, // ← NEW
     sipPlans,
   };
+
   saveAs(
     new Blob([JSON.stringify(payload, null, 2)], {
       type: 'application/json;charset=utf-8',
     }),
-    `finance-backup-${new Date().toISOString().split('T')[0]}.json`,
+    `fintrackly-backup-${new Date().toISOString().split('T')[0]}.json`,
   );
 }
 
 export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
+
   const parsed = JSON.parse(jsonText) as BackupPayload;
-  if (!parsed || ![1, 2, 3, 4].includes(parsed.version))
-    throw new Error('Unsupported backup format. Expected version 1, 2, or 3.');
+
+  // Accept versions 1–5
+  if (!parsed || ![1, 2, 3, 4, 5].includes(parsed.version as number))
+    throw new Error('Unsupported backup format. Expected version 1–5.');
+
   await Promise.all([
     batchSet(uid, 'investments', parsed.investments ?? []),
     batchSet(uid, 'liabilities', parsed.liabilities ?? []),
@@ -192,8 +207,10 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
     batchSet(uid, 'attSalary', parsed.attSalary ?? []),
     batchSet(uid, 'insurancePolicies', (parsed as any).insurancePolicies ?? []),
+    batchSet(uid, 'insurancePayments', parsed.insurancePayments ?? []), // ← NEW
     batchSet(uid, 'sipPlans', (parsed as any).sipPlans ?? []),
   ]);
+
   const batch = writeBatch(db);
   batch.set(settingsDocRef(uid), {
     notion: parsed.notion ?? { enabled: false },

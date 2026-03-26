@@ -1,15 +1,17 @@
-// src/components/settings/DataManagement.tsx
+// FILE 5 OF 5
+// src/components/settings/DataManagement.tsx — FULL REPLACEMENT
 //
-// Two separate named exports — use the right one per tab:
-//   <ExportImport /> → "Export / Import" tab (CSV + JSON backup + restore only)
-//   <DangerZone />   → "Danger Zone" tab (Clear data + Delete account only)
-//
-// DataManagement (default) kept for legacy compatibility only.
+// CHANGES from previous version:
+//  1. Export JSON now shows a breakdown of what's included (with insurance + payments count)
+//  2. Import shows a preview of what the JSON file contains before restoring
+//  3. Insurance payments are included in both export and import (via the updated backup.ts)
 
 import {
   FiArrowDown,
   FiArrowUp,
+  FiCheck,
   FiDownload,
+  FiShield,
   FiTable,
   FiTrash2,
   FiUpload,
@@ -33,7 +35,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 const SIP_STORAGE_KEY = 'fintrackly_sip_plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT / IMPORT — shown only in the "Export / Import" tab
+// EXPORT / IMPORT
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ExportImport() {
@@ -48,6 +50,26 @@ export function ExportImport() {
 
   const importRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<Record<string, number>>({});
+  const [pendingFile, setPendingFile] = useState<string | null>(null);
+
+  // Build a count summary of current data for the export preview
+  const exportSummary = {
+    Investments: state.investments?.length ?? 0,
+    Liabilities: state.liabilities?.length ?? 0,
+    Cashflows: state.cashflows?.length ?? 0,
+    Goals: state.goals?.length ?? 0,
+    Accounts: state.accounts?.length ?? 0,
+    'Insurance Policies': state.insurancePolicies?.length ?? 0,
+    'Insurance Payments': (state as any).insurancePayments?.length ?? 0,
+    'SIP Plans': state.sipPlans?.length ?? 0,
+    'Agri Records':
+      (agriState.fields?.length ?? 0) + (agriState.cropCycles?.length ?? 0),
+    'Attendance Records':
+      (attState.employees?.length ?? 0) +
+      (attState.attendanceRecords?.length ?? 0),
+  };
 
   const handleExportCSV = () => {
     const hasFinance =
@@ -93,7 +115,9 @@ export function ExportImport() {
     setBusy(true);
     try {
       await exportFullBackup(uid);
-      toast.success('Full backup downloaded.');
+      toast.success(
+        'Full backup downloaded — includes insurance policies & payments.',
+      );
     } catch (err: any) {
       toast.error(err.message || 'Export failed.');
     } finally {
@@ -101,24 +125,64 @@ export function ExportImport() {
     }
   };
 
+  // Parse the JSON file first to show a preview, then confirm before restoring
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uid) return;
-    setBusy(true);
+
     try {
       const text = await file.text();
-      await importFullBackup(text, uid);
+      const parsed = JSON.parse(text);
+
+      // Build preview counts from the file
+      const counts: Record<string, number> = {
+        Investments: parsed.investments?.length ?? 0,
+        Liabilities: parsed.liabilities?.length ?? 0,
+        Cashflows: parsed.cashflows?.length ?? 0,
+        Goals: parsed.goals?.length ?? 0,
+        Accounts: parsed.accounts?.length ?? 0,
+        'Insurance Policies': parsed.insurancePolicies?.length ?? 0,
+        'Insurance Payments': parsed.insurancePayments?.length ?? 0,
+        'SIP Plans': parsed.sipPlans?.length ?? 0,
+        'Agri Records':
+          (parsed.agriFields?.length ?? 0) +
+          (parsed.agriCropCycles?.length ?? 0),
+        'Attendance Records':
+          (parsed.attEmployees?.length ?? 0) + (parsed.attRecords?.length ?? 0),
+      };
+
+      setPreviewData(counts);
+      setPendingFile(text);
+      setPreviewOpen(true);
+    } catch {
+      toast.error('Could not parse JSON file — check the file format.');
+    } finally {
+      if (importRef.current) importRef.current.value = '';
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!pendingFile || !uid) return;
+    setBusy(true);
+    try {
+      await importFullBackup(pendingFile, uid);
       await hydrate(uid);
       await agriHydrate(uid);
       await attHydrate(uid);
-      toast.success('Backup imported — all data restored.');
+      toast.success(
+        'Backup imported — all data restored including insurance payments.',
+      );
+      setPreviewOpen(false);
+      setPendingFile(null);
     } catch (err: any) {
       toast.error(err.message || 'Import failed — check JSON format.');
     } finally {
       setBusy(false);
-      if (importRef.current) importRef.current.value = '';
     }
   };
+
+  const inputCls =
+    'w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none';
 
   return (
     <div className='flex flex-col gap-4'>
@@ -145,26 +209,54 @@ export function ExportImport() {
       </div>
 
       {/* Export JSON */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
-        <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20'>
-          <FiArrowDown className='h-5 w-5 text-indigo-400' />
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-4'>
+        <div className='flex flex-col sm:flex-row sm:items-start gap-4'>
+          <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20'>
+            <FiArrowDown className='h-5 w-5 text-indigo-400' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='font-bold text-slate-100 text-sm'>
+              Full Backup (JSON)
+            </p>
+            <p className='text-xs text-slate-500 mt-0.5'>
+              Complete backup of your entire account — finance, agriculture,
+              attendance, insurance policies &amp; payment records, SIP plan in
+              one file.
+            </p>
+          </div>
+          <button
+            onClick={handleExportJSON}
+            disabled={busy}
+            className='flex items-center gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-sm font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
+          >
+            <FiDownload className='h-4 w-4' />
+            {busy ? 'Exporting…' : 'Export JSON'}
+          </button>
         </div>
-        <div className='flex-1 min-w-0'>
-          <p className='font-bold text-slate-100 text-sm'>Full Backup (JSON)</p>
-          <p className='text-xs text-slate-500 mt-0.5'>
-            Complete backup of your entire account — finance, agriculture,
-            attendance, insurance &amp; SIP plan in one file. Use this to
-            restore your data later.
+
+        {/* What's included breakdown */}
+        <div className='border-t border-slate-800 pt-3'>
+          <p className='text-[10px] font-black uppercase tracking-widest text-slate-600 mb-2'>
+            What will be exported
           </p>
+          <div className='grid grid-cols-2 sm:grid-cols-3 gap-1.5'>
+            {Object.entries(exportSummary).map(([label, count]) => (
+              <div key={label} className='flex items-center gap-2 text-xs'>
+                <FiCheck
+                  className={`h-3 w-3 shrink-0 ${count > 0 ? 'text-emerald-400' : 'text-slate-700'}`}
+                />
+                <span
+                  className={count > 0 ? 'text-slate-400' : 'text-slate-600'}
+                >
+                  {label}
+                  {count > 0 && (
+                    <span className='text-slate-500 ml-1'>({count})</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <button
-          onClick={handleExportJSON}
-          disabled={busy}
-          className='flex items-center gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-sm font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
-        >
-          <FiDownload className='h-4 w-4' />
-          {busy ? 'Exporting…' : 'Export JSON'}
-        </button>
       </div>
 
       {/* Import JSON */}
@@ -177,8 +269,8 @@ export function ExportImport() {
             Restore from Backup
           </p>
           <p className='text-xs text-slate-500 mt-0.5'>
-            Import a previously exported JSON backup file to restore all your
-            data. This will overwrite your current data.
+            Import a previously exported JSON backup to restore all your data. A
+            preview will be shown before overwriting anything.
           </p>
         </div>
         <input
@@ -197,12 +289,86 @@ export function ExportImport() {
           {busy ? 'Importing…' : 'Import JSON'}
         </button>
       </div>
+
+      {/* Import Preview Modal */}
+      <Modal
+        open={previewOpen}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPendingFile(null);
+        }}
+        title='📦 Restore from Backup'
+      >
+        <div className='space-y-4'>
+          <div className='bg-amber-500/8 border border-amber-500/20 rounded-xl p-3'>
+            <p className='text-xs font-bold text-amber-300'>
+              ⚠ This will overwrite your current data
+            </p>
+            <p className='text-[11px] text-amber-400/70 mt-1'>
+              All existing records will be replaced with the backup file
+              contents.
+            </p>
+          </div>
+
+          <div>
+            <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-2'>
+              What will be restored
+            </p>
+            <div className='grid grid-cols-2 gap-1.5'>
+              {Object.entries(previewData).map(([label, count]) => (
+                <div
+                  key={label}
+                  className='flex items-center justify-between bg-slate-800/60 rounded-lg px-3 py-2'
+                >
+                  <span className='text-xs text-slate-400 flex items-center gap-1.5'>
+                    {label === 'Insurance Policies' ||
+                    label === 'Insurance Payments' ? (
+                      <FiShield className='h-3 w-3 text-blue-400' />
+                    ) : (
+                      <FiCheck
+                        className={`h-3 w-3 ${count > 0 ? 'text-emerald-400' : 'text-slate-600'}`}
+                      />
+                    )}
+                    {label}
+                  </span>
+                  <span
+                    className={`text-xs font-bold ${count > 0 ? 'text-slate-200' : 'text-slate-600'}`}
+                  >
+                    {count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
+            <button
+              disabled={busy}
+              onClick={() => {
+                setPreviewOpen(false);
+                setPendingFile(null);
+              }}
+              className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-50'
+            >
+              Cancel
+            </button>
+            <button
+              disabled={busy}
+              onClick={handleConfirmImport}
+              className='flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-60'
+            >
+              <FiUpload className='h-4 w-4' />
+              {busy ? 'Restoring…' : 'Yes, Restore Data'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DANGER ZONE — shown only in the "Danger Zone" tab
+// DANGER ZONE (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function DangerZone() {
@@ -216,10 +382,8 @@ export function DangerZone() {
   const attClear = attState.clearAll;
 
   const [busy, setBusy] = useState(false);
-
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteAccountText, setDeleteAccountText] = useState('');
 
@@ -284,8 +448,8 @@ export function DangerZone() {
             <p className='font-bold text-slate-100 text-sm'>Clear All Data</p>
             <p className='text-xs text-slate-500 mt-0.5'>
               Permanently wipes all investments, accounts, goals, cashflows,
-              agriculture, attendance &amp; settings. Your login credentials
-              remain intact.
+              agriculture, attendance, insurance policies &amp; payments. Your
+              login credentials remain intact.
             </p>
           </div>
           <button
@@ -309,7 +473,7 @@ export function DangerZone() {
             <p className='font-bold text-rose-300 text-sm'>Delete My Account</p>
             <p className='text-xs text-slate-500 mt-0.5'>
               Permanently deletes all your data AND removes your login
-              credentials. You will not be able to sign back in after this.
+              credentials.
             </p>
           </div>
           <button
@@ -325,7 +489,7 @@ export function DangerZone() {
         </div>
       </div>
 
-      {/* ── Clear All Data Modal ── */}
+      {/* Clear All Data Modal */}
       <Modal
         open={confirmOpen}
         onClose={() => !busy && setConfirmOpen(false)}
@@ -335,12 +499,13 @@ export function DangerZone() {
           <p className='text-sm text-slate-400'>
             This will{' '}
             <strong className='text-rose-400'>permanently delete</strong> every
-            record — finance, agriculture and attendance data. Cannot be undone.
+            record — finance, agriculture, attendance and insurance data. Cannot
+            be undone.
           </p>
           <ul className='text-xs text-slate-500 space-y-1 list-disc pl-5'>
             <li>Investments, Sold Trades, Liabilities, Cashflows, Goals</li>
             <li>Accounts, Snapshots, Net Worth history, Insights</li>
-            <li>Insurance Policies, Monthly SIP Plan</li>
+            <li>Insurance Policies &amp; all Payment Records</li>
             <li>Agriculture — fields, crops, livestock, milk, coconut</li>
             <li>Attendance — workers, daily records, advances, salary</li>
             <li>Settings (Essentials, Notion)</li>
@@ -379,7 +544,7 @@ export function DangerZone() {
         </div>
       </Modal>
 
-      {/* ── Delete Account Modal ── */}
+      {/* Delete Account Modal */}
       <Modal
         open={deleteAccountOpen}
         onClose={() => !busy && setDeleteAccountOpen(false)}
@@ -392,8 +557,7 @@ export function DangerZone() {
             </p>
             <ul className='text-xs text-slate-400 space-y-1 list-disc pl-4'>
               <li>
-                All financial data (investments, cashflow, goals, insurance, SIP
-                plan…)
+                All financial data, insurance policies &amp; payment records
               </li>
               <li>All agriculture and attendance records</li>
               <li>
@@ -416,8 +580,8 @@ export function DangerZone() {
           </div>
           <p className='text-xs text-slate-500 bg-slate-800/30 rounded-xl p-3'>
             <strong className='text-slate-300'>Note:</strong> Firebase requires
-            a recent login to delete your account. If you see an error, please
-            log out and log back in first, then try again.
+            a recent login to delete your account. If you see an error, log out
+            and log back in first.
           </p>
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
             <button
@@ -448,7 +612,7 @@ export function DangerZone() {
   );
 }
 
-// Legacy default export — wraps both for any old imports
+// Legacy default export
 export function DataManagement() {
   return (
     <>

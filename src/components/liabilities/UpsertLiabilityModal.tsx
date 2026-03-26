@@ -1,5 +1,19 @@
+// src/components/liabilities/UpsertLiabilityModal.tsx
+//
+// UPDATED — Added three optional EMI fields (matching the updated Liability type):
+//   • emiAmount  — monthly EMI instalment in ₹
+//   • emiDay     — day of month (1–31) when EMI hits
+//   • status     — 'active' | 'paid' | 'paused'
+//
+// All three are optional and show only when type === 'loan' (makes UX sense).
+// Existing create/edit flows are unchanged — the new fields default to empty.
+
 import { FiCalendar, FiChevronDown, FiPlus, FiSave } from 'react-icons/fi';
-import type { Liability, LiabilityType } from '../../types/investmentTypes';
+import type {
+  Liability,
+  LiabilityStatus,
+  LiabilityType,
+} from '../../types/investmentTypes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
@@ -22,6 +36,10 @@ type FormState = {
   outstanding: string;
   interestRate: string;
   endDate: string;
+  // ── New EMI fields ──
+  emiAmount: string;
+  emiDay: string;
+  status: LiabilityStatus | '';
 };
 
 function toNum(v: string) {
@@ -33,7 +51,6 @@ export function UpsertLiabilityModal(props: Props) {
   const addLiability = usePortfolioStore((s) => s.addLiability);
   const updateLiability = usePortfolioStore((s) => s.updateLiability);
 
-  // Create a reference to control the native date picker
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const initial = useMemo<FormState>(() => {
@@ -44,17 +61,21 @@ export function UpsertLiabilityModal(props: Props) {
       outstanding: '0',
       interestRate: '',
       endDate: '',
+      emiAmount: '',
+      emiDay: '',
+      status: '',
     };
     if (props.mode === 'edit') {
-      base.type = props.liability.type;
-      base.name = props.liability.name;
-      base.principal = String(props.liability.principal);
-      base.outstanding = String(props.liability.outstanding);
-      base.interestRate =
-        props.liability.interestRate == null
-          ? ''
-          : String(props.liability.interestRate);
-      base.endDate = props.liability.endDate || '';
+      const l = props.liability;
+      base.type = l.type;
+      base.name = l.name;
+      base.principal = String(l.principal);
+      base.outstanding = String(l.outstanding);
+      base.interestRate = l.interestRate == null ? '' : String(l.interestRate);
+      base.endDate = l.endDate || '';
+      base.emiAmount = l.emiAmount != null ? String(l.emiAmount) : '';
+      base.emiDay = l.emiDay != null ? String(l.emiDay) : '';
+      base.status = l.status || '';
     }
     return base;
   }, [props.mode, (props as any).liability]);
@@ -62,6 +83,9 @@ export function UpsertLiabilityModal(props: Props) {
   const [state, setState] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const set = (patch: Partial<FormState>) =>
+    setState((s) => ({ ...s, ...patch }));
 
   useEffect(() => {
     if (props.open) {
@@ -73,7 +97,7 @@ export function UpsertLiabilityModal(props: Props) {
   async function onSubmit() {
     setSaving(true);
     try {
-      const payload = {
+      const payload: Partial<Liability> = {
         type: state.type,
         name: state.name.trim(),
         principal: toNum(state.principal),
@@ -82,9 +106,17 @@ export function UpsertLiabilityModal(props: Props) {
           ? { interestRate: toNum(state.interestRate) }
           : {}),
         ...(state.endDate.trim() ? { endDate: state.endDate } : {}),
+        // New fields — only include if filled in
+        ...(state.emiAmount.trim()
+          ? { emiAmount: toNum(state.emiAmount) }
+          : {}),
+        ...(state.emiDay.trim() ? { emiDay: toNum(state.emiDay) } : {}),
+        ...(state.status ? { status: state.status as LiabilityStatus } : {}),
       };
+
       if (props.mode === 'create') await addLiability(payload as any);
       else await updateLiability(props.liability.id, payload as any);
+
       props.onClose();
     } finally {
       setSaving(false);
@@ -92,24 +124,24 @@ export function UpsertLiabilityModal(props: Props) {
   }
 
   const formatDateLabel = (dateStr: string) => {
-    if (!dateStr) return 'Select date...';
+    if (!dateStr) return 'Select date…';
     const [year, month, day] = dateStr.split('-');
-    const d = new Date(Number(year), Number(month) - 1, Number(day));
-    return d.toLocaleDateString('en-IN', {
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+    ).toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
   };
 
-  // Helper function to force open the date picker
   const handleDateClick = () => {
     if (dateInputRef.current) {
       try {
-        // Modern browsers: forces the calendar popup to appear and auto-position
         dateInputRef.current.showPicker();
-      } catch (error) {
-        // Fallback for older browsers
+      } catch {
         dateInputRef.current.focus();
       }
     }
@@ -126,6 +158,9 @@ export function UpsertLiabilityModal(props: Props) {
     { id: 'other', label: 'Personal / Hand Loan (Friends/Family)' },
   ];
 
+  // Show EMI fields only for loans (most relevant)
+  const showEmiFields = state.type === 'loan';
+
   return (
     <Modal
       open={props.open}
@@ -135,7 +170,8 @@ export function UpsertLiabilityModal(props: Props) {
       }
     >
       <div className='grid grid-cols-1 gap-5'>
-        {props.mode === 'create' ? (
+        {/* Type picker (create only) */}
+        {props.mode === 'create' && (
           <div className='block relative'>
             <span className={labelCls}>Type of Debt</span>
             <button
@@ -144,10 +180,10 @@ export function UpsertLiabilityModal(props: Props) {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <span className='truncate'>
-                {typeOptions.find((opt) => opt.id === state.type)?.label}
+                {typeOptions.find((o) => o.id === state.type)?.label}
               </span>
               <FiChevronDown
-                className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
               />
             </button>
             {isDropdownOpen && (
@@ -156,7 +192,6 @@ export function UpsertLiabilityModal(props: Props) {
                   className='fixed inset-0 z-40'
                   onClick={() => setIsDropdownOpen(false)}
                 />
-                {/* Changed to top-full to ensure it positions directly below the button automatically */}
                 <div className='absolute left-0 top-full mt-2 z-50 w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800'>
                   {typeOptions.map((opt) => (
                     <button
@@ -164,10 +199,7 @@ export function UpsertLiabilityModal(props: Props) {
                       type='button'
                       className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
                       onClick={() => {
-                        setState((s) => ({
-                          ...s,
-                          type: opt.id as LiabilityType,
-                        }));
+                        set({ type: opt.id as LiabilityType });
                         setIsDropdownOpen(false);
                       }}
                     >
@@ -178,44 +210,47 @@ export function UpsertLiabilityModal(props: Props) {
               </>
             )}
           </div>
-        ) : null}
+        )}
 
+        {/* Name */}
         <label className='block'>
           <span className={labelCls}>Name / Description</span>
           <input
             className={inputCls}
             value={state.name}
-            onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
+            onChange={(e) => set({ name: e.target.value })}
             placeholder='e.g., Rent money from friend, Car EMI'
           />
         </label>
 
+        {/* Principal + Outstanding */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
             <span className={labelCls}>Total Borrowed (Initial)</span>
             <NumericInput
               className={inputCls}
               value={state.principal}
-              onChange={(v) => setState((s) => ({ ...s, principal: v }))}
+              onChange={(v) => set({ principal: v })}
             />
           </label>
           <label className='block'>
-            <span className={labelCls}>Amount Left to Pay (Pending)</span>
+            <span className={labelCls}>Amount Left to Pay</span>
             <NumericInput
               className={inputCls}
               value={state.outstanding}
-              onChange={(v) => setState((s) => ({ ...s, outstanding: v }))}
+              onChange={(v) => set({ outstanding: v })}
             />
           </label>
         </div>
 
+        {/* Interest + End Date */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
             <span className={labelCls}>Interest Rate (% Yearly)</span>
             <NumericInput
               className={inputCls}
               value={state.interestRate}
-              onChange={(v) => setState((s) => ({ ...s, interestRate: v }))}
+              onChange={(v) => set({ interestRate: v })}
               placeholder='e.g. 0 for friends'
             />
           </label>
@@ -223,7 +258,6 @@ export function UpsertLiabilityModal(props: Props) {
           <label className='block'>
             <span className={labelCls}>Expected Repayment Date</span>
             <div className='relative'>
-              {/* This visual box now acts as a giant button that triggers the hidden input */}
               <div
                 className={`${inputCls} flex items-center justify-between cursor-pointer`}
                 onClick={handleDateClick}
@@ -239,23 +273,92 @@ export function UpsertLiabilityModal(props: Props) {
                 </span>
                 <FiCalendar className='h-4 w-4 shrink-0 text-slate-400' />
               </div>
-
-              {/* Hidden Native Input: We make it pointer-events-none so it doesn't block clicks,
-                but it remains visible to the browser so showPicker() works perfectly.
-              */}
               <input
                 ref={dateInputRef}
                 type='date'
                 className='absolute inset-0 h-full w-full opacity-0 pointer-events-none'
                 value={state.endDate}
-                onChange={(e) =>
-                  setState((s) => ({ ...s, endDate: e.target.value }))
-                }
+                onChange={(e) => set({ endDate: e.target.value })}
               />
             </div>
           </label>
         </div>
 
+        {/* ── EMI Fields (loans only) ── */}
+        {showEmiFields && (
+          <>
+            <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
+              <p className='text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600 mb-3'>
+                EMI Details (Optional)
+              </p>
+              <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                <label className='block'>
+                  <span className={labelCls}>Monthly EMI Amount (₹)</span>
+                  <NumericInput
+                    className={inputCls}
+                    value={state.emiAmount}
+                    onChange={(v) => set({ emiAmount: v })}
+                    placeholder='e.g. 5000'
+                  />
+                </label>
+
+                <label className='block'>
+                  <span className={labelCls}>EMI Due Day (Date of Month)</span>
+                  <input
+                    type='number'
+                    className={inputCls}
+                    value={state.emiDay}
+                    onChange={(e) => set({ emiDay: e.target.value })}
+                    placeholder='e.g. 5  (5th of every month)'
+                    min={1}
+                    max={31}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <span className={labelCls}>Loan Status</span>
+              <div className='flex gap-2'>
+                {(
+                  [
+                    {
+                      value: 'active',
+                      label: '✅ Active',
+                      cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+                    },
+                    {
+                      value: 'paused',
+                      label: '⏸ Paused',
+                      cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
+                    },
+                    {
+                      value: 'paid',
+                      label: '🏁 Paid Off',
+                      cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
+                    },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type='button'
+                    onClick={() => set({ status: opt.value })}
+                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                      state.status === opt.value
+                        ? opt.cls
+                        : 'border-slate-700 text-slate-500 hover:border-slate-500 dark:border-slate-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Actions */}
         <div className='mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60'>
           <button
             type='button'

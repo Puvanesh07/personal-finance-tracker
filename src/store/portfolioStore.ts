@@ -9,6 +9,7 @@ import type {
   Goal,
   InsightSnapshot,
   InsurancePolicy,
+  InsurancePayment,
   Investment,
   Liability,
   NetWorthSnapshot,
@@ -98,6 +99,7 @@ type PortfolioState = {
   accounts: Account[];
   soldTrades: SoldTrade[];
   insurancePolicies: InsurancePolicy[];
+  insurancePayments: InsurancePayment[];
   sipPlans: any[];
   _lastSnapshotDate: string | null;
 
@@ -138,6 +140,8 @@ type PortfolioState = {
   ) => Promise<void>;
   updateSoldTrade: (id: string, patch: Partial<SoldTrade>) => Promise<void>;
   deleteSoldTrade: (id: string) => Promise<void>;
+
+  // Insurance Methods
   addInsurancePolicy: (
     policy: Omit<InsurancePolicy, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -146,6 +150,16 @@ type PortfolioState = {
     patch: Partial<InsurancePolicy>,
   ) => Promise<void>;
   deleteInsurancePolicy: (id: string) => Promise<void>;
+
+  // Added Missing Insurance Payment Methods
+  addInsurancePayment: (
+    payment: Omit<
+      InsurancePayment,
+      'id' | 'createdAt' | 'updatedAt' | 'userId'
+    >,
+  ) => Promise<void>;
+  deleteInsurancePayment: (id: string) => Promise<void>;
+
   addSipInstrument: (instrument: {
     name: string;
     percentage: number;
@@ -184,6 +198,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   accounts: [],
   soldTrades: [],
   insurancePolicies: [],
+  insurancePayments: [],
   sipPlans: [],
   _lastSnapshotDate: null,
 
@@ -201,6 +216,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts,
         soldTrades,
         insurancePolicies,
+        insurancePayments,
         sipPlans,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
@@ -213,6 +229,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<Account>(uid, 'accounts'),
         fetchSub<SoldTrade>(uid, 'soldTrades'),
         fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
+        fetchSub<InsurancePayment>(uid, 'insurancePayments'),
         fetchSub<any>(uid, 'sipPlans'),
       ]);
 
@@ -258,6 +275,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ),
         insurancePolicies: insurancePolicies.sort((a, b) =>
           safeCompare(a.renewalDate, b.renewalDate),
+        ),
+        // Hydrate and sort insurance payments
+        insurancePayments: insurancePayments.sort((a, b) =>
+          safeCompare(b.paidAt, a.paidAt),
         ),
         sipPlans: sipPlans.sort((a: any, b: any) =>
           safeCompare(a.createdAt, b.createdAt),
@@ -610,6 +631,36 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
+  // ADDED: Insurance Payments Functions
+  addInsurancePayment: async (payment) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...payment,
+      id: createId('inspay'),
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as InsurancePayment;
+
+    await saveDoc(uid, 'insurancePayments', withMeta);
+    set((s) => ({
+      insurancePayments: [withMeta, ...s.insurancePayments].sort((a, b) =>
+        safeCompare(b.paidAt, a.paidAt),
+      ),
+    }));
+  },
+
+  deleteInsurancePayment: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'insurancePayments', id));
+    set((s) => ({
+      insurancePayments: s.insurancePayments.filter((x) => x.id !== id),
+    }));
+  },
+
   addSipInstrument: async (instrument) => {
     const uid = get().uid;
     if (!uid) return;
@@ -797,6 +848,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriLivestockEvents',
       'soldTrades',
       'insurancePolicies',
+      'insurancePayments', // Added to clear payments correctly
       'sipPlans',
       'attEmployees',
       'attRecords',
@@ -830,6 +882,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts: [],
         soldTrades: [],
         insurancePolicies: [],
+        insurancePayments: [],
         sipPlans: [],
         _lastSnapshotDate: null,
       });

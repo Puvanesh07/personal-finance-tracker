@@ -150,14 +150,40 @@ export type InsuranceType =
 export type InsurancePolicy = {
   id: string;
   type: InsuranceType;
-  provider: string; // e.g., HDFC Ergo, LIC
+  provider: string;
   policyName: string;
   coverageAmount: number;
   premiumAmount: number;
-  premiumFrequency: 'monthly' | 'yearly';
-  renewalDate: string; // YYYY-MM-DD
+  premiumFrequency: 'monthly' | 'yearly' | 'quarterly' | 'half-yearly';
+  renewalDate: string; // YYYY-MM-DD — next due date, updated after payment
   nominee?: string;
   notes?: string;
+  // Extended fields
+  policyNumber?: string;
+  commencementDate?: string;
+  maturityDate?: string;
+  policyTermYears?: number;
+  premiumPayingTermYears?: number;
+  paymentsAlreadyMade?: number; // count before app usage
+  lastPaymentDate?: string; // YYYY-MM-DD — when last premium was recorded
+  sumAssured?: number;
+  bonusType?: string;
+  agentName?: string;
+  agentCode?: string;
+  modeOfPayment?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ── ADD this new type anywhere after InsurancePolicy: ────────────────────────
+
+export type InsurancePayment = {
+  id: string;
+  policyId: string;
+  amount: number;
+  paidAt: string; // YYYY-MM-DD
+  note?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -189,7 +215,16 @@ export type NetWorthSnapshot = {
 
 // ── Liabilities ────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH: Add to src/types/investmentTypes.ts
+//
+// Find the existing Liability type and REPLACE it with the block below.
+// Everything else in investmentTypes.ts stays unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type LiabilityType = 'loan' | 'credit_card' | 'other';
+
+export type LiabilityStatus = 'active' | 'paid' | 'paused';
 
 export type Liability = {
   id: string;
@@ -198,8 +233,11 @@ export type Liability = {
   principal: number;
   outstanding: number;
   interestRate?: number;
-  startDate?: ISODateString;
-  endDate?: ISODateString;
+  startDate?: string;
+  endDate?: string;
+  emiAmount?: number; // monthly EMI in ₹
+  emiDay?: number; // day of month EMI is due (1–31)
+  status?: LiabilityStatus; // 'active' | 'paid' | 'paused'
   createdAt: string;
   updatedAt: string;
   userId?: string;

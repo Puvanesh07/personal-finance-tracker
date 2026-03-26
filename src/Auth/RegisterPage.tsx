@@ -261,16 +261,6 @@ export default function RegisterPage({
           <span className='text-lg font-bold tracking-tight text-white'>
             FinTrackly
           </span>
-          <span
-            className='ml-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest'
-            style={{
-              background: 'rgba(16,185,129,0.15)',
-              color: '#10b981',
-              border: '1px solid rgba(16,185,129,0.3)',
-            }}
-          >
-            Beta
-          </span>
         </motion.div>
 
         {/* Card */}
