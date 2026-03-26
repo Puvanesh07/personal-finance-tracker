@@ -181,9 +181,6 @@ export function ExportImport() {
     }
   };
 
-  const inputCls =
-    'w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none';
-
   return (
     <div className='flex flex-col gap-4'>
       {/* Export CSV */}
