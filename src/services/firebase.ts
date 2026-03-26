@@ -1,5 +1,9 @@
 import { GoogleAuthProvider, getAuth } from 'firebase/auth';
 import {
+  ReCaptchaEnterpriseProvider,
+  initializeAppCheck,
+} from 'firebase/app-check';
+import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -18,18 +22,37 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+// 1. Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// ENABLE OFFLINE PERSISTENCE HERE
+// 2. Initialize App Check (reCAPTCHA Enterprise)
+if (typeof window !== 'undefined') {
+  // Allow localhost testing by flagging the debug token
+  if (import.meta.env.DEV) {
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(
+      import.meta.env.VITE_RECAPTCHA_SITE_KEY || 'YOUR_RECAPTCHA_SITE_KEY',
+    ),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
+
+// 3. Initialize Firestore WITH Offline Persistence
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),
 });
 
+// 4. Initialize Auth
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// 5. Initialize Analytics (Only in Production)
 if (typeof window !== 'undefined' && import.meta.env.PROD) {
   getAnalytics(app);
 }
