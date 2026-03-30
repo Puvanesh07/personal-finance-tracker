@@ -32,6 +32,7 @@ import { AgricultureLoader } from '../../components/ui/SectionLoader';
 import { AttendancePage } from './AttendancePage';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
+import { ProduceSalesTab } from './ProduceSalesTab';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { useAgriStore } from '../../store/agricultureStore';
@@ -91,6 +92,7 @@ const TAB_TYPES = [
   'livestock',
   'milk',
   'coconut',
+  'produce',
   'attendance',
 ] as const;
 type Tab = (typeof TAB_TYPES)[number];
@@ -2802,6 +2804,7 @@ const TAB_META: { id: Tab; label: string; emoji: string }[] = [
   { id: 'livestock', label: 'Livestock', emoji: '🐄' },
   { id: 'milk', label: 'Milk', emoji: '🥛' },
   { id: 'coconut', label: 'Coconut', emoji: '🌴' },
+  { id: 'produce', label: 'Produce Sales', emoji: '🧺' },
   { id: 'attendance', label: 'Attendance', emoji: '👷' },
 ];
 
@@ -2853,6 +2856,7 @@ export function AgriculturePage() {
       {activeTab === 'livestock' && <LivestockTab />}
       {activeTab === 'milk' && <MilkTab />}
       {activeTab === 'coconut' && <CoconutTab />}
+      {activeTab === 'produce' && <ProduceSalesTab />}
       {activeTab === 'attendance' && <AttendancePage />}
     </div>
   );

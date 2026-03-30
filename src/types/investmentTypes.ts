@@ -117,11 +117,11 @@ export type OtherInvestment = BaseInvestment & {
     | 'real_estate'
     | 'ppf'
     | 'nps'
-    | 'international_equity' // ← added: US/global stocks via INDmoney etc.
+    | 'international_equity'
     | 'other';
   investedAmount: number;
   currentValue: number;
-  currentPrice?: number; // live price for gold / silver / intl equity
+  currentPrice?: number;
 };
 
 export type Investment =
@@ -155,17 +155,16 @@ export type InsurancePolicy = {
   coverageAmount: number;
   premiumAmount: number;
   premiumFrequency: 'monthly' | 'yearly' | 'quarterly' | 'half-yearly';
-  renewalDate: string; // YYYY-MM-DD — next due date, updated after payment
+  renewalDate: string;
   nominee?: string;
   notes?: string;
-  // Extended fields
   policyNumber?: string;
   commencementDate?: string;
   maturityDate?: string;
   policyTermYears?: number;
   premiumPayingTermYears?: number;
-  paymentsAlreadyMade?: number; // count before app usage
-  lastPaymentDate?: string; // YYYY-MM-DD — when last premium was recorded
+  paymentsAlreadyMade?: number;
+  lastPaymentDate?: string;
   sumAssured?: number;
   bonusType?: string;
   agentName?: string;
@@ -175,8 +174,6 @@ export type InsurancePolicy = {
   createdAt: string;
   updatedAt: string;
 };
-
-// ── ADD this new type anywhere after InsurancePolicy: ────────────────────────
 
 export type InsurancePayment = {
   id: string;
@@ -215,13 +212,6 @@ export type NetWorthSnapshot = {
 
 // ── Liabilities ────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH: Add to src/types/investmentTypes.ts
-//
-// Find the existing Liability type and REPLACE it with the block below.
-// Everything else in investmentTypes.ts stays unchanged.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export type LiabilityType = 'loan' | 'credit_card' | 'other';
 
 export type LiabilityStatus = 'active' | 'paid' | 'paused';
@@ -235,9 +225,9 @@ export type Liability = {
   interestRate?: number;
   startDate?: string;
   endDate?: string;
-  emiAmount?: number; // monthly EMI in ₹
-  emiDay?: number; // day of month EMI is due (1–31)
-  status?: LiabilityStatus; // 'active' | 'paid' | 'paused'
+  emiAmount?: number;
+  emiDay?: number;
+  status?: LiabilityStatus;
   createdAt: string;
   updatedAt: string;
   userId?: string;
@@ -251,9 +241,9 @@ export type Account = {
   id: string;
   name: string;
   type: AccountType;
-  balance: number; // opening balance (snapshot)
-  openingBalance: number; // same as balance — explicit alias
-  openingBalanceDate: string; // yyyy-MM-dd: cashflows ON or AFTER this date affect live balance
+  balance: number;
+  openingBalance: number;
+  openingBalanceDate: string;
   createdAt: string;
   updatedAt: string;
   userId?: string;
@@ -293,16 +283,16 @@ export type Goal = {
 
 export type SoldTrade = {
   id: string;
-  investmentName: string; // Name of the stock/fund sold
+  investmentName: string;
   investmentType: InvestmentType;
   symbol?: string;
   platform?: string;
-  quantity?: number; // Shares / units sold (optional for non-qty assets)
-  buyPrice: number; // Total buy cost (not per-unit)
-  sellPrice: number; // Total sell value (not per-unit)
-  profit: number; // sellPrice - buyPrice (auto-calculated)
-  profitPct: number; // (profit / buyPrice) * 100
-  soldDate: ISODateString; // Date of sale
+  quantity?: number;
+  buyPrice: number;
+  sellPrice: number;
+  profit: number;
+  profitPct: number;
+  soldDate: ISODateString;
   notes?: string;
   userId: string;
   createdAt: string;
@@ -347,17 +337,17 @@ export type Field = {
 export type CropCycle = {
   id: string;
   fieldId: string;
-  fieldName?: string; // denormalized for display
+  fieldName?: string;
   cropName: string;
   season: Season;
   startDate: string; // YYYY-MM-DD
   expectedHarvestDate: string; // YYYY-MM-DD
   actualHarvestDate?: string;
-  investedAmount: number; // total planned investment
-  harvestIncome: number; // actual income from sale
-  quantityKg?: number; // yield in kg
+  investedAmount: number;
+  harvestIncome: number;
+  quantityKg?: number;
   notes?: string;
-  accountId?: string; // bank account the income went to
+  accountId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -366,12 +356,12 @@ export type CropCycle = {
 export type AgriExpense = {
   id: string;
   cropCycleId: string;
-  cropName?: string; // denormalized
+  cropName?: string;
   category: AgriExpenseCategory;
   amount: number;
   date: string; // YYYY-MM-DD
   notes?: string;
-  accountId?: string; // bank account expense paid from
+  accountId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -380,7 +370,7 @@ export type AgriExpense = {
 export type Livestock = {
   id: string;
   type: LivestockType;
-  name?: string; // optional individual name
+  name?: string;
   count: number;
   purchaseCost: number;
   currentValue: number;
@@ -395,7 +385,7 @@ export type MilkRecord = {
   id: string;
   date: string; // YYYY-MM-DD
   liters: number;
-  pricePerLiter: number; // sale price
+  pricePerLiter: number;
   soldTo?: string;
   accountId?: string;
   userId: string;
@@ -403,7 +393,8 @@ export type MilkRecord = {
   updatedAt: string;
 };
 
-// ── Livestock Event Tracking ──────────────────────────────────────────────────
+// ── Livestock Event Tracking ───────────────────────────────────────────────
+
 export type LivestockEventType = 'purchase' | 'birth' | 'sale' | 'death';
 
 export type LivestockEvent = {
@@ -411,8 +402,8 @@ export type LivestockEvent = {
   animalType: LivestockType;
   eventType: LivestockEventType;
   count: number;
-  price?: number; // total price (for purchase/sale)
-  accountId?: string; // linked bank account
+  price?: number;
+  accountId?: string;
   notes?: string;
   date: string; // YYYY-MM-DD
   userId: string;
@@ -425,17 +416,14 @@ export type CoconutSellMethod = 'by_count' | 'by_ton';
 export type CoconutRecord = {
   id: string;
   date: string; // YYYY-MM-DD
-  numberOfTrees: number; // kept for reference / display
-  totalCoconuts: number; // entered directly by user
+  numberOfTrees: number;
+  totalCoconuts: number;
   sellMethod: CoconutSellMethod;
-  // by_count fields
-  pricePerCoconut?: number; // single price per coconut
-  // by_ton fields
-  totalTons?: number; // entered directly or auto from coconuts x kg
+  pricePerCoconut?: number;
+  totalTons?: number;
   weightKgPerCoconut?: number;
   pricePerTon?: number;
-  // income / cost
-  harvestIncome: number; // auto-calculated
+  harvestIncome: number;
   investmentAmount: number;
   durationMonths: number;
   notes?: string;
@@ -445,12 +433,31 @@ export type CoconutRecord = {
   updatedAt: string;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FILE 1: ADD THESE TYPES AT THE BOTTOM OF
-//   src/types/investmentTypes.ts
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Produce Sales (Vegetables / Fruits) ───────────────────────────────────
 
-// ── Attendance Module ─────────────────────────────────────────────────────────
+export type ProduceUnit = 'kg' | 'box' | 'piece' | 'bunch' | 'litre' | string;
+
+export type ProduceCategory = string; // free-form: "Vegetable", "Fruit", etc.
+
+export type ProduceSaleLot = {
+  id: string;
+  userId: string;
+  produceName: string; // e.g. "Tomato", "Onion", "Drumstick"
+  category: ProduceCategory; // e.g. "Vegetable", "Fruit"
+  unit: ProduceUnit; // "kg" | "box" | "piece" | custom string
+  customUnit?: string; // filled when user picks 'custom'
+  quantity: number; // no. of units sold
+  pricePerUnit: number; // ₹ per unit
+  totalAmount: number; // quantity × pricePerUnit (stored for querying)
+  date: string; // YYYY-MM-DD
+  soldTo?: string; // buyer name / market
+  notes?: string;
+  accountId?: string; // bank account income goes to
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ── Attendance Module ──────────────────────────────────────────────────────
 
 export type PaymentStatus = 'unpaid' | 'partially_paid' | 'paid';
 
@@ -472,8 +479,8 @@ export type AttendanceRecord = {
   employeeId: string;
   date: string; // YYYY-MM-DD
   present: boolean;
-  wage: number; // actual wage that day (copy of dailyWage at time of marking)
-  extraWork?: number; // extra payment for this day
+  wage: number;
+  extraWork?: number;
   extraWorkNote?: string;
   note?: string;
   userId: string;
@@ -484,7 +491,7 @@ export type AttendanceRecord = {
 export type AttendanceTransaction = {
   id: string;
   employeeId: string;
-  type: TransactionType; // 'advance' | 'deduction' | 'extra'
+  type: TransactionType;
   amount: number;
   note?: string;
   date: string; // YYYY-MM-DD
@@ -498,13 +505,13 @@ export type SalaryRecord = {
   employeeId: string;
   month: string; // YYYY-MM format e.g. "2024-06"
   daysWorked: number;
-  baseSalary: number; // daysWorked × dailyWage
-  extraWork: number; // sum of extra work for month
-  totalSalary: number; // baseSalary + extraWork
-  advance: number; // total advances for month
-  deductions: number; // total deductions for month
-  finalSalary: number; // totalSalary - advance - deductions
-  paidAmount: number; // how much has been paid
+  baseSalary: number;
+  extraWork: number;
+  totalSalary: number;
+  advance: number;
+  deductions: number;
+  finalSalary: number;
+  paidAmount: number;
   paymentStatus: PaymentStatus;
   notes?: string;
   userId: string;

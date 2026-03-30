@@ -1,3 +1,5 @@
+// src/store/agricultureStore.ts
+
 import type {
   AgriExpense,
   CoconutRecord,
@@ -5,6 +7,7 @@ import type {
   Field,
   LivestockEvent,
   MilkRecord,
+  ProduceSaleLot,
 } from '../types/investmentTypes';
 import {
   collection,
@@ -45,29 +48,35 @@ type AgriState = {
   milkRecords: MilkRecord[];
   coconutRecords: CoconutRecord[];
   livestockEvents: LivestockEvent[];
+  produceSales: ProduceSaleLot[];
 
   hydrate: (uid: string) => Promise<void>;
   clearAll: () => void;
+
   addField: (
     f: Omit<Field, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateField: (id: string, patch: Partial<Field>) => Promise<void>;
   deleteField: (id: string) => Promise<void>;
+
   addCropCycle: (
     c: Omit<CropCycle, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateCropCycle: (id: string, patch: Partial<CropCycle>) => Promise<void>;
   deleteCropCycle: (id: string) => Promise<void>;
+
   addAgriExpense: (
     e: Omit<AgriExpense, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateAgriExpense: (id: string, patch: Partial<AgriExpense>) => Promise<void>;
   deleteAgriExpense: (id: string) => Promise<void>;
+
   addMilkRecord: (
     m: Omit<MilkRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
   updateMilkRecord: (id: string, patch: Partial<MilkRecord>) => Promise<void>;
   deleteMilkRecord: (id: string) => Promise<void>;
+
   addCoconutRecord: (
     c: Omit<CoconutRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -76,6 +85,7 @@ type AgriState = {
     patch: Partial<CoconutRecord>,
   ) => Promise<void>;
   deleteCoconutRecord: (id: string) => Promise<void>;
+
   addLivestockEvent: (
     e: Omit<LivestockEvent, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -84,6 +94,15 @@ type AgriState = {
     patch: Partial<LivestockEvent>,
   ) => Promise<void>;
   deleteLivestockEvent: (id: string) => Promise<void>;
+
+  addProduceSale: (
+    p: Omit<ProduceSaleLot, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
+  ) => Promise<void>;
+  updateProduceSale: (
+    id: string,
+    patch: Partial<ProduceSaleLot>,
+  ) => Promise<void>;
+  deleteProduceSale: (id: string) => Promise<void>;
 };
 
 export const useAgriStore = create<AgriState>((set, get) => ({
@@ -95,6 +114,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   milkRecords: [],
   coconutRecords: [],
   livestockEvents: [],
+  produceSales: [],
 
   hydrate: async (uid) => {
     try {
@@ -105,6 +125,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         milkRecords,
         coconutRecords,
         livestockEvents,
+        produceSales,
       ] = await Promise.all([
         fetchSub<Field>(uid, 'agriFields'),
         fetchSub<CropCycle>(uid, 'agriCropCycles'),
@@ -112,6 +133,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
         fetchSub<CoconutRecord>(uid, 'agriCoconut'),
         fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
+        fetchSub<ProduceSaleLot>(uid, 'agriProduceSales'),
       ]);
       set({
         uid,
@@ -128,10 +150,10 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         livestockEvents: livestockEvents.sort((a, b) =>
           b.date.localeCompare(a.date),
         ),
+        produceSales: produceSales.sort((a, b) => b.date.localeCompare(a.date)),
       });
     } catch (err) {
       console.error('[AgriStore] hydrate failed:', err);
-      // Always set ready so the page never stays blank
       set({ uid, ready: true });
     }
   },
@@ -144,10 +166,12 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       milkRecords: [],
       coconutRecords: [],
       livestockEvents: [],
+      produceSales: [],
       ready: true,
       uid: null,
     }),
 
+  // ── Fields ────────────────────────────────────────────────────────────────
   addField: async (f) => {
     const uid = get().uid;
     if (!uid) return;
@@ -178,6 +202,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     set((s) => ({ fields: s.fields.filter((x) => x.id !== id) }));
   },
 
+  // ── Crop Cycles ───────────────────────────────────────────────────────────
   addCropCycle: async (c) => {
     const uid = get().uid;
     if (!uid) return;
@@ -210,6 +235,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     set((s) => ({ cropCycles: s.cropCycles.filter((x) => x.id !== id) }));
   },
 
+  // ── Agri Expenses ─────────────────────────────────────────────────────────
   addAgriExpense: async (e) => {
     const uid = get().uid;
     if (!uid) return;
@@ -246,6 +272,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     set((s) => ({ agriExpenses: s.agriExpenses.filter((x) => x.id !== id) }));
   },
 
+  // ── Milk ──────────────────────────────────────────────────────────────────
   addMilkRecord: async (m) => {
     const uid = get().uid;
     if (!uid) return;
@@ -282,6 +309,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     set((s) => ({ milkRecords: s.milkRecords.filter((x) => x.id !== id) }));
   },
 
+  // ── Coconut ───────────────────────────────────────────────────────────────
   addCoconutRecord: async (c) => {
     const uid = get().uid;
     if (!uid) return;
@@ -320,6 +348,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     }));
   },
 
+  // ── Livestock Events ──────────────────────────────────────────────────────
   addLivestockEvent: async (e) => {
     const uid = get().uid;
     if (!uid) return;
@@ -360,6 +389,50 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     await deleteDoc(agriDoc(uid, 'agriLivestockEvents', id));
     set((s) => ({
       livestockEvents: s.livestockEvents.filter((x) => x.id !== id),
+    }));
+  },
+
+  // ── Produce Sales ─────────────────────────────────────────────────────────
+  addProduceSale: async (p) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const raw: ProduceSaleLot = clean({
+      ...p,
+      id: agriId('prd'),
+      userId: uid,
+      createdAt: t,
+      updatedAt: t,
+    });
+    await setDoc(agriDoc(uid, 'agriProduceSales', raw.id), raw);
+    set((s) => ({
+      produceSales: [raw, ...s.produceSales].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      ),
+    }));
+  },
+  updateProduceSale: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const ex = get().produceSales.find((x) => x.id === id);
+    if (!ex) return;
+    const raw: ProduceSaleLot = clean({
+      ...ex,
+      ...patch,
+      id,
+      updatedAt: now(),
+    });
+    await setDoc(agriDoc(uid, 'agriProduceSales', id), raw);
+    set((s) => ({
+      produceSales: s.produceSales.map((x) => (x.id === id ? raw : x)),
+    }));
+  },
+  deleteProduceSale: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(agriDoc(uid, 'agriProduceSales', id));
+    set((s) => ({
+      produceSales: s.produceSales.filter((x) => x.id !== id),
     }));
   },
 }));

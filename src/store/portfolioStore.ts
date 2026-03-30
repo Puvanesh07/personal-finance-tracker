@@ -846,6 +846,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriMilkRecords',
       'agriCoconut',
       'agriLivestockEvents',
+      'agriProduceSales',
       'soldTrades',
       'insurancePolicies',
       'insurancePayments', // Added to clear payments correctly

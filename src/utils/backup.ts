@@ -23,6 +23,7 @@ import type {
   NetWorthSnapshot,
   NotionConfig,
   PortfolioSnapshot,
+  ProduceSaleLot,
   SalaryRecord,
 } from '../types/investmentTypes';
 import {
@@ -38,7 +39,7 @@ import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4 | 5;
+  version: 1 | 2 | 3 | 4 | 5 | 6;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
@@ -56,6 +57,7 @@ export type BackupPayload = {
   agriMilkRecords?: MilkRecord[];
   agriCoconut?: CoconutRecord[];
   agriLivestockEvents?: LivestockEvent[];
+  agriProduceSales?: ProduceSaleLot[]; // ← NEW
   attEmployees?: AttendanceEmployee[];
   attRecords?: AttendanceRecord[];
   attTransactions?: AttendanceTransaction[];
@@ -106,6 +108,7 @@ export async function exportFullBackup(uid: string) {
     agriMilkRecords,
     agriCoconut,
     agriLivestockEvents,
+    agriProduceSales,
     attEmployees,
     attRecords,
     attTransactions,
@@ -128,6 +131,7 @@ export async function exportFullBackup(uid: string) {
     fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
     fetchSub<CoconutRecord>(uid, 'agriCoconut'),
     fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
+    fetchSub<ProduceSaleLot>(uid, 'agriProduceSales'),
     fetchSub<AttendanceEmployee>(uid, 'attEmployees'),
     fetchSub<AttendanceRecord>(uid, 'attRecords'),
     fetchSub<AttendanceTransaction>(uid, 'attTransactions'),
@@ -143,7 +147,7 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 5, // bumped from 4 → 5
+    version: 6, // bumped to 6 — adds agriProduceSales
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
@@ -161,6 +165,7 @@ export async function exportFullBackup(uid: string) {
     agriMilkRecords,
     agriCoconut,
     agriLivestockEvents,
+    agriProduceSales,
     attEmployees,
     attRecords,
     attTransactions,
@@ -184,8 +189,8 @@ export async function importFullBackup(jsonText: string, uid: string) {
   const parsed = JSON.parse(jsonText) as BackupPayload;
 
   // Accept versions 1–5
-  if (!parsed || ![1, 2, 3, 4, 5].includes(parsed.version as number))
-    throw new Error('Unsupported backup format. Expected version 1–5.');
+  if (!parsed || ![1, 2, 3, 4, 5, 6].includes(parsed.version as number))
+    throw new Error('Unsupported backup format. Expected version 1–6.');
 
   await Promise.all([
     batchSet(uid, 'investments', parsed.investments ?? []),
@@ -202,6 +207,7 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'agriMilkRecords', parsed.agriMilkRecords ?? []),
     batchSet(uid, 'agriCoconut', parsed.agriCoconut ?? []),
     batchSet(uid, 'agriLivestockEvents', parsed.agriLivestockEvents ?? []),
+    batchSet(uid, 'agriProduceSales', parsed.agriProduceSales ?? []),
     batchSet(uid, 'attEmployees', parsed.attEmployees ?? []),
     batchSet(uid, 'attRecords', parsed.attRecords ?? []),
     batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
