@@ -395,7 +395,12 @@ export type MilkRecord = {
 
 // ── Livestock Event Tracking ───────────────────────────────────────────────
 
-export type LivestockEventType = 'purchase' | 'birth' | 'sale' | 'death';
+export type LivestockEventType =
+  | 'existing'
+  | 'purchase'
+  | 'birth'
+  | 'sale'
+  | 'death';
 
 export type LivestockEvent = {
   id: string;
@@ -448,7 +453,8 @@ export type ProduceSaleLot = {
   customUnit?: string; // filled when user picks 'custom'
   quantity: number; // no. of units sold
   pricePerUnit: number; // ₹ per unit
-  totalAmount: number; // quantity × pricePerUnit (stored for querying)
+  commissionAmount?: number; // Optional Commission reduction
+  totalAmount: number; // NET Amount: (quantity × pricePerUnit) - commissionAmount
   date: string; // YYYY-MM-DD
   soldTo?: string; // buyer name / market
   notes?: string;

@@ -19,6 +19,7 @@ import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import type { ProduceSaleLot } from '../../types/investmentTypes';
 import { createPortal } from 'react-dom';
+import { syncCashflow } from './AgriculturePage'; // Importing the master sync func
 import toast from 'react-hot-toast';
 import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -276,7 +277,8 @@ function displayUnit(lot: ProduceSaleLot): string {
 export function ProduceSalesTab() {
   const { produceSales, addProduceSale, updateProduceSale, deleteProduceSale } =
     useAgriStore();
-  const { accounts, addCashflow } = usePortfolioStore();
+  const { accounts, cashflows, addCashflow, updateCashflow, deleteCashflow } =
+    usePortfolioStore();
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<ProduceSaleLot | null>(null);
@@ -289,6 +291,7 @@ export function ProduceSalesTab() {
   const [pCustomUnit, setPCustomUnit] = useState('');
   const [pQty, setPQty] = useState('0');
   const [pPrice, setPPrice] = useState('0');
+  const [pCommission, setPCommission] = useState('0');
   const [pDate, setPDate] = useState(new Date().toISOString().split('T')[0]);
   const [pSoldTo, setPSoldTo] = useState('');
   const [pNotes, setPNotes] = useState('');
@@ -301,7 +304,9 @@ export function ProduceSalesTab() {
   // ── derived preview ───────────────────────────────────────────────────────
   const qty = parseFloat(pQty) || 0;
   const price = parseFloat(pPrice) || 0;
-  const totalPreview = qty * price;
+  const commission = parseFloat(pCommission) || 0;
+  const grossAmount = qty * price;
+  const totalPreview = Math.max(0, grossAmount - commission);
   const effectiveUnit =
     pUnit === 'custom' ? pCustomUnit.trim() || 'unit' : pUnit;
   const effectiveCategory =
@@ -334,10 +339,39 @@ export function ProduceSalesTab() {
 
     setPQty(String(lot?.quantity ?? 0));
     setPPrice(String(lot?.pricePerUnit ?? 0));
+    setPCommission(String(lot?.commissionAmount ?? 0));
     setPDate(lot?.date ?? new Date().toISOString().split('T')[0]);
     setPSoldTo(lot?.soldTo ?? '');
     setPNotes(lot?.notes ?? '');
     setPAccount(lot?.accountId ?? '');
+  }
+
+  // ── Linked Cashflow Remover ───────────────────────────────────────────────
+  const removeLinkedCashflow = async (
+    type: 'income' | 'expense',
+    category: string,
+    amount: number,
+    date: string,
+  ) => {
+    const cf = cashflows.find(
+      (c) =>
+        c.type === type &&
+        c.category === category &&
+        c.amount === amount &&
+        c.date === date,
+    );
+    if (cf) await deleteCashflow(cf.id);
+  };
+
+  async function handleDeleteLot(lot: ProduceSaleLot) {
+    await removeLinkedCashflow(
+      'income',
+      'Produce Sale',
+      lot.totalAmount,
+      lot.date,
+    );
+    await deleteProduceSale(lot.id);
+    toast.success('Sale & linked cashflow deleted ✓');
   }
 
   // ── save ──────────────────────────────────────────────────────────────────
@@ -355,7 +389,6 @@ export function ProduceSalesTab() {
       return;
     }
 
-    const totalAmount = qty * price;
     const payload: Omit<
       ProduceSaleLot,
       'id' | 'createdAt' | 'updatedAt' | 'userId'
@@ -366,30 +399,47 @@ export function ProduceSalesTab() {
       customUnit: pUnit === 'custom' ? pCustomUnit.trim() : undefined,
       quantity: qty,
       pricePerUnit: price,
-      totalAmount,
+      commissionAmount: commission > 0 ? commission : undefined,
+      totalAmount: totalPreview,
       date: pDate,
       soldTo: pSoldTo.trim() || undefined,
       notes: pNotes.trim() || undefined,
       accountId: pAccount || undefined,
     };
 
+    const cashflowNote = `${pName.trim()} — ${qty} ${effectiveUnit} × ₹${price}${commission > 0 ? ` (Deducted Comm: ₹${commission})` : ''}${pSoldTo ? ` to ${pSoldTo}` : ''}`;
+
     if (editing) {
       await updateProduceSale(editing.id, payload);
-      toast.success('Sale record updated ✓');
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'income',
+        'Produce Sale',
+        editing.totalAmount,
+        editing.date,
+        'Produce Sale',
+        totalPreview,
+        pDate,
+        pAccount,
+        cashflowNote,
+      );
+
+      toast.success('Sale record & Cashflow updated ✓');
     } else {
       await addProduceSale(payload);
       await addCashflow({
         type: 'income',
         category: 'Produce Sale',
-        amount: totalAmount,
+        amount: totalPreview,
         date: pDate,
-        notes: `${pName.trim()} — ${qty} ${effectiveUnit} × ₹${price}${
-          pSoldTo ? ` to ${pSoldTo}` : ''
-        }`,
+        notes: cashflowNote,
         accountId: pAccount || undefined,
       });
       toast.success(
-        `Sale added · ${formatINR(totalAmount)} synced to Cashflow ✓`,
+        `Sale added · ${formatINR(totalPreview)} synced to Cashflow ✓`,
       );
     }
 
@@ -481,7 +531,7 @@ export function ProduceSalesTab() {
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         <SummaryCard
           icon='🧺'
-          label='Total Revenue'
+          label='Net Revenue'
           value={formatINR(totalRevenue)}
           color='#22c55e'
         />
@@ -715,8 +765,9 @@ export function ProduceSalesTab() {
                     'Category',
                     'Unit',
                     'Qty',
-                    'Price / Unit',
-                    'Total',
+                    'Rate',
+                    'Comm',
+                    'Net Income',
                     'Sold To',
                     'Notes',
                     'Account',
@@ -764,6 +815,11 @@ export function ProduceSalesTab() {
                       <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
                         ₹{lot.pricePerUnit}/{unit}
                       </td>
+                      <td className='px-3 py-2 text-red-400 whitespace-nowrap'>
+                        {lot.commissionAmount
+                          ? formatINR(lot.commissionAmount)
+                          : '—'}
+                      </td>
                       <td className='px-3 py-2 text-green-400 font-bold whitespace-nowrap'>
                         {formatINR(lot.totalAmount)}
                       </td>
@@ -791,7 +847,7 @@ export function ProduceSalesTab() {
                             <FiEdit2 className='w-3.5 h-3.5' />
                           </button>
                           <DeleteConfirmBtn
-                            onDelete={() => deleteProduceSale(lot.id)}
+                            onDelete={() => handleDeleteLot(lot)}
                           />
                         </div>
                       </td>
@@ -802,10 +858,10 @@ export function ProduceSalesTab() {
               <tfoot>
                 <tr className='border-t border-slate-700 bg-slate-900/60'>
                   <td
-                    colSpan={6}
-                    className='px-3 py-2 text-slate-400 font-bold text-[10px] uppercase'
+                    colSpan={7}
+                    className='px-3 py-2 text-slate-400 font-bold text-[10px] uppercase text-right'
                   >
-                    Total ({filtered.length} records)
+                    Net Total ({filtered.length} records)
                   </td>
                   <td className='px-3 py-2 text-emerald-400 font-bold whitespace-nowrap'>
                     {formatINR(filteredTotal)}
@@ -899,12 +955,17 @@ export function ProduceSalesTab() {
               value={pPrice}
               onChange={setPPrice}
             />
-            {qty > 0 && price > 0 && (
-              <div className='text-[10px] text-amber-400 mt-1'>
-                {formatNumber(qty, 2)} {effectiveUnit} × ₹{price} ={' '}
-                <strong>{formatINR(totalPreview)}</strong>
-              </div>
-            )}
+          </div>
+
+          {/* Optional Commission */}
+          <div>
+            <label className={labelCls}>Commission Deduction (₹)</label>
+            <NumericInput
+              className={inputCls}
+              value={pCommission}
+              onChange={setPCommission}
+              placeholder='e.g. Market Fee, Transport...'
+            />
           </div>
 
           {/* Date */}
@@ -963,26 +1024,27 @@ export function ProduceSalesTab() {
             <div className='text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3'>
               📊 Sale Preview
             </div>
-            <div className='grid grid-cols-3 gap-3 text-center'>
+            <div className='grid grid-cols-4 gap-2 text-center items-center'>
               <div>
                 <div className='text-[10px] text-slate-500 uppercase'>
-                  Quantity
+                  Gross
                 </div>
-                <div className='text-sm font-bold text-amber-400 font-mono'>
-                  {formatNumber(qty, 2)} {effectiveUnit}
-                </div>
-              </div>
-              <div>
-                <div className='text-[10px] text-slate-500 uppercase'>Rate</div>
                 <div className='text-sm font-bold text-slate-300 font-mono'>
-                  ₹{price}/{effectiveUnit}
+                  {formatINR(grossAmount)}
+                </div>
+              </div>
+              <div className='text-xl text-slate-600 font-mono'>-</div>
+              <div>
+                <div className='text-[10px] text-slate-500 uppercase'>Comm</div>
+                <div className='text-sm font-bold text-red-400 font-mono'>
+                  {formatINR(commission)}
                 </div>
               </div>
               <div>
                 <div className='text-[10px] text-slate-500 uppercase'>
-                  Total
+                  Net Income
                 </div>
-                <div className='text-sm font-bold text-emerald-400 font-mono'>
+                <div className='text-sm font-bold text-emerald-400 font-mono bg-emerald-500/10 rounded-lg py-1 px-2 border border-emerald-500/20'>
                   {formatINR(totalPreview)}
                 </div>
               </div>
@@ -992,12 +1054,12 @@ export function ProduceSalesTab() {
 
         {!editing && (
           <p className='text-[10px] text-emerald-400 mt-3'>
-            ✓ Income will auto-sync to Cashflow &amp; selected account.
+            ✓ Net Income will auto-sync to Cashflow &amp; selected account.
           </p>
         )}
         {editing && (
-          <p className='text-[10px] text-blue-400 mt-3'>
-            ✏️ Updating record only. Adjust Cashflow entries manually if needed.
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Updates will accurately reflect in connected Cashflow records.
           </p>
         )}
 

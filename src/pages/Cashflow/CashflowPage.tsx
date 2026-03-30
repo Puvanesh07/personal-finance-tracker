@@ -1,9 +1,12 @@
 // src/pages/Cashflow/CashflowPage.tsx
 //
-// FIXES:
+// FIXES & FEATURES:
 //  1. Added sort options: Date (newest/oldest), Amount (high→low, low→high)
 //  2. Added type filter: All / Income only / Expense only
-//  3. Sort & filter bar appears above the data table
+//  3. Added Category filter dropdown (dynamically populated)
+//  4. Interactive Pie Charts: Clicking a slice automatically filters the table below
+//  5. Responsive UI: Swaps to a smooth Card View on Mobile instead of a cramped table
+//  6. Mobile Dropdown Fix: Category & Sort filters use Portals to prevent clipping!
 
 import {
   Cell,
@@ -147,13 +150,13 @@ function TypeFilterTabs({
     { value: 'expense', label: 'Expense', color: 'text-rose-400' },
   ];
   return (
-    <div className='flex items-center gap-1 rounded-xl bg-slate-800/60 p-1 border border-slate-700/60'>
+    <div className='flex items-center gap-1 rounded-xl bg-slate-800/60 p-1 border border-slate-700/60 overflow-x-auto no-scrollbar'>
       {tabs.map((t) => (
         <button
           key={t.value}
           type='button'
           onClick={() => onChange(t.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 whitespace-nowrap ${
             value === t.value
               ? 'bg-slate-700 text-slate-100 shadow-sm'
               : 'text-slate-500 hover:text-slate-200'
@@ -169,6 +172,145 @@ function TypeFilterTabs({
   );
 }
 
+// ── Category Filter Button ─────────────────────────────────────────────────
+function CategoryFilterButton({
+  value,
+  onChange,
+  categories,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  categories: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 208 }); // 52 width = 208px
+
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    const panelW = 208;
+    let left = r.left + window.scrollX;
+
+    // Prevent spilling off the right side of the screen on mobile
+    if (left + panelW > window.innerWidth) {
+      left = window.innerWidth - panelW - 16;
+    }
+
+    setPos({
+      top: r.bottom + 6 + window.scrollY,
+      left: Math.max(8, left),
+      width: panelW,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (open) updatePos();
+  }, [open, updatePos]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open, updatePos]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+          open || value !== 'all'
+            ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+            : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+        }`}
+      >
+        <FiFilter className='h-3 w-3 shrink-0' />
+        <span className='max-w-[80px] sm:max-w-[120px] truncate'>
+          {value === 'all' ? 'All Categories' : value}
+        </span>
+        <FiChevronDown
+          className={`h-3 w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              position: 'absolute',
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+              zIndex: 9999,
+            }}
+            className='max-h-64 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 shadow-2xl'
+          >
+            <button
+              type='button'
+              onClick={() => {
+                onChange('all');
+                setOpen(false);
+              }}
+              className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${
+                value === 'all'
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+              }`}
+            >
+              All Categories
+              {value === 'all' && <FiCheck className='h-3 w-3 shrink-0' />}
+            </button>
+            <div className='h-[1px] w-full bg-slate-800' />
+            {categories.map((c) => (
+              <button
+                key={c}
+                type='button'
+                onClick={() => {
+                  onChange(c);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${
+                  value === c
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                <span className='truncate'>{c}</span>
+                {value === c && <FiCheck className='shrink-0 h-3 w-3 ml-2' />}
+              </button>
+            ))}
+            {categories.length === 0 && (
+              <div className='px-4 py-3 text-xs text-slate-500 text-center italic'>
+                No categories
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 // ── Sort Button ────────────────────────────────────────────────────────────
 function SortButton({
   value,
@@ -178,7 +320,9 @@ function SortButton({
   onChange: (v: SortKey) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 192 }); // w-48 is 192px
 
   const options: { value: SortKey; label: string; icon: React.ReactNode }[] = [
     {
@@ -205,19 +349,54 @@ function SortButton({
 
   const selected = options.find((o) => o.value === value)!;
 
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    const panelW = 192;
+    let left = r.right + window.scrollX - panelW;
+
+    // Prevent spilling off the left side of the screen on mobile
+    if (left < 8) {
+      left = 8;
+    }
+
+    setPos({
+      top: r.bottom + 6 + window.scrollY,
+      left: left,
+      width: panelW,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (open) updatePos();
+  }, [open, updatePos]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open, updatePos]);
 
   return (
-    <div ref={ref} className='relative'>
+    <>
       <button
+        ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
@@ -227,37 +406,51 @@ function SortButton({
         }`}
       >
         {selected.icon}
-        <span className='hidden sm:inline'>{selected.label}</span>
-        <span className='sm:hidden'>Sort</span>
+        <span className='hidden lg:inline'>{selected.label}</span>
+        <span className='lg:hidden'>Sort</span>
         <FiChevronDown
-          className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`h-3 w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
-      {open && (
-        <div className='absolute right-0 top-full mt-2 z-50 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden'>
-          {options.map((opt) => (
-            <button
-              key={opt.value}
-              type='button'
-              onClick={() => {
-                onChange(opt.value);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
-                value === opt.value
-                  ? 'bg-emerald-500/10 text-emerald-400'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-              }`}
-            >
-              {opt.icon}
-              {opt.label}
-              {value === opt.value && <FiCheck className='ml-auto h-3 w-3' />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              position: 'absolute',
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+              zIndex: 9999,
+            }}
+            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden'
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type='button'
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
+                  value === opt.value
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                {opt.icon}
+                {opt.label}
+                {value === opt.value && (
+                  <FiCheck className='ml-auto h-3 w-3 shrink-0' />
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -690,9 +883,23 @@ export function CashflowPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
 
-  // ✅ NEW: Sort and type-filter state
+  // Filters & Sorting
   const [sortKey, setSortKey] = useState<SortKey>('date-desc');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
+  // Interactive Chart Click Handler
+  const handlePieClick = (data: any) => {
+    if (data && data.name) {
+      setCategoryFilter(data.name);
+
+      // Smooth scroll down to the table
+      document.getElementById('transactions-table-section')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  };
 
   // Period-filtered rows (before sort & type filter)
   const periodFilteredRows = useMemo(() => {
@@ -709,6 +916,27 @@ export function CashflowPage() {
     return rows;
   }, [cashflows, filterMode, fy, customStart, customEnd]);
 
+  // Extract unique categories based on current typeFilter
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    periodFilteredRows.forEach((r) => {
+      if (typeFilter === 'all' || r.type === typeFilter) {
+        cats.add(r.category);
+      }
+    });
+    return Array.from(cats).sort();
+  }, [periodFilteredRows, typeFilter]);
+
+  // Handle case where category is deleted or filtered out by type switch
+  useEffect(() => {
+    if (
+      categoryFilter !== 'all' &&
+      !uniqueCategories.includes(categoryFilter)
+    ) {
+      setCategoryFilter('all');
+    }
+  }, [uniqueCategories, categoryFilter]);
+
   // Counts for type filter tabs
   const typeCounts = useMemo(
     () => ({
@@ -719,13 +947,18 @@ export function CashflowPage() {
     [periodFilteredRows],
   );
 
-  // ✅ FIX: Apply type filter + sort to table rows
+  // Apply type filter, category filter + sort to table rows
   const filteredRows = useMemo(() => {
     let rows = [...periodFilteredRows];
 
     // Type filter
     if (typeFilter !== 'all') {
       rows = rows.filter((r) => r.type === typeFilter);
+    }
+
+    // Category filter
+    if (categoryFilter !== 'all') {
+      rows = rows.filter((r) => r.category === categoryFilter);
     }
 
     // Sort
@@ -738,7 +971,7 @@ export function CashflowPage() {
     });
 
     return rows;
-  }, [periodFilteredRows, typeFilter, sortKey]);
+  }, [periodFilteredRows, typeFilter, categoryFilter, sortKey]);
 
   const summary = useMemo(() => {
     let income = 0,
@@ -953,11 +1186,14 @@ export function CashflowPage() {
                     innerRadius={65}
                     outerRadius={95}
                     paddingAngle={3}
+                    onClick={handlePieClick}
+                    className='cursor-pointer outline-none'
                   >
                     {incomeByCategory.map((_, i) => (
                       <Cell
                         key={`cell-${i}`}
                         fill={INCOME_COLORS[i % INCOME_COLORS.length]}
+                        className='hover:opacity-80 transition-opacity outline-none'
                       />
                     ))}
                   </Pie>
@@ -1008,11 +1244,14 @@ export function CashflowPage() {
                     innerRadius={65}
                     outerRadius={95}
                     paddingAngle={3}
+                    onClick={handlePieClick}
+                    className='cursor-pointer outline-none'
                   >
                     {expenseByCategory.map((_, i) => (
                       <Cell
                         key={`cell-${i}`}
                         fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
+                        className='hover:opacity-80 transition-opacity outline-none'
                       />
                     ))}
                   </Pie>
@@ -1044,30 +1283,38 @@ export function CashflowPage() {
       </div>
 
       {/* ── Data Table ─────────────────────────────────────────────── */}
-      <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md'>
-        {/* ✅ NEW: Table toolbar — type filter tabs + sort dropdown */}
+      <div
+        id='transactions-table-section'
+        className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md scroll-mt-24'
+      >
+        {/* Table toolbar */}
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800/60'>
           <TypeFilterTabs
             value={typeFilter}
             onChange={setTypeFilter}
             counts={typeCounts}
           />
-          <div className='flex items-center gap-2'>
-            <span className='text-xs font-medium text-slate-500 hidden sm:inline'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <CategoryFilterButton
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              categories={uniqueCategories}
+            />
+            <span className='text-xs font-medium text-slate-500 hidden xl:inline ml-1'>
               Sort by:
             </span>
             <SortButton value={sortKey} onChange={setSortKey} />
-            <span className='text-xs text-slate-500 font-medium ml-1'>
+            <span className='text-xs text-slate-500 font-medium ml-1 hidden md:inline'>
               {filteredRows.length} row{filteredRows.length !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
 
-        <div className='overflow-x-auto'>
+        {/* ── DESKTOP VIEW (Table) ── */}
+        <div className='hidden md:block overflow-x-auto rounded-b-2xl'>
           <table className='min-w-full text-left text-sm whitespace-nowrap'>
             <thead className='border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30'>
               <tr>
-                {/* ✅ Date & Amount headers are now sortable */}
                 <SortableHeader
                   label='Date'
                   sortKey='date'
@@ -1105,7 +1352,7 @@ export function CashflowPage() {
                   <td colSpan={7} className='px-5 py-14 text-center'>
                     <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
                     <p className='text-sm font-medium text-slate-400'>
-                      No transactions found.
+                      No transactions found for the selected filters.
                     </p>
                   </td>
                 </tr>
@@ -1173,6 +1420,89 @@ export function CashflowPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ── MOBILE VIEW (Cards) ── */}
+        <div className='block md:hidden'>
+          {filteredRows.length === 0 ? (
+            <div className='px-5 py-14 text-center'>
+              <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
+              <p className='text-sm font-medium text-slate-400'>
+                No transactions found for the selected filters.
+              </p>
+            </div>
+          ) : (
+            <div className='flex flex-col gap-3 p-4'>
+              {filteredRows.map((e) => (
+                <div
+                  key={e.id}
+                  className='flex flex-col gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/40 p-4 shadow-sm'
+                >
+                  <div className='flex justify-between items-start gap-2'>
+                    <div className='flex flex-col gap-1'>
+                      <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
+                        {e.date}
+                      </span>
+                      <span className='text-base font-bold text-slate-900 dark:text-slate-50'>
+                        {e.category}
+                      </span>
+                      <div className='flex flex-wrap items-center gap-2 mt-1'>
+                        <span
+                          className={
+                            e.type === 'income'
+                              ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
+                              : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
+                          }
+                        >
+                          {e.type}
+                        </span>
+                        {e.accountId && accountMap[e.accountId] && (
+                          <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
+                            {accountMap[e.accountId]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className='flex flex-col items-end text-right'>
+                      <span
+                        className={`text-lg font-bold tabular-nums ${
+                          e.type === 'income'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-slate-900 dark:text-slate-50'
+                        }`}
+                      >
+                        {e.type === 'income' ? '+' : '-'}
+                        {formatINR(e.amount)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {e.notes && (
+                    <div className='text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/60'>
+                      {e.notes}
+                    </div>
+                  )}
+
+                  <div className='flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 mt-1'>
+                    <button
+                      type='button'
+                      onClick={() => setEdit(e)}
+                      className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
+                    >
+                      <FiEdit2 className='h-3.5 w-3.5' /> Edit
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => openDeleteModal(e.id)}
+                      className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+                    >
+                      <FiTrash2 className='h-3.5 w-3.5' /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

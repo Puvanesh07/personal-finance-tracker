@@ -2,11 +2,15 @@
 
 import type {
   AgriExpenseCategory,
+  CashflowEntry,
   CoconutRecord,
   CoconutSellMethod,
   CropCycle,
+  Field,
+  LivestockEvent,
   LivestockEventType,
   LivestockType,
+  MilkRecord,
   Season,
 } from '../../types/investmentTypes';
 import {
@@ -103,7 +107,8 @@ const inputCls =
   'w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
 const labelCls =
   'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1';
-// ─── AgriDropdown — custom styled dropdown matching app UI ───────────────────
+
+// ─── AgriDropdown ─────────────────────────────────────────────────────────────
 
 type DropdownOption = { value: string; label: string; emoji?: string };
 
@@ -134,7 +139,6 @@ function AgriDropdown({
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 8,
     );
-    // flip above if not enough space below
     const spaceBelow = window.innerHeight - r.bottom;
     const maxPanelH = Math.min(options.length * 44 + 16, 260);
     const top =
@@ -301,7 +305,7 @@ function DeleteBtn({ onDelete }: { onDelete: () => void }) {
   );
 }
 
-// ─── Cashflow auto-create helper ──────────────────────────────────────────────
+// ─── Cashflow Auto-Sync Core ──────────────────────────────────────────────────
 
 async function pushToCashflow(
   type: 'income' | 'expense',
@@ -309,7 +313,7 @@ async function pushToCashflow(
   amount: number,
   date: string,
   accountId: string | undefined,
-  notes: string, // Fixed: Changed 'note' to 'notes'
+  notes: string,
   addCashflow: ReturnType<typeof usePortfolioStore.getState>['addCashflow'],
 ) {
   if (amount <= 0) return;
@@ -318,9 +322,60 @@ async function pushToCashflow(
     category,
     amount,
     date,
-    notes, // Fixed: Passed as 'notes'
+    notes,
     accountId: accountId || undefined,
   });
+}
+
+export async function syncCashflow(
+  cashflows: CashflowEntry[],
+  addCashflow: any,
+  updateCashflow: any,
+  deleteCashflow: any,
+  type: 'income' | 'expense',
+  oldCategory: string | undefined,
+  oldAmount: number | undefined,
+  oldDate: string | undefined,
+  newCategory: string,
+  newAmount: number,
+  newDate: string,
+  newAccountId: string | undefined,
+  newNotes: string,
+) {
+  const existingCf =
+    oldAmount && oldAmount > 0 && oldDate && oldCategory
+      ? cashflows.find(
+          (c) =>
+            c.type === type &&
+            c.category === oldCategory &&
+            c.amount === oldAmount &&
+            c.date === oldDate,
+        )
+      : undefined;
+
+  if (existingCf) {
+    if (newAmount <= 0) {
+      await deleteCashflow(existingCf.id);
+    } else {
+      await updateCashflow(existingCf.id, {
+        category: newCategory,
+        amount: newAmount,
+        date: newDate,
+        accountId: newAccountId || undefined,
+        notes: newNotes,
+      });
+    }
+  } else if (newAmount > 0) {
+    await pushToCashflow(
+      type,
+      newCategory,
+      newAmount,
+      newDate,
+      newAccountId,
+      newNotes,
+      addCashflow,
+    );
+  }
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
@@ -347,14 +402,17 @@ function OverviewTab() {
     coconutRecords.reduce((s, c) => s + c.investmentAmount, 0);
   const totalProfit = totalIncome - totalExpenses;
 
-  // Calculate total animals from events
   const totalAnimalCount = (
     ['goat', 'cow', 'buffalo', 'sheep', 'poultry', 'other'] as const
   ).reduce((total, type) => {
     const count = livestockEvents
       .filter((e) => e.animalType === type)
       .reduce((n, e) => {
-        if (e.eventType === 'purchase' || e.eventType === 'birth')
+        if (
+          e.eventType === 'purchase' ||
+          e.eventType === 'birth' ||
+          e.eventType === 'existing'
+        )
           return n + e.count;
         if (e.eventType === 'sale' || e.eventType === 'death')
           return n - e.count;
@@ -366,7 +424,6 @@ function OverviewTab() {
     .filter((e) => e.eventType === 'sale')
     .reduce((s, e) => s + (e.price ?? 0), 0);
 
-  // Profit by source (crops, milk, coconut)
   const profitBySource = [
     {
       name: 'Crops',
@@ -383,7 +440,6 @@ function OverviewTab() {
     },
   ].filter((x) => x.profit !== 0);
 
-  // Crop profit comparison
   const cropProfitData = cropCycles
     .map((c) => {
       const exp = agriExpenses
@@ -397,7 +453,6 @@ function OverviewTab() {
     })
     .filter((x) => x.income > 0 || x.expenses > 0);
 
-  // Expense breakdown pie
   const expByCategory: Record<string, number> = {};
   agriExpenses.forEach((e) => {
     expByCategory[e.category] = (expByCategory[e.category] ?? 0) + e.amount;
@@ -407,7 +462,6 @@ function OverviewTab() {
     value,
   }));
 
-  // Season profit
   const seasonData: Record<string, { income: number; expenses: number }> = {};
   cropCycles.forEach((c) => {
     if (!seasonData[c.season])
@@ -424,7 +478,6 @@ function OverviewTab() {
     profit: v.income - v.expenses,
   }));
 
-  // Monthly milk income
   const milkByMonth: Record<string, number> = {};
   milkRecords.forEach((m) => {
     const month = m.date.substring(0, 7);
@@ -497,7 +550,6 @@ function OverviewTab() {
         />
       </div>
 
-      {/* Farm profit by source */}
       {profitBySource.length > 0 && (
         <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
           <div className='text-sm font-bold text-slate-100 mb-4'>
@@ -688,10 +740,15 @@ function CropsTab() {
     updateCropCycle,
     deleteCropCycle,
     addField,
+    updateField,
     deleteField,
   } = useAgriStore();
-  const { accounts, addCashflow } = usePortfolioStore();
+  const { accounts, cashflows, addCashflow, updateCashflow, deleteCashflow } =
+    usePortfolioStore();
+
   const [showFieldModal, setShowFieldModal] = useState(false);
+  const [editingField, setEditingField] = useState<Field | null>(null);
+
   const [showCropModal, setShowCropModal] = useState(false);
   const [editingCrop, setEditingCrop] = useState<CropCycle | null>(null);
 
@@ -710,6 +767,12 @@ function CropsTab() {
   const [cNotes, setCNotes] = useState('');
   const [cAccount, setCAccount] = useState('');
 
+  function resetFieldForm(f?: Field) {
+    setFName(f?.name ?? '');
+    setFArea(String(f?.areAcres ?? 0));
+    setFLocation(f?.location ?? '');
+  }
+
   function resetCropForm(crop?: CropCycle) {
     setCField(crop?.fieldId ?? '');
     setCCrop(crop?.cropName ?? '');
@@ -722,6 +785,22 @@ function CropsTab() {
     setCNotes(crop?.notes ?? '');
     setCAccount(crop?.accountId ?? '');
   }
+
+  const removeLinkedCashflow = async (
+    type: 'income' | 'expense',
+    category: string,
+    amount: number,
+    date: string,
+  ) => {
+    const cf = cashflows.find(
+      (c) =>
+        c.type === type &&
+        c.category === category &&
+        c.amount === amount &&
+        c.date === date,
+    );
+    if (cf) await deleteCashflow(cf.id);
+  };
 
   async function saveCrop() {
     if (!cCrop.trim() || !cStart || !cHarvest) {
@@ -744,12 +823,47 @@ function CropsTab() {
       notes: cNotes.trim() || undefined,
       accountId: cAccount || undefined,
     };
+
     if (editingCrop) {
       await updateCropCycle(editingCrop.id, payload);
-      toast.success('Crop cycle updated');
+
+      // Smart Auto-Sync Income Cashflow
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'income',
+        'Crop Sale',
+        editingCrop.harvestIncome,
+        editingCrop.actualHarvestDate || editingCrop.expectedHarvestDate,
+        'Crop Sale',
+        income,
+        cHarvest,
+        cAccount,
+        `${cCrop.trim()} harvest income`,
+      );
+
+      // Smart Auto-Sync Expense Cashflow
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'expense',
+        'Crop Investment',
+        editingCrop.investedAmount,
+        editingCrop.startDate,
+        'Crop Investment',
+        invested,
+        cStart,
+        cAccount,
+        `${cCrop.trim()} investment`,
+      );
+
+      toast.success('Crop cycle & Cashflow updated ✓');
     } else {
       await addCropCycle(payload);
-      // Auto-push to cashflow
       if (income > 0) {
         await pushToCashflow(
           'income',
@@ -777,21 +891,48 @@ function CropsTab() {
     setShowCropModal(false);
   }
 
+  async function handleDeleteCrop(c: CropCycle) {
+    if (c.harvestIncome > 0)
+      await removeLinkedCashflow(
+        'income',
+        'Crop Sale',
+        c.harvestIncome,
+        c.actualHarvestDate || c.expectedHarvestDate,
+      );
+    if (c.investedAmount > 0)
+      await removeLinkedCashflow(
+        'expense',
+        'Crop Investment',
+        c.investedAmount,
+        c.startDate,
+      );
+    await deleteCropCycle(c.id);
+    toast.success('Crop & linked cashflow deleted ✓');
+  }
+
   async function saveField() {
     if (!fName.trim()) {
       toast.error('Field name required');
       return;
     }
-    await addField({
-      name: fName.trim(),
-      areAcres: parseFloat(fArea) || 0,
-      location: fLocation.trim() || undefined,
-    });
-    toast.success('Field added');
+    if (editingField) {
+      await updateField(editingField.id, {
+        name: fName.trim(),
+        areAcres: parseFloat(fArea) || 0,
+        location: fLocation.trim() || undefined,
+      });
+      toast.success('Field updated ✓');
+    } else {
+      await addField({
+        name: fName.trim(),
+        areAcres: parseFloat(fArea) || 0,
+        location: fLocation.trim() || undefined,
+      });
+      toast.success('Field added ✓');
+    }
     setShowFieldModal(false);
-    setFName('');
-    setFArea('0');
-    setFLocation('');
+    setEditingField(null);
+    resetFieldForm();
   }
 
   return (
@@ -803,7 +944,11 @@ function CropsTab() {
             🏞️ Fields / Land
           </div>
           <button
-            onClick={() => setShowFieldModal(true)}
+            onClick={() => {
+              setEditingField(null);
+              resetFieldForm();
+              setShowFieldModal(true);
+            }}
             className='px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700'
           >
             + Add Field
@@ -828,7 +973,19 @@ function CropsTab() {
                   {cropCycles.filter((c) => c.fieldId === f.id).length} crop
                   cycles
                 </div>
-                <DeleteBtn onDelete={() => deleteField(f.id)} />
+                <div className='flex gap-1 mt-2'>
+                  <button
+                    onClick={() => {
+                      setEditingField(f);
+                      resetFieldForm(f);
+                      setShowFieldModal(true);
+                    }}
+                    className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
+                  >
+                    Edit
+                  </button>
+                  <DeleteBtn onDelete={() => deleteField(f.id)} />
+                </div>
               </div>
             ))}
           </div>
@@ -873,6 +1030,7 @@ function CropsTab() {
                     'Harvest Date',
                     'Invested',
                     'Income',
+                    'Account',
                     'Profit',
                     '',
                   ].map((h) => (
@@ -918,6 +1076,10 @@ function CropsTab() {
                       <td className='px-3 py-2 text-green-400'>
                         {formatINR(c.harvestIncome)}
                       </td>
+                      <td className='px-3 py-2 text-slate-400'>
+                        {accounts.find((a) => a.id === c.accountId)?.name ??
+                          '—'}
+                      </td>
                       <td
                         className='px-3 py-2 font-bold'
                         style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
@@ -935,7 +1097,7 @@ function CropsTab() {
                         >
                           Edit
                         </button>
-                        <DeleteBtn onDelete={() => deleteCropCycle(c.id)} />
+                        <DeleteBtn onDelete={() => handleDeleteCrop(c)} />
                       </td>
                     </tr>
                   );
@@ -950,7 +1112,7 @@ function CropsTab() {
       <Modal
         open={showFieldModal}
         onClose={() => setShowFieldModal(false)}
-        title='Add Field / Land'
+        title={editingField ? 'Edit Field / Land' : 'Add Field / Land'}
       >
         <div className='flex flex-col gap-4'>
           <div>
@@ -1078,7 +1240,7 @@ function CropsTab() {
             />
           </div>
           <div>
-            <label className={labelCls}>Bank Account</label>
+            <label className={labelCls}>Bank Account / Cash</label>
             <AgriDropdown
               value={cAccount}
               onChange={setCAccount}
@@ -1098,9 +1260,13 @@ function CropsTab() {
             />
           </div>
         </div>
-        {!editingCrop && (
+        {!editingCrop ? (
           <p className='text-[10px] text-emerald-400 mt-3'>
-            ✓ Income & investment will auto-sync to Cashflow
+            ✓ Income & investment will auto-sync to Cashflow & selected account
+          </p>
+        ) : (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Updates will accurately reflect in connected Cashflow records.
           </p>
         )}
         <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-800'>
@@ -1125,16 +1291,50 @@ function CropsTab() {
 // ─── Expenses Tab ─────────────────────────────────────────────────────────────
 
 function ExpensesTab() {
-  const { cropCycles, agriExpenses, addAgriExpense, deleteAgriExpense } =
-    useAgriStore();
-  const { accounts, addCashflow } = usePortfolioStore();
+  const {
+    cropCycles,
+    agriExpenses,
+    addAgriExpense,
+    updateAgriExpense,
+    deleteAgriExpense,
+  } = useAgriStore();
+  const { accounts, cashflows, addCashflow, updateCashflow, deleteCashflow } =
+    usePortfolioStore();
+
   const [showModal, setShowModal] = useState(false);
+  const [editingExp, setEditingExp] = useState<any>(null);
+
   const [eCrop, setECrop] = useState('');
   const [eCat, setECat] = useState<AgriExpenseCategory>('fertilizer');
   const [eAmount, setEAmount] = useState('0');
   const [eDate, setEDate] = useState(new Date().toISOString().split('T')[0]);
   const [eNotes, setENotes] = useState('');
   const [eAccount, setEAccount] = useState('');
+
+  function resetForm(exp?: any) {
+    setECrop(exp?.cropCycleId ?? '');
+    setECat(exp?.category ?? 'fertilizer');
+    setEAmount(String(exp?.amount ?? 0));
+    setEDate(exp?.date ?? new Date().toISOString().split('T')[0]);
+    setENotes(exp?.notes ?? '');
+    setEAccount(exp?.accountId ?? '');
+  }
+
+  const removeLinkedCashflow = async (
+    type: 'income' | 'expense',
+    category: string,
+    amount: number,
+    date: string,
+  ) => {
+    const cf = cashflows.find(
+      (c) =>
+        c.type === type &&
+        c.category === category &&
+        c.amount === amount &&
+        c.date === date,
+    );
+    if (cf) await deleteCashflow(cf.id);
+  };
 
   async function saveExpense() {
     const amount = parseFloat(eAmount);
@@ -1143,7 +1343,10 @@ function ExpensesTab() {
       return;
     }
     const cropName = cropCycles.find((c) => c.id === eCrop)?.cropName;
-    await addAgriExpense({
+    const newCatLabel =
+      EXPENSE_CATS.find((c) => c.value === eCat)?.label ?? eCat;
+
+    const payload = {
       cropCycleId: eCrop,
       cropName,
       category: eCat,
@@ -1151,23 +1354,57 @@ function ExpensesTab() {
       date: eDate,
       notes: eNotes.trim() || undefined,
       accountId: eAccount || undefined,
-    });
-    // Auto-sync to cashflow
-    const catLabel = EXPENSE_CATS.find((c) => c.value === eCat)?.label ?? eCat;
-    await pushToCashflow(
-      'expense',
-      catLabel,
-      amount,
-      eDate,
-      eAccount || undefined,
-      `Farm expense: ${catLabel}${cropName ? ` (${cropName})` : ''}`,
-      addCashflow,
-    );
-    toast.success('Expense added & synced to Cashflow ✓');
+    };
+
+    if (editingExp) {
+      await updateAgriExpense(editingExp.id, payload);
+
+      const oldCatLabel =
+        EXPENSE_CATS.find((c) => c.value === editingExp.category)?.label ??
+        editingExp.category;
+
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'expense',
+        oldCatLabel,
+        editingExp.amount,
+        editingExp.date,
+        newCatLabel,
+        amount,
+        eDate,
+        eAccount,
+        `Farm expense: ${newCatLabel}${cropName ? ` (${cropName})` : ''}`,
+      );
+
+      toast.success('Expense updated ✓');
+    } else {
+      await addAgriExpense(payload);
+      await pushToCashflow(
+        'expense',
+        newCatLabel,
+        amount,
+        eDate,
+        eAccount || undefined,
+        `Farm expense: ${newCatLabel}${cropName ? ` (${cropName})` : ''}`,
+        addCashflow,
+      );
+      toast.success('Expense added & synced to Cashflow ✓');
+    }
+
     setShowModal(false);
-    setEAmount('0');
-    setENotes('');
-    setEAccount('');
+    setEditingExp(null);
+    resetForm();
+  }
+
+  async function handleDeleteExpense(e: any) {
+    const catLabel =
+      EXPENSE_CATS.find((c) => c.value === e.category)?.label ?? e.category;
+    await removeLinkedCashflow('expense', catLabel, e.amount, e.date);
+    await deleteAgriExpense(e.id);
+    toast.success('Expense & linked cashflow deleted ✓');
   }
 
   const byCat = useMemo(() => {
@@ -1191,7 +1428,11 @@ function ExpensesTab() {
             </div>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setEditingExp(null);
+              resetForm();
+              setShowModal(true);
+            }}
             className='px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700'
           >
             + Add Expense
@@ -1268,7 +1509,17 @@ function ExpensesTab() {
                       {e.notes ?? '—'}
                     </td>
                     <td className='px-3 py-2'>
-                      <DeleteBtn onDelete={() => deleteAgriExpense(e.id)} />
+                      <button
+                        onClick={() => {
+                          setEditingExp(e);
+                          resetForm(e);
+                          setShowModal(true);
+                        }}
+                        className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                      >
+                        Edit
+                      </button>
+                      <DeleteBtn onDelete={() => handleDeleteExpense(e)} />
                     </td>
                   </tr>
                 ))}
@@ -1280,8 +1531,13 @@ function ExpensesTab() {
 
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
-        title='Add Agriculture Expense'
+        onClose={() => {
+          setShowModal(false);
+          setEditingExp(null);
+        }}
+        title={
+          editingExp ? 'Edit Agriculture Expense' : 'Add Agriculture Expense'
+        }
       >
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
@@ -1347,12 +1603,21 @@ function ExpensesTab() {
             />
           </div>
         </div>
-        <p className='text-[10px] text-emerald-400 mt-3'>
-          ✓ Will auto-sync to Cashflow & debit from selected account
-        </p>
+        {!editingExp ? (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Will auto-sync to Cashflow & debit from selected account
+          </p>
+        ) : (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Updates will accurately reflect in connected Cashflow records.
+          </p>
+        )}
         <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-800'>
           <button
-            onClick={() => setShowModal(false)}
+            onClick={() => {
+              setShowModal(false);
+              setEditingExp(null);
+            }}
             className='px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 text-sm font-bold'
           >
             Cancel
@@ -1361,7 +1626,7 @@ function ExpensesTab() {
             onClick={saveExpense}
             className='px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700'
           >
-            Save Expense
+            {editingExp ? 'Update Expense' : 'Save Expense'}
           </button>
         </div>
       </Modal>
@@ -1370,11 +1635,18 @@ function ExpensesTab() {
 }
 
 function LivestockTab() {
-  const { livestockEvents, addLivestockEvent, deleteLivestockEvent } =
-    useAgriStore();
-  const { accounts, addCashflow } = usePortfolioStore();
+  const {
+    livestockEvents,
+    addLivestockEvent,
+    updateLivestockEvent,
+    deleteLivestockEvent,
+  } = useAgriStore();
+  const { accounts, cashflows, addCashflow, deleteCashflow } =
+    usePortfolioStore();
 
   const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<LivestockEvent | null>(null);
+
   const [animalType, setAnimalType] = useState<LivestockType>('goat');
   const [eventType, setEventType] = useState<LivestockEventType>('purchase');
   const [evCount, setEvCount] = useState('1');
@@ -1386,22 +1658,41 @@ function LivestockTab() {
     'all',
   );
 
-  function resetForm() {
-    setAnimalType('goat');
-    setEventType('purchase');
-    setEvCount('1');
-    setEvPrice('0');
-    setEvAccount('');
-    setEvDate(new Date().toISOString().split('T')[0]);
-    setEvNotes('');
+  function resetForm(ev?: LivestockEvent) {
+    setAnimalType(ev?.animalType ?? 'goat');
+    setEventType(ev?.eventType ?? 'purchase');
+    setEvCount(String(ev?.count ?? 1));
+    setEvPrice(String(ev?.price ?? 0));
+    setEvAccount(ev?.accountId ?? '');
+    setEvDate(ev?.date ?? new Date().toISOString().split('T')[0]);
+    setEvNotes(ev?.notes ?? '');
   }
 
-  // Calculate current count per animal type from events
+  const removeLinkedCashflow = async (
+    type: 'income' | 'expense',
+    category: string,
+    amount: number,
+    date: string,
+  ) => {
+    const cf = cashflows.find(
+      (c) =>
+        c.type === type &&
+        c.category === category &&
+        c.amount === amount &&
+        c.date === date,
+    );
+    if (cf) await deleteCashflow(cf.id);
+  };
+
   function calcCount(type: LivestockType) {
     return livestockEvents
       .filter((e) => e.animalType === type)
       .reduce((total, e) => {
-        if (e.eventType === 'purchase' || e.eventType === 'birth')
+        if (
+          e.eventType === 'purchase' ||
+          e.eventType === 'birth' ||
+          e.eventType === 'existing'
+        )
           return total + e.count;
         if (e.eventType === 'sale' || e.eventType === 'death')
           return total - e.count;
@@ -1424,7 +1715,6 @@ function LivestockTab() {
     other: calcCount('other'),
   };
 
-  // Total income/expense from events
   const totalSaleIncome = livestockEvents
     .filter((e) => e.eventType === 'sale')
     .reduce((s, e) => s + (e.price ?? 0), 0);
@@ -1441,8 +1731,7 @@ function LivestockTab() {
       return;
     }
 
-    // Validate count doesn't go negative
-    if (eventType === 'sale' || eventType === 'death') {
+    if (!editingEvent && (eventType === 'sale' || eventType === 'death')) {
       const current = calcCount(animalType);
       if (count > current) {
         toast.error(
@@ -1452,7 +1741,7 @@ function LivestockTab() {
       }
     }
 
-    await addLivestockEvent({
+    const payload = {
       animalType,
       eventType,
       count,
@@ -1460,40 +1749,111 @@ function LivestockTab() {
       accountId: evAccount || undefined,
       notes: evNotes.trim() || undefined,
       date: evDate,
-    });
+    };
 
-    // Link to cashflow
-    if (eventType === 'purchase' && price > 0) {
-      await addCashflow({
-        type: 'expense',
-        category: 'Livestock Purchase',
-        amount: price,
-        date: evDate,
-        notes: `Bought ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
-        accountId: evAccount || undefined,
-      });
-    } else if (eventType === 'sale' && price > 0) {
-      await addCashflow({
-        type: 'income',
-        category: 'Livestock Sale',
-        amount: price,
-        date: evDate,
-        notes: `Sold ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
-        accountId: evAccount || undefined,
-      });
+    if (editingEvent) {
+      await updateLivestockEvent(editingEvent.id, payload);
+
+      // Because Event Type can swap from Income to Expense, removing the old one and re-adding is safer.
+      if (
+        editingEvent.price &&
+        editingEvent.price > 0 &&
+        (editingEvent.eventType === 'purchase' ||
+          editingEvent.eventType === 'sale')
+      ) {
+        const oldType =
+          editingEvent.eventType === 'purchase' ? 'expense' : 'income';
+        const oldCat =
+          editingEvent.eventType === 'purchase'
+            ? 'Livestock Purchase'
+            : 'Livestock Sale';
+        await removeLinkedCashflow(
+          oldType,
+          oldCat,
+          editingEvent.price,
+          editingEvent.date,
+        );
+      }
+
+      // Add the new valid one
+      if (eventType === 'purchase' && price > 0) {
+        await addCashflow({
+          type: 'expense',
+          category: 'Livestock Purchase',
+          amount: price,
+          date: evDate,
+          notes: `Bought ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
+          accountId: evAccount || undefined,
+        });
+      } else if (eventType === 'sale' && price > 0) {
+        await addCashflow({
+          type: 'income',
+          category: 'Livestock Sale',
+          amount: price,
+          date: evDate,
+          notes: `Sold ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
+          accountId: evAccount || undefined,
+        });
+      }
+
+      toast.success('Event updated ✓');
+    } else {
+      await addLivestockEvent(payload);
+      if (eventType === 'purchase' && price > 0) {
+        await addCashflow({
+          type: 'expense',
+          category: 'Livestock Purchase',
+          amount: price,
+          date: evDate,
+          notes: `Bought ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
+          accountId: evAccount || undefined,
+        });
+      } else if (eventType === 'sale' && price > 0) {
+        await addCashflow({
+          type: 'income',
+          category: 'Livestock Sale',
+          amount: price,
+          date: evDate,
+          notes: `Sold ${count} ${animalType}(s)${evNotes ? ' – ' + evNotes : ''}`,
+          accountId: evAccount || undefined,
+        });
+      }
+      toast.success(
+        `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} recorded!`,
+      );
     }
 
-    toast.success(
-      `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} recorded!`,
-    );
     setShowModal(false);
+    setEditingEvent(null);
     resetForm();
+  }
+
+  async function handleDeleteEvent(ev: LivestockEvent) {
+    if (ev.price && ev.price > 0) {
+      if (ev.eventType === 'purchase')
+        await removeLinkedCashflow(
+          'expense',
+          'Livestock Purchase',
+          ev.price,
+          ev.date,
+        );
+      else if (ev.eventType === 'sale')
+        await removeLinkedCashflow(
+          'income',
+          'Livestock Sale',
+          ev.price,
+          ev.date,
+        );
+    }
+    await deleteLivestockEvent(ev.id);
+    toast.success('Event & linked cashflow deleted ✓');
   }
 
   const EVENT_LABELS: Record<
     LivestockEventType,
     { label: string; emoji: string; color: string }
   > = {
+    existing: { label: 'Already Present', emoji: '📥', color: '#8b5cf6' },
     purchase: { label: 'Purchase', emoji: '🛒', color: '#f59e0b' },
     birth: { label: 'Birth', emoji: '🍼', color: '#22c55e' },
     sale: { label: 'Sale', emoji: '💰', color: '#3b82f6' },
@@ -1505,7 +1865,6 @@ function LivestockTab() {
       ? livestockEvents
       : livestockEvents.filter((e) => e.animalType === filterAnimal);
 
-  // Population chart data
   const populationData = useMemo(() => {
     const types: LivestockType[] = [
       'goat',
@@ -1524,7 +1883,6 @@ function LivestockTab() {
 
   return (
     <div className='flex flex-col gap-6'>
-      {/* Summary Cards */}
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         <SummaryCard
           icon='🐐'
@@ -1556,7 +1914,6 @@ function LivestockTab() {
         />
       </div>
 
-      {/* All animal counts */}
       {Object.entries(animalCounts).some(([, v]) => v > 0) && (
         <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
           <div className='text-xs font-bold uppercase tracking-wider text-slate-400 mb-3'>
@@ -1585,7 +1942,6 @@ function LivestockTab() {
         </div>
       )}
 
-      {/* Population bar chart */}
       {populationData.length > 0 && (
         <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
           <div className='text-xs font-bold uppercase tracking-wider text-slate-400 mb-3'>
@@ -1641,6 +1997,7 @@ function LivestockTab() {
             <button
               onClick={() => {
                 resetForm();
+                setEditingEvent(null);
                 setShowModal(true);
               }}
               className='px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700'
@@ -1684,7 +2041,8 @@ function LivestockTab() {
                       <span className='text-sm font-bold text-slate-100'>
                         {ev.count} {meta?.label}
                         {ev.eventType === 'purchase' ||
-                        ev.eventType === 'birth' ? (
+                        ev.eventType === 'birth' ||
+                        ev.eventType === 'existing' ? (
                           <span className='text-emerald-400 ml-1'>
                             +{ev.count}
                           </span>
@@ -1717,7 +2075,17 @@ function LivestockTab() {
                       )}
                     </div>
                   </div>
-                  <DeleteBtn onDelete={() => deleteLivestockEvent(ev.id)} />
+                  <button
+                    onClick={() => {
+                      setEditingEvent(ev);
+                      resetForm(ev);
+                      setShowModal(true);
+                    }}
+                    className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                  >
+                    Edit
+                  </button>
+                  <DeleteBtn onDelete={() => handleDeleteEvent(ev)} />
                 </div>
               );
             })}
@@ -1725,11 +2093,13 @@ function LivestockTab() {
         )}
       </div>
 
-      {/* Add Event Modal */}
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
-        title='Add Livestock Event'
+        onClose={() => {
+          setShowModal(false);
+          setEditingEvent(null);
+        }}
+        title={editingEvent ? 'Edit Livestock Event' : 'Add Livestock Event'}
       >
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
@@ -1750,6 +2120,7 @@ function LivestockTab() {
               value={eventType}
               onChange={(v) => setEventType(v as LivestockEventType)}
               options={[
+                { value: 'existing', label: 'Already Present', emoji: '📥' },
                 { value: 'purchase', label: 'Purchase (Buy)', emoji: '🛒' },
                 { value: 'birth', label: 'Birth', emoji: '🍼' },
                 { value: 'sale', label: 'Sale (Sell)', emoji: '💰' },
@@ -1777,16 +2148,23 @@ function LivestockTab() {
                 ? 'Purchase Price (₹ total)'
                 : eventType === 'sale'
                   ? 'Sale Price (₹ total)'
-                  : 'Price (optional)'}
+                  : eventType === 'existing'
+                    ? 'Estimated Value (optional)'
+                    : 'Price (optional)'}
             </label>
             <NumericInput
               className={inputCls}
               value={evPrice}
               onChange={setEvPrice}
             />
-            {(eventType === 'birth' || eventType === 'death') && (
+            {(eventType === 'birth' ||
+              eventType === 'death' ||
+              eventType === 'existing') && (
               <div className='text-xs text-slate-500 mt-1'>
-                No cash flow for birth/death
+                No cash flow for{' '}
+                {eventType === 'existing'
+                  ? 'already present animals'
+                  : 'birth/death'}
               </div>
             )}
           </div>
@@ -1801,7 +2179,7 @@ function LivestockTab() {
           </div>
           {(eventType === 'purchase' || eventType === 'sale') && (
             <div>
-              <label className={labelCls}>Bank Account</label>
+              <label className={labelCls}>Bank Account / Cash</label>
               <AgriDropdown
                 value={evAccount}
                 onChange={setEvAccount}
@@ -1822,9 +2200,22 @@ function LivestockTab() {
             />
           </div>
         </div>
+        {!editingEvent && (eventType === 'purchase' || eventType === 'sale') ? (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Cashflow will be automatically recorded to the selected account.
+          </p>
+        ) : editingEvent &&
+          (eventType === 'purchase' || eventType === 'sale') ? (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Updates will accurately reflect in connected Cashflow records.
+          </p>
+        ) : null}
         <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-800'>
           <button
-            onClick={() => setShowModal(false)}
+            onClick={() => {
+              setShowModal(false);
+              setEditingEvent(null);
+            }}
             className='px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 text-sm font-bold'
           >
             Cancel
@@ -1833,7 +2224,7 @@ function LivestockTab() {
             onClick={save}
             className='px-5 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700'
           >
-            Save Event
+            {editingEvent ? 'Update Event' : 'Save Event'}
           </button>
         </div>
       </Modal>
@@ -1844,14 +2235,43 @@ function LivestockTab() {
 // ─── Milk Tab ─────────────────────────────────────────────────────────────────
 
 function MilkTab() {
-  const { milkRecords, addMilkRecord, deleteMilkRecord } = useAgriStore();
-  const { accounts, addCashflow } = usePortfolioStore();
+  const { milkRecords, addMilkRecord, updateMilkRecord, deleteMilkRecord } =
+    useAgriStore();
+  const { accounts, cashflows, addCashflow, updateCashflow, deleteCashflow } =
+    usePortfolioStore();
+
   const [showModal, setShowModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MilkRecord | null>(null);
+
   const [mDate, setMDate] = useState(new Date().toISOString().split('T')[0]);
   const [mLiters, setMLiters] = useState('0');
   const [mPrice, setMPrice] = useState('0');
   const [mSoldTo, setMSoldTo] = useState('');
   const [mAccount, setMAccount] = useState('');
+
+  function resetForm(m?: MilkRecord) {
+    setMDate(m?.date ?? new Date().toISOString().split('T')[0]);
+    setMLiters(String(m?.liters ?? 0));
+    setMPrice(String(m?.pricePerLiter ?? 0));
+    setMSoldTo(m?.soldTo ?? '');
+    setMAccount(m?.accountId ?? '');
+  }
+
+  const removeLinkedCashflow = async (
+    type: 'income' | 'expense',
+    category: string,
+    amount: number,
+    date: string,
+  ) => {
+    const cf = cashflows.find(
+      (c) =>
+        c.type === type &&
+        c.category === category &&
+        c.amount === amount &&
+        c.date === date,
+    );
+    if (cf) await deleteCashflow(cf.id);
+  };
 
   async function save() {
     const liters = parseFloat(mLiters);
@@ -1861,30 +2281,66 @@ function MilkTab() {
       return;
     }
     const income = liters * price;
-    await addMilkRecord({
-      date: mDate,
-      liters,
-      pricePerLiter: price,
-      soldTo: mSoldTo.trim() || undefined,
-      accountId: mAccount || undefined,
-    });
-    await pushToCashflow(
-      'income',
-      'Milk Sale',
-      income,
-      mDate,
-      mAccount || undefined,
-      `Milk sale: ${liters}L @ ₹${price}/L${mSoldTo ? ` to ${mSoldTo}` : ''}`,
-      addCashflow,
-    );
-    toast.success(
-      `Milk record added · ${formatINR(income)} synced to Cashflow ✓`,
-    );
+
+    if (editingRecord) {
+      await updateMilkRecord(editingRecord.id, {
+        date: mDate,
+        liters,
+        pricePerLiter: price,
+        soldTo: mSoldTo.trim() || undefined,
+        accountId: mAccount || undefined,
+      });
+
+      const oldIncome = editingRecord.liters * editingRecord.pricePerLiter;
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'income',
+        'Milk Sale',
+        oldIncome,
+        editingRecord.date,
+        'Milk Sale',
+        income,
+        mDate,
+        mAccount,
+        `Milk sale: ${liters}L @ ₹${price}/L${mSoldTo ? ` to ${mSoldTo}` : ''}`,
+      );
+
+      toast.success('Milk record updated ✓');
+    } else {
+      await addMilkRecord({
+        date: mDate,
+        liters,
+        pricePerLiter: price,
+        soldTo: mSoldTo.trim() || undefined,
+        accountId: mAccount || undefined,
+      });
+      await pushToCashflow(
+        'income',
+        'Milk Sale',
+        income,
+        mDate,
+        mAccount || undefined,
+        `Milk sale: ${liters}L @ ₹${price}/L${mSoldTo ? ` to ${mSoldTo}` : ''}`,
+        addCashflow,
+      );
+      toast.success(
+        `Milk record added · ${formatINR(income)} synced to Cashflow ✓`,
+      );
+    }
+
     setShowModal(false);
-    setMLiters('0');
-    setMPrice('0');
-    setMSoldTo('');
-    setMAccount('');
+    setEditingRecord(null);
+    resetForm();
+  }
+
+  async function handleDelete(m: MilkRecord) {
+    const income = m.liters * m.pricePerLiter;
+    await removeLinkedCashflow('income', 'Milk Sale', income, m.date);
+    await deleteMilkRecord(m.id);
+    toast.success('Record & linked cashflow deleted ✓');
   }
 
   const totalLiters = milkRecords.reduce((s, m) => s + m.liters, 0);
@@ -1960,7 +2416,11 @@ function MilkTab() {
             </div>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setEditingRecord(null);
+              resetForm();
+              setShowModal(true);
+            }}
             className='px-3 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700'
           >
             + Add Record
@@ -2016,7 +2476,17 @@ function MilkTab() {
                       {accounts.find((a) => a.id === m.accountId)?.name ?? '—'}
                     </td>
                     <td className='px-3 py-2'>
-                      <DeleteBtn onDelete={() => deleteMilkRecord(m.id)} />
+                      <button
+                        onClick={() => {
+                          setEditingRecord(m);
+                          resetForm(m);
+                          setShowModal(true);
+                        }}
+                        className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                      >
+                        Edit
+                      </button>
+                      <DeleteBtn onDelete={() => handleDelete(m)} />
                     </td>
                   </tr>
                 ))}
@@ -2028,8 +2498,11 @@ function MilkTab() {
 
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
-        title='Add Milk Record'
+        onClose={() => {
+          setShowModal(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? 'Edit Milk Record' : 'Add Milk Record'}
       >
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
@@ -2078,12 +2551,21 @@ function MilkTab() {
             />
           </div>
         </div>
-        <p className='text-[10px] text-emerald-400 mt-3'>
-          ✓ Income will auto-sync to Cashflow & credit to selected account
-        </p>
+        {!editingRecord ? (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Income will auto-sync to Cashflow & credit to selected account
+          </p>
+        ) : (
+          <p className='text-[10px] text-emerald-400 mt-3'>
+            ✓ Updates will accurately reflect in connected Cashflow records.
+          </p>
+        )}
         <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-800'>
           <button
-            onClick={() => setShowModal(false)}
+            onClick={() => {
+              setShowModal(false);
+              setEditingRecord(null);
+            }}
             className='px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 text-sm font-bold'
           >
             Cancel
@@ -2092,7 +2574,7 @@ function MilkTab() {
             onClick={save}
             className='px-5 py-2 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700'
           >
-            Save
+            {editingRecord ? 'Update' : 'Save'}
           </button>
         </div>
       </Modal>
@@ -2109,7 +2591,8 @@ function CoconutTab() {
     updateCoconutRecord,
     deleteCoconutRecord,
   } = useAgriStore();
-  const { accounts, addCashflow } = usePortfolioStore();
+  const { accounts, cashflows, addCashflow, updateCashflow, deleteCashflow } =
+    usePortfolioStore();
 
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<CoconutRecord | null>(null);
@@ -2117,36 +2600,28 @@ function CoconutTab() {
   // ── Form fields ────────────────────────────────────────────────────────────
   const [cDate, setCDate] = useState(new Date().toISOString().split('T')[0]);
   const [cTrees, setCTrees] = useState('0');
-  const [cTotalNuts, setCTotalNuts] = useState('0'); // ← direct total count
-  const [cPrice, setCPrice] = useState('0'); // ← single price/coconut
+  const [cTotalNuts, setCTotalNuts] = useState('0');
+  const [cPrice, setCPrice] = useState('0');
   const [cInvest, setCInvest] = useState('0');
   const [cDuration, setCDuration] = useState('3');
   const [cNotes, setCNotes] = useState('');
   const [cAccount, setCAccount] = useState('');
   const [sellMethod, setSellMethod] = useState<CoconutSellMethod>('by_count');
-  // ton-mode
-  const [cKgPerNut, setCKgPerNut] = useState('1');
+  const [cTotalTons, setCTotalTons] = useState('');
   const [cPricePerTon, setCPricePerTon] = useState('0');
-  const [cTotalTons, setCTotalTons] = useState(''); // manual override
 
   // ── Live calculations ──────────────────────────────────────────────────────
   const trees = parseInt(cTrees) || 0;
   const totalNuts = parseInt(cTotalNuts) || 0;
   const price = parseFloat(cPrice) || 0;
   const invest = parseFloat(cInvest) || 0;
-  const kgPerNut = parseFloat(cKgPerNut) || 1;
+  const totalTons = parseFloat(cTotalTons) || 0;
   const pPerTon = parseFloat(cPricePerTon) || 0;
-
-  // tons: if user typed manually use that, otherwise auto-calculate
-  const autoTons = (totalNuts * kgPerNut) / 1000;
-  const totalTons =
-    cTotalTons.trim() !== '' ? parseFloat(cTotalTons) || 0 : autoTons;
 
   const estimatedIncome =
     sellMethod === 'by_count' ? totalNuts * price : totalTons * pPerTon;
   const estimatedProfit = estimatedIncome - invest;
 
-  // ── Reset ──────────────────────────────────────────────────────────────────
   function resetForm(r?: CoconutRecord) {
     setCDate(r?.date ?? new Date().toISOString().split('T')[0]);
     setCTrees(String(r?.numberOfTrees ?? 0));
@@ -2157,24 +2632,45 @@ function CoconutTab() {
     setCNotes(r?.notes ?? '');
     setCAccount(r?.accountId ?? '');
     setSellMethod(r?.sellMethod ?? 'by_count');
-    setCKgPerNut(String(r?.weightKgPerCoconut ?? 1));
-    setCPricePerTon(String(r?.pricePerTon ?? 0));
     setCTotalTons(r?.totalTons !== undefined ? String(r.totalTons) : '');
+    setCPricePerTon(String(r?.pricePerTon ?? 0));
   }
 
-  // ── Save ───────────────────────────────────────────────────────────────────
+  const removeLinkedCashflow = async (
+    type: 'income' | 'expense',
+    category: string,
+    amount: number,
+    date: string,
+  ) => {
+    const cf = cashflows.find(
+      (c) =>
+        c.type === type &&
+        c.category === category &&
+        c.amount === amount &&
+        c.date === date,
+    );
+    if (cf) await deleteCashflow(cf.id);
+  };
+
   async function save() {
-    if (totalNuts <= 0) {
-      toast.error('Enter total number of coconuts');
-      return;
-    }
-    if (sellMethod === 'by_count' && price <= 0) {
-      toast.error('Enter price per coconut');
-      return;
-    }
-    if (sellMethod === 'by_ton' && pPerTon <= 0) {
-      toast.error('Enter price per ton');
-      return;
+    if (sellMethod === 'by_count') {
+      if (totalNuts <= 0) {
+        toast.error('Enter total number of coconuts');
+        return;
+      }
+      if (price <= 0) {
+        toast.error('Enter price per coconut');
+        return;
+      }
+    } else {
+      if (totalTons <= 0) {
+        toast.error('Enter total tons');
+        return;
+      }
+      if (pPerTon <= 0) {
+        toast.error('Enter price per ton');
+        return;
+      }
     }
 
     const record: Omit<
@@ -2183,10 +2679,9 @@ function CoconutTab() {
     > = {
       date: cDate,
       numberOfTrees: trees,
-      totalCoconuts: totalNuts,
+      totalCoconuts: sellMethod === 'by_count' ? totalNuts : 0,
       sellMethod,
       pricePerCoconut: sellMethod === 'by_count' ? price : undefined,
-      weightKgPerCoconut: sellMethod === 'by_ton' ? kgPerNut : undefined,
       totalTons: sellMethod === 'by_ton' ? totalTons : undefined,
       pricePerTon: sellMethod === 'by_ton' ? pPerTon : undefined,
       harvestIncome: estimatedIncome,
@@ -2196,23 +2691,57 @@ function CoconutTab() {
       accountId: cAccount || undefined,
     };
 
+    const incNote =
+      sellMethod === 'by_count'
+        ? `Coconut harvest: ${totalNuts} coconuts × ₹${price}/pc`
+        : `Coconut harvest: ${totalTons.toFixed(3)} tons × ₹${pPerTon.toLocaleString('en-IN')}/ton`;
+
     if (editing) {
       await updateCoconutRecord(editing.id, record);
-      toast.success(`Harvest updated · ${formatINR(estimatedIncome)}`);
+
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'income',
+        'Coconut Sale',
+        editing.harvestIncome,
+        editing.date,
+        'Coconut Sale',
+        estimatedIncome,
+        cDate,
+        cAccount,
+        incNote,
+      );
+
+      await syncCashflow(
+        cashflows,
+        addCashflow,
+        updateCashflow,
+        deleteCashflow,
+        'expense',
+        'Coconut Farm Expense',
+        editing.investmentAmount,
+        editing.date,
+        'Coconut Farm Expense',
+        invest,
+        cDate,
+        cAccount,
+        'Coconut farm investment',
+      );
+
+      toast.success(`Harvest & Cashflow updated ✓`);
     } else {
       await addCoconutRecord(record);
       if (estimatedIncome > 0) {
-        const note =
-          sellMethod === 'by_count'
-            ? `Coconut harvest: ${totalNuts} coconuts × ₹${price}/pc`
-            : `Coconut harvest: ${totalTons.toFixed(3)} tons × ₹${pPerTon.toLocaleString('en-IN')}/ton`;
         await pushToCashflow(
           'income',
           'Coconut Sale',
           estimatedIncome,
           cDate,
           cAccount || undefined,
-          note,
+          incNote,
           addCashflow,
         );
       }
@@ -2236,7 +2765,25 @@ function CoconutTab() {
     resetForm();
   }
 
-  // ── Summary stats ──────────────────────────────────────────────────────────
+  async function handleDelete(c: CoconutRecord) {
+    if (c.harvestIncome > 0)
+      await removeLinkedCashflow(
+        'income',
+        'Coconut Sale',
+        c.harvestIncome,
+        c.date,
+      );
+    if (c.investmentAmount > 0)
+      await removeLinkedCashflow(
+        'expense',
+        'Coconut Farm Expense',
+        c.investmentAmount,
+        c.date,
+      );
+    await deleteCoconutRecord(c.id);
+    toast.success('Harvest & linked cashflow deleted ✓');
+  }
+
   const totalTrees =
     coconutRecords.length > 0 ? coconutRecords[0].numberOfTrees : 0;
   const totalIncome = coconutRecords.reduce((s, c) => s + c.harvestIncome, 0);
@@ -2254,14 +2801,13 @@ function CoconutTab() {
     .reverse()
     .map((c) => ({
       date: c.date,
-      coconuts: c.totalCoconuts,
+      coconuts: c.totalCoconuts || c.totalTons || 0,
       income: c.harvestIncome,
       profit: c.harvestIncome - c.investmentAmount,
     }));
 
   return (
     <div className='flex flex-col gap-6'>
-      {/* ── Summary cards ── */}
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         <SummaryCard
           icon='🌴'
@@ -2275,6 +2821,7 @@ function CoconutTab() {
           label='Total Coconuts'
           value={formatNumber(totalCoconutsAll, 0)}
           color='#f59e0b'
+          sub='from count harvests'
         />
         <SummaryCard
           icon='💰'
@@ -2290,12 +2837,11 @@ function CoconutTab() {
         />
       </div>
 
-      {/* ── Charts ── */}
       {chartData.length > 0 && (
         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
           <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
             <div className='text-sm font-bold text-slate-100 mb-4'>
-              🥥 Coconut Production per Harvest
+              🥥 Volume per Harvest
             </div>
             <ResponsiveContainer width='100%' height={180}>
               <BarChart data={chartData}>
@@ -2315,7 +2861,7 @@ function CoconutTab() {
                 />
                 <Bar
                   dataKey='coconuts'
-                  name='Coconuts'
+                  name='Count / Tons'
                   fill='#f59e0b'
                   radius={[4, 4, 0, 0]}
                 />
@@ -2365,7 +2911,6 @@ function CoconutTab() {
         </div>
       )}
 
-      {/* ── Records table ── */}
       <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
         <div className='flex items-center justify-between mb-4'>
           <div>
@@ -2400,7 +2945,7 @@ function CoconutTab() {
                   {[
                     'Date',
                     'Trees',
-                    'Total Coconuts',
+                    'Volume',
                     'Method',
                     'Price',
                     'Income',
@@ -2434,7 +2979,9 @@ function CoconutTab() {
                         {c.numberOfTrees} 🌴
                       </td>
                       <td className='px-3 py-2 text-slate-100 font-bold'>
-                        {c.totalCoconuts.toLocaleString('en-IN')}
+                        {isByTon
+                          ? `${c.totalTons?.toFixed(2)} T`
+                          : c.totalCoconuts.toLocaleString('en-IN')}
                       </td>
                       <td className='px-3 py-2'>
                         <span
@@ -2445,8 +2992,8 @@ function CoconutTab() {
                       </td>
                       <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
                         {isByTon
-                          ? `${(c.totalTons ?? 0).toFixed(2)}T × ₹${(c.pricePerTon ?? 0).toLocaleString('en-IN')}`
-                          : `${c.totalCoconuts.toLocaleString('en-IN')} × ₹${c.pricePerCoconut ?? 0}`}
+                          ? `₹${(c.pricePerTon ?? 0).toLocaleString('en-IN')}`
+                          : `₹${c.pricePerCoconut ?? 0}`}
                       </td>
                       <td className='px-3 py-2 text-green-400 font-bold'>
                         {formatINR(c.harvestIncome)}
@@ -2476,9 +3023,7 @@ function CoconutTab() {
                           >
                             Edit
                           </button>
-                          <DeleteBtn
-                            onDelete={() => deleteCoconutRecord(c.id)}
-                          />
+                          <DeleteBtn onDelete={() => handleDelete(c)} />
                         </div>
                       </td>
                     </tr>
@@ -2490,7 +3035,6 @@ function CoconutTab() {
         )}
       </div>
 
-      {/* ── Add / Edit Modal ── */}
       <Modal
         open={showModal}
         onClose={() => {
@@ -2500,7 +3044,6 @@ function CoconutTab() {
         title={editing ? '✏️ Edit Coconut Harvest' : '+ Add Coconut Harvest'}
       >
         <div className='flex flex-col gap-4'>
-          {/* Sell Method Toggle */}
           <div>
             <label className={labelCls}>Selling Method</label>
             <div className='flex gap-2 mt-1'>
@@ -2563,68 +3106,36 @@ function CoconutTab() {
                 allowDecimal={false}
               />
             </div>
-            <div>
-              <label className={labelCls}>Total Coconuts *</label>
-              <NumericInput
-                className={inputCls}
-                value={cTotalNuts}
-                onChange={setCTotalNuts}
-                allowDecimal={false}
-              />
-              <div className='text-[10px] text-slate-500 mt-1'>
-                Enter the actual total count directly (e.g. 4000)
-              </div>
-            </div>
 
-            {/* ── By Count pricing ── */}
-            {sellMethod === 'by_count' && (
-              <div className='sm:col-span-2'>
-                <label className={labelCls}>Price per Coconut (₹) *</label>
-                <NumericInput
-                  className={inputCls}
-                  value={cPrice}
-                  onChange={setCPrice}
-                />
-                {totalNuts > 0 && price > 0 && (
-                  <div className='text-[10px] text-amber-400 mt-1'>
-                    {totalNuts.toLocaleString('en-IN')} × ₹{price} ={' '}
-                    <strong>{formatINR(estimatedIncome)}</strong>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── By Ton pricing ── */}
-            {sellMethod === 'by_ton' && (
+            {sellMethod === 'by_count' ? (
               <>
                 <div>
-                  <label className={labelCls}>Weight per Coconut (kg)</label>
+                  <label className={labelCls}>Total Coconuts *</label>
                   <NumericInput
                     className={inputCls}
-                    value={cKgPerNut}
-                    onChange={setCKgPerNut}
+                    value={cTotalNuts}
+                    onChange={setCTotalNuts}
+                    allowDecimal={false}
                   />
-                  {totalNuts > 0 && (
-                    <div className='text-[10px] text-blue-400 mt-1'>
-                      Auto: {totalNuts} × {kgPerNut} kg ={' '}
-                      {(totalNuts * kgPerNut).toFixed(0)} kg ={' '}
-                      {autoTons.toFixed(3)} tons
-                    </div>
-                  )}
                 </div>
+                <div className='sm:col-span-2'>
+                  <label className={labelCls}>Price per Coconut (₹) *</label>
+                  <NumericInput
+                    className={inputCls}
+                    value={cPrice}
+                    onChange={setCPrice}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
                 <div>
-                  <label className={labelCls}>Total Tons (override)</label>
-                  <input
+                  <label className={labelCls}>Total Tons *</label>
+                  <NumericInput
                     className={inputCls}
                     value={cTotalTons}
-                    onChange={(e) => setCTotalTons(e.target.value)}
-                    placeholder={`Auto: ${autoTons.toFixed(3)}`}
-                    type='number'
-                    step='0.001'
+                    onChange={setCTotalTons}
                   />
-                  <div className='text-[10px] text-slate-500 mt-1'>
-                    Leave blank to use auto-calculation
-                  </div>
                 </div>
                 <div className='sm:col-span-2'>
                   <label className={labelCls}>Price per Ton (₹) *</label>
@@ -2633,13 +3144,6 @@ function CoconutTab() {
                     value={cPricePerTon}
                     onChange={setCPricePerTon}
                   />
-                  {totalTons > 0 && pPerTon > 0 && (
-                    <div className='text-[10px] text-blue-400 mt-1'>
-                      {totalTons.toFixed(3)} tons × ₹
-                      {pPerTon.toLocaleString('en-IN')} ={' '}
-                      <strong>{formatINR(estimatedIncome)}</strong>
-                    </div>
-                  )}
                 </div>
               </>
             )}
@@ -2674,8 +3178,7 @@ function CoconutTab() {
             </div>
           </div>
 
-          {/* ── Live Calculation Preview ── */}
-          {totalNuts > 0 && estimatedIncome > 0 && (
+          {estimatedIncome > 0 && (
             <div
               className='rounded-xl border border-amber-500/20 p-4'
               style={{ background: 'rgba(245,158,11,0.05)' }}
@@ -2694,43 +3197,26 @@ function CoconutTab() {
                     </strong>
                   </div>
                 ) : (
-                  <>
-                    <div className='flex justify-between'>
-                      <span className='text-slate-500'>
-                        {totalNuts.toLocaleString('en-IN')} coconuts ×{' '}
-                        {kgPerNut} kg
-                      </span>
-                      <span className='text-blue-400'>
-                        {(totalNuts * kgPerNut).toFixed(0)} kg
-                      </span>
-                    </div>
-                    <div className='flex justify-between'>
-                      <span className='text-slate-500'>
-                        {(totalNuts * kgPerNut).toFixed(0)} kg ÷ 1000
-                      </span>
-                      <span className='text-blue-400'>
-                        {totalTons.toFixed(3)} tons
-                      </span>
-                    </div>
-                    <div className='flex justify-between'>
-                      <span className='text-slate-500'>
-                        {totalTons.toFixed(3)} tons × ₹
-                        {pPerTon.toLocaleString('en-IN')}
-                      </span>
-                      <strong className='text-green-400'>
-                        {formatINR(estimatedIncome)}
-                      </strong>
-                    </div>
-                  </>
+                  <div className='flex justify-between'>
+                    <span className='text-slate-500'>
+                      {totalTons.toFixed(3)} tons × ₹
+                      {pPerTon.toLocaleString('en-IN')}
+                    </span>
+                    <strong className='text-green-400'>
+                      {formatINR(estimatedIncome)}
+                    </strong>
+                  </div>
                 )}
               </div>
               <div className='mt-3 pt-3 border-t border-slate-700/60 grid grid-cols-3 gap-2 text-center'>
                 <div>
                   <div className='text-[10px] text-slate-500 uppercase'>
-                    Coconuts
+                    {sellMethod === 'by_ton' ? 'Tons' : 'Coconuts'}
                   </div>
                   <div className='text-sm font-bold text-amber-400 font-mono'>
-                    {totalNuts.toLocaleString('en-IN')}
+                    {sellMethod === 'by_ton'
+                      ? totalTons.toFixed(2)
+                      : totalNuts.toLocaleString('en-IN')}
                   </div>
                 </div>
                 <div>
@@ -2759,12 +3245,11 @@ function CoconutTab() {
           )}
 
           {editing ? (
-            <p className='text-[10px] text-blue-400'>
-              ✏️ Updating record only. Adjust cashflow entries separately if
-              needed.
+            <p className='text-[10px] text-emerald-400 mt-3'>
+              ✓ Updates will accurately reflect in connected Cashflow records.
             </p>
           ) : (
-            <p className='text-[10px] text-emerald-400'>
+            <p className='text-[10px] text-emerald-400 mt-3'>
               ✓ Income &amp; expense will auto-sync to Cashflow &amp; selected
               account.
             </p>
