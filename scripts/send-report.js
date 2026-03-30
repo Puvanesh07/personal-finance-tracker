@@ -246,15 +246,23 @@ async function buildReport(uid) {
     }
   }
 
-  // 6. Agriculture
-  const [crops, agriExp, milk, livestock, coconut] = await Promise.all([
-    fetchCol(uid, 'agriCropCycles'),
-    fetchCol(uid, 'agriExpenses'),
-    fetchCol(uid, 'agriMilkRecords'),
-    fetchCol(uid, 'agriLivestockEvents'),
-    fetchCol(uid, 'agriCoconut'),
-  ]);
-  if (crops.length || milk.length || coconut.length || livestock.length) {
+  // 6. Agriculture (WITH PRODUCE SALES ADDED)
+  const [crops, agriExp, milk, livestock, coconut, produceSales] =
+    await Promise.all([
+      fetchCol(uid, 'agriCropCycles'),
+      fetchCol(uid, 'agriExpenses'),
+      fetchCol(uid, 'agriMilkRecords'),
+      fetchCol(uid, 'agriLivestockEvents'),
+      fetchCol(uid, 'agriCoconut'),
+      fetchCol(uid, 'agriProduceSales'), // <-- ADDED THIS
+    ]);
+  if (
+    crops.length ||
+    milk.length ||
+    coconut.length ||
+    livestock.length ||
+    produceSales.length
+  ) {
     const cropIncome = crops.reduce((s, c) => s + (c.harvestIncome || 0), 0);
     const allFarmExp = agriExp.reduce((s, e) => s + (e.amount || 0), 0);
     const milkMonth = milk.filter((m) => (m.date || '').startsWith(month));
@@ -268,6 +276,20 @@ async function buildReport(uid) {
       0,
     );
     const cocIncome = coconut.reduce((s, c) => s + (c.harvestIncome || 0), 0);
+
+    // NEW: Produce Sales calculations
+    const produceMonth = produceSales.filter((p) =>
+      (p.date || '').startsWith(month),
+    );
+    const produceIncomeMonth = produceMonth.reduce(
+      (s, p) => s + (p.totalAmount || 0),
+      0,
+    );
+    const allProduceInc = produceSales.reduce(
+      (s, p) => s + (p.totalAmount || 0),
+      0,
+    );
+
     const animals = ['goat', 'cow', 'buffalo', 'sheep', 'poultry'].reduce(
       (total, type) => {
         const cnt = livestock
@@ -298,6 +320,21 @@ async function buildReport(uid) {
       agriRows.push(['Milk Income (all time)', fmt(allMilkInc), '#64748b']);
     if (cocIncome > 0)
       agriRows.push(['Coconut Income (total)', fmt(cocIncome), '#f59e0b']);
+
+    // NEW: Push Produce Sales to report rows
+    if (produceIncomeMonth > 0)
+      agriRows.push([
+        'Produce Sales This Month',
+        fmt(produceIncomeMonth),
+        '#22c55e',
+      ]);
+    if (allProduceInc > 0)
+      agriRows.push([
+        'Produce Sales (all time)',
+        fmt(allProduceInc),
+        '#64748b',
+      ]);
+
     if (animals > 0)
       agriRows.push(['Current Livestock', `${animals} animals`, '#94a3b8']);
     if (agriRows.length)
@@ -441,6 +478,43 @@ async function buildReport(uid) {
         section('📅 Monthly SIP Plan', '#06b6d4', tableRows(sipRows)),
       );
     }
+  }
+
+  // 10. Lending & Financing (NEW MODULE ADDED)
+  const [lendingBorrowers, lendingTransactions] = await Promise.all([
+    fetchCol(uid, 'lendingBorrowers'),
+    fetchCol(uid, 'lendingTransactions'),
+  ]);
+
+  if (lendingBorrowers.length > 0) {
+    const validIds = new Set(lendingBorrowers.map((b) => b.id));
+    let totalGiven = 0;
+    let totalReturned = 0;
+    let totalInterest = 0;
+
+    lendingTransactions.forEach((t) => {
+      if (validIds.has(t.borrowerId)) {
+        if (t.type === 'principal_given') totalGiven += t.amount || 0;
+        if (t.type === 'principal_returned') totalReturned += t.amount || 0;
+        if (t.type === 'interest_paid') totalInterest += t.amount || 0;
+      }
+    });
+
+    const outstanding = totalGiven - totalReturned;
+    const activeAccounts = lendingBorrowers.filter(
+      (b) => b.status === 'active',
+    ).length;
+
+    const lendingRows = [
+      ['Active Borrowers', `${activeAccounts}`, '#e2e8f0'],
+      ['Total Principal Given', fmt(totalGiven), '#94a3b8'],
+      ['Outstanding Balance', fmt(outstanding), '#f59e0b'],
+      ['Total Interest Earned', fmt(totalInterest), '#22c55e'],
+    ];
+
+    sections.push(
+      section('🤝 Lending & Financing', '#6366f1', tableRows(lendingRows)),
+    );
   }
 
   // If no data at all — send a basic welcome email

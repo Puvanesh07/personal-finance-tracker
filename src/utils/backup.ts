@@ -1,6 +1,4 @@
-// FILE 4 OF 5
-// src/utils/backup.ts — FULL REPLACEMENT
-// Adds insurancePayments to export and import
+// src/utils/backup.ts
 
 import type {
   Account,
@@ -16,6 +14,8 @@ import type {
   Goal,
   InsurancePayment,
   Investment,
+  LendingBorrower,
+  LendingTransaction,
   Liability,
   Livestock,
   LivestockEvent,
@@ -24,7 +24,7 @@ import type {
   NotionConfig,
   PortfolioSnapshot,
   ProduceSaleLot,
-  SalaryRecord,
+  SalaryRecord
 } from '../types/investmentTypes';
 import {
   collection,
@@ -39,7 +39,7 @@ import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4 | 5 | 6;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
@@ -57,13 +57,15 @@ export type BackupPayload = {
   agriMilkRecords?: MilkRecord[];
   agriCoconut?: CoconutRecord[];
   agriLivestockEvents?: LivestockEvent[];
-  agriProduceSales?: ProduceSaleLot[]; // ← NEW
+  agriProduceSales?: ProduceSaleLot[];
   attEmployees?: AttendanceEmployee[];
   attRecords?: AttendanceRecord[];
   attTransactions?: AttendanceTransaction[];
   attSalary?: SalaryRecord[];
   insurancePolicies?: any[];
-  insurancePayments?: InsurancePayment[]; // ← NEW
+  insurancePayments?: InsurancePayment[];
+  lendingBorrowers?: LendingBorrower[]; // NEW
+  lendingTransactions?: LendingTransaction[]; // NEW
   sipPlans?: any[];
 };
 
@@ -114,7 +116,9 @@ export async function exportFullBackup(uid: string) {
     attTransactions,
     attSalary,
     insurancePolicies,
-    insurancePayments, // ← NEW
+    insurancePayments,
+    lendingBorrowers, // NEW
+    lendingTransactions, // NEW
     sipPlans,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
@@ -137,7 +141,9 @@ export async function exportFullBackup(uid: string) {
     fetchSub<AttendanceTransaction>(uid, 'attTransactions'),
     fetchSub<SalaryRecord>(uid, 'attSalary'),
     fetchSub<any>(uid, 'insurancePolicies'),
-    fetchSub<InsurancePayment>(uid, 'insurancePayments'), // ← NEW
+    fetchSub<InsurancePayment>(uid, 'insurancePayments'),
+    fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
+    fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
     fetchSub<any>(uid, 'sipPlans'),
   ]);
 
@@ -147,7 +153,7 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 6, // bumped to 6 — adds agriProduceSales
+    version: 7, // Bumped to 7
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
@@ -171,7 +177,9 @@ export async function exportFullBackup(uid: string) {
     attTransactions,
     attSalary,
     insurancePolicies,
-    insurancePayments, // ← NEW
+    insurancePayments,
+    lendingBorrowers,
+    lendingTransactions,
     sipPlans,
   };
 
@@ -188,9 +196,9 @@ export async function importFullBackup(jsonText: string, uid: string) {
 
   const parsed = JSON.parse(jsonText) as BackupPayload;
 
-  // Accept versions 1–5
-  if (!parsed || ![1, 2, 3, 4, 5, 6].includes(parsed.version as number))
-    throw new Error('Unsupported backup format. Expected version 1–6.');
+  // Accept versions 1–7
+  if (!parsed || ![1, 2, 3, 4, 5, 6, 7].includes(parsed.version as number))
+    throw new Error('Unsupported backup format. Expected version 1–7.');
 
   await Promise.all([
     batchSet(uid, 'investments', parsed.investments ?? []),
@@ -213,7 +221,9 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
     batchSet(uid, 'attSalary', parsed.attSalary ?? []),
     batchSet(uid, 'insurancePolicies', (parsed as any).insurancePolicies ?? []),
-    batchSet(uid, 'insurancePayments', parsed.insurancePayments ?? []), // ← NEW
+    batchSet(uid, 'insurancePayments', parsed.insurancePayments ?? []),
+    batchSet(uid, 'lendingBorrowers', parsed.lendingBorrowers ?? []),
+    batchSet(uid, 'lendingTransactions', parsed.lendingTransactions ?? []),
     batchSet(uid, 'sipPlans', (parsed as any).sipPlans ?? []),
   ]);
 

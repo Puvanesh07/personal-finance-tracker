@@ -1,12 +1,4 @@
 // src/pages/Cashflow/CashflowPage.tsx
-//
-// FIXES & FEATURES:
-//  1. Added sort options: Date (newest/oldest), Amount (high→low, low→high)
-//  2. Added type filter: All / Income only / Expense only
-//  3. Added Category filter dropdown (dynamically populated)
-//  4. Interactive Pie Charts: Clicking a slice automatically filters the table below
-//  5. Responsive UI: Swaps to a smooth Card View on Mobile instead of a cramped table
-//  6. Mobile Dropdown Fix: Category & Sort filters use Portals to prevent clipping!
 
 import {
   Cell,
@@ -54,6 +46,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CashflowEntry } from '../../types/investmentTypes';
 import { CashflowSkeleton } from '../../components/loader/skeletons';
 import { ImportDividendCsvButton } from '../../components/cashflow/ImportDividendCsvButton';
+import LendingDashboard from './LendingDashboard'; // NEW import for lending tab
 import { Modal } from '../../components/ui/Modal';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
 import { createPortal } from 'react-dom';
@@ -75,7 +68,6 @@ function getFYOptions() {
   });
 }
 
-// Separate color palettes for Income and Expense charts
 const INCOME_COLORS = [
   '#10b981',
   '#3b82f6',
@@ -97,11 +89,10 @@ const EXPENSE_COLORS = [
   '#8b5cf6',
 ];
 
-// Sort options type
 type SortKey = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 type TypeFilter = 'all' | 'income' | 'expense';
 
-// ── Segmented Control ──────────────────────────────────────────────────────
+// ── Components ───────────────────────────────────────────────────────────
 function SegmentedControl({
   value,
   onChange,
@@ -134,7 +125,6 @@ function SegmentedControl({
   );
 }
 
-// ── Type Filter Tabs ───────────────────────────────────────────────────────
 function TypeFilterTabs({
   value,
   onChange,
@@ -172,7 +162,6 @@ function TypeFilterTabs({
   );
 }
 
-// ── Category Filter Button ─────────────────────────────────────────────────
 function CategoryFilterButton({
   value,
   onChange,
@@ -185,19 +174,15 @@ function CategoryFilterButton({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 208 }); // 52 width = 208px
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 208 });
 
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 208;
     let left = r.left + window.scrollX;
-
-    // Prevent spilling off the right side of the screen on mobile
-    if (left + panelW > window.innerWidth) {
+    if (left + panelW > window.innerWidth)
       left = window.innerWidth - panelW - 16;
-    }
-
     setPos({
       top: r.bottom + 6 + window.scrollY,
       left: Math.max(8, left),
@@ -271,11 +256,7 @@ function CategoryFilterButton({
                 onChange('all');
                 setOpen(false);
               }}
-              className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${
-                value === 'all'
-                  ? 'bg-emerald-500/10 text-emerald-400'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-              }`}
+              className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === 'all' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
             >
               All Categories
               {value === 'all' && <FiCheck className='h-3 w-3 shrink-0' />}
@@ -289,11 +270,7 @@ function CategoryFilterButton({
                   onChange(c);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${
-                  value === c
-                    ? 'bg-emerald-500/10 text-emerald-400'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-                }`}
+                className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === c ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
               >
                 <span className='truncate'>{c}</span>
                 {value === c && <FiCheck className='shrink-0 h-3 w-3 ml-2' />}
@@ -311,7 +288,6 @@ function CategoryFilterButton({
   );
 }
 
-// ── Sort Button ────────────────────────────────────────────────────────────
 function SortButton({
   value,
   onChange,
@@ -322,7 +298,7 @@ function SortButton({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 192 }); // w-48 is 192px
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 192 });
 
   const options: { value: SortKey; label: string; icon: React.ReactNode }[] = [
     {
@@ -354,17 +330,8 @@ function SortButton({
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 192;
     let left = r.right + window.scrollX - panelW;
-
-    // Prevent spilling off the left side of the screen on mobile
-    if (left < 8) {
-      left = 8;
-    }
-
-    setPos({
-      top: r.bottom + 6 + window.scrollY,
-      left: left,
-      width: panelW,
-    });
+    if (left < 8) left = 8;
+    setPos({ top: r.bottom + 6 + window.scrollY, left: left, width: panelW });
   }, []);
 
   useEffect(() => {
@@ -399,11 +366,7 @@ function SortButton({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
-          open
-            ? 'border-emerald-500/50 bg-slate-800 text-emerald-400'
-            : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
-        }`}
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'}`}
       >
         {selected.icon}
         <span className='hidden lg:inline'>{selected.label}</span>
@@ -434,11 +397,7 @@ function SortButton({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${
-                  value === opt.value
-                    ? 'bg-emerald-500/10 text-emerald-400'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-                }`}
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${value === opt.value ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
               >
                 {opt.icon}
                 {opt.label}
@@ -454,7 +413,6 @@ function SortButton({
   );
 }
 
-// ── Portal Dropdown (FY selector) ─────────────────────────────────────────
 function InvDropdown({
   value,
   onChange,
@@ -511,11 +469,7 @@ function InvDropdown({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all duration-300 ${
-          open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-            : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60'
-        }`}
+        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all duration-300 ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60'}`}
       >
         <div className='flex items-center gap-3'>
           <FiFilter
@@ -552,11 +506,7 @@ function InvDropdown({
                     onChange(opt.key);
                     setOpen(false);
                   }}
-                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${
-                    value === opt.key
-                      ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
-                      : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
-                  }`}
+                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${value === opt.key ? 'bg-emerald-500/10 text-emerald-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
                 >
                   <span>{opt.label}</span>
                   {value === opt.key && (
@@ -572,7 +522,6 @@ function InvDropdown({
   );
 }
 
-// ── Custom Calendar Picker ─────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -656,11 +605,7 @@ function CalendarPicker({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 min-w-[160px] ${
-          open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400'
-            : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'
-        }`}
+        className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 min-w-[160px] ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'}`}
       >
         <FiCalendar
           className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500'}`}
@@ -725,15 +670,7 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${
-                      isSelected
-                        ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30'
-                        : isTodayDay
-                          ? 'border border-emerald-500/40 text-emerald-400'
-                          : isCurrentMonth
-                            ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
-                            : 'text-slate-600 hover:bg-slate-800/50'
-                    }`}
+                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurrentMonth ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-800/50'}`}
                   >
                     {format(day, 'd')}
                   </button>
@@ -766,7 +703,6 @@ function CalendarPicker({
   );
 }
 
-// ── Summary Card ──────────────────────────────────────────────────────────
 function SummaryCard({
   label,
   value,
@@ -812,7 +748,6 @@ function SummaryCard({
   );
 }
 
-// ── Sortable Column Header ─────────────────────────────────────────────────
 function SortableHeader({
   label,
   sortKey,
@@ -828,12 +763,10 @@ function SortableHeader({
 }) {
   const isActive = currentSort.startsWith(sortKey);
   const isDesc = currentSort === `${sortKey}-desc`;
-
   const toggle = () => {
     if (!isActive) onSort(`${sortKey}-desc` as SortKey);
     else onSort((isDesc ? `${sortKey}-asc` : `${sortKey}-desc`) as SortKey);
   };
-
   return (
     <th
       className={`px-5 py-4 text-xs font-bold uppercase tracking-wider cursor-pointer select-none group ${className}`}
@@ -859,6 +792,10 @@ function SortableHeader({
 // ─────────────────────────────────────────────────────────────────────────
 
 export function CashflowPage() {
+  const [activeTab, setActiveTab] = useState<'personal' | 'lending'>(
+    'personal',
+  );
+
   const ready = usePortfolioStore((s) => s.ready);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteCashflow = usePortfolioStore((s) => s.deleteCashflow);
@@ -882,26 +819,19 @@ export function CashflowPage() {
   const [edit, setEdit] = useState<CashflowEntry | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
-
-  // Filters & Sorting
   const [sortKey, setSortKey] = useState<SortKey>('date-desc');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  // Interactive Chart Click Handler
   const handlePieClick = (data: any) => {
     if (data && data.name) {
       setCategoryFilter(data.name);
-
-      // Smooth scroll down to the table
-      document.getElementById('transactions-table-section')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
+      document
+        .getElementById('transactions-table-section')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  // Period-filtered rows (before sort & type filter)
   const periodFilteredRows = useMemo(() => {
     let rows = [...cashflows];
     if (filterMode === 'fy') {
@@ -916,28 +846,19 @@ export function CashflowPage() {
     return rows;
   }, [cashflows, filterMode, fy, customStart, customEnd]);
 
-  // Extract unique categories based on current typeFilter
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
     periodFilteredRows.forEach((r) => {
-      if (typeFilter === 'all' || r.type === typeFilter) {
-        cats.add(r.category);
-      }
+      if (typeFilter === 'all' || r.type === typeFilter) cats.add(r.category);
     });
     return Array.from(cats).sort();
   }, [periodFilteredRows, typeFilter]);
 
-  // Handle case where category is deleted or filtered out by type switch
   useEffect(() => {
-    if (
-      categoryFilter !== 'all' &&
-      !uniqueCategories.includes(categoryFilter)
-    ) {
+    if (categoryFilter !== 'all' && !uniqueCategories.includes(categoryFilter))
       setCategoryFilter('all');
-    }
   }, [uniqueCategories, categoryFilter]);
 
-  // Counts for type filter tabs
   const typeCounts = useMemo(
     () => ({
       all: periodFilteredRows.length,
@@ -947,21 +868,11 @@ export function CashflowPage() {
     [periodFilteredRows],
   );
 
-  // Apply type filter, category filter + sort to table rows
   const filteredRows = useMemo(() => {
     let rows = [...periodFilteredRows];
-
-    // Type filter
-    if (typeFilter !== 'all') {
-      rows = rows.filter((r) => r.type === typeFilter);
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
+    if (typeFilter !== 'all') rows = rows.filter((r) => r.type === typeFilter);
+    if (categoryFilter !== 'all')
       rows = rows.filter((r) => r.category === categoryFilter);
-    }
-
-    // Sort
     rows.sort((a, b) => {
       if (sortKey === 'date-desc') return b.date.localeCompare(a.date);
       if (sortKey === 'date-asc') return a.date.localeCompare(b.date);
@@ -969,7 +880,6 @@ export function CashflowPage() {
       if (sortKey === 'amount-asc') return a.amount - b.amount;
       return 0;
     });
-
     return rows;
   }, [periodFilteredRows, typeFilter, categoryFilter, sortKey]);
 
@@ -1019,533 +929,544 @@ export function CashflowPage() {
 
   return (
     <div className='flex flex-col gap-6 pb-8'>
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className='flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
-        <div className='flex items-center gap-4'>
-          <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
-            <FiActivity className='h-6 w-6' />
-          </div>
-          <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
-              Cashflow
-            </h1>
-            <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
-              Track your income sources and expenses over time.
-            </p>
-          </div>
-        </div>
-        <div className='flex flex-wrap items-center gap-3'>
-          <ImportDividendCsvButton />
-          <button
-            className='group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
-            onClick={() => setOpen(true)}
-            type='button'
-          >
-            <div className='absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0' />
-            <FiPlus className='relative h-4 w-4' />
-            <span className='relative'>Add Entry</span>
-          </button>
-        </div>
-      </header>
-
-      {/* ── Period Filter Bar ────────────────────────────────────────── */}
-      <div className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md shadow-sm'>
-        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/60 rounded-t-2xl'>
-          <div className='flex items-center gap-2'>
-            <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15'>
-              <FiFilter className='h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400' />
-            </div>
-            <span className='text-sm font-bold text-slate-700 dark:text-slate-200'>
-              Filter Period
-            </span>
-          </div>
-          <SegmentedControl value={filterMode} onChange={setFilterMode} />
-        </div>
-
-        <div className='px-5 py-4 flex flex-wrap items-end gap-3 min-h-[76px]'>
-          {filterMode === 'fy' && (
-            <>
-              <div className='flex flex-col gap-1 min-w-[200px]'>
-                <label className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1'>
-                  Financial Year
-                </label>
-                <InvDropdown
-                  value={fy}
-                  onChange={setFy}
-                  options={getFYOptions()}
-                  label='Select year'
-                />
-              </div>
-              <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
-                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
-                <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                  {periodFilteredRows.length} transaction
-                  {periodFilteredRows.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-            </>
-          )}
-          {filterMode === 'custom' && (
-            <>
-              <CalendarPicker
-                value={customStart}
-                onChange={setCustomStart}
-                label='From'
-              />
-              <div className='self-end pb-3'>
-                <span className='text-sm font-bold text-slate-500 select-none'>
-                  →
-                </span>
-              </div>
-              <CalendarPicker
-                value={customEnd}
-                onChange={setCustomEnd}
-                label='To'
-              />
-              <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
-                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
-                <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                  {periodFilteredRows.length} transaction
-                  {periodFilteredRows.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-            </>
-          )}
-          {filterMode === 'all' && (
-            <div className='flex items-center gap-3'>
-              <span className='text-sm font-medium text-slate-400 dark:text-slate-500'>
-                Showing all transactions
-              </span>
-              <div className='flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2'>
-                <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
-                <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                  {periodFilteredRows.length} total
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* ── Tabs Top ── */}
+      <div className='flex bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl w-fit mb-2 border border-slate-200/60 dark:border-slate-700/60'>
+        <button
+          onClick={() => setActiveTab('personal')}
+          className={`px-5 py-2 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === 'personal' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+        >
+          Personal Cashflow
+        </button>
+        <button
+          onClick={() => setActiveTab('lending')}
+          className={`px-5 py-2 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === 'lending' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+        >
+          Financier / Lending
+        </button>
       </div>
 
-      {/* ── Analytics Grid ────────────────────────────────────────────── */}
-      <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
-        {/* Column 1: Summary Cards */}
-        <div className='flex flex-col gap-4'>
-          <SummaryCard
-            label='Total Income'
-            value={formatINR(summary.income)}
-            icon={
-              <FiTrendingUp className='h-5 w-5 text-emerald-600 dark:text-emerald-400' />
-            }
-            colorClass='text-emerald-600 dark:text-emerald-400'
-            borderColor='border-emerald-200/60 dark:border-emerald-500/20'
-          />
-          <SummaryCard
-            label='Total Expenses'
-            value={formatINR(summary.expense)}
-            icon={
-              <FiTrendingDown className='h-5 w-5 text-rose-600 dark:text-rose-400' />
-            }
-            colorClass='text-rose-600 dark:text-rose-400'
-            borderColor='border-rose-200/60 dark:border-rose-500/20'
-          />
-          <SummaryCard
-            label='Net Savings'
-            value={formatINR(summary.savings)}
-            sub={
-              summary.income > 0
-                ? `${Math.round((summary.savings / summary.income) * 100)}% savings rate`
-                : undefined
-            }
-            icon={
-              <FiDollarSign className='h-5 w-5 text-slate-600 dark:text-slate-300' />
-            }
-            colorClass='text-slate-900 dark:text-slate-50'
-            borderColor='border-slate-200/60 dark:border-slate-700/60'
-          />
-        </div>
-
-        {/* Column 2: Income Breakdown */}
-        <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
-          <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
-            <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10'>
-              <FiPieChart className='h-3.5 w-3.5 text-emerald-500' />
+      {activeTab === 'lending' ? (
+        <LendingDashboard />
+      ) : (
+        <>
+          {/* ── Header ─────────────────────────────────────────────────── */}
+          <header className='flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
+            <div className='flex items-center gap-4'>
+              <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
+                <FiActivity className='h-6 w-6' />
+              </div>
+              <div>
+                <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+                  Cashflow
+                </h1>
+                <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
+                  Track your income sources and expenses over time.
+                </p>
+              </div>
             </div>
-            Income Breakdown
+            <div className='flex flex-wrap items-center gap-3'>
+              <ImportDividendCsvButton />
+              <button
+                className='group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
+                onClick={() => setOpen(true)}
+                type='button'
+              >
+                <div className='absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0' />
+                <FiPlus className='relative h-4 w-4' />
+                <span className='relative'>Add Entry</span>
+              </button>
+            </div>
+          </header>
+
+          {/* ── Period Filter Bar ────────────────────────────────────────── */}
+          <div className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md shadow-sm'>
+            <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/60 rounded-t-2xl'>
+              <div className='flex items-center gap-2'>
+                <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15'>
+                  <FiFilter className='h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400' />
+                </div>
+                <span className='text-sm font-bold text-slate-700 dark:text-slate-200'>
+                  Filter Period
+                </span>
+              </div>
+              <SegmentedControl value={filterMode} onChange={setFilterMode} />
+            </div>
+
+            <div className='px-5 py-4 flex flex-wrap items-end gap-3 min-h-[76px]'>
+              {filterMode === 'fy' && (
+                <>
+                  <div className='flex flex-col gap-1 min-w-[200px]'>
+                    <label className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1'>
+                      Financial Year
+                    </label>
+                    <InvDropdown
+                      value={fy}
+                      onChange={setFy}
+                      options={getFYOptions()}
+                      label='Select year'
+                    />
+                  </div>
+                  <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
+                    <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
+                    <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
+                      {periodFilteredRows.length} transaction
+                      {periodFilteredRows.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </>
+              )}
+              {filterMode === 'custom' && (
+                <>
+                  <CalendarPicker
+                    value={customStart}
+                    onChange={setCustomStart}
+                    label='From'
+                  />
+                  <div className='self-end pb-3'>
+                    <span className='text-sm font-bold text-slate-500 select-none'>
+                      →
+                    </span>
+                  </div>
+                  <CalendarPicker
+                    value={customEnd}
+                    onChange={setCustomEnd}
+                    label='To'
+                  />
+                  <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
+                    <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
+                    <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
+                      {periodFilteredRows.length} transaction
+                      {periodFilteredRows.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </>
+              )}
+              {filterMode === 'all' && (
+                <div className='flex items-center gap-3'>
+                  <span className='text-sm font-medium text-slate-400 dark:text-slate-500'>
+                    Showing all transactions
+                  </span>
+                  <div className='flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2'>
+                    <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
+                    <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
+                      {periodFilteredRows.length} total
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          {incomeByCategory.length > 0 ? (
-            <div className='h-[250px] w-full'>
-              <ResponsiveContainer width='100%' height='100%'>
-                <PieChart>
-                  <Pie
-                    data={incomeByCategory}
-                    dataKey='value'
-                    nameKey='name'
-                    cx='50%'
-                    cy='50%'
-                    innerRadius={65}
-                    outerRadius={95}
-                    paddingAngle={3}
-                    onClick={handlePieClick}
-                    className='cursor-pointer outline-none'
-                  >
-                    {incomeByCategory.map((_, i) => (
-                      <Cell
-                        key={`cell-${i}`}
-                        fill={INCOME_COLORS[i % INCOME_COLORS.length]}
-                        className='hover:opacity-80 transition-opacity outline-none'
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val: any) => formatINR(val as number)}
-                    contentStyle={{
-                      borderRadius: '12px',
-                      border: 'none',
-                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
-                      backgroundColor: 'rgba(15,23,42,0.95)',
-                      color: '#f1f5f9',
-                    }}
-                  />
-                  <Legend
-                    verticalAlign='bottom'
-                    height={36}
-                    iconType='circle'
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className='flex h-[250px] flex-col items-center justify-center text-slate-400'>
-              <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
-              <p className='text-sm font-medium'>No income data.</p>
-            </div>
-          )}
-        </div>
 
-        {/* Column 3: Expense Breakdown */}
-        <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
-          <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
-            <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10'>
-              <FiPieChart className='h-3.5 w-3.5 text-rose-500' />
+          {/* ── Analytics Grid ────────────────────────────────────────────── */}
+          <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
+            <div className='flex flex-col gap-4'>
+              <SummaryCard
+                label='Total Income'
+                value={formatINR(summary.income)}
+                icon={
+                  <FiTrendingUp className='h-5 w-5 text-emerald-600 dark:text-emerald-400' />
+                }
+                colorClass='text-emerald-600 dark:text-emerald-400'
+                borderColor='border-emerald-200/60 dark:border-emerald-500/20'
+              />
+              <SummaryCard
+                label='Total Expenses'
+                value={formatINR(summary.expense)}
+                icon={
+                  <FiTrendingDown className='h-5 w-5 text-rose-600 dark:text-rose-400' />
+                }
+                colorClass='text-rose-600 dark:text-rose-400'
+                borderColor='border-rose-200/60 dark:border-rose-500/20'
+              />
+              <SummaryCard
+                label='Net Savings'
+                value={formatINR(summary.savings)}
+                sub={
+                  summary.income > 0
+                    ? `${Math.round((summary.savings / summary.income) * 100)}% savings rate`
+                    : undefined
+                }
+                icon={
+                  <FiDollarSign className='h-5 w-5 text-slate-600 dark:text-slate-300' />
+                }
+                colorClass='text-slate-900 dark:text-slate-50'
+                borderColor='border-slate-200/60 dark:border-slate-700/60'
+              />
             </div>
-            Expense Breakdown
-          </div>
-          {expenseByCategory.length > 0 ? (
-            <div className='h-[250px] w-full'>
-              <ResponsiveContainer width='100%' height='100%'>
-                <PieChart>
-                  <Pie
-                    data={expenseByCategory}
-                    dataKey='value'
-                    nameKey='name'
-                    cx='50%'
-                    cy='50%'
-                    innerRadius={65}
-                    outerRadius={95}
-                    paddingAngle={3}
-                    onClick={handlePieClick}
-                    className='cursor-pointer outline-none'
-                  >
-                    {expenseByCategory.map((_, i) => (
-                      <Cell
-                        key={`cell-${i}`}
-                        fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
-                        className='hover:opacity-80 transition-opacity outline-none'
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val: any) => formatINR(val as number)}
-                    contentStyle={{
-                      borderRadius: '12px',
-                      border: 'none',
-                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
-                      backgroundColor: 'rgba(15,23,42,0.95)',
-                      color: '#f1f5f9',
-                    }}
-                  />
-                  <Legend
-                    verticalAlign='bottom'
-                    height={36}
-                    iconType='circle'
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className='flex h-[250px] flex-col items-center justify-center text-slate-400'>
-              <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
-              <p className='text-sm font-medium'>No expense data.</p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* ── Data Table ─────────────────────────────────────────────── */}
-      <div
-        id='transactions-table-section'
-        className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md scroll-mt-24'
-      >
-        {/* Table toolbar */}
-        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800/60'>
-          <TypeFilterTabs
-            value={typeFilter}
-            onChange={setTypeFilter}
-            counts={typeCounts}
-          />
-          <div className='flex flex-wrap items-center gap-2'>
-            <CategoryFilterButton
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              categories={uniqueCategories}
-            />
-            <span className='text-xs font-medium text-slate-500 hidden xl:inline ml-1'>
-              Sort by:
-            </span>
-            <SortButton value={sortKey} onChange={setSortKey} />
-            <span className='text-xs text-slate-500 font-medium ml-1 hidden md:inline'>
-              {filteredRows.length} row{filteredRows.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-
-        {/* ── DESKTOP VIEW (Table) ── */}
-        <div className='hidden md:block overflow-x-auto rounded-b-2xl'>
-          <table className='min-w-full text-left text-sm whitespace-nowrap'>
-            <thead className='border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30'>
-              <tr>
-                <SortableHeader
-                  label='Date'
-                  sortKey='date'
-                  currentSort={sortKey}
-                  onSort={setSortKey}
-                  className='px-5 py-4'
-                />
-                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                  Type
-                </th>
-                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                  Category
-                </th>
-                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                  Account
-                </th>
-                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                  Notes
-                </th>
-                <SortableHeader
-                  label='Amount'
-                  sortKey='amount'
-                  currentSort={sortKey}
-                  onSort={setSortKey}
-                  className='px-5 py-4 text-right'
-                />
-                <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center'>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
-              {filteredRows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className='px-5 py-14 text-center'>
-                    <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
-                    <p className='text-sm font-medium text-slate-400'>
-                      No transactions found for the selected filters.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.map((e) => (
-                  <tr
-                    key={e.id}
-                    className='group transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
-                  >
-                    <td className='px-5 py-4 font-medium text-slate-600 dark:text-slate-300'>
-                      {e.date}
-                    </td>
-                    <td className='px-5 py-4'>
-                      <span
-                        className={
-                          e.type === 'income'
-                            ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
-                            : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
-                        }
+            <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
+              <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
+                <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10'>
+                  <FiPieChart className='h-3.5 w-3.5 text-emerald-500' />
+                </div>{' '}
+                Income Breakdown
+              </div>
+              {incomeByCategory.length > 0 ? (
+                <div className='h-[250px] w-full'>
+                  <ResponsiveContainer width='100%' height='100%'>
+                    <PieChart>
+                      <Pie
+                        data={incomeByCategory}
+                        dataKey='value'
+                        nameKey='name'
+                        cx='50%'
+                        cy='50%'
+                        innerRadius={65}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        onClick={handlePieClick}
+                        className='cursor-pointer outline-none'
                       >
-                        {e.type}
-                      </span>
-                    </td>
-                    <td className='px-5 py-4 font-bold text-slate-900 dark:text-slate-50'>
-                      {e.category}
-                    </td>
-                    <td className='px-5 py-4 text-slate-500 dark:text-slate-400'>
-                      {e.accountId && accountMap[e.accountId] ? (
-                        <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
-                          {accountMap[e.accountId]}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className='px-5 py-4 max-w-xs truncate text-slate-500 dark:text-slate-400'>
-                      {e.notes ?? '—'}
-                    </td>
-                    <td
-                      className={`px-5 py-4 text-right font-bold tabular-nums ${e.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-50'}`}
+                        {incomeByCategory.map((_, i) => (
+                          <Cell
+                            key={`cell-${i}`}
+                            fill={INCOME_COLORS[i % INCOME_COLORS.length]}
+                            className='hover:opacity-80 transition-opacity outline-none'
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(val: any) => formatINR(val as number)}
+                        contentStyle={{
+                          borderRadius: '12px',
+                          border: 'none',
+                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                          backgroundColor: 'rgba(15,23,42,0.95)',
+                          color: '#f1f5f9',
+                        }}
+                      />
+                      <Legend
+                        verticalAlign='bottom'
+                        height={36}
+                        iconType='circle'
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className='flex h-[250px] flex-col items-center justify-center text-slate-400'>
+                  <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
+                  <p className='text-sm font-medium'>No income data.</p>
+                </div>
+              )}
+            </div>
+
+            <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
+              <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
+                <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10'>
+                  <FiPieChart className='h-3.5 w-3.5 text-rose-500' />
+                </div>{' '}
+                Expense Breakdown
+              </div>
+              {expenseByCategory.length > 0 ? (
+                <div className='h-[250px] w-full'>
+                  <ResponsiveContainer width='100%' height='100%'>
+                    <PieChart>
+                      <Pie
+                        data={expenseByCategory}
+                        dataKey='value'
+                        nameKey='name'
+                        cx='50%'
+                        cy='50%'
+                        innerRadius={65}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        onClick={handlePieClick}
+                        className='cursor-pointer outline-none'
+                      >
+                        {expenseByCategory.map((_, i) => (
+                          <Cell
+                            key={`cell-${i}`}
+                            fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
+                            className='hover:opacity-80 transition-opacity outline-none'
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(val: any) => formatINR(val as number)}
+                        contentStyle={{
+                          borderRadius: '12px',
+                          border: 'none',
+                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                          backgroundColor: 'rgba(15,23,42,0.95)',
+                          color: '#f1f5f9',
+                        }}
+                      />
+                      <Legend
+                        verticalAlign='bottom'
+                        height={36}
+                        iconType='circle'
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className='flex h-[250px] flex-col items-center justify-center text-slate-400'>
+                  <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
+                  <p className='text-sm font-medium'>No expense data.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Data Table ─────────────────────────────────────────────── */}
+          <div
+            id='transactions-table-section'
+            className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md scroll-mt-24'
+          >
+            <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800/60'>
+              <TypeFilterTabs
+                value={typeFilter}
+                onChange={setTypeFilter}
+                counts={typeCounts}
+              />
+              <div className='flex flex-wrap items-center gap-2'>
+                <CategoryFilterButton
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  categories={uniqueCategories}
+                />
+                <span className='text-xs font-medium text-slate-500 hidden xl:inline ml-1'>
+                  Sort by:
+                </span>
+                <SortButton value={sortKey} onChange={setSortKey} />
+                <span className='text-xs text-slate-500 font-medium ml-1 hidden md:inline'>
+                  {filteredRows.length} row
+                  {filteredRows.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+
+            <div className='hidden md:block overflow-x-auto rounded-b-2xl'>
+              <table className='min-w-full text-left text-sm whitespace-nowrap'>
+                <thead className='border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30'>
+                  <tr>
+                    <SortableHeader
+                      label='Date'
+                      sortKey='date'
+                      currentSort={sortKey}
+                      onSort={setSortKey}
+                      className='px-5 py-4'
+                    />
+                    <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                      Type
+                    </th>
+                    <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                      Category
+                    </th>
+                    <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                      Account
+                    </th>
+                    <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                      Notes
+                    </th>
+                    <SortableHeader
+                      label='Amount'
+                      sortKey='amount'
+                      currentSort={sortKey}
+                      onSort={setSortKey}
+                      className='px-5 py-4 text-right'
+                    />
+                    <th className='px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center'>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className='px-5 py-14 text-center'>
+                        <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
+                        <p className='text-sm font-medium text-slate-400'>
+                          No transactions found for the selected filters.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRows.map((e) => (
+                      <tr
+                        key={e.id}
+                        className='group transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                      >
+                        <td className='px-5 py-4 font-medium text-slate-600 dark:text-slate-300'>
+                          {e.date}
+                        </td>
+                        <td className='px-5 py-4'>
+                          <span
+                            className={
+                              e.type === 'income'
+                                ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
+                                : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
+                            }
+                          >
+                            {e.type}
+                          </span>
+                        </td>
+                        <td className='px-5 py-4 font-bold text-slate-900 dark:text-slate-50'>
+                          {e.category}
+                        </td>
+                        <td className='px-5 py-4 text-slate-500 dark:text-slate-400'>
+                          {e.accountId && accountMap[e.accountId] ? (
+                            <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
+                              {accountMap[e.accountId]}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className='px-5 py-4 max-w-xs truncate text-slate-500 dark:text-slate-400'>
+                          {e.notes ?? '—'}
+                        </td>
+                        <td
+                          className={`px-5 py-4 text-right font-bold tabular-nums ${e.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-50'}`}
+                        >
+                          {e.type === 'income' ? '+' : '-'}
+                          {formatINR(e.amount)}
+                        </td>
+                        <td className='px-5 py-4'>
+                          <div className='flex justify-center gap-2'>
+                            <button
+                              type='button'
+                              onClick={() => setEdit(e)}
+                              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
+                            >
+                              <FiEdit2 className='h-4 w-4' />
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() => openDeleteModal(e.id)}
+                              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+                            >
+                              <FiTrash2 className='h-4 w-4' />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className='block md:hidden'>
+              {filteredRows.length === 0 ? (
+                <div className='px-5 py-14 text-center'>
+                  <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
+                  <p className='text-sm font-medium text-slate-400'>
+                    No transactions found for the selected filters.
+                  </p>
+                </div>
+              ) : (
+                <div className='flex flex-col gap-3 p-4'>
+                  {filteredRows.map((e) => (
+                    <div
+                      key={e.id}
+                      className='flex flex-col gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/40 p-4 shadow-sm'
                     >
-                      {e.type === 'income' ? '+' : '-'}
-                      {formatINR(e.amount)}
-                    </td>
-                    <td className='px-5 py-4'>
-                      <div className='flex justify-center gap-2'>
+                      <div className='flex justify-between items-start gap-2'>
+                        <div className='flex flex-col gap-1'>
+                          <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
+                            {e.date}
+                          </span>
+                          <span className='text-base font-bold text-slate-900 dark:text-slate-50'>
+                            {e.category}
+                          </span>
+                          <div className='flex flex-wrap items-center gap-2 mt-1'>
+                            <span
+                              className={
+                                e.type === 'income'
+                                  ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
+                                  : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
+                              }
+                            >
+                              {e.type}
+                            </span>
+                            {e.accountId && accountMap[e.accountId] && (
+                              <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
+                                {accountMap[e.accountId]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className='flex flex-col items-end text-right'>
+                          <span
+                            className={`text-lg font-bold tabular-nums ${e.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-50'}`}
+                          >
+                            {e.type === 'income' ? '+' : '-'}
+                            {formatINR(e.amount)}
+                          </span>
+                        </div>
+                      </div>
+                      {e.notes && (
+                        <div className='text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/60'>
+                          {e.notes}
+                        </div>
+                      )}
+                      <div className='flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 mt-1'>
                         <button
                           type='button'
                           onClick={() => setEdit(e)}
-                          className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
+                          className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
                         >
-                          <FiEdit2 className='h-4 w-4' />
+                          <FiEdit2 className='h-3.5 w-3.5' /> Edit
                         </button>
                         <button
                           type='button'
                           onClick={() => openDeleteModal(e.id)}
-                          className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+                          className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
                         >
-                          <FiTrash2 className='h-4 w-4' />
+                          <FiTrash2 className='h-3.5 w-3.5' /> Delete
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── MOBILE VIEW (Cards) ── */}
-        <div className='block md:hidden'>
-          {filteredRows.length === 0 ? (
-            <div className='px-5 py-14 text-center'>
-              <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
-              <p className='text-sm font-medium text-slate-400'>
-                No transactions found for the selected filters.
-              </p>
-            </div>
-          ) : (
-            <div className='flex flex-col gap-3 p-4'>
-              {filteredRows.map((e) => (
-                <div
-                  key={e.id}
-                  className='flex flex-col gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/40 p-4 shadow-sm'
-                >
-                  <div className='flex justify-between items-start gap-2'>
-                    <div className='flex flex-col gap-1'>
-                      <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
-                        {e.date}
-                      </span>
-                      <span className='text-base font-bold text-slate-900 dark:text-slate-50'>
-                        {e.category}
-                      </span>
-                      <div className='flex flex-wrap items-center gap-2 mt-1'>
-                        <span
-                          className={
-                            e.type === 'income'
-                              ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
-                              : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
-                          }
-                        >
-                          {e.type}
-                        </span>
-                        {e.accountId && accountMap[e.accountId] && (
-                          <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
-                            {accountMap[e.accountId]}
-                          </span>
-                        )}
-                      </div>
                     </div>
-                    <div className='flex flex-col items-end text-right'>
-                      <span
-                        className={`text-lg font-bold tabular-nums ${
-                          e.type === 'income'
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-slate-900 dark:text-slate-50'
-                        }`}
-                      >
-                        {e.type === 'income' ? '+' : '-'}
-                        {formatINR(e.amount)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {e.notes && (
-                    <div className='text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/60'>
-                      {e.notes}
-                    </div>
-                  )}
-
-                  <div className='flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 mt-1'>
-                    <button
-                      type='button'
-                      onClick={() => setEdit(e)}
-                      className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
-                    >
-                      <FiEdit2 className='h-3.5 w-3.5' /> Edit
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => openDeleteModal(e.id)}
-                      className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
-                    >
-                      <FiTrash2 className='h-3.5 w-3.5' /> Delete
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Modals ─────────────────────────────────────────────────── */}
-      <UpsertCashflowModal
-        open={open}
-        onClose={() => setOpen(false)}
-        mode='create'
-      />
-      {edit && (
-        <UpsertCashflowModal
-          open={!!edit}
-          onClose={() => setEdit(null)}
-          mode='edit'
-          entry={edit}
-        />
-      )}
-
-      <Modal
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        title='⚠ Confirm Deletion'
-      >
-        <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
-            This will permanently delete the transaction.
-          </p>
-          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
-            <button
-              onClick={() => setDeleteOpen(false)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDelete}
-              className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
-            >
-              Yes, Delete
-            </button>
           </div>
-        </div>
-      </Modal>
+
+          {/* ── Modals ─────────────────────────────────────────────────── */}
+          <UpsertCashflowModal
+            open={open}
+            onClose={() => setOpen(false)}
+            mode='create'
+          />
+          {edit && (
+            <UpsertCashflowModal
+              open={!!edit}
+              onClose={() => setEdit(null)}
+              mode='edit'
+              entry={edit}
+            />
+          )}
+
+          <Modal
+            open={deleteOpen}
+            onClose={() => setDeleteOpen(false)}
+            title='⚠ Confirm Deletion'
+          >
+            <div className='space-y-6'>
+              <p className='text-sm text-slate-400'>
+                This will permanently delete the transaction.
+              </p>
+              <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
+                <button
+                  onClick={() => setDeleteOpen(false)}
+                  className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
+                >
+                  Yes, Delete
+                </button>
+              </div>
+            </div>
+          </Modal>
+        </>
+      )}
     </div>
   );
 }

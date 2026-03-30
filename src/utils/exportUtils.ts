@@ -1,5 +1,6 @@
-import type { Account, Investment } from '../types/investmentTypes';
 // src/utils/exportUtils.ts
+
+import type { Account, Investment } from '../types/investmentTypes';
 import {
   currentValue,
   investedValue,
@@ -8,6 +9,8 @@ import {
 } from './calculations';
 
 import ExcelJS from 'exceljs';
+import autoTable from 'jspdf-autotable';
+import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
 
 // ── Investment row flattening ────────────────────────────────────────────────
@@ -107,6 +110,37 @@ export function exportAllSectionsAsCSV(state: any, agriState?: any) {
   }
   if (accounts.length) {
     exportCSV(toFlatAccountRows(accounts), 'accounts.csv');
+  }
+
+  if (state.lendingBorrowers?.length) {
+    const bMap = new Map();
+    state.lendingBorrowers.forEach((b: any) => bMap.set(b.id, b.name));
+
+    // Export Borrowers
+    exportCSV(
+      state.lendingBorrowers.map((b: any) => ({
+        Name: b.name,
+        Phone: b.phone ?? '',
+        Status: b.status,
+        'Interest Rate (%)': b.interestRate ?? '',
+        'Due Date': b.nextDueDate ?? '',
+      })),
+      'lending-borrowers.csv',
+    );
+
+    // Export TXNS
+    if (state.lendingTransactions?.length) {
+      exportCSV(
+        state.lendingTransactions.map((tx: any) => ({
+          Date: tx.date,
+          Borrower: bMap.get(tx.borrowerId) || 'Unknown',
+          Type: tx.type,
+          Amount: tx.amount,
+          Notes: tx.notes ?? '',
+        })),
+        'lending-transactions.csv',
+      );
+    }
   }
 
   // ── Agriculture CSV exports ─────────────────────────────────────────────
@@ -373,4 +407,34 @@ export async function parseImportedPortfolioJSON(file: File): Promise<any> {
   const text = await file.text();
   const clean = text.replace(/```json|```/g, '').trim();
   return JSON.parse(clean);
+}
+
+export function exportPDF(
+  title: string,
+  headers: string[],
+  data: any[][],
+  filename = 'report.pdf',
+) {
+  const doc = new jsPDF();
+
+  // Add Title
+  doc.setFontSize(16);
+  doc.text(title, 14, 15);
+
+  // Add Timestamp
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
+
+  // Generate Table
+  autoTable(doc, {
+    startY: 28,
+    head: [headers],
+    body: data,
+    theme: 'grid',
+    headStyles: { fillColor: [16, 185, 129] }, // Emerald Green header
+    styles: { fontSize: 9 },
+  });
+
+  doc.save(filename);
 }

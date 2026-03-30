@@ -1,3 +1,4 @@
+// src/store/portfolioStore.ts
 /**
  * portfolioStore.ts  —  ENCRYPTION-ENABLED version with Offline & Crash Fixes
  */
@@ -16,6 +17,8 @@ import type {
   NotionConfig,
   PortfolioSnapshot,
   SoldTrade,
+  LendingBorrower, // NEW
+  LendingTransaction, // NEW
 } from '../types/investmentTypes';
 import {
   collection,
@@ -100,6 +103,8 @@ type PortfolioState = {
   soldTrades: SoldTrade[];
   insurancePolicies: InsurancePolicy[];
   insurancePayments: InsurancePayment[];
+  lendingBorrowers: LendingBorrower[]; // NEW
+  lendingTransactions: LendingTransaction[]; // NEW
   sipPlans: any[];
   _lastSnapshotDate: string | null;
 
@@ -112,26 +117,31 @@ type PortfolioState = {
   ) => Promise<{ added: number; updated: number; skipped: number }>;
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
+
   addLiability: (
     liability: Omit<Liability, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
   deleteLiability: (id: string) => Promise<void>;
+
   addCashflow: (
     entry: Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateCashflow: (id: string, patch: Partial<CashflowEntry>) => Promise<void>;
   deleteCashflow: (id: string) => Promise<void>;
+
   addGoal: (
     goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateGoal: (id: string, patch: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
+
   addAccount: (
     account: Omit<Account, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateAccount: (id: string, patch: Partial<Account>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+
   addSoldTrade: (
     trade: Omit<
       SoldTrade,
@@ -151,7 +161,6 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteInsurancePolicy: (id: string) => Promise<void>;
 
-  // Added Missing Insurance Payment Methods
   addInsurancePayment: (
     payment: Omit<
       InsurancePayment,
@@ -159,6 +168,27 @@ type PortfolioState = {
     >,
   ) => Promise<void>;
   deleteInsurancePayment: (id: string) => Promise<void>;
+
+  // Lending / Financier Methods (NEW)
+  addLendingBorrower: (
+    borrower: Omit<
+      LendingBorrower,
+      'id' | 'createdAt' | 'updatedAt' | 'userId'
+    >,
+  ) => Promise<void>;
+  updateLendingBorrower: (
+    id: string,
+    patch: Partial<LendingBorrower>,
+  ) => Promise<void>;
+  deleteLendingBorrower: (id: string) => Promise<void>;
+  addLendingTransaction: (
+    txn: Omit<LendingTransaction, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
+  ) => Promise<void>;
+  updateLendingTransaction: (
+    id: string,
+    patch: Partial<LendingTransaction>,
+  ) => Promise<void>;
+  deleteLendingTransaction: (id: string) => Promise<void>;
 
   addSipInstrument: (instrument: {
     name: string;
@@ -199,6 +229,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   soldTrades: [],
   insurancePolicies: [],
   insurancePayments: [],
+  lendingBorrowers: [],
+  lendingTransactions: [],
   sipPlans: [],
   _lastSnapshotDate: null,
 
@@ -217,6 +249,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         soldTrades,
         insurancePolicies,
         insurancePayments,
+        lendingBorrowers,
+        lendingTransactions,
         sipPlans,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
@@ -230,6 +264,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<SoldTrade>(uid, 'soldTrades'),
         fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
         fetchSub<InsurancePayment>(uid, 'insurancePayments'),
+        fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
+        fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
         fetchSub<any>(uid, 'sipPlans'),
       ]);
 
@@ -276,9 +312,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         insurancePolicies: insurancePolicies.sort((a, b) =>
           safeCompare(a.renewalDate, b.renewalDate),
         ),
-        // Hydrate and sort insurance payments
         insurancePayments: insurancePayments.sort((a, b) =>
           safeCompare(b.paidAt, a.paidAt),
+        ),
+        lendingBorrowers: lendingBorrowers.sort((a, b) =>
+          safeCompare(b.updatedAt, a.updatedAt),
+        ),
+        lendingTransactions: lendingTransactions.sort((a, b) =>
+          safeCompare(b.date, a.date),
         ),
         sipPlans: sipPlans.sort((a: any, b: any) =>
           safeCompare(a.createdAt, b.createdAt),
@@ -631,7 +672,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ADDED: Insurance Payments Functions
   addInsurancePayment: async (payment) => {
     const uid = get().uid;
     if (!uid) return;
@@ -643,7 +683,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as InsurancePayment;
-
     await saveDoc(uid, 'insurancePayments', withMeta);
     set((s) => ({
       insurancePayments: [withMeta, ...s.insurancePayments].sort((a, b) =>
@@ -651,13 +690,103 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       ),
     }));
   },
-
   deleteInsurancePayment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'insurancePayments', id));
     set((s) => ({
       insurancePayments: s.insurancePayments.filter((x) => x.id !== id),
+    }));
+  },
+
+  // ── LENDING METHODS (NEW) ────────────────────────────────────────────────
+  addLendingBorrower: async (borrower) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...borrower,
+      id: createId('lendb'),
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as LendingBorrower;
+    await saveDoc(uid, 'lendingBorrowers', withMeta);
+    set((s) => ({
+      lendingBorrowers: [withMeta, ...s.lendingBorrowers].sort((a, b) =>
+        safeCompare(b.updatedAt, a.updatedAt),
+      ),
+    }));
+  },
+  updateLendingBorrower: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().lendingBorrowers.find((x) => x.id === id);
+    if (!existing) return;
+    const updated = clean({
+      ...existing,
+      ...patch,
+      id,
+      updatedAt: now(),
+    }) as LendingBorrower;
+    await saveDoc(uid, 'lendingBorrowers', updated);
+    set((s) => ({
+      lendingBorrowers: s.lendingBorrowers.map((x) =>
+        x.id === id ? updated : x,
+      ),
+    }));
+  },
+  deleteLendingBorrower: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'lendingBorrowers', id));
+    set((s) => ({
+      lendingBorrowers: s.lendingBorrowers.filter((x) => x.id !== id),
+    }));
+  },
+
+  addLendingTransaction: async (txn) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...txn,
+      id: createId('lendtx'),
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as LendingTransaction;
+    await saveDoc(uid, 'lendingTransactions', withMeta);
+    set((s) => ({
+      lendingTransactions: [withMeta, ...s.lendingTransactions].sort((a, b) =>
+        safeCompare(b.date, a.date),
+      ),
+    }));
+  },
+  updateLendingTransaction: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().lendingTransactions.find((x) => x.id === id);
+    if (!existing) return;
+    const updated = clean({
+      ...existing,
+      ...patch,
+      id,
+      updatedAt: now(),
+    }) as LendingTransaction;
+    await saveDoc(uid, 'lendingTransactions', updated);
+    set((s) => ({
+      lendingTransactions: s.lendingTransactions.map((x) =>
+        x.id === id ? updated : x,
+      ),
+    }));
+  },
+  deleteLendingTransaction: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'lendingTransactions', id));
+    set((s) => ({
+      lendingTransactions: s.lendingTransactions.filter((x) => x.id !== id),
     }));
   },
 
@@ -849,7 +978,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'agriProduceSales',
       'soldTrades',
       'insurancePolicies',
-      'insurancePayments', // Added to clear payments correctly
+      'insurancePayments',
+      'lendingBorrowers', // NEW
+      'lendingTransactions', // NEW
       'sipPlans',
       'attEmployees',
       'attRecords',
@@ -884,6 +1015,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         soldTrades: [],
         insurancePolicies: [],
         insurancePayments: [],
+        lendingBorrowers: [], // NEW
+        lendingTransactions: [], // NEW
         sipPlans: [],
         _lastSnapshotDate: null,
       });
