@@ -437,15 +437,6 @@ export function SettingsPage() {
       case 'data':
         return (
           <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
-            <div className='mb-4'>
-              <h2 className='flex items-center gap-2 text-xl font-bold text-slate-100'>
-                <FiDatabase className='text-emerald-400' /> Export &amp; Import
-              </h2>
-              <p className='mt-1 text-sm text-slate-400'>
-                Download your data as CSV or take a full JSON backup. Restore
-                from a backup anytime.
-              </p>
-            </div>
             <ExportImport />
           </div>
         );

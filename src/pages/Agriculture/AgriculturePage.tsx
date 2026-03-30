@@ -388,6 +388,7 @@ function OverviewTab() {
     fields,
     coconutRecords,
     livestockEvents,
+    produceSales, // <-- Added produceSales here
   } = useAgriStore();
 
   const cropIncome = cropCycles.reduce((s, c) => s + c.harvestIncome, 0);
@@ -396,10 +397,18 @@ function OverviewTab() {
     0,
   );
   const coconutIncome = coconutRecords.reduce((s, c) => s + c.harvestIncome, 0);
-  const totalIncome = cropIncome + milkIncome + coconutIncome;
+  const produceIncome = produceSales.reduce(
+    (s, p) => s + (p.totalAmount || 0),
+    0,
+  ); // <-- Calculate Produce Income
+
+  // Include produceIncome in total income
+  const totalIncome = cropIncome + milkIncome + coconutIncome + produceIncome;
+
   const totalExpenses =
     agriExpenses.reduce((s, e) => s + e.amount, 0) +
     coconutRecords.reduce((s, c) => s + c.investmentAmount, 0);
+
   const totalProfit = totalIncome - totalExpenses;
 
   const totalAnimalCount = (
@@ -420,10 +429,12 @@ function OverviewTab() {
       }, 0);
     return total + Math.max(0, count);
   }, 0);
+
   const livestockSaleIncome = livestockEvents
     .filter((e) => e.eventType === 'sale')
     .reduce((s, e) => s + (e.price ?? 0), 0);
 
+  // Added Produce to Profit by Source
   const profitBySource = [
     {
       name: 'Crops',
@@ -438,6 +449,7 @@ function OverviewTab() {
         coconutRecords.reduce((s, c) => s + c.investmentAmount, 0),
       fill: '#f59e0b',
     },
+    { name: 'Produce', profit: produceIncome, fill: '#8b5cf6' }, // <-- Added Produce bar
   ].filter((x) => x.profit !== 0);
 
   const cropProfitData = cropCycles
@@ -518,7 +530,7 @@ function OverviewTab() {
           sub={`${totalAnimalCount} animals now`}
         />
       </div>
-      <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+      <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3'>
         <SummaryCard
           icon='🏞️'
           label='Fields'
@@ -547,6 +559,14 @@ function OverviewTab() {
           value={formatINR(coconutIncome)}
           color='#f59e0b'
           sub={`${coconutRecords.reduce((s, c) => s + c.totalCoconuts, 0)} coconuts`}
+        />
+        {/* NEW PRODUCE CARD */}
+        <SummaryCard
+          icon='🧺'
+          label='Produce Income'
+          value={formatINR(produceIncome)}
+          color='#8b5cf6'
+          sub={`${produceSales.length} sales`}
         />
       </div>
 

@@ -1,16 +1,11 @@
-// FILE 5 OF 5
-// src/components/settings/DataManagement.tsx — FULL REPLACEMENT
-//
-// CHANGES from previous version:
-//  1. Export JSON now shows a breakdown of what's included (with insurance + payments count)
-//  2. Import shows a preview of what the JSON file contains before restoring
-//  3. Insurance payments are included in both export and import (via the updated backup.ts)
+// src/components/settings/DataManagement.tsx
 
 import {
   FiArrowDown,
   FiArrowUp,
   FiCheck,
   FiDownload,
+  FiGrid,
   FiShield,
   FiTable,
   FiTrash2,
@@ -54,6 +49,22 @@ export function ExportImport() {
   const [previewData, setPreviewData] = useState<Record<string, number>>({});
   const [pendingFile, setPendingFile] = useState<string | null>(null);
 
+  // Correctly calculating all agricultural records, including the new Produce Sales
+  const agriRecordsCount =
+    (agriState.fields?.length ?? 0) +
+    (agriState.cropCycles?.length ?? 0) +
+    (agriState.agriExpenses?.length ?? 0) +
+    (agriState.livestockEvents?.length ?? 0) +
+    (agriState.milkRecords?.length ?? 0) +
+    (agriState.coconutRecords?.length ?? 0) +
+    (agriState.produceSales?.length ?? 0); // Include Produce Sales!
+
+  const attRecordsCount =
+    (attState.employees?.length ?? 0) +
+    (attState.attendanceRecords?.length ?? 0) +
+    (attState.transactions?.length ?? 0) +
+    (attState.salaryRecords?.length ?? 0);
+
   // Build a count summary of current data for the export preview
   const exportSummary = {
     Investments: state.investments?.length ?? 0,
@@ -64,11 +75,8 @@ export function ExportImport() {
     'Insurance Policies': state.insurancePolicies?.length ?? 0,
     'Insurance Payments': (state as any).insurancePayments?.length ?? 0,
     'SIP Plans': state.sipPlans?.length ?? 0,
-    'Agri Records':
-      (agriState.fields?.length ?? 0) + (agriState.cropCycles?.length ?? 0),
-    'Attendance Records':
-      (attState.employees?.length ?? 0) +
-      (attState.attendanceRecords?.length ?? 0),
+    'Agri Records': agriRecordsCount,
+    'Attendance Records': attRecordsCount,
   };
 
   const handleExportCSV = () => {
@@ -79,18 +87,8 @@ export function ExportImport() {
       state.goals?.length ||
       state.accounts?.length ||
       state.soldTrades?.length;
-    const hasAgri =
-      agriState.fields?.length ||
-      agriState.cropCycles?.length ||
-      agriState.agriExpenses?.length ||
-      agriState.livestockEvents?.length ||
-      agriState.milkRecords?.length ||
-      agriState.coconutRecords?.length;
-    const hasAtt =
-      attState.employees?.length ||
-      attState.attendanceRecords?.length ||
-      attState.transactions?.length ||
-      attState.salaryRecords?.length;
+    const hasAgri = agriRecordsCount > 0;
+    const hasAtt = attRecordsCount > 0;
 
     if (!hasFinance && !hasAgri && !hasAtt) {
       toast.error('Nothing to export — add some data first.');
@@ -115,9 +113,7 @@ export function ExportImport() {
     setBusy(true);
     try {
       await exportFullBackup(uid);
-      toast.success(
-        'Full backup downloaded — includes insurance policies & payments.',
-      );
+      toast.success('Full backup downloaded — includes all records.');
     } catch (err: any) {
       toast.error(err.message || 'Export failed.');
     } finally {
@@ -134,7 +130,22 @@ export function ExportImport() {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
-      // Build preview counts from the file
+      // Build preview counts from the file, correctly checking all arrays
+      const importedAgriCount =
+        (parsed.agriFields?.length ?? 0) +
+        (parsed.agriCropCycles?.length ?? 0) +
+        (parsed.agriExpenses?.length ?? 0) +
+        (parsed.agriLivestockEvents?.length ?? 0) +
+        (parsed.agriMilkRecords?.length ?? 0) +
+        (parsed.agriCoconut?.length ?? 0) +
+        (parsed.agriProduceSales?.length ?? 0); // Check imported Produce Sales
+
+      const importedAttCount =
+        (parsed.attEmployees?.length ?? 0) +
+        (parsed.attRecords?.length ?? 0) +
+        (parsed.attTransactions?.length ?? 0) +
+        (parsed.attSalary?.length ?? 0);
+
       const counts: Record<string, number> = {
         Investments: parsed.investments?.length ?? 0,
         Liabilities: parsed.liabilities?.length ?? 0,
@@ -144,11 +155,8 @@ export function ExportImport() {
         'Insurance Policies': parsed.insurancePolicies?.length ?? 0,
         'Insurance Payments': parsed.insurancePayments?.length ?? 0,
         'SIP Plans': parsed.sipPlans?.length ?? 0,
-        'Agri Records':
-          (parsed.agriFields?.length ?? 0) +
-          (parsed.agriCropCycles?.length ?? 0),
-        'Attendance Records':
-          (parsed.attEmployees?.length ?? 0) + (parsed.attRecords?.length ?? 0),
+        'Agri Records': importedAgriCount,
+        'Attendance Records': importedAttCount,
       };
 
       setPreviewData(counts);
@@ -169,9 +177,7 @@ export function ExportImport() {
       await hydrate(uid);
       await agriHydrate(uid);
       await attHydrate(uid);
-      toast.success(
-        'Backup imported — all data restored including insurance payments.',
-      );
+      toast.success('Backup imported — all data restored.');
       setPreviewOpen(false);
       setPendingFile(null);
     } catch (err: any) {
@@ -183,6 +189,17 @@ export function ExportImport() {
 
   return (
     <div className='flex flex-col gap-4'>
+      {/* Settings Page Header style match */}
+      <div className='mb-2'>
+        <h2 className='text-lg font-bold text-white flex items-center gap-2'>
+          <FiGrid className='text-emerald-400' /> Export & Import
+        </h2>
+        <p className='text-sm text-slate-400 mt-1'>
+          Download your data as CSV or take a full JSON backup. Restore from a
+          backup anytime.
+        </p>
+      </div>
+
       {/* Export CSV */}
       <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
         <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20'>
@@ -232,18 +249,18 @@ export function ExportImport() {
         </div>
 
         {/* What's included breakdown */}
-        <div className='border-t border-slate-800 pt-3'>
-          <p className='text-[10px] font-black uppercase tracking-widest text-slate-600 mb-2'>
+        <div className='border-t border-slate-800 pt-3 mt-1'>
+          <p className='text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3'>
             What will be exported
           </p>
-          <div className='grid grid-cols-2 sm:grid-cols-3 gap-1.5'>
+          <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
             {Object.entries(exportSummary).map(([label, count]) => (
               <div key={label} className='flex items-center gap-2 text-xs'>
                 <FiCheck
-                  className={`h-3 w-3 shrink-0 ${count > 0 ? 'text-emerald-400' : 'text-slate-700'}`}
+                  className={`h-3.5 w-3.5 shrink-0 ${count > 0 ? 'text-emerald-400' : 'text-slate-700'}`}
                 />
                 <span
-                  className={count > 0 ? 'text-slate-400' : 'text-slate-600'}
+                  className={count > 0 ? 'text-slate-300' : 'text-slate-600'}
                 >
                   {label}
                   {count > 0 && (
@@ -297,11 +314,11 @@ export function ExportImport() {
         title='📦 Restore from Backup'
       >
         <div className='space-y-4'>
-          <div className='bg-amber-500/8 border border-amber-500/20 rounded-xl p-3'>
-            <p className='text-xs font-bold text-amber-300'>
+          <div className='bg-amber-500/10 border border-amber-500/20 rounded-xl p-3'>
+            <p className='text-xs font-bold text-amber-400 flex items-center gap-1.5'>
               ⚠ This will overwrite your current data
             </p>
-            <p className='text-[11px] text-amber-400/70 mt-1'>
+            <p className='text-[11px] text-amber-500/80 mt-1'>
               All existing records will be replaced with the backup file
               contents.
             </p>
@@ -315,7 +332,7 @@ export function ExportImport() {
               {Object.entries(previewData).map(([label, count]) => (
                 <div
                   key={label}
-                  className='flex items-center justify-between bg-slate-800/60 rounded-lg px-3 py-2'
+                  className='flex items-center justify-between bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2'
                 >
                   <span className='text-xs text-slate-400 flex items-center gap-1.5'>
                     {label === 'Insurance Policies' ||
@@ -352,7 +369,7 @@ export function ExportImport() {
             <button
               disabled={busy}
               onClick={handleConfirmImport}
-              className='flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-60'
+              className='flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-60'
             >
               <FiUpload className='h-4 w-4' />
               {busy ? 'Restoring…' : 'Yes, Restore Data'}
@@ -435,7 +452,7 @@ export function DangerZone() {
 
   return (
     <>
-      <div className='flex flex-col gap-4'>
+      <div className='flex flex-col gap-4 mt-6'>
         {/* Clear All Data */}
         <div className='flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
           <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/20'>
@@ -503,7 +520,9 @@ export function DangerZone() {
             <li>Investments, Sold Trades, Liabilities, Cashflows, Goals</li>
             <li>Accounts, Snapshots, Net Worth history, Insights</li>
             <li>Insurance Policies &amp; all Payment Records</li>
-            <li>Agriculture — fields, crops, livestock, milk, coconut</li>
+            <li>
+              Agriculture — fields, crops, livestock, milk, coconut, produce
+            </li>
             <li>Attendance — workers, daily records, advances, salary</li>
             <li>Settings (Essentials, Notion)</li>
           </ul>
@@ -614,9 +633,7 @@ export function DataManagement() {
   return (
     <>
       <ExportImport />
-      <div className='mt-6'>
-        <DangerZone />
-      </div>
+      <DangerZone />
     </>
   );
 }
