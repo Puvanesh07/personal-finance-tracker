@@ -68,6 +68,7 @@ export function ExportImport() {
   // Build a count summary of current data for the export preview
   const exportSummary = {
     Investments: state.investments?.length ?? 0,
+    'Profits (Sold)': state.soldTrades?.length ?? 0,
     Liabilities: state.liabilities?.length ?? 0,
     Cashflows: state.cashflows?.length ?? 0,
     Goals: state.goals?.length ?? 0,
@@ -148,6 +149,7 @@ export function ExportImport() {
 
       const counts: Record<string, number> = {
         Investments: parsed.investments?.length ?? 0,
+        'Profits (Sold)': parsed.soldTrades?.length ?? 0,
         Liabilities: parsed.liabilities?.length ?? 0,
         Cashflows: parsed.cashflows?.length ?? 0,
         Goals: parsed.goals?.length ?? 0,

@@ -1,9 +1,4 @@
-// src/pages/Insurance/InsurancePage.tsx — FULL REPLACEMENT
-//
-// FIXES:
-//  1. Payment records stored properly using mapped portfolioStore functions
-//  2. Removed redundant "Record Payment" button from top header
-//  3. Removed "as any" cast hacks since types are now strictly defined
+// src/pages/Insurance/InsurancePage.tsx
 
 import {
   FiAlertTriangle,
@@ -13,13 +8,20 @@ import {
   FiPlus,
   FiShield,
   FiTrash2,
-  FiX,
 } from 'react-icons/fi';
 import type {
   InsurancePayment,
   InsurancePolicy,
 } from '../../types/investmentTypes';
-import { differenceInDays, format, parseISO } from 'date-fns';
+import {
+  addMonths,
+  addYears,
+  differenceInDays,
+  format,
+  parseISO,
+  subMonths,
+  subYears,
+} from 'date-fns';
 import { useMemo, useState } from 'react';
 
 import { Modal } from '../../components/ui/Modal';
@@ -71,6 +73,21 @@ type TabType = (typeof TABS)[number];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// Safe date formatter to prevent React crashes if a date is invalid or empty
+function safeFormat(
+  dateStr: string | null | undefined,
+  fmt: string = 'dd MMM yyyy',
+): string {
+  if (!dateStr) return '—';
+  try {
+    const d = parseISO(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return format(d, fmt);
+  } catch {
+    return '—';
+  }
+}
+
 function annualPremium(p: InsurancePolicy) {
   const freq = p.premiumFrequency as string;
   if (freq === 'monthly') return p.premiumAmount * 12;
@@ -80,30 +97,71 @@ function annualPremium(p: InsurancePolicy) {
 }
 
 function daysUntilRenewal(policy: InsurancePolicy) {
-  return differenceInDays(parseISO(policy.renewalDate), new Date());
+  try {
+    const d = parseISO(policy.renewalDate);
+    if (isNaN(d.getTime())) return 9999;
+    return differenceInDays(d, new Date());
+  } catch {
+    return 9999;
+  }
 }
 
 function computeNextRenewalDate(
   currentRenewal: string,
   frequency: InsurancePolicy['premiumFrequency'],
 ): string {
-  const d = new Date(currentRenewal);
-  switch (frequency) {
-    case 'monthly':
-      d.setMonth(d.getMonth() + 1);
-      break;
-    case 'quarterly':
-      d.setMonth(d.getMonth() + 3);
-      break;
-    case 'half-yearly':
-      d.setMonth(d.getMonth() + 6);
-      break;
-    case 'yearly':
-    default:
-      d.setFullYear(d.getFullYear() + 1);
-      break;
+  try {
+    let d = parseISO(currentRenewal);
+    if (isNaN(d.getTime())) return currentRenewal;
+
+    switch (frequency) {
+      case 'monthly':
+        d = addMonths(d, 1);
+        break;
+      case 'quarterly':
+        d = addMonths(d, 3);
+        break;
+      case 'half-yearly':
+        d = addMonths(d, 6);
+        break;
+      case 'yearly':
+      default:
+        d = addYears(d, 1);
+        break;
+    }
+    return format(d, 'yyyy-MM-dd');
+  } catch {
+    return currentRenewal;
   }
-  return d.toISOString().split('T')[0];
+}
+
+function computePreviousRenewalDate(
+  currentRenewal: string,
+  frequency: InsurancePolicy['premiumFrequency'],
+): string {
+  try {
+    let d = parseISO(currentRenewal);
+    if (isNaN(d.getTime())) return currentRenewal;
+
+    switch (frequency) {
+      case 'monthly':
+        d = subMonths(d, 1);
+        break;
+      case 'quarterly':
+        d = subMonths(d, 3);
+        break;
+      case 'half-yearly':
+        d = subMonths(d, 6);
+        break;
+      case 'yearly':
+      default:
+        d = subYears(d, 1);
+        break;
+    }
+    return format(d, 'yyyy-MM-dd');
+  } catch {
+    return currentRenewal;
+  }
 }
 
 function totalPaymentsForPolicy(policy: InsurancePolicy): number {
@@ -145,7 +203,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
 
   return (
     <div className='space-y-5'>
-      <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4'>
         {[
           {
             label: 'Total Policies',
@@ -174,12 +232,12 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
         ].map((card) => (
           <div
             key={card.label}
-            className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'
+            className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4 md:p-5'
           >
             <p className='text-xs font-bold uppercase tracking-wider text-slate-500'>
               {card.label}
             </p>
-            <p className={`text-xl font-bold mt-1.5 ${card.color}`}>
+            <p className={`text-xl md:text-2xl font-bold mt-1.5 ${card.color}`}>
               {card.value}
             </p>
             <p className='text-xs text-slate-500 mt-0.5'>{card.sub}</p>
@@ -188,18 +246,18 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
       </div>
 
       {(expired.length > 0 || expiringSoon.length > 0) && (
-        <div className='space-y-2'>
+        <div className='space-y-3'>
           {expired.map((p) => (
             <div
               key={p.id}
-              className='flex items-start gap-3 p-3.5 bg-rose-500/8 border border-rose-500/20 rounded-xl'
+              className='flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl'
             >
-              <FiAlertTriangle className='h-4 w-4 text-rose-400 mt-0.5 shrink-0' />
+              <FiAlertTriangle className='h-5 w-5 text-rose-400 shrink-0 mt-0.5' />
               <div>
                 <p className='text-sm font-bold text-rose-300'>
                   {p.policyName} — EXPIRED
                 </p>
-                <p className='text-xs text-rose-400/70'>
+                <p className='text-xs text-rose-400/80 mt-1'>
                   Expired {Math.abs(daysUntilRenewal(p))} days ago •{' '}
                   {p.provider}
                 </p>
@@ -211,16 +269,16 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
             return (
               <div
                 key={p.id}
-                className='flex items-start gap-3 p-3.5 bg-amber-500/8 border border-amber-500/20 rounded-xl'
+                className='flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl'
               >
-                <FiClock className='h-4 w-4 text-amber-400 mt-0.5 shrink-0' />
+                <FiClock className='h-5 w-5 text-amber-400 shrink-0 mt-0.5' />
                 <div>
                   <p className='text-sm font-bold text-amber-300'>
                     {p.policyName} — Renews in {days} days
                   </p>
-                  <p className='text-xs text-amber-400/70'>
-                    Due: {format(parseISO(p.renewalDate), 'dd MMM yyyy')} •
-                    Premium: {formatCurrency(p.premiumAmount)}
+                  <p className='text-xs text-amber-400/80 mt-1'>
+                    Due: {safeFormat(p.renewalDate)} • Premium:{' '}
+                    {formatCurrency(p.premiumAmount)}
                   </p>
                 </div>
               </div>
@@ -230,33 +288,33 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
       )}
 
       {byType.length > 0 && (
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
+        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-5'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-4'>
             Coverage by Type
           </p>
-          <div className='space-y-3'>
+          <div className='space-y-4'>
             {byType.map((t) => {
               const pct =
                 totalCoverage > 0 ? (t.coverage / totalCoverage) * 100 : 0;
               return (
                 <div key={t.type}>
-                  <div className='flex items-center justify-between mb-1'>
+                  <div className='flex items-center justify-between mb-2'>
                     <div className='flex items-center gap-2'>
-                      <span>{t.icon}</span>
-                      <span className={`text-xs font-bold ${t.color}`}>
+                      <span className='text-lg'>{t.icon}</span>
+                      <span className={`text-sm font-bold ${t.color}`}>
                         {t.label}
                       </span>
-                      <span className='text-[10px] text-slate-600'>
-                        {t.count} {t.count === 1 ? 'policy' : 'policies'}
+                      <span className='text-xs text-slate-500 ml-1 hidden sm:inline'>
+                        ({t.count} {t.count === 1 ? 'policy' : 'policies'})
                       </span>
                     </div>
-                    <span className='text-xs font-bold text-slate-300'>
+                    <span className='text-sm font-bold text-slate-200'>
                       {formatCurrency(t.coverage)}
                     </span>
                   </div>
-                  <div className='h-1.5 bg-slate-800 rounded-full'>
+                  <div className='h-2 bg-slate-800 rounded-full overflow-hidden'>
                     <div
-                      className='h-1.5 rounded-full bg-emerald-500 transition-all'
+                      className='h-full rounded-full bg-emerald-500 transition-all duration-500'
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -312,41 +370,44 @@ function PoliciesTab({
 
   return (
     <div className='space-y-4'>
-      <div className='flex flex-col sm:flex-row gap-3'>
+      <div className='flex flex-col md:flex-row gap-3'>
         <input
           type='text'
           placeholder='Search policies…'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className='flex-1 rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none'
+          className='flex-1 rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-colors'
         />
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className='rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-slate-300 focus:outline-none'
-        >
-          <option value='all'>All Types</option>
-          {Object.entries(TYPE_META).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v.label}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={onAdd}
-          className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
-        >
-          <FiPlus className='h-4 w-4' /> Add Policy
-        </button>
+        <div className='flex gap-3'>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className='flex-1 md:flex-none rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-3 text-sm text-slate-300 focus:outline-none transition-colors'
+          >
+            <option value='all'>All Types</option>
+            {Object.entries(TYPE_META).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={onAdd}
+            className='shrink-0 inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
+          >
+            <FiPlus className='h-4 w-4' />{' '}
+            <span className='hidden sm:inline'>Add Policy</span>
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className='text-center py-12 text-slate-500'>
+        <div className='text-center py-12 text-slate-500 bg-slate-900/30 rounded-2xl border border-slate-800 border-dashed'>
           <FiShield className='h-8 w-8 mx-auto mb-2 opacity-30' />
           <p className='text-sm'>No policies found</p>
         </div>
       ) : (
-        <div className='space-y-3'>
+        <div className='grid grid-cols-1 xl:grid-cols-2 gap-4'>
           {filtered.map((policy) => {
             const meta = TYPE_META[policy.type] || TYPE_META.other;
             const days = daysUntilRenewal(policy);
@@ -356,115 +417,107 @@ function PoliciesTab({
             return (
               <div
                 key={policy.id}
-                className={`bg-slate-900/50 border rounded-2xl p-4 transition-all hover:border-slate-600 ${
+                className={`bg-slate-900/60 border rounded-2xl p-5 transition-all hover:bg-slate-800/40 ${
                   isExpired
-                    ? 'border-rose-500/30'
+                    ? 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.05)]'
                     : isExpiring
-                      ? 'border-amber-500/30'
-                      : 'border-slate-800'
+                      ? 'border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.05)]'
+                      : 'border-slate-700/60 hover:border-slate-500'
                 }`}
               >
-                <div className='flex items-start justify-between gap-3'>
-                  <div className='flex items-start gap-3 flex-1 min-w-0'>
+                <div className='flex flex-col sm:flex-row sm:items-start justify-between gap-4'>
+                  <div className='flex items-start gap-4 flex-1 min-w-0'>
                     <div
-                      className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center border text-lg ${meta.bg}`}
+                      className={`shrink-0 h-12 w-12 rounded-xl flex items-center justify-center border text-2xl ${meta.bg}`}
                     >
                       {meta.icon}
                     </div>
                     <div className='min-w-0 flex-1'>
                       <div className='flex items-center gap-2 flex-wrap'>
-                        <p className='text-sm font-bold text-slate-100'>
+                        <h3 className='text-base font-bold text-slate-100'>
                           {policy.policyName}
-                        </p>
+                        </h3>
                         <span
-                          className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${meta.bg} ${meta.color}`}
+                          className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${meta.bg} ${meta.color}`}
                         >
                           {meta.label}
                         </span>
                         {isExpired && (
-                          <span className='text-[10px] font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20'>
-                            EXPIRED
+                          <span className='text-[10px] font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20'>
+                            EXPIRED {Math.abs(days)}d AGO
                           </span>
                         )}
                         {isExpiring && !isExpired && (
-                          <span className='text-[10px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20'>
+                          <span className='text-[10px] font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20'>
                             {days}d left
                           </span>
                         )}
                       </div>
-                      <p className='text-xs text-slate-500 mt-0.5'>
+                      <p className='text-xs text-slate-400 mt-1'>
                         {policy.provider}
-                        {policy.policyNumber ? ` • ${policy.policyNumber}` : ''}
+                        {policy.policyNumber
+                          ? ` • #${policy.policyNumber}`
+                          : ''}
                       </p>
 
-                      <div className='grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3'>
-                        <div>
-                          <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
+                      <div className='grid grid-cols-2 gap-y-3 gap-x-4 mt-4'>
+                        <div className='bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Coverage
                           </p>
-                          <p className='text-xs font-bold text-slate-200'>
+                          <p className='text-sm font-bold text-slate-200'>
                             {formatCurrency(policy.coverageAmount)}
                           </p>
                         </div>
-                        <div>
-                          <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
-                            Premium
+                        <div className='bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                            Premium ({policy.premiumFrequency})
                           </p>
-                          <p className='text-xs font-bold text-slate-200'>
-                            {formatCurrency(policy.premiumAmount)} /{' '}
-                            {policy.premiumFrequency}
+                          <p className='text-sm font-bold text-slate-200'>
+                            {formatCurrency(policy.premiumAmount)}
                           </p>
                         </div>
-                        <div>
-                          <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
+                        <div className='bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Next Due
                           </p>
                           <p
-                            className={`text-xs font-bold ${isExpired ? 'text-rose-400' : isExpiring ? 'text-amber-400' : 'text-slate-200'}`}
+                            className={`text-sm font-bold ${isExpired ? 'text-rose-400' : isExpiring ? 'text-amber-400' : 'text-emerald-400'}`}
                           >
-                            {format(
-                              parseISO(policy.renewalDate),
-                              'dd MMM yyyy',
-                            )}
+                            {safeFormat(policy.renewalDate)}
                           </p>
                         </div>
-                        <div>
-                          <p className='text-[10px] text-slate-600 uppercase tracking-wide'>
+                        <div className='bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Last Paid
                           </p>
-                          <p className='text-xs font-bold text-slate-400'>
-                            {policy.lastPaymentDate
-                              ? format(
-                                  parseISO(policy.lastPaymentDate),
-                                  'dd MMM yyyy',
-                                )
-                              : '—'}
+                          <p className='text-sm font-bold text-slate-300'>
+                            {safeFormat(policy.lastPaymentDate)}
                           </p>
                         </div>
                       </div>
-                      {policy.nominee && (
-                        <p className='text-[10px] text-slate-600 mt-2'>
-                          Nominee:{' '}
-                          <span className='text-slate-400'>
-                            {policy.nominee}
-                          </span>
-                        </p>
-                      )}
                     </div>
                   </div>
 
-                  <div className='flex gap-2 shrink-0'>
+                  {/* Actions - Bottom right on Mobile, Top right on Desktop */}
+                  <div className='flex sm:flex-col gap-2 shrink-0 border-t sm:border-t-0 border-slate-700/50 pt-3 sm:pt-0'>
                     <button
                       onClick={() => onEdit(policy)}
-                      className='h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors'
+                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors'
                     >
-                      <FiEdit2 className='h-3.5 w-3.5' />
+                      <FiEdit2 className='h-4 w-4' />{' '}
+                      <span className='sm:hidden ml-2 text-xs font-bold'>
+                        Edit
+                      </span>
                     </button>
                     <button
                       onClick={() => onDelete(policy)}
-                      className='h-8 w-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-colors'
+                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 flex items-center justify-center transition-colors'
                     >
-                      <FiTrash2 className='h-3.5 w-3.5' />
+                      <FiTrash2 className='h-4 w-4' />{' '}
+                      <span className='sm:hidden ml-2 text-xs font-bold'>
+                        Delete
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -510,7 +563,6 @@ function RecordPaymentModal({
     selectedPolicy ? String(selectedPolicy.premiumAmount) : '',
   );
 
-  // When policy changes, suggest its premium amount
   const handlePolicyChange = (id: string) => {
     setPolicyId(id);
     const pol = policies.find((p) => p.id === id);
@@ -518,9 +570,9 @@ function RecordPaymentModal({
   };
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none transition-all';
+    'w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
   const labelCls =
-    'block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5';
+    'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2';
 
   const handleSave = async () => {
     if (!policyId || !amount || !paidAt) return;
@@ -537,10 +589,9 @@ function RecordPaymentModal({
 
   return (
     <Modal open={open} onClose={onClose} title='Record Premium Payment'>
-      <div className='space-y-4'>
-        {/* Policy selector */}
+      <div className='flex flex-col gap-5'>
         <div>
-          <label className={labelCls}>Policy</label>
+          <label className={labelCls}>Select Policy</label>
           <select
             value={policyId}
             onChange={(e) => handlePolicyChange(e.target.value)}
@@ -548,87 +599,74 @@ function RecordPaymentModal({
           >
             {policies.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.policyName} — {p.provider} ({formatCurrency(p.premiumAmount)}{' '}
-                / {p.premiumFrequency})
+                {p.policyName} ({formatCurrency(p.premiumAmount)})
               </option>
             ))}
           </select>
-          {selectedPolicy && (
-            <p className='text-[11px] text-emerald-400 mt-1.5'>
-              💡 Suggested: {formatCurrency(selectedPolicy.premiumAmount)} (
-              {selectedPolicy.premiumFrequency} premium)
-            </p>
-          )}
         </div>
 
-        {/* Amount */}
-        <div>
-          <label className={labelCls}>Amount Paid (₹)</label>
-          <input
-            type='number'
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className={inputCls}
-            placeholder='e.g. 5000'
-          />
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-5'>
+          <div>
+            <label className={labelCls}>Amount Paid (₹)</label>
+            <input
+              type='number'
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className={inputCls}
+              placeholder='e.g. 5000'
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Payment Date</label>
+            <input
+              type='date'
+              value={paidAt}
+              onChange={(e) => setPaidAt(e.target.value)}
+              className={inputCls}
+            />
+          </div>
         </div>
 
-        {/* Date */}
         <div>
-          <label className={labelCls}>Payment Date</label>
-          <input
-            type='date'
-            value={paidAt}
-            onChange={(e) => setPaidAt(e.target.value)}
-            className={inputCls}
-          />
-        </div>
-
-        {/* Note */}
-        <div>
-          <label className={labelCls}>Note (optional)</label>
+          <label className={labelCls}>Transaction Note (Optional)</label>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className={inputCls}
-            placeholder='e.g. Paid via ECS, Online payment'
+            placeholder='e.g. Online Netbanking, Auto-Debit'
           />
         </div>
 
-        {/* Renewal notice */}
         {selectedPolicy && (
-          <div className='bg-blue-500/8 border border-blue-500/20 rounded-xl p-3'>
-            <p className='text-xs font-bold text-blue-300'>
-              📅 After recording this payment:
+          <div className='bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4'>
+            <p className='text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2'>
+              <FiClock /> Next Renewal Automation
             </p>
-            <p className='text-[11px] text-blue-400/80 mt-1'>
-              Next due date will automatically advance to{' '}
-              <strong>
-                {format(
-                  parseISO(
-                    computeNextRenewalDate(
-                      selectedPolicy.renewalDate,
-                      selectedPolicy.premiumFrequency,
-                    ),
+            <p className='text-sm text-indigo-300 mt-2'>
+              After saving, the next due date will automatically advance to{' '}
+              <strong className='text-white'>
+                {safeFormat(
+                  computeNextRenewalDate(
+                    selectedPolicy.renewalDate,
+                    selectedPolicy.premiumFrequency,
                   ),
-                  'dd MMM yyyy',
                 )}
               </strong>
             </p>
           </div>
         )}
 
-        <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
+        <div className='flex justify-end gap-3 border-t border-slate-800 pt-5 mt-2'>
           <button
             onClick={onClose}
-            className='px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800'
+            className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !policyId || !amount || !paidAt}
-            className='inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+            className='inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
           >
             <FiCheck className='h-4 w-4' />
             {saving ? 'Saving…' : 'Record Payment'}
@@ -667,7 +705,6 @@ function PaymentsTab({
 
   const sorted = [...filtered].sort((a, b) => b.paidAt.localeCompare(a.paidAt));
   const totalPaid = filtered.reduce((a, p) => a + p.amount, 0);
-  const lastPayment = sorted[0];
 
   const selectedPolicy = policies.find((p) => p.id === selectedPolicyId);
   const totalExpected = selectedPolicy
@@ -678,136 +715,128 @@ function PaymentsTab({
     : 0;
 
   return (
-    <div className='space-y-4'>
-      {/* Header row */}
-      <div className='flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between'>
-        <select
-          value={selectedPolicyId}
-          onChange={(e) => setSelectedPolicyId(e.target.value)}
-          className='rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-300 focus:outline-none max-w-xs'
-        >
-          <option value='all'>All Policies</option>
-          {policies.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.policyName} — {p.provider}
-            </option>
-          ))}
-        </select>
+    <div className='space-y-5'>
+      {/* Action Bar */}
+      <div className='flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-900/50 border border-slate-800 p-4 rounded-2xl'>
+        <div className='flex-1 max-w-md'>
+          <select
+            value={selectedPolicyId}
+            onChange={(e) => setSelectedPolicyId(e.target.value)}
+            className='w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 focus:outline-none focus:border-emerald-500/50'
+          >
+            <option value='all'>All Payment History</option>
+            {policies.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.policyName}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => setShowAdd(true)}
-          className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors'
+          className='shrink-0 inline-flex justify-center items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
         >
           <FiPlus className='h-4 w-4' /> Record Payment
         </button>
       </div>
 
-      {/* Summary */}
-      <div className='grid grid-cols-3 gap-3'>
-        <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-3'>
-          <p className='text-[10px] uppercase text-slate-500 font-bold'>
-            Total Payments
-          </p>
-          <p className='text-lg font-bold text-slate-100 mt-1'>
-            {filtered.length}
-          </p>
-        </div>
-        <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-3'>
-          <p className='text-[10px] uppercase text-slate-500 font-bold'>
-            Total Paid
-          </p>
-          <p className='text-lg font-bold text-emerald-400 mt-1'>
-            {formatCurrency(totalPaid)}
-          </p>
-        </div>
-        <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-3'>
-          <p className='text-[10px] uppercase text-slate-500 font-bold'>
-            Last Payment
-          </p>
-          <p className='text-sm font-bold text-slate-200 mt-1'>
-            {lastPayment
-              ? format(parseISO(lastPayment.paidAt), 'dd MMM yy')
-              : '—'}
-          </p>
-        </div>
-      </div>
-
       {/* Progress bar for selected policy (if term known) */}
       {selectedPolicy && totalExpected > 0 && (
-        <div className='bg-slate-900/50 border border-slate-800 rounded-xl p-4 space-y-2'>
-          <p className='text-xs font-black uppercase tracking-wider text-slate-500'>
-            Payment Progress — {selectedPolicy.policyName}
+        <div className='bg-slate-900/60 border border-slate-700/50 rounded-2xl p-5 space-y-3'>
+          <p className='text-xs font-black uppercase tracking-wider text-slate-400'>
+            Premium Payment Progress
           </p>
-          <div className='flex justify-between text-xs font-bold text-slate-400'>
-            <span>
-              {paidCount} of {totalExpected} payments done
+          <div className='flex justify-between items-end text-sm'>
+            <span className='font-medium text-slate-300'>
+              <strong className='text-white text-lg'>{paidCount}</strong> of{' '}
+              {totalExpected} payments complete
             </span>
-            <span>
+            <span className='font-black text-emerald-400 text-lg'>
               {Math.min(100, Math.round((paidCount / totalExpected) * 100))}%
             </span>
           </div>
-          <div className='h-2 bg-slate-800 rounded-full'>
+          <div className='h-3 bg-slate-800 rounded-full overflow-hidden'>
             <div
-              className='h-2 bg-emerald-500 rounded-full transition-all'
+              className='h-full bg-emerald-500 transition-all duration-700'
               style={{
                 width: `${Math.min(100, (paidCount / totalExpected) * 100)}%`,
               }}
             />
           </div>
           {(selectedPolicy.paymentsAlreadyMade ?? 0) > 0 && (
-            <p className='text-[10px] text-slate-600'>
-              Includes {selectedPolicy.paymentsAlreadyMade} payments made before
-              using this app.
+            <p className='text-[10px] text-slate-500 italic'>
+              * Includes {selectedPolicy.paymentsAlreadyMade} legacy payments
+              made before using this tracker.
             </p>
           )}
         </div>
       )}
 
-      {/* Payment list */}
+      {/* Mobile-Friendly Payment Cards */}
       {sorted.length === 0 ? (
-        <div className='text-center py-10 text-slate-500 text-sm'>
-          No payments recorded yet. Click "Record Payment" to add one.
+        <div className='text-center py-16 text-slate-500 bg-slate-900/30 rounded-2xl border border-slate-800 border-dashed'>
+          <p className='text-sm font-medium'>No payments recorded yet.</p>
+          <p className='text-xs mt-1'>
+            Click "Record Payment" to add your first transaction.
+          </p>
         </div>
       ) : (
-        <div className='space-y-2'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
           {sorted.map((p) => {
             const policy = policies.find((x) => x.id === p.policyId);
             return (
               <div
                 key={p.id}
-                className='flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-800 rounded-xl group'
+                className='flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-slate-900/60 border border-slate-700/50 rounded-2xl group transition-all hover:border-emerald-500/30'
               >
-                <div className='h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0'>
-                  <FiCheck className='h-3.5 w-3.5 text-emerald-400' />
+                <div className='flex items-center gap-4 flex-1 min-w-0'>
+                  <div className='h-12 w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0'>
+                    <FiCheck className='h-5 w-5 text-emerald-400' />
+                  </div>
+                  <div className='min-w-0'>
+                    <p className='text-sm font-bold text-slate-100 truncate'>
+                      {policy?.policyName || 'Unknown Policy (Deleted)'}
+                    </p>
+                    <p className='text-xs text-slate-400 truncate mt-0.5'>
+                      {p.note || 'Premium Payment'}
+                    </p>
+                  </div>
                 </div>
-                <div className='flex-1 min-w-0'>
-                  <p className='text-xs font-bold text-slate-200'>
-                    {policy?.policyName || 'Unknown Policy'}
-                  </p>
-                  {p.note && (
-                    <p className='text-[10px] text-slate-500'>{p.note}</p>
-                  )}
+
+                <div className='flex items-center justify-between sm:justify-end gap-5 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800'>
+                  <div className='text-left sm:text-right'>
+                    <p className='text-lg font-bold text-emerald-400 tabular-nums'>
+                      {formatCurrency(p.amount)}
+                    </p>
+                    <p className='text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5'>
+                      {safeFormat(p.paidAt)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onDeletePayment(p.id)}
+                    className='h-10 w-10 sm:opacity-0 group-hover:opacity-100 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all'
+                  >
+                    <FiTrash2 className='h-4 w-4' />
+                  </button>
                 </div>
-                <div className='text-right'>
-                  <p className='text-sm font-bold text-emerald-400'>
-                    {formatCurrency(p.amount)}
-                  </p>
-                  <p className='text-[10px] text-slate-500'>
-                    {format(parseISO(p.paidAt), 'dd MMM yyyy')}
-                  </p>
-                </div>
-                <button
-                  onClick={() => onDeletePayment(p.id)}
-                  className='opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 flex items-center justify-center transition-all'
-                >
-                  <FiX className='h-3 w-3' />
-                </button>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Record Payment Modal */}
+      {/* Summary Footer */}
+      {sorted.length > 0 && (
+        <div className='flex items-center justify-between bg-slate-900/80 p-5 rounded-2xl border border-slate-700 mt-4'>
+          <p className='text-sm font-bold text-slate-400'>
+            Total Paid ({sorted.length} records)
+          </p>
+          <p className='text-xl font-black text-white'>
+            {formatCurrency(totalPaid)}
+          </p>
+        </div>
+      )}
+
       <RecordPaymentModal
         open={showAdd}
         policies={policies}
@@ -864,7 +893,7 @@ function ReportsTab({
 
   return (
     <div className='space-y-5'>
-      <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
         {[
           {
             label: 'Total Policies',
@@ -889,44 +918,44 @@ function ReportsTab({
         ].map((card) => (
           <div
             key={card.label}
-            className='bg-slate-900/50 border border-slate-800 rounded-xl p-4'
+            className='bg-slate-900/50 border border-slate-800 rounded-2xl p-5'
           >
-            <div className='flex items-center gap-2 mb-2'>
-              <span className='text-base'>{card.icon}</span>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            <div className='flex items-center gap-2 mb-3'>
+              <span className='text-xl'>{card.icon}</span>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400'>
                 {card.label}
               </p>
             </div>
-            <p className='text-lg font-bold text-slate-100'>{card.value}</p>
+            <p className='text-2xl font-bold text-slate-100'>{card.value}</p>
           </div>
         ))}
       </div>
 
-      <div className='grid grid-cols-1 sm:grid-cols-2 gap-5'>
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
+        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-6'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-5'>
             Coverage by Type
           </p>
-          <div className='space-y-3'>
+          <div className='space-y-4'>
             {byType.length === 0 ? (
-              <p className='text-xs text-slate-500'>No data</p>
+              <p className='text-sm text-slate-500'>No data available</p>
             ) : (
               byType.map((t) => {
                 const pct =
                   totalCoverage > 0 ? (t.coverage / totalCoverage) * 100 : 0;
                 return (
                   <div key={t.type}>
-                    <div className='flex justify-between text-xs font-bold mb-1'>
-                      <span className={t.color}>
+                    <div className='flex justify-between items-end mb-2'>
+                      <span className={`text-sm font-bold ${t.color}`}>
                         {t.icon} {t.label}
                       </span>
-                      <span className='text-slate-400'>
+                      <span className='text-xs font-bold text-slate-300'>
                         {pct.toFixed(0)}% • {formatCurrency(t.coverage)}
                       </span>
                     </div>
-                    <div className='h-2 bg-slate-800 rounded-full'>
+                    <div className='h-2.5 bg-slate-800 rounded-full overflow-hidden'>
                       <div
-                        className='h-2 rounded-full bg-emerald-500'
+                        className='h-full rounded-full bg-emerald-500'
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -937,11 +966,11 @@ function ReportsTab({
           </div>
         </div>
 
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
+        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-6'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-5'>
             Renewal Urgency
           </p>
-          <div className='space-y-2.5'>
+          <div className='space-y-4'>
             {[
               {
                 label: 'Expired',
@@ -962,18 +991,25 @@ function ReportsTab({
                 text: 'text-amber-400',
               },
               {
-                label: 'Active & OK',
+                label: 'Active & Secure',
                 count: urgency.ok,
                 color: 'bg-emerald-500',
                 text: 'text-emerald-400',
               },
             ].map((row) => (
-              <div key={row.label} className='flex items-center gap-3'>
-                <div className={`h-3 w-3 rounded-full ${row.color} shrink-0`} />
-                <span className='text-xs text-slate-400 flex-1'>
-                  {row.label}
-                </span>
-                <span className={`text-xs font-bold ${row.text}`}>
+              <div
+                key={row.label}
+                className='flex items-center justify-between p-3 bg-slate-800/30 rounded-xl border border-slate-700/50'
+              >
+                <div className='flex items-center gap-3'>
+                  <div
+                    className={`h-3.5 w-3.5 rounded-full ${row.color} shrink-0 shadow-[0_0_10px_currentColor]`}
+                  />
+                  <span className='text-sm font-medium text-slate-300'>
+                    {row.label}
+                  </span>
+                </div>
+                <span className={`text-base font-black ${row.text}`}>
                   {row.count}
                 </span>
               </div>
@@ -981,45 +1017,45 @@ function ReportsTab({
           </div>
         </div>
 
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4 sm:col-span-2'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-3'>
-            Coverage Summary by Type
+        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-6 lg:col-span-2'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-5'>
+            Detailed Summary by Category
           </p>
-          <div className='space-y-2'>
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             {byType.map((t) => (
               <div
                 key={t.type}
-                className={`flex items-center justify-between p-2.5 rounded-lg border ${t.bg}`}
+                className={`flex flex-col p-4 rounded-xl border ${t.bg}`}
               >
-                <div className='flex items-center gap-2'>
-                  <span>{t.icon}</span>
+                <div className='flex items-center gap-3 mb-3'>
+                  <span className='text-2xl'>{t.icon}</span>
                   <div>
-                    <p className={`text-xs font-bold ${t.color}`}>{t.label}</p>
-                    <p className='text-[10px] text-slate-500'>
-                      {t.count} {t.count === 1 ? 'policy' : 'policies'} •
-                      Annual: {formatCurrency(t.premium)}
+                    <p className={`text-sm font-bold ${t.color}`}>{t.label}</p>
+                    <p className='text-[10px] text-slate-400 uppercase tracking-wider mt-0.5'>
+                      {t.count} {t.count === 1 ? 'policy' : 'policies'}
                     </p>
                   </div>
                 </div>
-                <p className='text-sm font-bold text-slate-200'>
-                  {formatCurrency(t.coverage)}
-                </p>
+                <div className='flex justify-between items-end mt-auto pt-3 border-t border-slate-700/50'>
+                  <div>
+                    <p className='text-[10px] text-slate-500 uppercase'>
+                      Annual Premium
+                    </p>
+                    <p className='text-sm font-bold text-slate-300'>
+                      {formatCurrency(t.premium)}
+                    </p>
+                  </div>
+                  <div className='text-right'>
+                    <p className='text-[10px] text-slate-500 uppercase'>
+                      Total Coverage
+                    </p>
+                    <p className='text-lg font-black text-white'>
+                      {formatCurrency(t.coverage)}
+                    </p>
+                  </div>
+                </div>
               </div>
             ))}
-            <div className='flex items-center justify-between px-2.5 pt-2 border-t border-slate-700'>
-              <p className='text-xs font-bold text-slate-400'>Total Coverage</p>
-              <p className='text-sm font-bold text-emerald-400'>
-                {formatCurrency(totalCoverage)}
-              </p>
-            </div>
-            <div className='flex items-center justify-between px-2.5'>
-              <p className='text-xs font-bold text-slate-400'>
-                Total Annual Premium
-              </p>
-              <p className='text-sm font-bold text-emerald-400'>
-                {formatCurrency(totalPremium)}
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -1053,6 +1089,7 @@ export function InsurancePage() {
     setEditingPolicy(policy);
     setModalMode('edit');
   };
+
   const handleDeleteClick = (policy: InsurancePolicy) => {
     setDeletingPolicy(policy);
     setDeleteModalOpen(true);
@@ -1062,26 +1099,31 @@ export function InsurancePage() {
     if (!deletingPolicy) return;
     setDeleteLoading(true);
     try {
+      // 1. Delete all associated payments first so they don't become ghosts
+      const relatedPayments = payments.filter(
+        (p) => p.policyId === deletingPolicy.id,
+      );
+      await Promise.all(relatedPayments.map((p) => deletePaymentStore(p.id)));
+
+      // 2. Delete the policy itself
       await deletePolicy(deletingPolicy.id);
+
       setDeleteModalOpen(false);
       setDeletingPolicy(null);
-      toast.success(`"${deletingPolicy.policyName}" deleted`);
+      toast.success(`"${deletingPolicy.policyName}" and its records deleted`);
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  // ── Record a payment: save to Firestore + advance renewal date ─────────
   const handleAddPayment = async (
     policyId: string,
     amount: number,
     paidAt: string,
     note: string,
   ) => {
-    // 1. Save payment to Firestore
     await addPaymentStore({ policyId, amount, paidAt, note });
 
-    // 2. Advance the policy's renewalDate by one period
     const policy = policies.find((p) => p.id === policyId);
     if (policy) {
       const nextRenewal = computeNextRenewalDate(
@@ -1094,46 +1136,77 @@ export function InsurancePage() {
       });
     }
 
-    toast.success('Payment recorded! Renewal date updated.');
+    toast.success('Payment recorded! Renewal date automatically updated.');
   };
 
   const handleDeletePayment = async (id: string) => {
+    const paymentToDelete = payments.find((p) => p.id === id);
+
     await deletePaymentStore(id);
-    toast.success('Payment removed.');
+
+    if (paymentToDelete) {
+      const policy = policies.find((p) => p.id === paymentToDelete.policyId);
+      if (policy) {
+        // Step 1: Push the renewal date backwards
+        const previousRenewal = computePreviousRenewalDate(
+          policy.renewalDate,
+          policy.premiumFrequency,
+        );
+
+        // Step 2: Recalculate what the "Last Payment Date" should be safely
+        const remainingPayments = payments.filter(
+          (p) => p.policyId === policy.id && p.id !== id,
+        );
+        remainingPayments.sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+
+        // If there are no more payments left, we revert lastPaymentDate to a blank string
+        const newLastPaymentDate =
+          remainingPayments.length > 0 ? remainingPayments[0].paidAt : '';
+
+        // Step 3: Update the policy
+        await updatePolicy(policy.id, {
+          renewalDate: previousRenewal,
+          lastPaymentDate: newLastPaymentDate,
+        });
+      }
+    }
+
+    toast.success('Payment history removed. Renewal date adjusted.');
   };
 
   return (
     <div className='space-y-5 pb-20 animate-in fade-in duration-500'>
       {/* Page header */}
-      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 border border-blue-500/20'>
+      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-6 border border-blue-500/20 shadow-sm'>
         <div>
-          <h1 className='text-2xl font-bold text-slate-100 flex items-center gap-2'>
-            <FiShield className='text-blue-400' /> Insurance & Protection
+          <h1 className='text-2xl font-bold text-white flex items-center gap-3'>
+            <div className='p-2 bg-blue-500/20 rounded-xl'>
+              <FiShield className='text-blue-400' />
+            </div>
+            Insurance & Protection
           </h1>
-          <p className='text-slate-400 text-sm mt-1'>
-            Track life, health, vehicle and property coverage.
+          <p className='text-slate-400 text-sm mt-2'>
+            Track life, health, vehicle, and property coverage.
           </p>
         </div>
-        <div className='flex gap-2'>
-          <button
-            onClick={() => setModalMode('create')}
-            className='inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
-          >
-            <FiPlus className='h-4 w-4' /> Add Policy
-          </button>
-        </div>
+        <button
+          onClick={() => setModalMode('create')}
+          className='inline-flex justify-center items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
+        >
+          <FiPlus className='h-4 w-4' /> Add New Policy
+        </button>
       </div>
 
       {/* Tabs */}
-      <div className='flex gap-1 bg-slate-900/50 border border-slate-800 rounded-xl p-1 w-fit overflow-x-auto'>
+      <div className='flex gap-1 bg-slate-900/60 border border-slate-800 rounded-xl p-1.5 w-full overflow-x-auto no-scrollbar'>
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex-1 sm:flex-none ${
               activeTab === tab
                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
             }`}
           >
             {tab}
@@ -1142,7 +1215,7 @@ export function InsurancePage() {
       </div>
 
       {/* Tab content */}
-      <div className='animate-in fade-in duration-300'>
+      <div className='animate-in fade-in duration-300 mt-2'>
         {activeTab === 'Overview' && <OverviewTab policies={policies} />}
         {activeTab === 'Policies' && (
           <PoliciesTab
@@ -1185,34 +1258,37 @@ export function InsurancePage() {
         />
       )}
 
-      {/* Delete confirm */}
+      {/* Delete confirm Modal */}
       <Modal
         open={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
+        onClose={() => !deleteLoading && setDeleteModalOpen(false)}
         title='Delete Policy'
       >
-        <div className='space-y-5'>
-          <p className='text-sm text-slate-400'>
-            Delete{' '}
-            <strong className='text-slate-200'>
-              {deletingPolicy?.policyName}
-            </strong>
-            ? All payment records for this policy will remain but will show as
-            "Unknown Policy".
-          </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
+        <div className='space-y-6'>
+          <div className='bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl'>
+            <p className='text-sm text-slate-200'>
+              Are you sure you want to permanently delete{' '}
+              <strong>{deletingPolicy?.policyName}</strong>?
+            </p>
+            <p className='text-xs text-rose-400 font-bold mt-2'>
+              ⚠️ Warning: All associated payment records will also be
+              permanently deleted. This action cannot be undone.
+            </p>
+          </div>
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteModalOpen(false)}
-              className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800'
+              disabled={deleteLoading}
+              className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteConfirm}
               disabled={deleteLoading}
-              className='px-5 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60'
+              className='inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 transition-colors shadow-lg shadow-rose-500/20'
             >
-              {deleteLoading ? 'Deleting…' : 'Delete Policy'}
+              {deleteLoading ? 'Deleting…' : 'Yes, Delete Policy'}
             </button>
           </div>
         </div>

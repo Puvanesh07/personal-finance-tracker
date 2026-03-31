@@ -80,6 +80,12 @@ export function exportAllSectionsAsCSV(state: any, agriState?: any) {
   if (state.investments?.length) {
     exportCSV(toFlatInvestmentRows(state.investments), 'investments.csv');
   }
+
+  // ADDED PROFIT (SOLD TRADES) EXPORT
+  if (state.soldTrades?.length) {
+    exportSoldTradesCSV(state.soldTrades, 'profits.csv');
+  }
+
   if (state.liabilities?.length) {
     exportCSV(
       state.liabilities.map((l: any) => ({

@@ -283,13 +283,13 @@ function DeleteBtn({ onDelete }: { onDelete: () => void }) {
       <div className='flex gap-1'>
         <button
           onClick={onDelete}
-          className='px-2 py-1 rounded-lg bg-red-600 text-white text-xs font-bold'
+          className='px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold'
         >
           Yes
         </button>
         <button
           onClick={() => setConfirm(false)}
-          className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold'
+          className='px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold'
         >
           No
         </button>
@@ -298,7 +298,7 @@ function DeleteBtn({ onDelete }: { onDelete: () => void }) {
   return (
     <button
       onClick={() => setConfirm(true)}
-      className='px-2 py-1 rounded-lg bg-slate-800 text-red-400 text-xs font-bold hover:bg-red-500/10'
+      className='px-3 py-1.5 rounded-lg bg-slate-800 text-red-400 text-xs font-bold hover:bg-red-500/10'
     >
       Delete
     </button>
@@ -983,24 +983,28 @@ function CropsTab() {
             {fields.map((f) => (
               <div
                 key={f.id}
-                className='rounded-xl bg-slate-800 p-3 flex flex-col gap-1'
+                className='rounded-xl bg-slate-800 p-4 flex flex-col gap-2 relative'
               >
-                <div className='font-bold text-slate-100 text-sm'>{f.name}</div>
-                <div className='text-xs text-slate-400'>
-                  {f.areAcres} acres{f.location ? ` · ${f.location}` : ''}
+                <div>
+                  <div className='font-bold text-slate-100 text-base'>
+                    {f.name}
+                  </div>
+                  <div className='text-xs text-slate-400 mt-1'>
+                    {f.areAcres} acres{f.location ? ` · ${f.location}` : ''}
+                  </div>
                 </div>
-                <div className='text-xs text-emerald-400'>
-                  {cropCycles.filter((c) => c.fieldId === f.id).length} crop
+                <div className='text-xs text-emerald-400 font-medium'>
+                  {cropCycles.filter((c) => c.fieldId === f.id).length} active
                   cycles
                 </div>
-                <div className='flex gap-1 mt-2'>
+                <div className='flex justify-end gap-2 mt-2 pt-3 border-t border-slate-700/50'>
                   <button
                     onClick={() => {
                       setEditingField(f);
                       resetFieldForm(f);
                       setShowFieldModal(true);
                     }}
-                    className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
+                    className='px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
                   >
                     Edit
                   </button>
@@ -1034,97 +1038,198 @@ function CropsTab() {
             + Add Crop
           </button>
         </div>
+
         {cropCycles.length === 0 ? (
           <p className='text-xs text-slate-500 text-center py-4'>
             No crop cycles added yet.
           </p>
         ) : (
-          <div className='overflow-x-auto'>
-            <table className='w-full text-xs'>
-              <thead>
-                <tr className='text-slate-500 border-b border-slate-800'>
-                  {[
-                    'Field',
-                    'Crop',
-                    'Season',
-                    'Harvest Date',
-                    'Invested',
-                    'Income',
-                    'Account',
-                    'Profit',
-                    '',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className='px-3 py-2 text-left font-bold uppercase tracking-wider'
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {cropCycles.map((c) => {
-                  const exp = agriExpenses
-                    .filter((e) => e.cropCycleId === c.id)
-                    .reduce((s, e) => s + e.amount, 0);
-                  const profit = c.harvestIncome - c.investedAmount - exp;
-                  const seasonMeta = SEASONS.find((s) => s.value === c.season);
-                  return (
-                    <tr
-                      key={c.id}
-                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
-                    >
-                      <td className='px-3 py-2 text-slate-300'>
-                        {c.fieldName ?? '—'}
-                      </td>
-                      <td className='px-3 py-2 font-bold text-emerald-400'>
-                        {c.cropName}
-                      </td>
-                      <td className='px-3 py-2'>
-                        <span className='px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-semibold text-[10px]'>
+          <>
+            {/* 📱 Mobile Card View */}
+            <div className='block md:hidden space-y-4'>
+              {cropCycles.map((c) => {
+                const exp = agriExpenses
+                  .filter((e) => e.cropCycleId === c.id)
+                  .reduce((s, e) => s + e.amount, 0);
+                const profit = c.harvestIncome - c.investedAmount - exp;
+                const seasonMeta = SEASONS.find((s) => s.value === c.season);
+                const accName = accounts.find(
+                  (a) => a.id === c.accountId,
+                )?.name;
+
+                return (
+                  <div
+                    key={c.id}
+                    className='rounded-2xl border border-slate-700/50 bg-slate-800 p-4'
+                  >
+                    <div className='flex justify-between items-start mb-3'>
+                      <div>
+                        <span className='px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 font-semibold text-[10px] uppercase tracking-wider'>
                           {seasonMeta?.emoji}{' '}
                           {seasonMeta?.label.split(' ')[0] ?? c.season}
                         </span>
-                      </td>
-                      <td className='px-3 py-2 text-slate-400'>
-                        {c.actualHarvestDate ?? c.expectedHarvestDate}
-                      </td>
-                      <td className='px-3 py-2 text-red-400'>
-                        {formatINR(c.investedAmount)}
-                      </td>
-                      <td className='px-3 py-2 text-green-400'>
-                        {formatINR(c.harvestIncome)}
-                      </td>
-                      <td className='px-3 py-2 text-slate-400'>
-                        {accounts.find((a) => a.id === c.accountId)?.name ??
-                          '—'}
-                      </td>
-                      <td
-                        className='px-3 py-2 font-bold'
-                        style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
-                      >
-                        {formatINR(profit)}
-                      </td>
-                      <td className='px-3 py-2'>
+                        <h3 className='text-base font-bold text-emerald-400 mt-2'>
+                          {c.cropName}
+                        </h3>
+                        <p className='text-xs text-slate-400'>
+                          {c.fieldName ?? 'No Field Selected'}
+                        </p>
+                      </div>
+                      <div className='text-right'>
+                        <p className='text-[10px] text-slate-500 uppercase'>
+                          Harvest Date
+                        </p>
+                        <p className='text-xs font-bold text-slate-300'>
+                          {c.actualHarvestDate ?? c.expectedHarvestDate}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className='grid grid-cols-2 gap-3 mb-4'>
+                      <div className='bg-slate-900 rounded-lg p-2'>
+                        <div className='text-[10px] text-slate-500 uppercase tracking-wider'>
+                          Invested
+                        </div>
+                        <div className='text-sm font-bold text-red-400 mt-0.5'>
+                          {formatINR(c.investedAmount)}
+                        </div>
+                      </div>
+                      <div className='bg-slate-900 rounded-lg p-2'>
+                        <div className='text-[10px] text-slate-500 uppercase tracking-wider'>
+                          Income
+                        </div>
+                        <div className='text-sm font-bold text-green-400 mt-0.5'>
+                          {formatINR(c.harvestIncome)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='flex justify-between items-center border-t border-slate-700 pt-3'>
+                      <div>
+                        <div className='text-[10px] text-slate-500 uppercase'>
+                          Net Profit
+                        </div>
+                        <div
+                          className='text-sm font-bold'
+                          style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
+                        >
+                          {formatINR(profit)}
+                        </div>
+                        {accName && (
+                          <div className='text-[10px] text-slate-500 mt-0.5'>
+                            🏦 {accName}
+                          </div>
+                        )}
+                      </div>
+                      <div className='flex gap-2'>
                         <button
                           onClick={() => {
                             setEditingCrop(c);
                             resetCropForm(c);
                             setShowCropModal(true);
                           }}
-                          className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                          className='px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold'
                         >
                           Edit
                         </button>
                         <DeleteBtn onDelete={() => handleDeleteCrop(c)} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 💻 Desktop Table View */}
+            <div className='hidden md:block overflow-x-auto'>
+              <table className='w-full text-xs'>
+                <thead>
+                  <tr className='text-slate-500 border-b border-slate-800'>
+                    {[
+                      'Field',
+                      'Crop',
+                      'Season',
+                      'Harvest Date',
+                      'Invested',
+                      'Income',
+                      'Account',
+                      'Profit',
+                      '',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className='px-3 py-2 text-left font-bold uppercase tracking-wider'
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cropCycles.map((c) => {
+                    const exp = agriExpenses
+                      .filter((e) => e.cropCycleId === c.id)
+                      .reduce((s, e) => s + e.amount, 0);
+                    const profit = c.harvestIncome - c.investedAmount - exp;
+                    const seasonMeta = SEASONS.find(
+                      (s) => s.value === c.season,
+                    );
+                    return (
+                      <tr
+                        key={c.id}
+                        className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                      >
+                        <td className='px-3 py-2 text-slate-300'>
+                          {c.fieldName ?? '—'}
+                        </td>
+                        <td className='px-3 py-2 font-bold text-emerald-400'>
+                          {c.cropName}
+                        </td>
+                        <td className='px-3 py-2'>
+                          <span className='px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-semibold text-[10px]'>
+                            {seasonMeta?.emoji}{' '}
+                            {seasonMeta?.label.split(' ')[0] ?? c.season}
+                          </span>
+                        </td>
+                        <td className='px-3 py-2 text-slate-400'>
+                          {c.actualHarvestDate ?? c.expectedHarvestDate}
+                        </td>
+                        <td className='px-3 py-2 text-red-400'>
+                          {formatINR(c.investedAmount)}
+                        </td>
+                        <td className='px-3 py-2 text-green-400'>
+                          {formatINR(c.harvestIncome)}
+                        </td>
+                        <td className='px-3 py-2 text-slate-400'>
+                          {accounts.find((a) => a.id === c.accountId)?.name ??
+                            '—'}
+                        </td>
+                        <td
+                          className='px-3 py-2 font-bold'
+                          style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
+                        >
+                          {formatINR(profit)}
+                        </td>
+                        <td className='px-3 py-2'>
+                          <button
+                            onClick={() => {
+                              setEditingCrop(c);
+                              resetCropForm(c);
+                              setShowCropModal(true);
+                            }}
+                            className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                          >
+                            Edit
+                          </button>
+                          <DeleteBtn onDelete={() => handleDeleteCrop(c)} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -1478,74 +1583,150 @@ function ExpensesTab() {
             No expenses logged yet.
           </p>
         ) : (
-          <div className='overflow-x-auto'>
-            <table className='w-full text-xs'>
-              <thead>
-                <tr className='text-slate-500 border-b border-slate-800'>
-                  {[
-                    'Date',
-                    'Crop',
-                    'Category',
-                    'Amount',
-                    'Account',
-                    'Notes',
-                    '',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className='px-3 py-2 text-left font-bold uppercase tracking-wider'
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {agriExpenses.map((e) => (
-                  <tr
+          <>
+            {/* 📱 Mobile Card View */}
+            <div className='block md:hidden space-y-3'>
+              {agriExpenses.map((e) => {
+                const catLabel =
+                  EXPENSE_CATS.find((c) => c.value === e.category)?.label ??
+                  e.category;
+                const cropName =
+                  e.cropName ??
+                  cropCycles.find((c) => c.id === e.cropCycleId)?.cropName;
+
+                return (
+                  <div
                     key={e.id}
-                    className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                    className='rounded-xl bg-slate-800 p-4 border border-slate-700/50'
                   >
-                    <td className='px-3 py-2 text-slate-400'>{e.date}</td>
-                    <td className='px-3 py-2 text-emerald-400'>
-                      {e.cropName ??
-                        cropCycles.find((c) => c.id === e.cropCycleId)
-                          ?.cropName ??
-                        '—'}
-                    </td>
-                    <td className='px-3 py-2'>
-                      <span className='px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 capitalize'>
-                        {EXPENSE_CATS.find((c) => c.value === e.category)
-                          ?.label ?? e.category}
-                      </span>
-                    </td>
-                    <td className='px-3 py-2 text-red-400 font-bold'>
-                      {formatINR(e.amount)}
-                    </td>
-                    <td className='px-3 py-2 text-slate-400'>
-                      {accounts.find((a) => a.id === e.accountId)?.name ?? '—'}
-                    </td>
-                    <td className='px-3 py-2 text-slate-500'>
-                      {e.notes ?? '—'}
-                    </td>
-                    <td className='px-3 py-2'>
-                      <button
-                        onClick={() => {
-                          setEditingExp(e);
-                          resetForm(e);
-                          setShowModal(true);
-                        }}
-                        className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                    <div className='flex justify-between items-start mb-2'>
+                      <div>
+                        <span className='px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase tracking-wider'>
+                          {catLabel}
+                        </span>
+                        <div className='text-sm font-bold text-slate-200 mt-2'>
+                          {cropName ? (
+                            <span className='text-emerald-400'>{cropName}</span>
+                          ) : (
+                            'General Expense'
+                          )}
+                        </div>
+                      </div>
+                      <div className='text-right'>
+                        <div className='text-sm font-bold text-red-400'>
+                          {formatINR(e.amount)}
+                        </div>
+                        <div className='text-[10px] text-slate-500 mt-1'>
+                          {e.date}
+                        </div>
+                      </div>
+                    </div>
+                    {e.notes && (
+                      <p className='text-xs text-slate-400 italic mb-3'>
+                        {e.notes}
+                      </p>
+                    )}
+                    <div className='flex justify-between items-center mt-3 pt-3 border-t border-slate-700/50'>
+                      <div className='text-xs text-slate-500'>
+                        {accounts.find((a) => a.id === e.accountId)?.name ? (
+                          <>
+                            🏦{' '}
+                            {accounts.find((a) => a.id === e.accountId)?.name}
+                          </>
+                        ) : (
+                          '💵 Cash'
+                        )}
+                      </div>
+                      <div className='flex gap-2'>
+                        <button
+                          onClick={() => {
+                            setEditingExp(e);
+                            resetForm(e);
+                            setShowModal(true);
+                          }}
+                          className='px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 text-xs font-bold hover:bg-slate-600'
+                        >
+                          Edit
+                        </button>
+                        <DeleteBtn onDelete={() => handleDeleteExpense(e)} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 💻 Desktop Table View */}
+            <div className='hidden md:block overflow-x-auto'>
+              <table className='w-full text-xs'>
+                <thead>
+                  <tr className='text-slate-500 border-b border-slate-800'>
+                    {[
+                      'Date',
+                      'Crop',
+                      'Category',
+                      'Amount',
+                      'Account',
+                      'Notes',
+                      '',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className='px-3 py-2 text-left font-bold uppercase tracking-wider'
                       >
-                        Edit
-                      </button>
-                      <DeleteBtn onDelete={() => handleDeleteExpense(e)} />
-                    </td>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {agriExpenses.map((e) => (
+                    <tr
+                      key={e.id}
+                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                    >
+                      <td className='px-3 py-2 text-slate-400'>{e.date}</td>
+                      <td className='px-3 py-2 text-emerald-400'>
+                        {e.cropName ??
+                          cropCycles.find((c) => c.id === e.cropCycleId)
+                            ?.cropName ??
+                          '—'}
+                      </td>
+                      <td className='px-3 py-2'>
+                        <span className='px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 capitalize'>
+                          {EXPENSE_CATS.find((c) => c.value === e.category)
+                            ?.label ?? e.category}
+                        </span>
+                      </td>
+                      <td className='px-3 py-2 text-red-400 font-bold'>
+                        {formatINR(e.amount)}
+                      </td>
+                      <td className='px-3 py-2 text-slate-400'>
+                        {accounts.find((a) => a.id === e.accountId)?.name ??
+                          '—'}
+                      </td>
+                      <td className='px-3 py-2 text-slate-500'>
+                        {e.notes ?? '—'}
+                      </td>
+                      <td className='px-3 py-2'>
+                        <button
+                          onClick={() => {
+                            setEditingExp(e);
+                            resetForm(e);
+                            setShowModal(true);
+                          }}
+                          className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                        >
+                          Edit
+                        </button>
+                        <DeleteBtn onDelete={() => handleDeleteExpense(e)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -1559,6 +1740,7 @@ function ExpensesTab() {
           editingExp ? 'Edit Agriculture Expense' : 'Add Agriculture Expense'
         }
       >
+        {/* ... Modal content ... */}
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
             <label className={labelCls}>Crop Cycle</label>
@@ -2032,7 +2214,7 @@ function LivestockTab() {
             No events recorded yet. Add a purchase or birth to get started.
           </p>
         ) : (
-          <div className='flex flex-col gap-2'>
+          <div className='flex flex-col gap-3'>
             {filteredEvents.map((ev) => {
               const meta = LIVESTOCK_TYPES.find(
                 (t) => t.value === ev.animalType,
@@ -2043,69 +2225,77 @@ function LivestockTab() {
               return (
                 <div
                   key={ev.id}
-                  className='flex items-center gap-3 rounded-xl bg-slate-800 px-4 py-3'
+                  className='flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl bg-slate-800 px-4 py-3'
                   style={{ borderLeft: `3px solid ${evMeta.color}` }}
                 >
-                  <div className='text-xl'>{meta?.emoji}</div>
-                  <div className='flex-1 min-w-0'>
-                    <div className='flex items-center gap-2 flex-wrap'>
-                      <span
-                        className='text-xs font-bold px-2 py-0.5 rounded-full'
-                        style={{
-                          background: evMeta.color + '22',
-                          color: evMeta.color,
-                        }}
-                      >
-                        {evMeta.emoji} {evMeta.label}
-                      </span>
-                      <span className='text-sm font-bold text-slate-100'>
-                        {ev.count} {meta?.label}
-                        {ev.eventType === 'purchase' ||
-                        ev.eventType === 'birth' ||
-                        ev.eventType === 'existing' ? (
-                          <span className='text-emerald-400 ml-1'>
-                            +{ev.count}
-                          </span>
-                        ) : (
-                          <span className='text-red-400 ml-1'>-{ev.count}</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className='flex items-center gap-3 mt-1 flex-wrap'>
-                      <span className='text-xs text-slate-500'>{ev.date}</span>
-                      {ev.price !== undefined && ev.price > 0 && (
+                  <div className='flex items-center gap-3 flex-1 min-w-0'>
+                    <div className='text-2xl'>{meta?.emoji}</div>
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex items-center gap-2 flex-wrap mb-1'>
                         <span
-                          className={`text-xs font-bold ${isIncome ? 'text-emerald-400' : isExpense ? 'text-red-400' : 'text-slate-400'}`}
+                          className='text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full'
+                          style={{
+                            background: evMeta.color + '22',
+                            color: evMeta.color,
+                          }}
                         >
-                          {isIncome ? '+' : isExpense ? '-' : ''}
-                          {formatINR(ev.price)}
+                          {evMeta.emoji} {evMeta.label}
                         </span>
-                      )}
-                      {ev.accountId && (
-                        <span className='text-xs text-slate-500'>
-                          🏦{' '}
-                          {accounts.find((a) => a.id === ev.accountId)?.name ??
-                            ev.accountId}
+                        <span className='text-sm font-bold text-slate-100'>
+                          {ev.count} {meta?.label}
+                          {ev.eventType === 'purchase' ||
+                          ev.eventType === 'birth' ||
+                          ev.eventType === 'existing' ? (
+                            <span className='text-emerald-400 ml-1'>
+                              +{ev.count}
+                            </span>
+                          ) : (
+                            <span className='text-red-400 ml-1'>
+                              -{ev.count}
+                            </span>
+                          )}
                         </span>
-                      )}
+                      </div>
+                      <div className='flex items-center gap-3 flex-wrap'>
+                        <span className='text-xs text-slate-400'>
+                          {ev.date}
+                        </span>
+                        {ev.price !== undefined && ev.price > 0 && (
+                          <span
+                            className={`text-xs font-bold ${isIncome ? 'text-emerald-400' : isExpense ? 'text-red-400' : 'text-slate-400'}`}
+                          >
+                            {isIncome ? '+' : isExpense ? '-' : ''}
+                            {formatINR(ev.price)}
+                          </span>
+                        )}
+                        {ev.accountId && (
+                          <span className='text-xs text-slate-500'>
+                            🏦{' '}
+                            {accounts.find((a) => a.id === ev.accountId)
+                              ?.name ?? ev.accountId}
+                          </span>
+                        )}
+                      </div>
                       {ev.notes && (
-                        <span className='text-xs text-slate-500 italic'>
+                        <div className='text-xs text-slate-500 italic mt-1'>
                           {ev.notes}
-                        </span>
+                        </div>
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setEditingEvent(ev);
-                      resetForm(ev);
-                      setShowModal(true);
-                    }}
-                    className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
-                  >
-                    Edit
-                  </button>
-                  <DeleteBtn onDelete={() => handleDeleteEvent(ev)} />
+                  <div className='flex sm:flex-col justify-end gap-2 border-t sm:border-t-0 border-slate-700/50 pt-2 sm:pt-0'>
+                    <button
+                      onClick={() => {
+                        setEditingEvent(ev);
+                        resetForm(ev);
+                        setShowModal(true);
+                      }}
+                      className='px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 text-xs font-bold hover:bg-slate-600'
+                    >
+                      Edit
+                    </button>
+                    <DeleteBtn onDelete={() => handleDeleteEvent(ev)} />
+                  </div>
                 </div>
               );
             })}
@@ -2121,6 +2311,7 @@ function LivestockTab() {
         }}
         title={editingEvent ? 'Edit Livestock Event' : 'Add Livestock Event'}
       >
+        {/* Modal content remains identical */}
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
             <label className={labelCls}>Animal Type</label>
@@ -2451,68 +2642,137 @@ function MilkTab() {
             No milk records yet.
           </p>
         ) : (
-          <div className='overflow-x-auto'>
-            <table className='w-full text-xs'>
-              <thead>
-                <tr className='text-slate-500 border-b border-slate-800'>
-                  {[
-                    'Date',
-                    'Liters',
-                    'Price/L',
-                    'Income',
-                    'Sold To',
-                    'Account',
-                    '',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className='px-3 py-2 text-left font-bold uppercase tracking-wider'
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {milkRecords.map((m) => (
-                  <tr
-                    key={m.id}
-                    className='border-b border-slate-800/50 hover:bg-slate-800/30'
-                  >
-                    <td className='px-3 py-2 text-slate-300'>{m.date}</td>
-                    <td className='px-3 py-2 text-teal-400 font-bold'>
-                      {m.liters} L
-                    </td>
-                    <td className='px-3 py-2 text-slate-400'>
-                      ₹{m.pricePerLiter}/L
-                    </td>
-                    <td className='px-3 py-2 text-green-400 font-bold'>
+          <>
+            {/* 📱 Mobile Card View */}
+            <div className='block md:hidden space-y-3'>
+              {milkRecords.map((m) => (
+                <div
+                  key={m.id}
+                  className='rounded-xl border border-slate-700/50 bg-slate-800 p-4'
+                >
+                  <div className='flex justify-between items-center mb-3'>
+                    <div className='text-xs text-slate-400'>{m.date}</div>
+                    <div className='text-sm font-black text-green-400'>
                       {formatINR(m.liters * m.pricePerLiter)}
-                    </td>
-                    <td className='px-3 py-2 text-slate-400'>
-                      {m.soldTo ?? '—'}
-                    </td>
-                    <td className='px-3 py-2 text-slate-400'>
-                      {accounts.find((a) => a.id === m.accountId)?.name ?? '—'}
-                    </td>
-                    <td className='px-3 py-2'>
+                    </div>
+                  </div>
+                  <div className='grid grid-cols-2 gap-2 mb-3'>
+                    <div className='bg-slate-900 rounded-lg p-2 text-center'>
+                      <div className='text-[10px] uppercase text-slate-500'>
+                        Volume
+                      </div>
+                      <div className='font-bold text-teal-400'>
+                        {m.liters} L
+                      </div>
+                    </div>
+                    <div className='bg-slate-900 rounded-lg p-2 text-center'>
+                      <div className='text-[10px] uppercase text-slate-500'>
+                        Rate
+                      </div>
+                      <div className='font-bold text-slate-200'>
+                        ₹{m.pricePerLiter}/L
+                      </div>
+                    </div>
+                  </div>
+                  {m.soldTo && (
+                    <div className='text-xs text-slate-400 mb-2'>
+                      👤 Sold to:{' '}
+                      <span className='text-slate-200'>{m.soldTo}</span>
+                    </div>
+                  )}
+                  <div className='flex justify-between items-center border-t border-slate-700/50 pt-3'>
+                    <div className='text-xs text-slate-500'>
+                      {accounts.find((a) => a.id === m.accountId)?.name ? (
+                        <>
+                          🏦 {accounts.find((a) => a.id === m.accountId)?.name}
+                        </>
+                      ) : (
+                        '💵 Cash'
+                      )}
+                    </div>
+                    <div className='flex gap-2'>
                       <button
                         onClick={() => {
                           setEditingRecord(m);
                           resetForm(m);
                           setShowModal(true);
                         }}
-                        className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                        className='px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 text-xs font-bold hover:bg-slate-600'
                       >
                         Edit
                       </button>
                       <DeleteBtn onDelete={() => handleDelete(m)} />
-                    </td>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 💻 Desktop Table View */}
+            <div className='hidden md:block overflow-x-auto'>
+              <table className='w-full text-xs'>
+                <thead>
+                  <tr className='text-slate-500 border-b border-slate-800'>
+                    {[
+                      'Date',
+                      'Liters',
+                      'Price/L',
+                      'Income',
+                      'Sold To',
+                      'Account',
+                      '',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className='px-3 py-2 text-left font-bold uppercase tracking-wider'
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {milkRecords.map((m) => (
+                    <tr
+                      key={m.id}
+                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                    >
+                      <td className='px-3 py-2 text-slate-300'>{m.date}</td>
+                      <td className='px-3 py-2 text-teal-400 font-bold'>
+                        {m.liters} L
+                      </td>
+                      <td className='px-3 py-2 text-slate-400'>
+                        ₹{m.pricePerLiter}/L
+                      </td>
+                      <td className='px-3 py-2 text-green-400 font-bold'>
+                        {formatINR(m.liters * m.pricePerLiter)}
+                      </td>
+                      <td className='px-3 py-2 text-slate-400'>
+                        {m.soldTo ?? '—'}
+                      </td>
+                      <td className='px-3 py-2 text-slate-400'>
+                        {accounts.find((a) => a.id === m.accountId)?.name ??
+                          '—'}
+                      </td>
+                      <td className='px-3 py-2'>
+                        <button
+                          onClick={() => {
+                            setEditingRecord(m);
+                            resetForm(m);
+                            setShowModal(true);
+                          }}
+                          className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600 mr-1'
+                        >
+                          Edit
+                        </button>
+                        <DeleteBtn onDelete={() => handleDelete(m)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -2958,100 +3218,194 @@ function CoconutTab() {
             No coconut harvests recorded yet.
           </p>
         ) : (
-          <div className='overflow-x-auto'>
-            <table className='w-full text-xs'>
-              <thead>
-                <tr className='text-slate-500 border-b border-slate-800'>
-                  {[
-                    'Date',
-                    'Trees',
-                    'Volume',
-                    'Method',
-                    'Price',
-                    'Income',
-                    'Investment',
-                    'Profit',
-                    'Account',
-                    '',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className='px-3 py-2 text-left font-bold uppercase tracking-wider whitespace-nowrap'
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {coconutRecords.map((c) => {
-                  const profit = c.harvestIncome - c.investmentAmount;
-                  const isByTon = c.sellMethod === 'by_ton';
-                  return (
-                    <tr
-                      key={c.id}
-                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
-                    >
-                      <td className='px-3 py-2 text-slate-300 whitespace-nowrap'>
-                        {c.date}
-                      </td>
-                      <td className='px-3 py-2 text-amber-400 font-bold'>
-                        {c.numberOfTrees} 🌴
-                      </td>
-                      <td className='px-3 py-2 text-slate-100 font-bold'>
-                        {isByTon
-                          ? `${c.totalTons?.toFixed(2)} T`
-                          : c.totalCoconuts.toLocaleString('en-IN')}
-                      </td>
-                      <td className='px-3 py-2'>
+          <>
+            {/* 📱 Mobile Card View */}
+            <div className='block lg:hidden space-y-3'>
+              {coconutRecords.map((c) => {
+                const profit = c.harvestIncome - c.investmentAmount;
+                const isByTon = c.sellMethod === 'by_ton';
+
+                return (
+                  <div
+                    key={c.id}
+                    className='rounded-xl border border-slate-700/50 bg-slate-800 p-4'
+                  >
+                    <div className='flex justify-between items-start mb-3'>
+                      <div>
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isByTon ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}
                         >
-                          {isByTon ? '⚖️ Ton' : '🥥 Count'}
+                          {isByTon ? '⚖️ By Ton' : '🥥 By Count'}
                         </span>
-                      </td>
-                      <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
-                        {isByTon
-                          ? `₹${(c.pricePerTon ?? 0).toLocaleString('en-IN')}`
-                          : `₹${c.pricePerCoconut ?? 0}`}
-                      </td>
-                      <td className='px-3 py-2 text-green-400 font-bold'>
-                        {formatINR(c.harvestIncome)}
-                      </td>
-                      <td className='px-3 py-2 text-red-400'>
-                        {formatINR(c.investmentAmount)}
-                      </td>
-                      <td
-                        className='px-3 py-2 font-bold'
-                        style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
-                      >
-                        {formatINR(profit)}
-                      </td>
-                      <td className='px-3 py-2 text-slate-400'>
-                        {accounts.find((a) => a.id === c.accountId)?.name ??
-                          '—'}
-                      </td>
-                      <td className='px-3 py-2'>
-                        <div className='flex gap-1'>
-                          <button
-                            onClick={() => {
-                              setEditing(c);
-                              resetForm(c);
-                              setShowModal(true);
-                            }}
-                            className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
-                          >
-                            Edit
-                          </button>
-                          <DeleteBtn onDelete={() => handleDelete(c)} />
+                        <div className='text-xs text-slate-400 mt-2'>
+                          {c.date}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <div className='text-right'>
+                        <div className='text-sm font-bold text-green-400'>
+                          {formatINR(c.harvestIncome)}
+                        </div>
+                        <div className='text-[10px] text-slate-500 uppercase mt-0.5'>
+                          Income
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='grid grid-cols-2 gap-2 mb-3 bg-slate-900 rounded-lg p-2'>
+                      <div className='text-center border-r border-slate-700/50'>
+                        <div className='text-[10px] uppercase text-slate-500'>
+                          Volume
+                        </div>
+                        <div className='font-bold text-slate-200 text-sm'>
+                          {isByTon
+                            ? `${c.totalTons?.toFixed(2)} T`
+                            : c.totalCoconuts.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div className='text-center'>
+                        <div className='text-[10px] uppercase text-slate-500'>
+                          Profit
+                        </div>
+                        <div
+                          className='font-bold text-sm'
+                          style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
+                        >
+                          {formatINR(profit)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='flex justify-between items-center border-t border-slate-700/50 pt-3'>
+                      <div className='text-xs text-slate-500 flex flex-col gap-0.5'>
+                        {c.numberOfTrees > 0 && (
+                          <span>🌴 {c.numberOfTrees} Trees</span>
+                        )}
+                        <span>
+                          {accounts.find((a) => a.id === c.accountId)?.name ? (
+                            <>
+                              🏦{' '}
+                              {accounts.find((a) => a.id === c.accountId)?.name}
+                            </>
+                          ) : (
+                            '💵 Cash'
+                          )}
+                        </span>
+                      </div>
+                      <div className='flex gap-2'>
+                        <button
+                          onClick={() => {
+                            setEditing(c);
+                            resetForm(c);
+                            setShowModal(true);
+                          }}
+                          className='px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 text-xs font-bold hover:bg-slate-600'
+                        >
+                          Edit
+                        </button>
+                        <DeleteBtn onDelete={() => handleDelete(c)} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 💻 Desktop Table View */}
+            <div className='hidden lg:block overflow-x-auto'>
+              <table className='w-full text-xs'>
+                <thead>
+                  <tr className='text-slate-500 border-b border-slate-800'>
+                    {[
+                      'Date',
+                      'Trees',
+                      'Volume',
+                      'Method',
+                      'Price',
+                      'Income',
+                      'Investment',
+                      'Profit',
+                      'Account',
+                      '',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className='px-3 py-2 text-left font-bold uppercase tracking-wider whitespace-nowrap'
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {coconutRecords.map((c) => {
+                    const profit = c.harvestIncome - c.investmentAmount;
+                    const isByTon = c.sellMethod === 'by_ton';
+                    return (
+                      <tr
+                        key={c.id}
+                        className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                      >
+                        <td className='px-3 py-2 text-slate-300 whitespace-nowrap'>
+                          {c.date}
+                        </td>
+                        <td className='px-3 py-2 text-amber-400 font-bold'>
+                          {c.numberOfTrees} 🌴
+                        </td>
+                        <td className='px-3 py-2 text-slate-100 font-bold'>
+                          {isByTon
+                            ? `${c.totalTons?.toFixed(2)} T`
+                            : c.totalCoconuts.toLocaleString('en-IN')}
+                        </td>
+                        <td className='px-3 py-2'>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isByTon ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}
+                          >
+                            {isByTon ? '⚖️ Ton' : '🥥 Count'}
+                          </span>
+                        </td>
+                        <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
+                          {isByTon
+                            ? `₹${(c.pricePerTon ?? 0).toLocaleString('en-IN')}`
+                            : `₹${c.pricePerCoconut ?? 0}`}
+                        </td>
+                        <td className='px-3 py-2 text-green-400 font-bold'>
+                          {formatINR(c.harvestIncome)}
+                        </td>
+                        <td className='px-3 py-2 text-red-400'>
+                          {formatINR(c.investmentAmount)}
+                        </td>
+                        <td
+                          className='px-3 py-2 font-bold'
+                          style={{ color: profit >= 0 ? '#22c55e' : '#ef4444' }}
+                        >
+                          {formatINR(profit)}
+                        </td>
+                        <td className='px-3 py-2 text-slate-400'>
+                          {accounts.find((a) => a.id === c.accountId)?.name ??
+                            '—'}
+                        </td>
+                        <td className='px-3 py-2'>
+                          <div className='flex gap-1'>
+                            <button
+                              onClick={() => {
+                                setEditing(c);
+                                resetForm(c);
+                                setShowModal(true);
+                              }}
+                              className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-600'
+                            >
+                              Edit
+                            </button>
+                            <DeleteBtn onDelete={() => handleDelete(c)} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
