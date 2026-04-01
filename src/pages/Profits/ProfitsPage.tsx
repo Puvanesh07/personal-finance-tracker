@@ -118,7 +118,7 @@ function CalendarPicker({
     onChange(format(d, 'yyyy-MM-dd'));
     setOpen(false);
   };
-  const inputCls = `flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`;
+  const inputCls = `flex w-full items-center cursor-pointer gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`;
 
   return (
     <>
@@ -154,7 +154,7 @@ function CalendarPicker({
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800'
+                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-400 hover:bg-slate-800'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
@@ -164,7 +164,7 @@ function CalendarPicker({
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800'
+                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-400 hover:bg-slate-800'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -191,7 +191,7 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all
+                    className={`flex h-8 w-8 mx-auto items-center cursor-pointer justify-center rounded-lg text-xs font-medium transition-all
                     ${isSelected ? 'bg-emerald-500 text-white font-bold' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600'}`}
                   >
                     {format(day, 'd')}
@@ -206,14 +206,14 @@ function CalendarPicker({
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs font-bold text-slate-500 hover:text-slate-300 px-2 py-1'
+                className='text-xs cursor-pointer font-bold text-slate-500 hover:text-slate-300 px-2 py-1'
               >
                 Clear
               </button>
               <button
                 type='button'
                 onClick={() => selectDay(new Date())}
-                className='text-xs font-bold text-emerald-400 hover:text-emerald-300 px-2 py-1'
+                className='text-xs cursor-pointer font-bold text-emerald-400 hover:text-emerald-300 px-2 py-1'
               >
                 Today
               </button>
@@ -382,14 +382,14 @@ function EditTradeModal({
           <button
             onClick={onClose}
             disabled={saving}
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors disabled:opacity-50'
+            className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors disabled:opacity-50'
           >
             Cancel
           </button>
           <button
             onClick={() => void handleSave()}
             disabled={saving}
-            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 disabled:opacity-60'
+            className='inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 disabled:opacity-60'
           >
             <FiSave className='h-4 w-4' />
             {saving ? 'Saving…' : 'Save Changes'}
@@ -467,6 +467,10 @@ export function ProfitsPage() {
   >('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
+  // Bulk Delete State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
   const handleSort = (col: 'date' | 'profit' | 'profitPct' | 'name') => {
     if (sortCol !== col) {
       setSortCol(col);
@@ -539,6 +543,27 @@ export function ProfitsPage() {
     }
     return rows;
   }, [soldTrades, typeFilter, resultFilter, sortCol, sortDir]);
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(filteredTrades.map((t) => t.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const confirmBulkDelete = () => {
+    selectedIds.forEach((id) => deleteSoldTrade(id));
+    setSelectedIds(new Set());
+    setBulkDeleteOpen(false);
+  };
 
   const overallReturn =
     stats.totalInvested > 0
@@ -624,7 +649,7 @@ export function ProfitsPage() {
               <button
                 key={f.id}
                 onClick={() => setTypeFilter(f.id)}
-                className={`rounded-lg px-3 py-1 text-xs font-bold transition-all ${typeFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'}`}
+                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${typeFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'}`}
               >
                 {f.label}
               </button>
@@ -641,7 +666,7 @@ export function ProfitsPage() {
               <button
                 key={f.id}
                 onClick={() => setResultFilter(f.id)}
-                className={`rounded-lg px-3 py-1 text-xs font-bold transition-all ${resultFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'}`}
+                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${resultFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'}`}
               >
                 {f.label}
               </button>
@@ -671,11 +696,24 @@ export function ProfitsPage() {
         </div>
       )}
 
+      {/* ── Action bar for Bulk Delete ── */}
+      {selectedIds.size > 0 && (
+        <div className='flex justify-end'>
+          <button
+            onClick={() => setBulkDeleteOpen(true)}
+            className='flex items-center cursor-pointer gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700 shadow-sm'
+          >
+            <FiTrash2 className='h-4 w-4' /> Delete Selected ({selectedIds.size}
+            )
+          </button>
+        </div>
+      )}
+
       {/* ── Trades Table ── */}
       {filteredTrades.length > 0 && (
         <>
           {/* ── MOBILE VIEW ── */}
-          <div className='flex flex-col gap-3 md:hidden'>
+          <div className='flex flex-col gap-3 md:hidden mt-4'>
             {filteredTrades.map((trade) => {
               const isProfit = trade.profit >= 0;
               return (
@@ -688,38 +726,46 @@ export function ProfitsPage() {
                   />
                   <div className='pl-4 pr-3 pt-3 pb-3'>
                     <div className='flex items-start justify-between gap-2'>
-                      <div className='flex-1 min-w-0'>
-                        <p className='font-bold text-[14px] text-slate-100 truncate leading-tight'>
-                          {trade.investmentName}
-                        </p>
-                        <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
-                          <TypeBadge type={trade.investmentType} />
-                          <span className='text-[10px] text-slate-500'>
-                            {trade.soldDate}
-                          </span>
-                        </div>
-                        {trade.notes && (
-                          <p className='text-[11px] text-slate-600 mt-1 italic truncate'>
-                            {trade.notes}
+                      <div className='flex items-start gap-3 flex-1 min-w-0'>
+                        <input
+                          type='checkbox'
+                          checked={selectedIds.has(trade.id)}
+                          onChange={() => handleSelect(trade.id)}
+                          className='mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                        />
+                        <div className='flex-1 min-w-0'>
+                          <p className='font-bold text-[14px] text-slate-100 truncate leading-tight'>
+                            {trade.investmentName}
                           </p>
-                        )}
+                          <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
+                            <TypeBadge type={trade.investmentType} />
+                            <span className='text-[10px] text-slate-500'>
+                              {trade.soldDate}
+                            </span>
+                          </div>
+                          {trade.notes && (
+                            <p className='text-[11px] text-slate-600 mt-1 italic truncate'>
+                              {trade.notes}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <div className='flex items-center gap-1 shrink-0'>
                         <button
                           onClick={() => setEditTrade(trade)}
-                          className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white'
+                          className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white'
                         >
                           <FiEdit2 size={12} />
                         </button>
                         <button
                           onClick={() => setDeleteId(trade.id)}
-                          className='flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400'
+                          className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400'
                         >
                           <FiTrash2 size={12} />
                         </button>
                       </div>
                     </div>
-                    <div className='mt-3 pt-3 border-t border-slate-800/60 grid grid-cols-3 gap-0'>
+                    <div className='mt-3 pt-3 border-t border-slate-800/60 grid grid-cols-3 gap-0 ml-7'>
                       <div className='flex flex-col gap-0.5'>
                         <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
                           Buy Cost
@@ -761,12 +807,12 @@ export function ProfitsPage() {
           </div>
 
           {/* ── DESKTOP TABLE ── */}
-          <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
+          <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl mt-4'>
             <div className='overflow-x-auto'>
               <table className='w-full text-sm border-collapse table-fixed'>
-                {/* Fixed column widths — guarantees every row aligns perfectly */}
                 <colgroup>
-                  <col style={{ width: '30%' }} /> {/* Asset */}
+                  <col style={{ width: '5%' }} /> {/* Checkbox */}
+                  <col style={{ width: '25%' }} /> {/* Asset */}
                   <col style={{ width: '7%' }} /> {/* Type */}
                   <col style={{ width: '12%' }} /> {/* Date */}
                   <col style={{ width: '13%' }} /> {/* Buy Cost */}
@@ -777,11 +823,22 @@ export function ProfitsPage() {
                 </colgroup>
                 <thead>
                   <tr className='border-b border-slate-700/60 bg-slate-900'>
+                    <th className='px-4 py-3 text-left'>
+                      <input
+                        type='checkbox'
+                        checked={
+                          filteredTrades.length > 0 &&
+                          selectedIds.size === filteredTrades.length
+                        }
+                        onChange={handleSelectAll}
+                        className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                      />
+                    </th>
                     {/* Asset — left aligned, sortable */}
                     <th className='px-4 py-3 text-left'>
                       <button
                         onClick={() => handleSort('name')}
-                        className='flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 text-[10px] cursor-pointer font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
                       >
                         Asset{' '}
                         <SortIcon
@@ -819,7 +876,7 @@ export function ProfitsPage() {
                     <th className='px-3 py-3 text-right'>
                       <button
                         onClick={() => handleSort('profit')}
-                        className='flex items-center gap-1 justify-end w-full text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
                       >
                         <SortIcon
                           col='profit'
@@ -833,7 +890,7 @@ export function ProfitsPage() {
                     <th className='px-3 py-3 text-right'>
                       <button
                         onClick={() => handleSort('profitPct')}
-                        className='flex items-center gap-1 justify-end w-full text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
                       >
                         <SortIcon
                           col='profitPct'
@@ -855,6 +912,14 @@ export function ProfitsPage() {
                         key={trade.id}
                         className='group hover:bg-slate-800/40 transition-colors'
                       >
+                        <td className='px-4 py-3.5 align-middle'>
+                          <input
+                            type='checkbox'
+                            checked={selectedIds.has(trade.id)}
+                            onChange={() => handleSelect(trade.id)}
+                            className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                          />
+                        </td>
                         {/* Asset — truncated with tooltip */}
                         <td className='px-4 py-3.5 align-middle'>
                           <div className='flex flex-col gap-0.5'>
@@ -932,13 +997,13 @@ export function ProfitsPage() {
                           <div className='flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
                             <button
                               onClick={() => setEditTrade(trade)}
-                              className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
+                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
                             >
                               <FiEdit2 size={12} />
                             </button>
                             <button
                               onClick={() => setDeleteId(trade.id)}
-                              className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-all'
+                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-all'
                             >
                               <FiTrash2 size={12} />
                             </button>
@@ -951,7 +1016,7 @@ export function ProfitsPage() {
                 {/* Footer totals — cols match exactly */}
                 <tfoot>
                   <tr className='border-t-2 border-slate-700/80 bg-slate-900/80'>
-                    <td className='px-4 py-3 align-middle' colSpan={3}>
+                    <td className='px-4 py-3 align-middle' colSpan={4}>
                       <span className='text-[11px] font-black uppercase tracking-widest text-slate-500'>
                         {filteredTrades.length}{' '}
                         {filteredTrades.length === 1 ? 'Trade' : 'Trades'}
@@ -1009,7 +1074,7 @@ export function ProfitsPage() {
               setTypeFilter('all');
               setResultFilter('all');
             }}
-            className='text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1'
+            className='text-xs cursor-pointer text-emerald-400 hover:text-emerald-300 flex items-center gap-1'
           >
             <FiX size={12} /> Clear filters
           </button>
@@ -1034,7 +1099,7 @@ export function ProfitsPage() {
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteId(null)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
@@ -1045,9 +1110,36 @@ export function ProfitsPage() {
                   setDeleteId(null);
                 }
               }}
-              className='rounded-xl bg-red-600/90 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-600 transition-colors'
+              className='rounded-xl cursor-pointer bg-red-600/90 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-600 transition-colors'
             >
               Yes, Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        title='⚠ Confirm Bulk Deletion'
+      >
+        <div className='space-y-6'>
+          <p className='text-sm text-slate-400'>
+            This will permanently delete {selectedIds.size} selected trade
+            records.
+          </p>
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+            <button
+              onClick={() => setBulkDeleteOpen(false)}
+              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmBulkDelete}
+              className='rounded-xl cursor-pointer bg-red-600 hover:bg-red-700 px-6 py-2.5 text-sm font-bold text-white transition-colors'
+            >
+              Yes, Delete {selectedIds.size} Records
             </button>
           </div>
         </div>

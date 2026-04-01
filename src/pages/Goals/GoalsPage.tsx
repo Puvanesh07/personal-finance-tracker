@@ -21,6 +21,10 @@ export function GoalsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
 
+  // Bulk Delete State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
   const openDeleteModal = (id: string) => {
     setSelectedGoalId(id);
     setDeleteOpen(true);
@@ -34,12 +38,32 @@ export function GoalsPage() {
     setSelectedGoalId(null);
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(goals.map((g) => g.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const confirmBulkDelete = () => {
+    selectedIds.forEach((id) => deleteGoal(id));
+    setSelectedIds(new Set());
+    setBulkDeleteOpen(false);
+  };
+
   if (!ready) return <GoalsSkeleton />;
 
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
       {/* Header */}
-
       <header className='flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
@@ -58,7 +82,7 @@ export function GoalsPage() {
         </div>
 
         <button
-          className='group relative flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
+          className='group relative flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
           onClick={() => setOpen(true)}
           type='button'
         >
@@ -80,6 +104,20 @@ export function GoalsPage() {
         </div>
       ) : (
         <>
+          {/* Action Bar for Bulk Delete */}
+          {selectedIds.size > 0 && (
+            <div className='flex justify-end'>
+              <button
+                type='button'
+                onClick={() => setBulkDeleteOpen(true)}
+                className='flex items-center cursor-pointer gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700 shadow-sm'
+              >
+                <FiTrash2 className='h-4 w-4' /> Delete Selected (
+                {selectedIds.size})
+              </button>
+            </div>
+          )}
+
           {/* 📱 Mobile Card View */}
           <div className='block md:hidden space-y-4'>
             {goals.map((g) => {
@@ -96,25 +134,33 @@ export function GoalsPage() {
                 >
                   {/* Top: Info & Actions */}
                   <div className='flex items-start justify-between gap-4'>
-                    <div className='min-w-0 flex-1'>
-                      <h3 className='truncate text-base font-bold text-slate-900 dark:text-slate-100'>
-                        {g.name}
-                      </h3>
-                      {g.dueDate && (
-                        <div className='mt-1 text-xs font-medium text-slate-500 dark:text-slate-400'>
-                          Due by{' '}
-                          <span className='text-slate-700 dark:text-slate-300'>
-                            {g.dueDate}
-                          </span>
-                        </div>
-                      )}
+                    <div className='flex items-center gap-3'>
+                      <input
+                        type='checkbox'
+                        checked={selectedIds.has(g.id)}
+                        onChange={() => handleSelect(g.id)}
+                        className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                      />
+                      <div className='min-w-0 flex-1'>
+                        <h3 className='truncate text-base font-bold text-slate-900 dark:text-slate-100'>
+                          {g.name}
+                        </h3>
+                        {g.dueDate && (
+                          <div className='mt-1 text-xs font-medium text-slate-500 dark:text-slate-400'>
+                            Due by{' '}
+                            <span className='text-slate-700 dark:text-slate-300'>
+                              {g.dueDate}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Action Buttons */}
                     <div className='flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50'>
                       <button
                         type='button'
                         title='Edit'
-                        className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                         onClick={() => setEdit(g)}
                       >
                         <FiEdit2 className='h-4 w-4' />
@@ -188,6 +234,16 @@ export function GoalsPage() {
               <table className='min-w-full text-left text-sm whitespace-nowrap'>
                 <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
                   <tr>
+                    <th className='px-5 py-4 w-12'>
+                      <input
+                        type='checkbox'
+                        checked={
+                          goals.length > 0 && selectedIds.size === goals.length
+                        }
+                        onChange={handleSelectAll}
+                        className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                      />
+                    </th>
                     <th className='px-5 py-4 w-1/4'>Goal Details</th>
                     <th className='px-5 py-4 w-2/4'>Progress Track</th>
                     <th className='px-5 py-4 text-right'>Target Amount</th>
@@ -212,6 +268,14 @@ export function GoalsPage() {
                         key={g.id}
                         className='transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                       >
+                        <td className='px-5 py-5'>
+                          <input
+                            type='checkbox'
+                            checked={selectedIds.has(g.id)}
+                            onChange={() => handleSelect(g.id)}
+                            className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                          />
+                        </td>
                         <td className='px-5 py-5'>
                           <div className='font-bold text-slate-900 dark:text-slate-50'>
                             {g.name}
@@ -267,7 +331,7 @@ export function GoalsPage() {
                             <button
                               type='button'
                               title='Edit'
-                              className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
                               onClick={() => setEdit(g)}
                             >
                               <FiEdit2 className='h-4 w-4' />
@@ -276,7 +340,7 @@ export function GoalsPage() {
                             <button
                               type='button'
                               title='Delete'
-                              className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
+                              className='flex h-9 w-9 items-center justify-center cursor-pointer rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
                               onClick={() => openDeleteModal(g.id)}
                             >
                               <FiTrash2 className='h-4 w-4' />
@@ -293,15 +357,11 @@ export function GoalsPage() {
         </>
       )}
 
-      {/* Create Modal */}
-
       <UpsertGoalModal
         open={open}
         onClose={() => setOpen(false)}
         mode='create'
       />
-
-      {/* Edit Modal */}
 
       {edit ? (
         <UpsertGoalModal
@@ -311,8 +371,6 @@ export function GoalsPage() {
           goal={edit}
         />
       ) : null}
-
-      {/* Delete Confirmation Modal */}
 
       <Modal
         open={deleteOpen}
@@ -327,16 +385,42 @@ export function GoalsPage() {
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteOpen(false)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-400 hover:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
 
             <button
               onClick={confirmDelete}
-              className='rounded-xl bg-rose-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-rose-700 transition-colors'
+              className='rounded-xl cursor-pointer bg-rose-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-rose-700 transition-colors'
             >
               Yes, Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        title='⚠ Confirm Bulk Deletion'
+      >
+        <div className='space-y-6'>
+          <p className='text-sm text-slate-400'>
+            This will permanently delete {selectedIds.size} selected goals.
+          </p>
+          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+            <button
+              onClick={() => setBulkDeleteOpen(false)}
+              className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmBulkDelete}
+              className='rounded-xl bg-rose-600 hover:bg-rose-700 cursor-pointer px-6 py-2.5 text-sm font-bold text-white transition-colors'
+            >
+              Yes, Delete {selectedIds.size} Records
             </button>
           </div>
         </div>

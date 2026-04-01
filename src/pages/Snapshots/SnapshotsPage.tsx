@@ -215,7 +215,7 @@ export function SnapshotsPage() {
               />
             </div>
             <button
-              className='flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 transition-all disabled:opacity-60'
+              className='flex items-center justify-center cursor-pointer gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 hover:-translate-y-0.5 transition-all disabled:opacity-60'
               type='button'
               onClick={() => void handleTakeSnapshot()}
               disabled={taking}

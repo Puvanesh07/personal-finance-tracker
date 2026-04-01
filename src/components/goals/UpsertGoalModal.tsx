@@ -379,7 +379,7 @@ export function UpsertGoalModal(props: Props) {
           </button>
           <button
             type='button'
-            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:opacity-60 disabled:hover:translate-y-0'
+            className='inline-flex items-center cursor-pointer gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:opacity-60 disabled:hover:translate-y-0'
             onClick={() => void onSubmit()}
             disabled={
               saving || !state.name.trim() || toNum(state.targetAmount) <= 0

@@ -147,7 +147,7 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 outline-none backdrop-blur-md ${
+        className={`flex w-full items-center justify-between cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 outline-none backdrop-blur-md ${
           open
             ? `border-emerald-500/50 bg-slate-800 ${ringColor} text-slate-100`
             : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'
@@ -186,7 +186,7 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
                     onChange(opt.id);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
+                  className={`w-full flex items-center cursor-pointer justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
                     isSelected
                       ? selectedBg
                       : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
@@ -356,7 +356,7 @@ export function InvestmentsPage() {
         <div className='flex items-center gap-2'>
           <button
             onClick={() => setActiveTab('investments')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+            className={`px-4 py-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 ${
               activeTab === 'investments'
                 ? 'bg-slate-700 text-slate-100 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -366,7 +366,7 @@ export function InvestmentsPage() {
           </button>
           <button
             onClick={() => setActiveTab('sip')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 ${
               activeTab === 'sip'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -449,7 +449,7 @@ export function InvestmentsPage() {
                 {typeFilter !== 'all' && (
                   <button
                     onClick={() => setTypeFilter('all')}
-                    className='flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
+                    className='flex items-center gap-1.5 rounded-full cursor-pointer border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
                   >
                     {FILTER_CATEGORIES.find((c) => c.id === typeFilter)?.label}
                     <span className='text-emerald-300 text-xs ml-0.5'>✕</span>
@@ -458,7 +458,7 @@ export function InvestmentsPage() {
                 {showBrokerBadge && (
                   <button
                     onClick={() => setBrokerFilter('all')}
-                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold hover:opacity-80 transition-opacity ${getBrokerBadgeStyle(brokerFilter)}`}
+                    className={`flex items-center gap-1.5 rounded-full cursor-pointer border px-3 py-1 text-xs font-bold hover:opacity-80 transition-opacity ${getBrokerBadgeStyle(brokerFilter)}`}
                   >
                     {activeBrokerLabel}
                     <span className='text-xs ml-0.5'>✕</span>
@@ -467,7 +467,7 @@ export function InvestmentsPage() {
                 {marketCapFilter !== 'all' && (
                   <button
                     onClick={() => setMarketCapFilter('all')}
-                    className='flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors'
+                    className='flex items-center gap-1.5 rounded-full cursor-pointer border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors'
                   >
                     {marketCapFilter}
                     <span className='text-indigo-300 text-xs ml-0.5'>✕</span>
@@ -480,7 +480,7 @@ export function InvestmentsPage() {
                     setMarketCapFilter('all');
                     setQuery('');
                   }}
-                  className='text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'
+                  className='text-xs cursor-pointer text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'
                 >
                   Clear all
                 </button>

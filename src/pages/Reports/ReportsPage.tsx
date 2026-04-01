@@ -83,7 +83,7 @@ function SectionCard({
         {to && (
           <button
             onClick={() => navigate(to)}
-            className='flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-800'
+            className='flex items-center cursor-pointer gap-1 text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-800'
           >
             View <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
@@ -312,7 +312,7 @@ export function ReportsPage() {
               <button
                 key={t.id}
                 onClick={() => setTimeframe(t.id as any)}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${timeframe === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`px-4 py-2 text-xs cursor-pointer font-bold rounded-lg transition-colors ${timeframe === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 {t.label}
               </button>
@@ -320,7 +320,7 @@ export function ReportsPage() {
           </div>
           <button
             onClick={() => exportAllSectionsAsCSV(portStore, agriStore)}
-            className='flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
+            className='flex items-center cursor-pointer gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
           >
             <FiDownload className='h-4 w-4' /> Export CSV
           </button>

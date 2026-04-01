@@ -531,7 +531,7 @@ export default function InsightsPage() {
         <button
           onClick={handleSave}
           disabled={saving || investments.length === 0}
-          className='flex items-center gap-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg disabled:opacity-40 hover:-translate-y-0.5 transition-all'
+          className='flex items-center gap-2 cursor-pointer rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg disabled:opacity-40 hover:-translate-y-0.5 transition-all'
           type='button'
         >
           <FiSave className='h-4 w-4' />

@@ -112,7 +112,7 @@ function SegmentedControl({
           key={o.value}
           type='button'
           onClick={() => onChange(o.value)}
-          className={`relative px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${
+          className={`relative px-4 py-1.5 cursor-pointer text-xs font-bold rounded-lg transition-all duration-200 ${
             value === o.value
               ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -146,7 +146,7 @@ function TypeFilterTabs({
           key={t.value}
           type='button'
           onClick={() => onChange(t.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 whitespace-nowrap ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs font-bold rounded-lg transition-all duration-200 whitespace-nowrap ${
             value === t.value
               ? 'bg-slate-700 text-slate-100 shadow-sm'
               : 'text-slate-500 hover:text-slate-200'
@@ -222,7 +222,7 @@ function CategoryFilterButton({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+        className={`flex items-center gap-2 rounded-xl cursor-pointer border px-3 py-2 text-xs font-bold transition-all ${
           open || value !== 'all'
             ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
             : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'
@@ -256,7 +256,7 @@ function CategoryFilterButton({
                 onChange('all');
                 setOpen(false);
               }}
-              className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === 'all' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+              className={`flex w-full items-center cursor-pointer justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === 'all' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
             >
               All Categories
               {value === 'all' && <FiCheck className='h-3 w-3 shrink-0' />}
@@ -270,7 +270,7 @@ function CategoryFilterButton({
                   onChange(c);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === c ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+                className={`flex w-full items-center cursor-pointer justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === c ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
               >
                 <span className='truncate'>{c}</span>
                 {value === c && <FiCheck className='shrink-0 h-3 w-3 ml-2' />}
@@ -366,7 +366,7 @@ function SortButton({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'}`}
+        className={`flex items-center gap-2 rounded-xl cursor-pointer border px-3 py-2 text-xs font-bold transition-all ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700 bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-slate-100'}`}
       >
         {selected.icon}
         <span className='hidden lg:inline'>{selected.label}</span>
@@ -397,7 +397,7 @@ function SortButton({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold transition-colors ${value === opt.value ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs cursor-pointer font-semibold transition-colors ${value === opt.value ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
               >
                 {opt.icon}
                 {opt.label}
@@ -469,7 +469,7 @@ function InvDropdown({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all duration-300 ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60'}`}
+        className={`flex w-full items-center justify-between rounded-xl cursor-pointer border px-4 py-3 text-sm transition-all duration-300 ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60'}`}
       >
         <div className='flex items-center gap-3'>
           <FiFilter
@@ -506,7 +506,7 @@ function InvDropdown({
                     onChange(opt.key);
                     setOpen(false);
                   }}
-                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all ${value === opt.key ? 'bg-emerald-500/10 text-emerald-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
+                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-all ${value === opt.key ? 'bg-emerald-500/10 text-emerald-400 font-semibold' : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'}`}
                 >
                   <span>{opt.label}</span>
                   {value === opt.key && (
@@ -605,7 +605,7 @@ function CalendarPicker({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 min-w-[160px] ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'}`}
+        className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-300 min-w-[160px] ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'}`}
       >
         <FiCalendar
           className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500'}`}
@@ -633,7 +633,7 @@ function CalendarPicker({
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
+                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
@@ -643,7 +643,7 @@ function CalendarPicker({
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
+                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -670,7 +670,7 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurrentMonth ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-800/50'}`}
+                    className={`flex h-8 w-8 mx-auto items-center cursor-pointer justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurrentMonth ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-800/50'}`}
                   >
                     {format(day, 'd')}
                   </button>
@@ -684,14 +684,14 @@ function CalendarPicker({
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors px-2 py-1'
+                className='text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-300 transition-colors px-2 py-1'
               >
                 Clear
               </button>
               <button
                 type='button'
                 onClick={() => selectDay(new Date())}
-                className='text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors px-2 py-1'
+                className='text-xs font-bold text-emerald-400 cursor-pointer hover:text-emerald-300 transition-colors px-2 py-1'
               >
                 Today
               </button>
@@ -817,11 +817,16 @@ export function CashflowPage() {
   );
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<CashflowEntry | null>(null);
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('date-desc');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
+  // Bulk Delete State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const handlePieClick = (data: any) => {
     if (data && data.name) {
@@ -925,6 +930,25 @@ export function CashflowPage() {
     setSelectedDeleteId(null);
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked)
+      setSelectedIds(new Set(filteredRows.map((r) => r.id)));
+    else setSelectedIds(new Set());
+  };
+
+  const handleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const confirmBulkDelete = () => {
+    selectedIds.forEach((id) => deleteCashflow(id));
+    setSelectedIds(new Set());
+    setBulkDeleteOpen(false);
+  };
+
   if (!ready) return <CashflowSkeleton />;
 
   return (
@@ -933,13 +957,13 @@ export function CashflowPage() {
       <div className='flex bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl w-fit mb-2 border border-slate-200/60 dark:border-slate-700/60'>
         <button
           onClick={() => setActiveTab('personal')}
-          className={`px-5 py-2 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === 'personal' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+          className={`px-5 py-2 text-sm font-bold cursor-pointer rounded-xl transition-all duration-300 ${activeTab === 'personal' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
         >
           Personal Cashflow
         </button>
         <button
           onClick={() => setActiveTab('lending')}
-          className={`px-5 py-2 text-sm font-bold rounded-xl transition-all duration-300 ${activeTab === 'lending' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+          className={`px-5 py-2 text-sm font-bold cursor-pointer rounded-xl transition-all duration-300 ${activeTab === 'lending' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
         >
           Financier / Lending
         </button>
@@ -967,13 +991,13 @@ export function CashflowPage() {
             <div className='flex flex-wrap items-center gap-3'>
               <ImportDividendCsvButton />
               <button
-                className='group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
+                className='group relative flex items-center gap-2 cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
                 onClick={() => setOpen(true)}
                 type='button'
               >
                 <div className='absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0' />
                 <FiPlus className='relative h-4 w-4' />
-                <span className='relative'>Add Entry</span>
+                <span className='relative cursor-pointer'>Add Entry</span>
               </button>
             </div>
           </header>
@@ -1209,10 +1233,23 @@ export function CashflowPage() {
             </div>
           </div>
 
+          {/* ── Action bar for Bulk Delete ── */}
+          {selectedIds.size > 0 && (
+            <div className='flex justify-end mt-4'>
+              <button
+                onClick={() => setBulkDeleteOpen(true)}
+                className='flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm cursor-pointer font-bold text-white transition-colors hover:bg-rose-700 shadow-sm'
+              >
+                <FiTrash2 className='h-4 w-4' /> Delete Selected (
+                {selectedIds.size})
+              </button>
+            </div>
+          )}
+
           {/* ── Data Table ─────────────────────────────────────────────── */}
           <div
             id='transactions-table-section'
-            className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md scroll-mt-24'
+            className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 shadow-lg backdrop-blur-md scroll-mt-24 mt-4'
           >
             <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800/60'>
               <TypeFilterTabs
@@ -1241,6 +1278,17 @@ export function CashflowPage() {
               <table className='min-w-full text-left text-sm whitespace-nowrap'>
                 <thead className='border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30'>
                   <tr>
+                    <th className='px-5 py-4 w-12'>
+                      <input
+                        type='checkbox'
+                        checked={
+                          filteredRows.length > 0 &&
+                          selectedIds.size === filteredRows.length
+                        }
+                        onChange={handleSelectAll}
+                        className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                      />
+                    </th>
                     <SortableHeader
                       label='Date'
                       sortKey='date'
@@ -1275,7 +1323,7 @@ export function CashflowPage() {
                 <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className='px-5 py-14 text-center'>
+                      <td colSpan={8} className='px-5 py-14 text-center'>
                         <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />
                         <p className='text-sm font-medium text-slate-400'>
                           No transactions found for the selected filters.
@@ -1288,6 +1336,14 @@ export function CashflowPage() {
                         key={e.id}
                         className='group transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                       >
+                        <td className='px-5 py-4'>
+                          <input
+                            type='checkbox'
+                            checked={selectedIds.has(e.id)}
+                            onChange={() => handleSelect(e.id)}
+                            className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                          />
+                        </td>
                         <td className='px-5 py-4 font-medium text-slate-600 dark:text-slate-300'>
                           {e.date}
                         </td>
@@ -1328,14 +1384,14 @@ export function CashflowPage() {
                             <button
                               type='button'
                               onClick={() => setEdit(e)}
-                              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
+                              className='flex h-8 w-8 items-center justify-center rounded-lg cursor-pointer text-slate-400 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
                             >
                               <FiEdit2 className='h-4 w-4' />
                             </button>
                             <button
                               type='button'
                               onClick={() => openDeleteModal(e.id)}
-                              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+                              className='flex h-8 w-8 items-center justify-center rounded-lg cursor-pointer text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
                             >
                               <FiTrash2 className='h-4 w-4' />
                             </button>
@@ -1364,28 +1420,36 @@ export function CashflowPage() {
                       className='flex flex-col gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/40 p-4 shadow-sm'
                     >
                       <div className='flex justify-between items-start gap-2'>
-                        <div className='flex flex-col gap-1'>
-                          <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
-                            {e.date}
-                          </span>
-                          <span className='text-base font-bold text-slate-900 dark:text-slate-50'>
-                            {e.category}
-                          </span>
-                          <div className='flex flex-wrap items-center gap-2 mt-1'>
-                            <span
-                              className={
-                                e.type === 'income'
-                                  ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
-                                  : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
-                              }
-                            >
-                              {e.type}
+                        <div className='flex items-start gap-3 flex-1 min-w-0'>
+                          <input
+                            type='checkbox'
+                            checked={selectedIds.has(e.id)}
+                            onChange={() => handleSelect(e.id)}
+                            className='mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                          />
+                          <div className='flex flex-col gap-1'>
+                            <span className='text-xs font-semibold text-slate-500 dark:text-slate-400'>
+                              {e.date}
                             </span>
-                            {e.accountId && accountMap[e.accountId] && (
-                              <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
-                                {accountMap[e.accountId]}
+                            <span className='text-base font-bold text-slate-900 dark:text-slate-50'>
+                              {e.category}
+                            </span>
+                            <div className='flex flex-wrap items-center gap-2 mt-1'>
+                              <span
+                                className={
+                                  e.type === 'income'
+                                    ? 'inline-flex items-center rounded-full border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400'
+                                    : 'inline-flex items-center rounded-full border border-rose-200/60 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-400'
+                                }
+                              >
+                                {e.type}
                               </span>
-                            )}
+                              {e.accountId && accountMap[e.accountId] && (
+                                <span className='inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:text-violet-400'>
+                                  {accountMap[e.accountId]}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className='flex flex-col items-end text-right'>
@@ -1406,14 +1470,14 @@ export function CashflowPage() {
                         <button
                           type='button'
                           onClick={() => setEdit(e)}
-                          className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
+                          className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs cursor-pointer font-bold text-slate-500 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
                         >
                           <FiEdit2 className='h-3.5 w-3.5' /> Edit
                         </button>
                         <button
                           type='button'
                           onClick={() => openDeleteModal(e.id)}
-                          className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+                          className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs cursor-pointer font-bold text-slate-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
                         >
                           <FiTrash2 className='h-3.5 w-3.5' /> Delete
                         </button>
@@ -1452,15 +1516,42 @@ export function CashflowPage() {
               <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
                 <button
                   onClick={() => setDeleteOpen(false)}
-                  className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
+                  className='rounded-xl bg-red-600 px-6 py-2.5 text-sm cursor-pointer font-bold text-white hover:bg-red-700'
                 >
                   Yes, Delete
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <Modal
+            open={bulkDeleteOpen}
+            onClose={() => setBulkDeleteOpen(false)}
+            title='⚠ Confirm Bulk Deletion'
+          >
+            <div className='space-y-6'>
+              <p className='text-sm text-slate-400'>
+                This will permanently delete {selectedIds.size} selected
+                transactions.
+              </p>
+              <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
+                <button
+                  onClick={() => setBulkDeleteOpen(false)}
+                  className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkDelete}
+                  className='rounded-xl bg-red-600 px-6 py-2.5 text-sm cursor-pointer font-bold text-white hover:bg-red-700'
+                >
+                  Yes, Delete {selectedIds.size} Records
                 </button>
               </div>
             </div>

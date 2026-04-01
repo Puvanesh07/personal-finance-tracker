@@ -393,7 +393,7 @@ function PoliciesTab({
           </select>
           <button
             onClick={onAdd}
-            className='shrink-0 inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
+            className='shrink-0 inline-flex items-center cursor-pointer justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
           >
             <FiPlus className='h-4 w-4' />{' '}
             <span className='hidden sm:inline'>Add Policy</span>
@@ -503,7 +503,7 @@ function PoliciesTab({
                   <div className='flex sm:flex-col gap-2 shrink-0 border-t sm:border-t-0 border-slate-700/50 pt-3 sm:pt-0'>
                     <button
                       onClick={() => onEdit(policy)}
-                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors'
+                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors'
                     >
                       <FiEdit2 className='h-4 w-4' />{' '}
                       <span className='sm:hidden ml-2 text-xs font-bold'>
@@ -512,7 +512,7 @@ function PoliciesTab({
                     </button>
                     <button
                       onClick={() => onDelete(policy)}
-                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 flex items-center justify-center transition-colors'
+                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg cursor-pointer bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 flex items-center justify-center transition-colors'
                     >
                       <FiTrash2 className='h-4 w-4' />{' '}
                       <span className='sm:hidden ml-2 text-xs font-bold'>
@@ -570,7 +570,7 @@ function RecordPaymentModal({
   };
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
+    'w-full rounded-xl cursor-pointer border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
   const labelCls =
     'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2';
 
@@ -659,14 +659,14 @@ function RecordPaymentModal({
         <div className='flex justify-end gap-3 border-t border-slate-800 pt-5 mt-2'>
           <button
             onClick={onClose}
-            className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+            className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !policyId || !amount || !paidAt}
-            className='inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+            className='inline-flex items-center gap-2 px-6 py-2.5 rounded-xl cursor-pointer text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
           >
             <FiCheck className='h-4 w-4' />
             {saving ? 'Saving…' : 'Record Payment'}
@@ -722,7 +722,7 @@ function PaymentsTab({
           <select
             value={selectedPolicyId}
             onChange={(e) => setSelectedPolicyId(e.target.value)}
-            className='w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 focus:outline-none focus:border-emerald-500/50'
+            className='w-full rounded-xl cursor-pointer border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 focus:outline-none focus:border-emerald-500/50'
           >
             <option value='all'>All Payment History</option>
             {policies.map((p) => (
@@ -734,7 +734,7 @@ function PaymentsTab({
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className='shrink-0 inline-flex justify-center items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
+          className='shrink-0 inline-flex justify-center items-center cursor-pointer gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
         >
           <FiPlus className='h-4 w-4' /> Record Payment
         </button>
@@ -814,7 +814,7 @@ function PaymentsTab({
                   </div>
                   <button
                     onClick={() => onDeletePayment(p.id)}
-                    className='h-10 w-10 sm:opacity-0 group-hover:opacity-100 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all'
+                    className='h-10 w-10 sm:opacity-0 group-hover:opacity-100 cursor-pointer rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all'
                   >
                     <FiTrash2 className='h-4 w-4' />
                   </button>
@@ -1191,7 +1191,7 @@ export function InsurancePage() {
         </div>
         <button
           onClick={() => setModalMode('create')}
-          className='inline-flex justify-center items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
+          className='inline-flex justify-center items-center gap-2 cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
         >
           <FiPlus className='h-4 w-4' /> Add New Policy
         </button>
@@ -1203,7 +1203,7 @@ export function InsurancePage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex-1 sm:flex-none ${
+            className={`px-5 py-2.5 rounded-lg cursor-pointer text-sm font-bold transition-all whitespace-nowrap flex-1 sm:flex-none ${
               activeTab === tab
                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
@@ -1279,14 +1279,14 @@ export function InsurancePage() {
             <button
               onClick={() => setDeleteModalOpen(false)}
               disabled={deleteLoading}
-              className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer text-slate-400 hover:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteConfirm}
               disabled={deleteLoading}
-              className='inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 transition-colors shadow-lg shadow-rose-500/20'
+              className='inline-flex items-center gap-2 px-6 py-2.5 cursor-pointer rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white disabled:opacity-60 transition-colors shadow-lg shadow-rose-500/20'
             >
               {deleteLoading ? 'Deleting…' : 'Yes, Delete Policy'}
             </button>

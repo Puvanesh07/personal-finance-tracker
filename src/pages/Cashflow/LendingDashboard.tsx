@@ -401,7 +401,7 @@ export default function LendingDashboard() {
           {/* TRIGGER GLOBAL EXPORT MODAL */}
           <button
             onClick={() => setExportPrompt({ open: true, type: 'all' })}
-            className='flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition'
+            className='flex items-center gap-2 bg-slate-700 cursor-pointer hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition'
           >
             <FiDownload className='hidden sm:block' /> Report
           </button>
@@ -410,7 +410,7 @@ export default function LendingDashboard() {
               setSelectedBorrower(null);
               setBorrowerModalOpen(true);
             }}
-            className='flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/20 transition'
+            className='flex items-center gap-2 bg-indigo-600 cursor-pointer hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/20 transition'
           >
             <FiPlus /> New Borrower
           </button>
@@ -560,13 +560,13 @@ export default function LendingDashboard() {
                 onClick={() =>
                   setDeletePrompt({ open: false, type: 'borrower', id: '' })
                 }
-                className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 transition'
+                className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition'
               >
                 Cancel
               </button>
               <button
                 onClick={executeDelete}
-                className='px-5 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white transition'
+                className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold bg-rose-600 hover:bg-rose-500 text-white transition'
               >
                 Yes, Delete
               </button>
@@ -768,7 +768,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               initialAmount ? Number(initialAmount) : undefined,
             );
           }}
-          className='w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 transition-colors'
+          className='w-full bg-indigo-600 cursor-pointer hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 transition-colors'
         >
           {initialData ? 'Update Profile' : 'Save & Create Borrower'}
         </button>
@@ -916,7 +916,7 @@ function UpsertTransactionModal({
               advanceDue && type === 'interest_paid' && !initialData,
             );
           }}
-          className='w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 transition-colors shadow-lg shadow-indigo-500/20'
+          className='w-full bg-indigo-600 cursor-pointer hover:bg-indigo-500 text-white font-bold py-3 rounded-xl mt-4 transition-colors shadow-lg shadow-indigo-500/20'
         >
           {initialData ? 'Update Transaction' : 'Confirm Payment'}
         </button>
@@ -990,7 +990,7 @@ function BorrowerDetailModal({
         <div className='flex flex-wrap items-center gap-2'>
           <button
             onClick={onEditBorrower}
-            className='p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
+            className='p-2 text-slate-400 cursor-pointer hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
           >
             <FiEdit2 />
           </button>
@@ -999,14 +999,14 @@ function BorrowerDetailModal({
           <button
             onClick={onExport}
             title='Download Statement'
-            className='p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
+            className='p-2 text-slate-400 cursor-pointer hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
           >
             <FiDownload />
           </button>
           <button
             onClick={onDeleteBorrower}
             title='Delete Borrower'
-            className='p-2 text-rose-400 hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
+            className='p-2 text-rose-400 cursor-pointer hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
           >
             <FiTrash2 />
           </button>
@@ -1015,7 +1015,7 @@ function BorrowerDetailModal({
 
           <button
             onClick={onClose}
-            className='flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-rose-500/20 hover:bg-rose-500/40 rounded-lg transition-colors'
+            className='flex items-center gap-2 px-3 py-2 text-sm font-medium cursor-pointer text-white bg-rose-500/20 hover:bg-rose-500/40 rounded-lg transition-colors'
           >
             <FiX /> Close
           </button>
@@ -1077,7 +1077,7 @@ function BorrowerDetailModal({
           <div className='bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex flex-col justify-center items-center'>
             <button
               onClick={onAddTxn}
-              className='flex items-center justify-center gap-2 w-full h-full font-bold text-indigo-400 hover:text-indigo-300 transition-colors'
+              className='flex items-center justify-center gap-2 cursor-pointer w-full h-full font-bold text-indigo-400 hover:text-indigo-300 transition-colors'
             >
               <FiPlus className='h-5 w-5' /> Add Transaction
             </button>
@@ -1182,14 +1182,14 @@ function BorrowerDetailModal({
                       <button
                         onClick={() => onEditTxn(t)}
                         title='Edit Transaction'
-                        className='text-slate-500 hover:text-indigo-400 transition-colors p-1'
+                        className='text-slate-500 hover:text-indigo-400 cursor-pointer transition-colors p-1'
                       >
                         <FiEdit2 />
                       </button>
                       <button
                         onClick={() => onDeleteTxn(t.id)}
                         title='Delete Transaction'
-                        className='text-slate-500 hover:text-rose-400 transition-colors p-1'
+                        className='text-slate-500 hover:text-rose-400 cursor-pointer transition-colors p-1'
                       >
                         <FiTrash2 />
                       </button>

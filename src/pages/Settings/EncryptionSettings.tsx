@@ -184,6 +184,7 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
           {/* Buttons */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button
+              className='cursor-pointer'
               onClick={handleToggle}
               disabled={migrating}
               style={{
@@ -202,6 +203,7 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
             </button>
 
             <button
+              className='cursor-pointer'
               onClick={handleMigrate}
               disabled={migrating}
               style={{

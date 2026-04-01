@@ -547,6 +547,7 @@ export default function AuthPage() {
                       border: 'none',
                       cursor: 'pointer',
                       fontWeight: 600,
+                      pointerEvents: 'auto',
                       fontSize: 14,
                     }}
                   >

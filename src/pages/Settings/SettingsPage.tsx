@@ -148,7 +148,7 @@ function ProfileTab() {
               <button
                 onClick={handleSaveName}
                 disabled={saving || !name.trim()}
-                className='inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors'
+                className='inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors'
               >
                 <FiSave className='h-3.5 w-3.5' />
                 {saving ? 'Saving…' : 'Save'}
@@ -158,7 +158,7 @@ function ProfileTab() {
                   setEditingName(false);
                   setName(user?.displayName || '');
                 }}
-                className='rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+                className='rounded-xl cursor-pointer border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-400 hover:bg-slate-800 transition-colors'
               >
                 Cancel
               </button>
@@ -170,7 +170,7 @@ function ProfileTab() {
               </h2>
               <button
                 onClick={() => setEditingName(true)}
-                className='flex items-center gap-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors'
+                className='flex cursor-pointer items-center gap-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors'
               >
                 <FiEdit2 className='h-3 w-3' /> Edit
               </button>
@@ -243,13 +243,13 @@ function ProfileTab() {
           <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
             <button
               onClick={() => setLogoutOpen(false)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
+              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
             >
               Cancel
             </button>
             <button
               onClick={confirmLogout}
-              className='rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
+              className='rounded-xl cursor-pointer bg-red-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-700'
             >
               Yes, Sign Out
             </button>
@@ -327,7 +327,7 @@ function AppSecurityTab() {
         ) : deferredPrompt ? (
           <button
             onClick={handleInstall}
-            className='flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3.5 text-sm font-bold text-white shadow-lg hover:from-emerald-500 hover:to-emerald-600 transition-all'
+            className='flex cursor-pointer w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3.5 text-sm font-bold text-white shadow-lg hover:from-emerald-500 hover:to-emerald-600 transition-all'
           >
             <FiDownload className='h-4 w-4' />
             Install FinTrackly
@@ -349,7 +349,7 @@ function AppSecurityTab() {
                 {isAndroid && (
                   <button
                     onClick={() => window.open(window.location.href, '_blank')}
-                    className='mt-2 flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
+                    className='mt-2 flex cursor-pointer items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
                   >
                     Open in Chrome <FiExternalLink className='h-3 w-3' />
                   </button>
@@ -371,7 +371,7 @@ function AppSecurityTab() {
                 {isIOS && (
                   <button
                     onClick={() => window.open(window.location.href, '_blank')}
-                    className='mt-2 flex items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
+                    className='mt-2 flex cursor-pointer items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
                   >
                     Open in Safari <FiExternalLink className='h-3 w-3' />
                   </button>
@@ -490,7 +490,7 @@ export function SettingsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all shrink-0 ${
+                className={`flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold transition-all shrink-0 ${
                   isActive
                     ? tab.id === 'danger'
                       ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -514,7 +514,7 @@ export function SettingsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-left transition-all ${
+                className={`flex cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-left transition-all ${
                   isActive
                     ? tab.id === 'danger'
                       ? 'bg-rose-500/15 text-rose-400 shadow-[inset_4px_0_0_0_rgba(244,63,94,1)]'
