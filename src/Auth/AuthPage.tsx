@@ -401,7 +401,7 @@ export default function AuthPage() {
 
               <motion.button
                 onClick={() => setShowRegister(true)}
-                className='flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white'
+                className='flex cursor-pointer items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white'
                 style={{
                   background: 'rgba(16,185,129,0.15)',
                   border: '1px solid rgba(16,185,129,0.35)',
@@ -426,7 +426,7 @@ export default function AuthPage() {
             <motion.div initial='hidden' animate='show' variants={stagger}>
               <motion.div variants={fadeUp}>
                 <div
-                  className='inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold'
+                  className='inline-flex cursor-pointer items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold'
                   style={{
                     background: 'rgba(16,185,129,0.1)',
                     color: '#34d399',
@@ -480,7 +480,7 @@ export default function AuthPage() {
                 <motion.button
                   onClick={handleGoogleSignIn}
                   disabled={signingIn}
-                  className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
+                  className='flex cursor-pointer items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
                   style={{
                     background: 'linear-gradient(135deg, #10b981, #059669)',
                     boxShadow:
@@ -511,7 +511,7 @@ export default function AuthPage() {
 
                 <motion.button
                   onClick={() => setShowRegister(true)}
-                  className='flex items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white'
+                  className='flex cursor-pointer items-center gap-3 px-7 py-4 rounded-xl font-bold text-base text-white'
                   style={{
                     background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.12)',
@@ -535,7 +535,7 @@ export default function AuthPage() {
               {/* Already have account */}
               <motion.div variants={fadeUp} className='mb-4'>
                 <p
-                  className='text-sm'
+                  className='text-sm cursor-pointer'
                   style={{ color: 'rgba(226,232,240,0.38)' }}
                 >
                   Already have an account?{' '}
@@ -573,7 +573,7 @@ export default function AuthPage() {
                 ].map((s, i) => (
                   <div
                     key={i}
-                    className='flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium'
+                    className='flex cursor-pointer items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium'
                     style={{
                       background: 'rgba(255,255,255,0.04)',
                       border: '1px solid rgba(255,255,255,0.08)',
@@ -608,7 +608,7 @@ export default function AuthPage() {
             >
               {/* Browser chrome */}
               <div
-                className='flex items-center gap-2 px-4 py-3'
+                className='flex cursor-pointer items-center gap-2 px-4 py-3'
                 style={{
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
                   background: 'rgba(0,0,0,0.2)',
@@ -618,7 +618,7 @@ export default function AuthPage() {
                 <div className='h-3 w-3 rounded-full bg-yellow-400' />
                 <div className='h-3 w-3 rounded-full bg-green-400' />
                 <div
-                  className='ml-3 flex-1 max-w-xs rounded-md px-3 py-1 text-xs'
+                  className='ml-3 flex-1 max-w-xs rounded-md px-3 py-1 text-xs cursor-pointer'
                   style={{
                     background: 'rgba(255,255,255,0.05)',
                     color: 'rgba(226,232,240,0.3)',
@@ -629,7 +629,7 @@ export default function AuthPage() {
               </div>
 
               {/* Stats */}
-              <div className='p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left'>
+              <div className='p-5 grid cursor-pointer grid-cols-2 sm:grid-cols-4 gap-4 text-left'>
                 {[
                   {
                     label: 'Net Worth',
@@ -658,21 +658,21 @@ export default function AuthPage() {
                 ].map((card) => (
                   <div
                     key={card.label}
-                    className='rounded-xl p-4'
+                    className='rounded-xl p-4 cursor-pointer'
                     style={{
                       background: 'rgba(255,255,255,0.04)',
                       border: '1px solid rgba(255,255,255,0.07)',
                     }}
                   >
                     <p
-                      className='text-xs mb-1'
+                      className='text-xs mb-1 cursor-pointer'
                       style={{ color: 'rgba(226,232,240,0.4)' }}
                     >
                       {card.label}
                     </p>
                     <p className='text-xl font-bold text-white'>{card.value}</p>
                     <p
-                      className='text-xs font-semibold mt-1'
+                      className='text-xs font-semibold mt-1 cursor-pointer'
                       style={{ color: card.color }}
                     >
                       {card.change}
@@ -682,7 +682,7 @@ export default function AuthPage() {
               </div>
 
               {/* Chart */}
-              <div className='px-5 pb-5'>
+              <div className='px-5 pb-5 cursor-pointer'>
                 <div
                   className='rounded-xl p-5'
                   style={{
@@ -1107,7 +1107,7 @@ export default function AuthPage() {
                   <motion.button
                     onClick={handleGoogleSignIn}
                     disabled={signingIn}
-                    className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
+                    className='inline-flex items-center cursor-pointer gap-3 px-8 py-4 rounded-xl font-bold text-base text-white disabled:opacity-60'
                     style={{
                       background: 'linear-gradient(135deg, #10b981, #059669)',
                       boxShadow:
@@ -1139,7 +1139,7 @@ export default function AuthPage() {
 
                   <motion.button
                     onClick={() => setShowRegister(true)}
-                    className='inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-base text-white'
+                    className='inline-flex items-center cursor-pointer gap-3 px-8 py-4 rounded-xl font-bold text-base text-white'
                     style={{
                       background: 'rgba(255,255,255,0.07)',
                       border: '1px solid rgba(255,255,255,0.14)',
@@ -1200,7 +1200,7 @@ export default function AuthPage() {
                 ].map((tag, i) => (
                   <span
                     key={i}
-                    className='px-3 py-1.5 rounded-full text-xs'
+                    className='px-3 py-1.5 rounded-full text-xs cursor-pointer'
                     style={{
                       background: 'rgba(255,255,255,0.03)',
                       border: '1px solid rgba(255,255,255,0.06)',
@@ -1216,7 +1216,7 @@ export default function AuthPage() {
 
           {/* ── FOOTER ── */}
           <footer
-            className='py-10 px-6 text-center relative'
+            className='py-10 px-6 text-center relative cursor-pointer'
             style={{ borderTop: '1px solid rgba(255,255,255,0.06)', zIndex: 1 }}
           >
             <div className='flex items-center justify-center gap-2 mb-3'>
@@ -1236,7 +1236,10 @@ export default function AuthPage() {
                 FinTrackly
               </span>
             </div>
-            <p className='text-xs' style={{ color: 'rgba(148,163,184,0.85)' }}>
+            <p
+              className='text-xs cursor-pointer'
+              style={{ color: 'rgba(148,163,184,0.85)' }}
+            >
               © 2026 Fintrackly · Free personal finance tracker & investment
               portfolio manager for India
             </p>
