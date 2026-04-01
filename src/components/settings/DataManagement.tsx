@@ -9,7 +9,6 @@ import {
   FiFileText,
   FiGrid,
   FiPackage,
-  FiShield,
   FiTable,
   FiTrash2,
   FiUpload,
@@ -47,62 +46,6 @@ function StatBadge({ label, count }: { label: string; count: number }) {
       >
         {count}
       </span>
-    </div>
-  );
-}
-
-// ── Export Card ───────────────────────────────────────────────────────────────
-function ExportCard({
-  icon,
-  iconBg,
-  iconColor,
-  title,
-  description,
-  buttonLabel,
-  buttonColor,
-  buttonBorder,
-  onClick,
-  busy,
-  tag,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  description: string;
-  buttonLabel: string;
-  buttonColor: string;
-  buttonBorder: string;
-  onClick: () => void;
-  busy?: boolean;
-  tag?: string;
-}) {
-  return (
-    <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
-      <div
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
-      >
-        <span className={iconColor}>{icon}</span>
-      </div>
-      <div className='flex-1 min-w-0'>
-        <div className='flex items-center gap-2 mb-0.5'>
-          <p className='font-bold text-slate-100 text-sm'>{title}</p>
-          {tag && (
-            <span className='text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'>
-              {tag}
-            </span>
-          )}
-        </div>
-        <p className='text-xs text-slate-500'>{description}</p>
-      </div>
-      <button
-        onClick={onClick}
-        disabled={busy}
-        className={`flex items-center gap-2 rounded-xl border ${buttonBorder} ${buttonColor} px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-50 whitespace-nowrap`}
-      >
-        <FiDownload className='h-4 w-4' />
-        {busy ? 'Exporting…' : buttonLabel}
-      </button>
     </div>
   );
 }
