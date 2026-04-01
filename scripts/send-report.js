@@ -1,10 +1,11 @@
 // scripts/send-report.js
 // FinTrackly Monthly Report — GitHub Actions
-// FIX: Full AES-GCM decryption support for encrypted Firestore docs
+// Sends HTML report + JSON backup + CSV ZIP as email attachments
 
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const { webcrypto } = require('crypto');
+const JSZip = require('jszip');
 
 const subtle = webcrypto.subtle;
 
@@ -26,7 +27,7 @@ function createTransporter() {
 }
 const FROM_NAME = 'FinTrackly Reports';
 
-// ── Encryption (mirrors encryptionService.ts exactly) ─────────────────────────
+// ── Encryption (mirrors encryptionService.ts) ─────────────────────────────────
 const SALT = process.env.VITE_ENCRYPTION_SALT || 'default-finance-salt-v1';
 const _keyCache = new Map();
 
@@ -68,9 +69,11 @@ async function decryptDoc(uid, raw) {
   }
   try {
     const key = await deriveKey(uid);
-    const iv = fromBase64(raw['_iv']);
-    const ct = fromBase64(raw['_data']);
-    const buf = await subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+    const buf = await subtle.decrypt(
+      { name: 'AES-GCM', iv: fromBase64(raw['_iv']) },
+      key,
+      fromBase64(raw['_data']),
+    );
     return JSON.parse(new TextDecoder().decode(buf));
   } catch (e) {
     console.warn(`    [warn] decryptDoc id=${raw['id']}: ${e.message}`);
@@ -83,6 +86,7 @@ const fmt = (n) => '₹' + Math.abs(Math.round(n || 0)).toLocaleString('en-IN');
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const currentMonthLabel = () =>
   new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+const dateStr = () => new Date().toISOString().split('T')[0];
 
 async function fetchCol(uid, col) {
   try {
@@ -101,6 +105,409 @@ async function fetchCol(uid, col) {
   }
 }
 
+// ── CSV Builder ───────────────────────────────────────────────────────────────
+function toCSV(data) {
+  if (!data || data.length === 0) return '';
+  const headers = Object.keys(data[0]);
+  const escape = (v) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return (
+    [
+      headers.join(','),
+      ...data.map((row) => headers.map((h) => escape(row[h])).join(',')),
+    ].join('\n') + '\n'
+  );
+}
+
+function buildCSVAttachments(allData) {
+  const {
+    investments = [],
+    soldTrades = [],
+    liabilities = [],
+    cashflows = [],
+    goals = [],
+    accounts = [],
+    insurancePolicies = [],
+    lendingBorrowers = [],
+    lendingTransactions = [],
+    agriFields = [],
+    agriCropCycles = [],
+    agriExpenses = [],
+    agriMilkRecords = [],
+    agriCoconut = [],
+    agriLivestockEvents = [],
+    agriProduceSales = [],
+    attEmployees = [],
+    attRecords = [],
+    attTransactions = [],
+    attSalary = [],
+  } = allData;
+
+  const files = [];
+  const accountMap = {};
+  accounts.forEach((a) => {
+    accountMap[a.id] = a.name;
+  });
+  const empMap = {};
+  attEmployees.forEach((e) => {
+    empMap[e.id] = e.name;
+  });
+  const bMap = {};
+  lendingBorrowers.forEach((b) => {
+    bMap[b.id] = b.name;
+  });
+
+  if (investments.length) {
+    files.push({
+      name: 'investments.csv',
+      csv: toCSV(
+        investments.map((i) => ({
+          Type: i.type,
+          Name: i.name,
+          Symbol: i.symbol ?? '',
+          Platform: i.platform ?? '',
+          'Quantity / Units': i.quantity ?? i.units ?? '',
+          'Buy Price / NAV': i.buyPrice ?? i.nav ?? '',
+          'Current Price': i.currentPrice ?? '',
+          'Invested Amount':
+            i.investedAmount ?? (i.quantity ?? 0) * (i.buyPrice ?? 0),
+          'Current Value':
+            i.type === 'stock'
+              ? (i.quantity ?? 0) * (i.currentPrice ?? i.buyPrice ?? 0)
+              : i.type === 'mutual_fund'
+                ? (i.units ?? 0) * (i.nav ?? 0)
+                : (i.currentValue ?? i.investedAmount ?? ''),
+          Notes: i.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  if (soldTrades.length) {
+    files.push({
+      name: 'profits.csv',
+      csv: toCSV(
+        soldTrades.map((t) => ({
+          'Asset Name': t.investmentName,
+          Type: t.investmentType,
+          Symbol: t.symbol ?? '',
+          Platform: t.platform ?? '',
+          Quantity: t.quantity ?? '',
+          'Buy Cost (₹)': t.buyPrice,
+          'Sell Value (₹)': t.sellPrice,
+          'Profit/Loss (₹)': t.profit,
+          'Return %': t.profitPct?.toFixed(2) ?? '',
+          'Sale Date': t.soldDate,
+          Notes: t.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  if (cashflows.length) {
+    files.push({
+      name: 'cashflows.csv',
+      csv: toCSV(
+        cashflows.map((cf) => ({
+          Date: cf.date,
+          Type: cf.type,
+          Category: cf.category,
+          Account: cf.accountId
+            ? (accountMap[cf.accountId] ?? cf.accountId)
+            : '',
+          Amount: cf.amount,
+          Notes: cf.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  if (liabilities.length) {
+    files.push({
+      name: 'liabilities.csv',
+      csv: toCSV(
+        liabilities.map((l) => ({
+          Name: l.name,
+          Type: l.type,
+          Principal: l.principal,
+          Outstanding: l.outstanding,
+          'Interest Rate': l.interestRate ?? '',
+          'Start Date': l.startDate ?? '',
+          'End Date': l.endDate ?? '',
+        })),
+      ),
+    });
+  }
+
+  if (goals.length) {
+    files.push({
+      name: 'goals.csv',
+      csv: toCSV(
+        goals.map((g) => ({
+          Name: g.name,
+          'Target Amount': g.targetAmount,
+          'Current Amount': g.currentAmount,
+          Progress:
+            g.targetAmount > 0
+              ? `${Math.round((g.currentAmount / g.targetAmount) * 100)}%`
+              : '0%',
+          'Due Date': g.dueDate ?? '',
+        })),
+      ),
+    });
+  }
+
+  if (accounts.length) {
+    files.push({
+      name: 'accounts.csv',
+      csv: toCSV(
+        accounts.map((a) => ({
+          Name: a.name,
+          Type: a.type,
+          Balance: a.balance,
+        })),
+      ),
+    });
+  }
+
+  if (insurancePolicies.length) {
+    files.push({
+      name: 'insurance-policies.csv',
+      csv: toCSV(
+        insurancePolicies.map((p) => ({
+          Type: p.type,
+          Provider: p.provider,
+          'Policy Name': p.policyName,
+          'Coverage Amount': p.coverageAmount,
+          'Premium Amount': p.premiumAmount,
+          'Premium Frequency': p.premiumFrequency,
+          'Renewal Date': p.renewalDate ?? '',
+          'Policy Number': p.policyNumber ?? '',
+          Nominee: p.nominee ?? '',
+        })),
+      ),
+    });
+  }
+
+  if (lendingBorrowers.length) {
+    files.push({
+      name: 'lending-borrowers.csv',
+      csv: toCSV(
+        lendingBorrowers.map((b) => ({
+          Name: b.name,
+          Phone: b.phone ?? '',
+          Status: b.status,
+          'Interest Rate (%)': b.interestRate ?? '',
+          'Due Date': b.nextDueDate ?? '',
+        })),
+      ),
+    });
+  }
+  if (lendingTransactions.length) {
+    files.push({
+      name: 'lending-transactions.csv',
+      csv: toCSV(
+        lendingTransactions.map((tx) => ({
+          Date: tx.date,
+          Borrower: bMap[tx.borrowerId] || 'Unknown',
+          Type: tx.type,
+          Amount: tx.amount,
+          Notes: tx.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  // Agriculture
+  if (agriFields.length) {
+    files.push({
+      name: 'agri-fields.csv',
+      csv: toCSV(
+        agriFields.map((f) => ({
+          Name: f.name,
+          'Area (Acres)': f.areAcres,
+          Location: f.location ?? '',
+          'Soil Type': f.soilType ?? '',
+        })),
+      ),
+    });
+  }
+  if (agriCropCycles.length) {
+    files.push({
+      name: 'agri-crops.csv',
+      csv: toCSV(
+        agriCropCycles.map((c) => ({
+          'Crop Name': c.cropName,
+          Field: c.fieldName ?? '',
+          Season: c.season,
+          'Start Date': c.startDate,
+          'Harvest Date': c.actualHarvestDate ?? c.expectedHarvestDate ?? '',
+          'Invested Amount': c.investedAmount,
+          'Harvest Income': c.harvestIncome,
+          'Profit/Loss': (c.harvestIncome || 0) - (c.investedAmount || 0),
+          Notes: c.notes ?? '',
+        })),
+      ),
+    });
+  }
+  if (agriExpenses.length) {
+    files.push({
+      name: 'agri-expenses.csv',
+      csv: toCSV(
+        agriExpenses.map((e) => ({
+          Date: e.date,
+          Category: e.category,
+          Amount: e.amount,
+          Notes: e.notes ?? '',
+        })),
+      ),
+    });
+  }
+  if (agriMilkRecords.length) {
+    files.push({
+      name: 'agri-milk.csv',
+      csv: toCSV(
+        agriMilkRecords.map((m) => ({
+          Date: m.date,
+          Liters: m.liters,
+          'Price/Liter': m.pricePerLiter,
+          Income: (m.liters || 0) * (m.pricePerLiter || 0),
+          'Sold To': m.soldTo ?? '',
+        })),
+      ),
+    });
+  }
+  if (agriCoconut.length) {
+    files.push({
+      name: 'agri-coconut.csv',
+      csv: toCSV(
+        agriCoconut.map((c) => ({
+          Date: c.date,
+          Trees: c.numberOfTrees,
+          'Total Coconuts': c.totalCoconuts,
+          'Sell Method': c.sellMethod,
+          'Price/Coconut': c.pricePerCoconut ?? '',
+          Income: c.harvestIncome,
+          Investment: c.investmentAmount,
+          Profit: (c.harvestIncome || 0) - (c.investmentAmount || 0),
+          Notes: c.notes ?? '',
+        })),
+      ),
+    });
+  }
+  if (agriProduceSales.length) {
+    files.push({
+      name: 'agri-produce-sales.csv',
+      csv: toCSV(
+        agriProduceSales.map((p) => ({
+          Date: p.date,
+          'Produce Name': p.produceName,
+          Category: p.category,
+          Unit: p.unit,
+          Quantity: p.quantity,
+          'Price/Unit': p.pricePerUnit,
+          Commission: p.commissionAmount ?? 0,
+          'Total Amount': p.totalAmount,
+          'Sold To': p.soldTo ?? '',
+          Notes: p.notes ?? '',
+        })),
+      ),
+    });
+  }
+  if (agriLivestockEvents.length) {
+    files.push({
+      name: 'agri-livestock-events.csv',
+      csv: toCSV(
+        agriLivestockEvents.map((e) => ({
+          Date: e.date,
+          Animal: e.animalType,
+          'Event Type': e.eventType,
+          Count: e.count,
+          Price: e.price ?? '',
+          Notes: e.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  // Attendance
+  if (attEmployees.length) {
+    files.push({
+      name: 'attendance-workers.csv',
+      csv: toCSV(
+        attEmployees.map((e) => ({
+          Name: e.name,
+          Phone: e.phone ?? '',
+          'Daily Wage (₹)': e.dailyWage,
+          Notes: e.notes ?? '',
+        })),
+      ),
+    });
+  }
+  if (attRecords.length) {
+    files.push({
+      name: 'attendance-records.csv',
+      csv: toCSV(
+        attRecords.map((r) => ({
+          Date: r.date,
+          Worker: empMap[r.employeeId] ?? r.employeeId,
+          Present: r.present ? 'Yes' : 'No',
+          'Daily Wage (₹)': r.wage,
+          'Extra Work (₹)': r.extraWork ?? 0,
+          'Total (₹)': r.present ? (r.wage || 0) + (r.extraWork || 0) : 0,
+          Note: r.note ?? '',
+        })),
+      ),
+    });
+  }
+  if (attTransactions.length) {
+    files.push({
+      name: 'attendance-advances.csv',
+      csv: toCSV(
+        attTransactions.map((t) => ({
+          Date: t.date,
+          Worker: empMap[t.employeeId] ?? t.employeeId,
+          Type: t.type,
+          'Amount (₹)': t.amount,
+          Note: t.note ?? '',
+        })),
+      ),
+    });
+  }
+  if (attSalary.length) {
+    files.push({
+      name: 'attendance-salary.csv',
+      csv: toCSV(
+        attSalary.map((s) => ({
+          Month: s.month,
+          Worker: empMap[s.employeeId] ?? s.employeeId,
+          'Days Worked': s.daysWorked,
+          'Net Payable (₹)': s.netPayable ?? s.finalSalary,
+          Status: s.paymentStatus,
+        })),
+      ),
+    });
+  }
+
+  return files;
+}
+
+async function buildCSVZip(allData) {
+  const files = buildCSVAttachments(allData);
+  if (!files.length) return null;
+  const zip = new JSZip();
+  const folder = zip.folder('fintrackly-data');
+  files.forEach(({ name, csv }) => folder.file(name, csv));
+  const buf = await zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+  });
+  return { buffer: buf, count: files.length };
+}
+
+// ── HTML Report Builders ──────────────────────────────────────────────────────
 function tableRows(data) {
   return data
     .map(
@@ -119,32 +526,115 @@ function section(title, color, content) {
   );
 }
 
-function emailTemplate(sections, monthLbl) {
+function emailTemplate(sections, monthLbl, attachmentSummary) {
+  const attachNote = attachmentSummary
+    ? `<div style="margin:20px 0;background:#1e3a5f;border:1px solid #3b82f620;border-radius:12px;padding:16px 20px">
+        <p style="color:#60a5fa;font-size:13px;font-weight:600;margin:0 0 6px">📎 Attachments included in this email</p>
+        <p style="color:#94a3b8;font-size:12px;margin:0">${attachmentSummary}</p>
+      </div>`
+    : '';
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
 <div style="max-width:620px;margin:0 auto;padding:28px 16px">
 <div style="background:#1e293b;border:1px solid #22c55e33;border-radius:16px;padding:28px 24px;margin-bottom:20px;text-align:center">
 <div style="font-size:36px;margin-bottom:10px">📊</div>
 <h1 style="color:#f1f5f9;font-size:22px;margin:0 0 6px;font-weight:600">FinTrackly Monthly Report</h1>
-<p style="color:#64748b;font-size:14px;margin:0">${monthLbl}</p></div>
+<p style="color:#64748b;font-size:14px;margin:0">${monthLbl}</p>
+</div>
+${attachNote}
 <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px 24px;margin-bottom:20px">
 ${sections.join('<hr style="border:none;border-top:1px solid #1e3a5f;margin:16px 0">')}
 </div>
 <div style="text-align:center;padding:16px 8px">
-<p style="color:#475569;font-size:12px;margin:0 0 4px">FinTrackly — Your personal finance and farm tracker</p>
+<p style="color:#475569;font-size:12px;margin:0 0 8px">FinTrackly — Your personal finance and farm tracker</p>
+<p style="color:#334155;font-size:11px;margin:0 0 4px">💡 Save the attached JSON backup to Google Drive or your phone for safekeeping.</p>
 <a href="https://finance-tracker-3b842.web.app/settings" style="color:#22c55e;text-decoration:none;font-size:11px">Manage account</a>
 </div></div></body></html>`;
 }
 
-// ── Build report ──────────────────────────────────────────────────────────────
-async function buildReport(uid) {
+// ── Build full report HTML + collect all data ─────────────────────────────────
+async function buildReportAndData(uid) {
   const month = currentMonth();
   const monthLbl = currentMonthLabel();
   const sections = [];
   console.log(`  Building report — uid: ${uid}, month: ${month}`);
 
-  // 1. Cashflow
-  const cashflows = await fetchCol(uid, 'cashflows');
+  // Fetch ALL collections
+  const [
+    cashflows,
+    investments,
+    soldTrades,
+    liabilities,
+    accounts,
+    goals,
+    agriFields,
+    agriCropCycles,
+    agriExpenses,
+    agriMilkRecords,
+    agriLivestockEvents,
+    agriCoconut,
+    agriProduceSales,
+    attEmployees,
+    attRecords,
+    attTransactions,
+    attSalary,
+    insurancePolicies,
+    insurancePayments,
+    sipPlanDocs,
+    lendingBorrowers,
+    lendingTransactions,
+  ] = await Promise.all([
+    fetchCol(uid, 'cashflows'),
+    fetchCol(uid, 'investments'),
+    fetchCol(uid, 'soldTrades'),
+    fetchCol(uid, 'liabilities'),
+    fetchCol(uid, 'accounts'),
+    fetchCol(uid, 'goals'),
+    fetchCol(uid, 'agriFields'),
+    fetchCol(uid, 'agriCropCycles'),
+    fetchCol(uid, 'agriExpenses'),
+    fetchCol(uid, 'agriMilkRecords'),
+    fetchCol(uid, 'agriLivestockEvents'),
+    fetchCol(uid, 'agriCoconut'),
+    fetchCol(uid, 'agriProduceSales'),
+    fetchCol(uid, 'attEmployees'),
+    fetchCol(uid, 'attRecords'),
+    fetchCol(uid, 'attTransactions'),
+    fetchCol(uid, 'attSalary'),
+    fetchCol(uid, 'insurancePolicies'),
+    fetchCol(uid, 'insurancePayments'),
+    fetchCol(uid, 'sipPlans'),
+    fetchCol(uid, 'lendingBorrowers'),
+    fetchCol(uid, 'lendingTransactions'),
+  ]);
+
+  const allData = {
+    cashflows,
+    investments,
+    soldTrades,
+    liabilities,
+    accounts,
+    goals,
+    agriFields,
+    agriCropCycles,
+    agriExpenses,
+    agriMilkRecords,
+    agriLivestockEvents,
+    agriCoconut,
+    agriProduceSales,
+    attEmployees,
+    attRecords,
+    attTransactions,
+    attSalary,
+    insurancePolicies,
+    insurancePayments,
+    sipPlanDocs,
+    lendingBorrowers,
+    lendingTransactions,
+  };
+
+  // ── 1. Cashflow ────────────────────────────────────────────────────────────
   {
     const mc = cashflows.filter((c) => (c.date || '').startsWith(month));
     const allInc = cashflows
@@ -199,8 +689,7 @@ async function buildReport(uid) {
       );
   }
 
-  // 2. Investments
-  const investments = await fetchCol(uid, 'investments');
+  // ── 2. Investments ─────────────────────────────────────────────────────────
   if (investments.length > 0) {
     const calcInvested = (i) =>
       i.type === 'stock'
@@ -265,8 +754,7 @@ async function buildReport(uid) {
     );
   }
 
-  // 3. Sold Trades
-  const soldTrades = await fetchCol(uid, 'soldTrades');
+  // ── 3. Sold Trades ─────────────────────────────────────────────────────────
   if (soldTrades.length > 0) {
     const realisedPnl = soldTrades.reduce((s, t) => s + (t.profit || 0), 0);
     const monthSold = soldTrades.filter((t) =>
@@ -282,7 +770,7 @@ async function buildReport(uid) {
       ['Total Trades Closed', `${soldTrades.length}`, '#e2e8f0'],
     ];
     if (monthSold.length > 0) {
-      rows.push([`Closed This Month`, `${monthSold.length} trades`, '#94a3b8']);
+      rows.push([`Closed This Month`, `${monthSold.length}`, '#94a3b8']);
       rows.push([
         `This Month P&L`,
         `${monthPnl >= 0 ? '+' : ''}${fmt(monthPnl)}`,
@@ -292,8 +780,7 @@ async function buildReport(uid) {
     sections.push(section('💹 Realised Profits', '#10b981', tableRows(rows)));
   }
 
-  // 4. Liabilities
-  const liabilities = await fetchCol(uid, 'liabilities');
+  // ── 4. Liabilities ─────────────────────────────────────────────────────────
   if (liabilities.length > 0) {
     const outstanding = liabilities.reduce(
       (s, l) => s + (l.outstanding || 0),
@@ -331,8 +818,7 @@ async function buildReport(uid) {
     );
   }
 
-  // 5. Accounts
-  const accounts = await fetchCol(uid, 'accounts');
+  // ── 5. Accounts ────────────────────────────────────────────────────────────
   if (accounts.length > 0) {
     const totalBal = accounts.reduce((s, a) => s + (a.balance || 0), 0);
     const rows = accounts.map((a) => [
@@ -346,8 +832,7 @@ async function buildReport(uid) {
     );
   }
 
-  // 6. Goals
-  const goals = await fetchCol(uid, 'goals');
+  // ── 6. Goals ───────────────────────────────────────────────────────────────
   if (goals.length > 0) {
     const goalRows = goals.map((g) => {
       const pct =
@@ -404,48 +889,35 @@ async function buildReport(uid) {
     }
   }
 
-  // 7. Agriculture (FULL DETAIL — all sub-collections)
-  const [fields, crops, agriExp, milk, livestock, coconut, produceSales] =
-    await Promise.all([
-      fetchCol(uid, 'agriFields'),
-      fetchCol(uid, 'agriCropCycles'),
-      fetchCol(uid, 'agriExpenses'),
-      fetchCol(uid, 'agriMilkRecords'),
-      fetchCol(uid, 'agriLivestockEvents'),
-      fetchCol(uid, 'agriCoconut'),
-      fetchCol(uid, 'agriProduceSales'),
-    ]);
-
+  // ── 7. Agriculture ─────────────────────────────────────────────────────────
   if (
-    fields.length ||
-    crops.length ||
-    milk.length ||
-    coconut.length ||
-    livestock.length ||
-    produceSales.length ||
-    agriExp.length
+    agriFields.length ||
+    agriCropCycles.length ||
+    agriMilkRecords.length ||
+    agriCoconut.length ||
+    agriLivestockEvents.length ||
+    agriProduceSales.length ||
+    agriExpenses.length
   ) {
     const agriRows = [];
-
-    // Fields
-    if (fields.length > 0) {
-      const totalAcres = fields.reduce((s, f) => s + (f.areAcres || 0), 0);
+    if (agriFields.length > 0) {
+      const totalAcres = agriFields.reduce((s, f) => s + (f.areAcres || 0), 0);
       agriRows.push([
         'Total Fields',
-        `${fields.length} (${totalAcres.toFixed(1)} acres)`,
+        `${agriFields.length} (${totalAcres.toFixed(1)} acres)`,
         '#4ade80',
       ]);
     }
-
-    // Crops
-    if (crops.length > 0) {
-      const activeCrops = crops.filter((c) => !c.actualHarvestDate);
-      const harvestedCrops = crops.filter((c) => !!c.actualHarvestDate);
+    if (agriCropCycles.length > 0) {
+      const activeCrops = agriCropCycles.filter((c) => !c.actualHarvestDate);
+      const harvestedCrops = agriCropCycles.filter(
+        (c) => !!c.actualHarvestDate,
+      );
       const totalCropIncome = harvestedCrops.reduce(
         (s, c) => s + (c.harvestIncome || 0),
         0,
       );
-      const totalCropInvested = crops.reduce(
+      const totalCropInvested = agriCropCycles.reduce(
         (s, c) => s + (c.investedAmount || 0),
         0,
       );
@@ -476,11 +948,9 @@ async function buildReport(uid) {
           ]),
         );
     }
-
-    // Farm Expenses
-    if (agriExp.length > 0) {
-      const allFarmExp = agriExp.reduce((s, e) => s + (e.amount || 0), 0);
-      const monthFarmExp = agriExp
+    if (agriExpenses.length > 0) {
+      const allFarmExp = agriExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+      const monthFarmExp = agriExpenses
         .filter((e) => (e.date || '').startsWith(month))
         .reduce((s, e) => s + (e.amount || 0), 0);
       agriRows.push(['Farm Expenses (all time)', fmt(allFarmExp), '#ef4444']);
@@ -491,17 +961,20 @@ async function buildReport(uid) {
           '#ef4444',
         ]);
     }
-
-    // Milk
-    if (milk.length > 0) {
-      const milkMonth = milk.filter((m) => (m.date || '').startsWith(month));
+    if (agriMilkRecords.length > 0) {
+      const milkMonth = agriMilkRecords.filter((m) =>
+        (m.date || '').startsWith(month),
+      );
       const milkLiters = milkMonth.reduce((s, m) => s + (m.liters || 0), 0);
       const milkIncome = milkMonth.reduce(
         (s, m) => s + (m.liters || 0) * (m.pricePerLiter || 0),
         0,
       );
-      const allMilkLiters = milk.reduce((s, m) => s + (m.liters || 0), 0);
-      const allMilkInc = milk.reduce(
+      const allMilkLiters = agriMilkRecords.reduce(
+        (s, m) => s + (m.liters || 0),
+        0,
+      );
+      const allMilkInc = agriMilkRecords.reduce(
         (s, m) => s + (m.liters || 0) * (m.pricePerLiter || 0),
         0,
       );
@@ -517,15 +990,16 @@ async function buildReport(uid) {
         '#64748b',
       ]);
     }
-
-    // Coconut
-    if (coconut.length > 0) {
-      const cocIncome = coconut.reduce((s, c) => s + (c.harvestIncome || 0), 0);
-      const totalCoconuts = coconut.reduce(
+    if (agriCoconut.length > 0) {
+      const cocIncome = agriCoconut.reduce(
+        (s, c) => s + (c.harvestIncome || 0),
+        0,
+      );
+      const totalCoconuts = agriCoconut.reduce(
         (s, c) => s + (c.totalCoconuts || 0),
         0,
       );
-      const cocInvestment = coconut.reduce(
+      const cocInvestment = agriCoconut.reduce(
         (s, c) => s + (c.investmentAmount || 0),
         0,
       );
@@ -534,25 +1008,24 @@ async function buildReport(uid) {
         fmt(cocIncome),
         '#f59e0b',
       ]);
-      if (cocInvestment > 0)
+      if (cocInvestment > 0) {
         agriRows.push(['Coconut Investment', fmt(cocInvestment), '#ef4444']);
-      agriRows.push([
-        'Coconut Net',
-        fmt(cocIncome - cocInvestment),
-        cocIncome - cocInvestment >= 0 ? '#22c55e' : '#ef4444',
-      ]);
+        agriRows.push([
+          'Coconut Net',
+          fmt(cocIncome - cocInvestment),
+          cocIncome - cocInvestment >= 0 ? '#22c55e' : '#ef4444',
+        ]);
+      }
     }
-
-    // Produce Sales
-    if (produceSales.length > 0) {
-      const produceMonth = produceSales.filter((p) =>
+    if (agriProduceSales.length > 0) {
+      const produceMonth = agriProduceSales.filter((p) =>
         (p.date || '').startsWith(month),
       );
       const produceIncomeMonth = produceMonth.reduce(
         (s, p) => s + (p.totalAmount || 0),
         0,
       );
-      const allProduceInc = produceSales.reduce(
+      const allProduceInc = agriProduceSales.reduce(
         (s, p) => s + (p.totalAmount || 0),
         0,
       );
@@ -568,7 +1041,7 @@ async function buildReport(uid) {
         '#64748b',
       ]);
       const produceMap = {};
-      produceSales.forEach((p) => {
+      agriProduceSales.forEach((p) => {
         produceMap[p.produceName || 'Item'] =
           (produceMap[p.produceName || 'Item'] || 0) + (p.totalAmount || 0);
       });
@@ -579,9 +1052,7 @@ async function buildReport(uid) {
           agriRows.push([`  🥬 ${name}`, fmt(amt), '#94a3b8']),
         );
     }
-
-    // Livestock
-    if (livestock.length > 0) {
+    if (agriLivestockEvents.length > 0) {
       const types = [
         'goat',
         'cow',
@@ -593,7 +1064,7 @@ async function buildReport(uid) {
       ];
       const counts = {};
       types.forEach((type) => {
-        const cnt = livestock
+        const cnt = agriLivestockEvents
           .filter((e) => e.animalType === type)
           .reduce((n, e) => {
             if (['purchase', 'birth', 'existing'].includes(e.eventType))
@@ -616,62 +1087,55 @@ async function buildReport(uid) {
         );
       }
     }
-
     if (agriRows.length > 0)
       sections.push(section('🌾 Agriculture', '#4ade80', tableRows(agriRows)));
   }
 
-  // 8. Farm Workers
-  const [emps, attRecs, attTxns, salRecs] = await Promise.all([
-    fetchCol(uid, 'attEmployees'),
-    fetchCol(uid, 'attRecords'),
-    fetchCol(uid, 'attTransactions'),
-    fetchCol(uid, 'attSalary'),
-  ]);
-  if (emps.length > 0) {
-    const monthAtt = attRecs.filter((r) => (r.date || '').startsWith(month));
+  // ── 8. Farm Workers ────────────────────────────────────────────────────────
+  if (attEmployees.length > 0) {
+    const monthAtt = attRecords.filter((r) => (r.date || '').startsWith(month));
     const present = monthAtt.filter((r) => r.present).length;
     const absent = monthAtt.filter((r) => !r.present).length;
     const wages = monthAtt.reduce(
       (s, r) => s + (r.present ? (r.wage || 0) + (r.extraWork || 0) : 0),
       0,
     );
-    const advances = attTxns
+    const advances = attTransactions
       .filter((t) => t.type === 'advance' && (t.date || '').startsWith(month))
       .reduce((s, t) => s + (t.amount || 0), 0);
-    const deductions = attTxns
-      .filter((t) => t.type === 'deduction' && (t.date || '').startsWith(month))
-      .reduce((s, t) => s + (t.amount || 0), 0);
-    const allAdv = attTxns
+    const allAdv = attTransactions
       .filter((t) => t.type === 'advance')
       .reduce((s, t) => s + (t.amount || 0), 0);
-    const unpaid = salRecs.filter(
+    const unpaid = attSalary.filter(
       (s) => s.month === month && s.paymentStatus !== 'paid',
     );
+    const empMap = {};
+    attEmployees.forEach((e) => {
+      empMap[e.id] = e.name;
+    });
     const wRows = [
-      ['Total Workers', `${emps.length}`, '#e2e8f0'],
+      ['Total Workers', `${attEmployees.length}`, '#e2e8f0'],
       ['Days Present This Month', `${present}`, '#22c55e'],
       ['Days Absent This Month', `${absent}`, '#ef4444'],
       ['Wages This Month', fmt(wages), '#22c55e'],
     ];
-    if (deductions > 0)
-      wRows.push(['Deductions This Month', fmt(deductions), '#f59e0b']);
     if (advances > 0)
       wRows.push(['Advances This Month', fmt(advances), '#f59e0b']);
     if (allAdv > 0)
       wRows.push(['Total Advances (all time)', fmt(allAdv), '#64748b']);
     if (unpaid.length > 0) {
       wRows.push([`⚠ Pending Salary`, `${unpaid.length} worker(s)`, '#ef4444']);
-      unpaid.slice(0, 3).forEach((s) => {
-        const emp = emps.find((e) => e.id === s.employeeId);
-        wRows.push([
-          `  ${emp?.name || 'Worker'}`,
-          fmt(s.netPayable || 0),
-          '#f59e0b',
-        ]);
-      });
+      unpaid
+        .slice(0, 3)
+        .forEach((s) =>
+          wRows.push([
+            `  ${empMap[s.employeeId] || 'Worker'}`,
+            fmt(s.netPayable || 0),
+            '#f59e0b',
+          ]),
+        );
     }
-    emps.slice(0, 6).forEach((emp) => {
+    attEmployees.slice(0, 6).forEach((emp) => {
       const empPresent = monthAtt.filter(
         (r) => r.employeeId === emp.id && r.present,
       ).length;
@@ -682,8 +1146,7 @@ async function buildReport(uid) {
     );
   }
 
-  // 9. Insurance
-  const insurancePolicies = await fetchCol(uid, 'insurancePolicies');
+  // ── 9. Insurance ───────────────────────────────────────────────────────────
   if (insurancePolicies.length > 0) {
     const totalCoverage = insurancePolicies.reduce(
       (s, p) => s + (p.coverageAmount || 0),
@@ -754,8 +1217,7 @@ async function buildReport(uid) {
     );
   }
 
-  // 10. SIP Plan
-  const sipPlanDocs = await fetchCol(uid, 'sipPlans');
+  // ── 10. SIP Plan ───────────────────────────────────────────────────────────
   if (sipPlanDocs.length > 0) {
     const budgetDoc = sipPlanDocs.find((d) => d.type === 'budget');
     const instruments = sipPlanDocs.filter((d) => d.type === 'instrument');
@@ -803,11 +1265,7 @@ async function buildReport(uid) {
     }
   }
 
-  // 11. Lending
-  const [lendingBorrowers, lendingTransactions] = await Promise.all([
-    fetchCol(uid, 'lendingBorrowers'),
-    fetchCol(uid, 'lendingTransactions'),
-  ]);
+  // ── 11. Lending ────────────────────────────────────────────────────────────
   if (lendingBorrowers.length > 0) {
     const validIds = new Set(lendingBorrowers.map((b) => b.id));
     let totalGiven = 0,
@@ -829,12 +1287,11 @@ async function buildReport(uid) {
       ['Total Interest Earned', fmt(totalInterest), '#22c55e'],
     ];
     active.slice(0, 4).forEach((b) => {
-      const borTxns = lendingTransactions.filter((t) => t.borrowerId === b.id);
-      const given = borTxns
-        .filter((t) => t.type === 'principal_given')
+      const given = lendingTransactions
+        .filter((t) => t.borrowerId === b.id && t.type === 'principal_given')
         .reduce((s, t) => s + (t.amount || 0), 0);
-      const returned = borTxns
-        .filter((t) => t.type === 'principal_returned')
+      const returned = lendingTransactions
+        .filter((t) => t.borrowerId === b.id && t.type === 'principal_returned')
         .reduce((s, t) => s + (t.amount || 0), 0);
       lendingRows.push([
         `  ${b.name || 'Borrower'}`,
@@ -852,7 +1309,7 @@ async function buildReport(uid) {
       <p style="color:#94a3b8;font-size:14px;margin:0">Your FinTrackly account is active.<br>Start adding data to see your monthly summary here.</p></div>`);
   }
 
-  return emailTemplate(sections, monthLbl);
+  return { sections, allData, monthLbl };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -886,17 +1343,67 @@ async function main() {
   }
 
   const testEmail = process.env.TEST_EMAIL;
+  const skipAttachments = process.env.SKIP_ATTACHMENTS === 'true';
+
   if (testEmail) {
     console.log(`\nTest mode — sending to: ${testEmail}`);
     try {
       const user = await admin.auth().getUserByEmail(testEmail);
       console.log(`Found user uid: ${user.uid}`);
-      const html = await buildReport(user.uid);
+
+      const { sections, allData, monthLbl } = await buildReportAndData(
+        user.uid,
+      );
+
+      // Build attachments
+      const attachments = [];
+      let attachmentSummary = null;
+
+      if (!skipAttachments) {
+        // JSON backup
+        const jsonPayload = {
+          version: 7,
+          createdAt: new Date().toISOString(),
+          ...allData,
+        };
+        const jsonBuf = Buffer.from(
+          JSON.stringify(jsonPayload, null, 2),
+          'utf-8',
+        );
+        attachments.push({
+          filename: `fintrackly-backup-${dateStr()}.json`,
+          content: jsonBuf,
+          contentType: 'application/json',
+        });
+
+        // CSV ZIP
+        const csvResult = await buildCSVZip(allData);
+        if (csvResult) {
+          attachments.push({
+            filename: `fintrackly-data-${dateStr()}.zip`,
+            content: csvResult.buffer,
+            contentType: 'application/zip',
+          });
+          attachmentSummary = `📋 CSV data (${csvResult.count} files in ZIP) · 💾 Full JSON backup`;
+        } else {
+          attachmentSummary = `💾 Full JSON backup`;
+        }
+        console.log(
+          `Attachments: JSON (${(jsonBuf.length / 1024).toFixed(1)} KB)` +
+            (csvResult
+              ? `, CSV ZIP (${(csvResult.buffer.length / 1024).toFixed(1)} KB, ${csvResult.count} files)`
+              : ''),
+        );
+      }
+
+      const html = emailTemplate(sections, monthLbl, attachmentSummary);
+
       const info = await transporter.sendMail({
         from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
         to: testEmail,
         subject: `📊 FinTrackly Monthly Report — ${currentMonthLabel()} (Test)`,
         html,
+        attachments,
       });
       console.log('Message sent:', info.messageId);
       console.log(`\n✓ Test email sent to ${testEmail}`);
@@ -908,6 +1415,7 @@ async function main() {
     process.exit(0);
   }
 
+  // Production — all users
   let users = [],
     pageToken;
   do {
@@ -919,24 +1427,62 @@ async function main() {
   console.log(`\nFound ${users.length} users`);
   let sent = 0,
     errors = 0;
+
   for (const user of users) {
     if (!user.email) continue;
     try {
-      const html = await buildReport(user.uid);
+      const { sections, allData, monthLbl } = await buildReportAndData(
+        user.uid,
+      );
+      const attachments = [];
+      let attachmentSummary = null;
+
+      if (!skipAttachments) {
+        const jsonPayload = {
+          version: 7,
+          createdAt: new Date().toISOString(),
+          ...allData,
+        };
+        const jsonBuf = Buffer.from(
+          JSON.stringify(jsonPayload, null, 2),
+          'utf-8',
+        );
+        attachments.push({
+          filename: `fintrackly-backup-${dateStr()}.json`,
+          content: jsonBuf,
+          contentType: 'application/json',
+        });
+
+        const csvResult = await buildCSVZip(allData);
+        if (csvResult) {
+          attachments.push({
+            filename: `fintrackly-data-${dateStr()}.zip`,
+            content: csvResult.buffer,
+            contentType: 'application/zip',
+          });
+          attachmentSummary = `📋 CSV data (${csvResult.count} files in ZIP) · 💾 Full JSON backup`;
+        } else {
+          attachmentSummary = `💾 Full JSON backup`;
+        }
+      }
+
+      const html = emailTemplate(sections, monthLbl, attachmentSummary);
       await transporter.sendMail({
         from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
         to: user.email,
         subject: `📊 Your FinTrackly Monthly Report — ${currentMonthLabel()}`,
         html,
+        attachments,
       });
       console.log(`✓ sent → ${user.email}`);
       sent++;
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 800)); // slightly longer delay due to attachments
     } catch (err) {
       console.error(`✗ failed → ${user.email}:`, err.message);
       errors++;
     }
   }
+
   console.log(`\nDone — Sent: ${sent}, Errors: ${errors}`);
   process.exit(0);
 }

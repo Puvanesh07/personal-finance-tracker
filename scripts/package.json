@@ -5,7 +5,8 @@
   "main": "send-report.js",
   "dependencies": {
     "firebase-admin": "^12.0.0",
-    "nodemailer": "^6.9.13"
+    "nodemailer": "^6.9.13",
+    "jszip": "^3.10.1"
   },
   "engines": {
     "node": ">=18"

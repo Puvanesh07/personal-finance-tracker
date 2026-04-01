@@ -3,9 +3,12 @@
 import {
   FiArrowDown,
   FiArrowUp,
+  FiCalendar,
   FiCheck,
   FiDownload,
+  FiFileText,
   FiGrid,
+  FiPackage,
   FiShield,
   FiTable,
   FiTrash2,
@@ -13,8 +16,8 @@ import {
   FiUserX,
 } from 'react-icons/fi';
 import {
+  exportAllCSVAsZip,
   exportAllSectionsAsCSV,
-  exportAttendanceCSV,
 } from '../../utils/exportUtils';
 import { exportFullBackup, importFullBackup } from '../../utils/backup';
 import { useRef, useState } from 'react';
@@ -28,6 +31,81 @@ import { useAttendanceStore } from '../../store/attendanceStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 const SIP_STORAGE_KEY = 'fintrackly_sip_plan';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function StatBadge({ label, count }: { label: string; count: number }) {
+  return (
+    <div className='flex items-center justify-between bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2'>
+      <span className='text-xs text-slate-400 flex items-center gap-1.5'>
+        <FiCheck
+          className={`h-3 w-3 ${count > 0 ? 'text-emerald-400' : 'text-slate-600'}`}
+        />
+        {label}
+      </span>
+      <span
+        className={`text-xs font-bold ${count > 0 ? 'text-slate-200' : 'text-slate-600'}`}
+      >
+        {count}
+      </span>
+    </div>
+  );
+}
+
+// ── Export Card ───────────────────────────────────────────────────────────────
+function ExportCard({
+  icon,
+  iconBg,
+  iconColor,
+  title,
+  description,
+  buttonLabel,
+  buttonColor,
+  buttonBorder,
+  onClick,
+  busy,
+  tag,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  description: string;
+  buttonLabel: string;
+  buttonColor: string;
+  buttonBorder: string;
+  onClick: () => void;
+  busy?: boolean;
+  tag?: string;
+}) {
+  return (
+    <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
+      <div
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
+      >
+        <span className={iconColor}>{icon}</span>
+      </div>
+      <div className='flex-1 min-w-0'>
+        <div className='flex items-center gap-2 mb-0.5'>
+          <p className='font-bold text-slate-100 text-sm'>{title}</p>
+          {tag && (
+            <span className='text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'>
+              {tag}
+            </span>
+          )}
+        </div>
+        <p className='text-xs text-slate-500'>{description}</p>
+      </div>
+      <button
+        onClick={onClick}
+        disabled={busy}
+        className={`flex items-center gap-2 rounded-xl border ${buttonBorder} ${buttonColor} px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-50 whitespace-nowrap`}
+      >
+        <FiDownload className='h-4 w-4' />
+        {busy ? 'Exporting…' : buttonLabel}
+      </button>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPORT / IMPORT
@@ -49,7 +127,6 @@ export function ExportImport() {
   const [previewData, setPreviewData] = useState<Record<string, number>>({});
   const [pendingFile, setPendingFile] = useState<string | null>(null);
 
-  // Correctly calculating all agricultural records, including the new Produce Sales
   const agriRecordsCount =
     (agriState.fields?.length ?? 0) +
     (agriState.cropCycles?.length ?? 0) +
@@ -57,7 +134,7 @@ export function ExportImport() {
     (agriState.livestockEvents?.length ?? 0) +
     (agriState.milkRecords?.length ?? 0) +
     (agriState.coconutRecords?.length ?? 0) +
-    (agriState.produceSales?.length ?? 0); // Include Produce Sales!
+    (agriState.produceSales?.length ?? 0);
 
   const attRecordsCount =
     (attState.employees?.length ?? 0) +
@@ -65,7 +142,6 @@ export function ExportImport() {
     (attState.transactions?.length ?? 0) +
     (attState.salaryRecords?.length ?? 0);
 
-  // Build a count summary of current data for the export preview
   const exportSummary = {
     Investments: state.investments?.length ?? 0,
     'Profits (Sold)': state.soldTrades?.length ?? 0,
@@ -76,36 +152,55 @@ export function ExportImport() {
     'Insurance Policies': state.insurancePolicies?.length ?? 0,
     'Insurance Payments': (state as any).insurancePayments?.length ?? 0,
     'SIP Plans': state.sipPlans?.length ?? 0,
+    'Lending Records':
+      (state.lendingBorrowers?.length ?? 0) +
+      (state.lendingTransactions?.length ?? 0),
     'Agri Records': agriRecordsCount,
     'Attendance Records': attRecordsCount,
   };
 
-  const handleExportCSV = () => {
-    const hasFinance =
-      state.investments?.length ||
-      state.liabilities?.length ||
-      state.cashflows?.length ||
-      state.goals?.length ||
-      state.accounts?.length ||
-      state.soldTrades?.length;
-    const hasAgri = agriRecordsCount > 0;
-    const hasAtt = attRecordsCount > 0;
+  const totalRecords = Object.values(exportSummary).reduce((s, n) => s + n, 0);
 
-    if (!hasFinance && !hasAgri && !hasAtt) {
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  // Export individual CSV files (one per section)
+  const handleExportCSVSeparate = () => {
+    if (totalRecords === 0) {
       toast.error('Nothing to export — add some data first.');
       return;
     }
-    if (hasFinance || hasAgri) exportAllSectionsAsCSV(state, agriState);
-    if (hasAtt)
-      exportAttendanceCSV({
+    exportAllSectionsAsCSV(state, agriState, {
+      employees: attState.employees,
+      attendanceRecords: attState.attendanceRecords,
+      transactions: attState.transactions,
+      salaryRecords: attState.salaryRecords,
+    });
+    toast.success('All sections exported as separate CSV files.');
+  };
+
+  // Export all CSVs as a single ZIP file
+  const handleExportCSVZip = async () => {
+    if (totalRecords === 0) {
+      toast.error('Nothing to export — add some data first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await exportAllCSVAsZip(state, agriState, {
         employees: attState.employees,
         attendanceRecords: attState.attendanceRecords,
         transactions: attState.transactions,
         salaryRecords: attState.salaryRecords,
       });
-    toast.success('All data exported as CSV files.');
+      toast.success('All data exported as a single ZIP file.');
+    } catch (err: any) {
+      toast.error(err.message || 'ZIP export failed.');
+    } finally {
+      setBusy(false);
+    }
   };
 
+  // Export full JSON backup
   const handleExportJSON = async () => {
     if (!uid) {
       toast.error('Session expired. Please log in again.');
@@ -114,7 +209,7 @@ export function ExportImport() {
     setBusy(true);
     try {
       await exportFullBackup(uid);
-      toast.success('Full backup downloaded — includes all records.');
+      toast.success('Full JSON backup downloaded — includes all records.');
     } catch (err: any) {
       toast.error(err.message || 'Export failed.');
     } finally {
@@ -122,16 +217,14 @@ export function ExportImport() {
     }
   };
 
-  // Parse the JSON file first to show a preview, then confirm before restoring
+  // Parse the JSON file first for preview
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uid) return;
-
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
-      // Build preview counts from the file, correctly checking all arrays
       const importedAgriCount =
         (parsed.agriFields?.length ?? 0) +
         (parsed.agriCropCycles?.length ?? 0) +
@@ -139,7 +232,7 @@ export function ExportImport() {
         (parsed.agriLivestockEvents?.length ?? 0) +
         (parsed.agriMilkRecords?.length ?? 0) +
         (parsed.agriCoconut?.length ?? 0) +
-        (parsed.agriProduceSales?.length ?? 0); // Check imported Produce Sales
+        (parsed.agriProduceSales?.length ?? 0);
 
       const importedAttCount =
         (parsed.attEmployees?.length ?? 0) +
@@ -157,6 +250,9 @@ export function ExportImport() {
         'Insurance Policies': parsed.insurancePolicies?.length ?? 0,
         'Insurance Payments': parsed.insurancePayments?.length ?? 0,
         'SIP Plans': parsed.sipPlans?.length ?? 0,
+        'Lending Records':
+          (parsed.lendingBorrowers?.length ?? 0) +
+          (parsed.lendingTransactions?.length ?? 0),
         'Agri Records': importedAgriCount,
         'Attendance Records': importedAttCount,
       };
@@ -191,69 +287,81 @@ export function ExportImport() {
 
   return (
     <div className='flex flex-col gap-4'>
-      {/* Settings Page Header style match */}
+      {/* Section Header */}
       <div className='mb-2'>
         <h2 className='text-lg font-bold text-white flex items-center gap-2'>
           <FiGrid className='text-emerald-400' /> Export & Import
         </h2>
         <p className='text-sm text-slate-400 mt-1'>
-          Download your data as CSV or take a full JSON backup. Restore from a
-          backup anytime.
+          Download your data for analysis or as a backup. Restore from a backup
+          anytime.
         </p>
       </div>
 
-      {/* Export CSV */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
-        <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20'>
-          <FiTable className='h-5 w-5 text-emerald-400' />
-        </div>
-        <div className='flex-1 min-w-0'>
-          <p className='font-bold text-slate-100 text-sm'>Export as CSV</p>
-          <p className='text-xs text-slate-500 mt-0.5'>
-            Download all sections as separate CSV files — open in Excel or
-            Google Sheets. Includes finance, agriculture, attendance &amp;
-            salary data.
-          </p>
-        </div>
-        <button
-          onClick={handleExportCSV}
-          disabled={busy}
-          className='flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
-        >
-          <FiDownload className='h-4 w-4' /> Export CSV
-        </button>
-      </div>
-
-      {/* Export JSON */}
+      {/* ── CSV Downloads ─────────────────────────────────────────────────── */}
       <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-4'>
-        <div className='flex flex-col sm:flex-row sm:items-start gap-4'>
-          <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20'>
-            <FiArrowDown className='h-5 w-5 text-indigo-400' />
+        <div className='flex items-center gap-3'>
+          <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20'>
+            <FiTable className='h-4 w-4 text-emerald-400' />
           </div>
-          <div className='flex-1 min-w-0'>
-            <p className='font-bold text-slate-100 text-sm'>
-              Full Backup (JSON)
-            </p>
-            <p className='text-xs text-slate-500 mt-0.5'>
-              Complete backup of your entire account — finance, agriculture,
-              attendance, insurance policies &amp; payment records, SIP plan in
-              one file.
+          <div>
+            <p className='font-bold text-slate-100 text-sm'>Export as CSV</p>
+            <p className='text-xs text-slate-500'>
+              Open in Excel, Google Sheets, or any spreadsheet app.
             </p>
           </div>
-          <button
-            onClick={handleExportJSON}
-            disabled={busy}
-            className='flex items-center gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-sm font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
-          >
-            <FiDownload className='h-4 w-4' />
-            {busy ? 'Exporting…' : 'Export JSON'}
-          </button>
         </div>
 
-        {/* What's included breakdown */}
-        <div className='border-t border-slate-800 pt-3 mt-1'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-800 pt-4'>
+          {/* Separate CSVs */}
+          <div className='flex flex-col gap-2 rounded-xl border border-slate-700/50 bg-slate-800/40 p-4'>
+            <div className='flex items-center gap-2'>
+              <FiFileText className='h-4 w-4 text-emerald-400' />
+              <p className='text-sm font-bold text-slate-200'>Separate Files</p>
+            </div>
+            <p className='text-xs text-slate-500 leading-relaxed'>
+              One CSV per section — investments, cashflows, goals, agriculture,
+              attendance, insurance, lending.
+            </p>
+            <button
+              onClick={handleExportCSVSeparate}
+              disabled={busy}
+              className='mt-auto flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50'
+            >
+              <FiDownload className='h-4 w-4' /> Download Files
+            </button>
+          </div>
+
+          {/* ZIP Bundle */}
+          <div className='flex flex-col gap-2 rounded-xl border border-slate-700/50 bg-slate-800/40 p-4'>
+            <div className='flex items-center gap-2'>
+              <FiPackage className='h-4 w-4 text-teal-400' />
+              <p className='text-sm font-bold text-slate-200'>
+                Single ZIP Bundle
+              </p>
+              <span className='text-[10px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20'>
+                All-in-one
+              </span>
+            </div>
+            <p className='text-xs text-slate-500 leading-relaxed'>
+              All sections packaged into one ZIP file — easier to store and
+              share as a monthly backup.
+            </p>
+            <button
+              onClick={handleExportCSVZip}
+              disabled={busy}
+              className='mt-auto flex items-center justify-center gap-2 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-2 text-sm font-bold text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50'
+            >
+              <FiPackage className='h-4 w-4' />
+              {busy ? 'Packing…' : 'Download ZIP'}
+            </button>
+          </div>
+        </div>
+
+        {/* Record breakdown */}
+        <div className='border-t border-slate-800 pt-3'>
           <p className='text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3'>
-            What will be exported
+            What will be included ({totalRecords} records)
           </p>
           <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
             {Object.entries(exportSummary).map(([label, count]) => (
@@ -275,10 +383,54 @@ export function ExportImport() {
         </div>
       </div>
 
-      {/* Import JSON */}
+      {/* ── JSON Full Backup ───────────────────────────────────────────────── */}
+      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-4'>
+        <div className='flex flex-col sm:flex-row sm:items-start gap-4'>
+          <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20'>
+            <FiArrowDown className='h-4 w-4 text-indigo-400' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <div className='flex items-center gap-2 mb-0.5'>
+              <p className='font-bold text-slate-100 text-sm'>
+                Full Backup (JSON)
+              </p>
+              <span className='text-[10px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'>
+                Recommended
+              </span>
+            </div>
+            <p className='text-xs text-slate-500'>
+              Complete backup of your entire account — finance, agriculture,
+              attendance, insurance, lending & SIP plan in one restorable file.
+              Use this for monthly backups.
+            </p>
+          </div>
+          <button
+            onClick={handleExportJSON}
+            disabled={busy}
+            className='flex items-center gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-sm font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors disabled:opacity-50 whitespace-nowrap'
+          >
+            <FiDownload className='h-4 w-4' />
+            {busy ? 'Exporting…' : 'Export JSON'}
+          </button>
+        </div>
+
+        {/* Monthly reminder tip */}
+        <div className='flex items-start gap-2.5 rounded-xl bg-indigo-500/5 border border-indigo-500/15 p-3'>
+          <FiCalendar className='h-4 w-4 text-indigo-400 mt-0.5 shrink-0' />
+          <p className='text-xs text-slate-400'>
+            <span className='text-indigo-300 font-semibold'>
+              Monthly backup tip:
+            </span>{' '}
+            Export JSON at the end of each month and save it to Google Drive or
+            your phone. The monthly email report also reminds you to backup.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Import JSON ───────────────────────────────────────────────────── */}
       <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col sm:flex-row sm:items-center gap-4'>
-        <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 border border-sky-500/20'>
-          <FiArrowUp className='h-5 w-5 text-sky-400' />
+        <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 border border-sky-500/20'>
+          <FiArrowUp className='h-4 w-4 text-sky-400' />
         </div>
         <div className='flex-1 min-w-0'>
           <p className='font-bold text-slate-100 text-sm'>
@@ -306,7 +458,7 @@ export function ExportImport() {
         </button>
       </div>
 
-      {/* Import Preview Modal */}
+      {/* ── Import Preview Modal ───────────────────────────────────────────── */}
       <Modal
         open={previewOpen}
         onClose={() => {
@@ -332,27 +484,7 @@ export function ExportImport() {
             </p>
             <div className='grid grid-cols-2 gap-1.5'>
               {Object.entries(previewData).map(([label, count]) => (
-                <div
-                  key={label}
-                  className='flex items-center justify-between bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2'
-                >
-                  <span className='text-xs text-slate-400 flex items-center gap-1.5'>
-                    {label === 'Insurance Policies' ||
-                    label === 'Insurance Payments' ? (
-                      <FiShield className='h-3 w-3 text-blue-400' />
-                    ) : (
-                      <FiCheck
-                        className={`h-3 w-3 ${count > 0 ? 'text-emerald-400' : 'text-slate-600'}`}
-                      />
-                    )}
-                    {label}
-                  </span>
-                  <span
-                    className={`text-xs font-bold ${count > 0 ? 'text-slate-200' : 'text-slate-600'}`}
-                  >
-                    {count}
-                  </span>
-                </div>
+                <StatBadge key={label} label={label} count={count} />
               ))}
             </div>
           </div>
@@ -384,7 +516,7 @@ export function ExportImport() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DANGER ZONE (unchanged)
+// DANGER ZONE
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function DangerZone() {
@@ -455,7 +587,6 @@ export function DangerZone() {
   return (
     <>
       <div className='flex flex-col gap-4 mt-6'>
-        {/* Clear All Data */}
         <div className='flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
           <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 border border-rose-500/20'>
             <FiTrash2 className='h-5 w-5 text-rose-400' />
@@ -464,8 +595,8 @@ export function DangerZone() {
             <p className='font-bold text-slate-100 text-sm'>Clear All Data</p>
             <p className='text-xs text-slate-500 mt-0.5'>
               Permanently wipes all investments, accounts, goals, cashflows,
-              agriculture, attendance, insurance policies &amp; payments. Your
-              login credentials remain intact.
+              agriculture, attendance, insurance policies & payments. Your login
+              credentials remain intact.
             </p>
           </div>
           <button
@@ -480,7 +611,6 @@ export function DangerZone() {
           </button>
         </div>
 
-        {/* Delete Account */}
         <div className='flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5'>
           <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 border border-rose-500/30'>
             <FiUserX className='h-5 w-5 text-rose-400' />
@@ -505,7 +635,6 @@ export function DangerZone() {
         </div>
       </div>
 
-      {/* Clear All Data Modal */}
       <Modal
         open={confirmOpen}
         onClose={() => !busy && setConfirmOpen(false)}
@@ -521,7 +650,7 @@ export function DangerZone() {
           <ul className='text-xs text-slate-500 space-y-1 list-disc pl-5'>
             <li>Investments, Sold Trades, Liabilities, Cashflows, Goals</li>
             <li>Accounts, Snapshots, Net Worth history, Insights</li>
-            <li>Insurance Policies &amp; all Payment Records</li>
+            <li>Insurance Policies & all Payment Records</li>
             <li>
               Agriculture — fields, crops, livestock, milk, coconut, produce
             </li>
@@ -562,7 +691,6 @@ export function DangerZone() {
         </div>
       </Modal>
 
-      {/* Delete Account Modal */}
       <Modal
         open={deleteAccountOpen}
         onClose={() => !busy && setDeleteAccountOpen(false)}
@@ -574,9 +702,7 @@ export function DangerZone() {
               ⚠ This is permanent and irreversible
             </p>
             <ul className='text-xs text-slate-400 space-y-1 list-disc pl-4'>
-              <li>
-                All financial data, insurance policies &amp; payment records
-              </li>
+              <li>All financial data, insurance policies & payment records</li>
               <li>All agriculture and attendance records</li>
               <li>
                 Your login credentials — you will not be able to log back in
@@ -630,7 +756,6 @@ export function DangerZone() {
   );
 }
 
-// Legacy default export
 export function DataManagement() {
   return (
     <>
