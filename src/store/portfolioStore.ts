@@ -925,7 +925,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     const { totalValue } = summarizePortfolio(get().investments);
     const totalLiabilities = get().liabilities.reduce(
-      (acc, l) => acc + (l.outstanding || 0),
+      (acc, l) => acc + (l.status === 'paid' ? 0 : l.outstanding || 0),
       0,
     );
     const t = now();

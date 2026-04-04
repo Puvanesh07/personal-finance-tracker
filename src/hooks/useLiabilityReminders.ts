@@ -1,3 +1,5 @@
+// src/hooks/useLiabilityReminders.ts
+
 import { useEffect } from 'react';
 import { usePortfolioStore } from '../store/portfolioStore';
 
@@ -8,7 +10,6 @@ export function useLiabilityReminders() {
     // Only run if browser supports notifications
     if (!('Notification' in window)) return;
 
-    // Request permission if not already granted/denied
     if (
       Notification.permission !== 'granted' &&
       Notification.permission !== 'denied'
@@ -18,28 +19,32 @@ export function useLiabilityReminders() {
 
     if (Notification.permission === 'granted') {
       const now = new Date();
-      // Date exactly 3 days from now
-      const threeDaysFromNow = new Date();
-      threeDaysFromNow.setDate(now.getDate() + 3);
+      // Set the time to midnight for accurate day difference calculations
+      const today = new Date(now.setHours(0, 0, 0, 0));
 
       liabilities.forEach((liability) => {
-        // Only notify for unpaid liabilities that have a due date
-        if (liability.endDate && liability.outstanding > 0) {
-          const dueDate = new Date(liability.endDate);
+        // Guard: skip if marked as paid or no outstanding balance
+        if (liability.status === 'paid' || (liability.outstanding || 0) <= 0)
+          return;
 
-          // Check if due date is between today and 3 days from now
-          if (
-            dueDate <= threeDaysFromNow &&
-            dueDate >= new Date(now.setHours(0, 0, 0, 0))
-          ) {
+        if (liability.endDate) {
+          const dueDate = new Date(liability.endDate);
+          dueDate.setHours(0, 0, 0, 0); // Normalize due date time
+
+          // Calculate raw difference in days
+          const diffTime = dueDate.getTime() - today.getTime();
+          const daysToDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          // Check if due date is between today (0) and 3 days from now
+          if (daysToDue >= 0 && daysToDue <= 3) {
             // LocalStorage key to ensure we only send ONE notification per day per liability
-            const storageKey = `notified_liability_${liability.id}_${new Date().toDateString()}`;
+            const storageKey = `notified_liability_popup_${liability.id}_${today.toDateString()}`;
 
             if (!localStorage.getItem(storageKey)) {
               // Trigger the Push Notification
-              new Notification('Payment Reminder', {
-                body: `Repayment for "${liability.name}" (₹${liability.outstanding}) is due on ${dueDate.toLocaleDateString()}.`,
-                icon: '/icons/android-chrome-192x192.png', // uses your existing PWA icon
+              new Notification('🚨 Payment Reminder!', {
+                body: `Repayment for "${liability.name}" (₹${liability.outstanding}) is due ${daysToDue === 0 ? 'TODAY' : `in ${daysToDue} days`}.`,
+                icon: '/icons/android-chrome-192x192.png',
               });
 
               // Mark as notified for today

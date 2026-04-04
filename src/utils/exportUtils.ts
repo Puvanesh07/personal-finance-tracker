@@ -133,10 +133,37 @@ export function buildAllCSVBlobs(
           Name: l.name,
           Type: l.type,
           Principal: l.principal,
-          Outstanding: l.outstanding,
+          Outstanding: l.status === 'paid' ? 0 : l.outstanding,
+          Status: l.status || 'active',
+          'EMI Amount': l.emiAmount ?? '',
+          'EMI Day': l.emiDay ?? '',
           'Interest Rate': l.interestRate ?? '',
           'Start Date': l.startDate ?? '',
           'End Date': l.endDate ?? '',
+        })),
+      ),
+    });
+  }
+  if (state.cashflows?.length) {
+    attachments.push({
+      filename: 'cashflows.csv',
+      content: toCSVString(toFlatCashflowRows(state.cashflows, accounts)),
+    });
+  }
+  if (state.goals?.length) {
+    attachments.push({
+      filename: 'goals.csv',
+      content: toCSVString(
+        state.goals.map((g: any) => ({
+          Name: g.name,
+          'Target Amount': g.targetAmount,
+          'Current Amount': g.currentAmount,
+          Progress:
+            g.targetAmount > 0
+              ? `${Math.round((g.currentAmount / g.targetAmount) * 100)}%`
+              : '0%',
+          Status: g.status || 'active',
+          'Due Date': g.dueDate ?? '',
         })),
       ),
     });

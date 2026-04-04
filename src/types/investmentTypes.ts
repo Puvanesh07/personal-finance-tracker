@@ -22,8 +22,6 @@ export type BaseInvestment = {
   userId?: string; // Firestore owner
 };
 
-// ── Insight Snapshot ───────────────────────────────────────────────────────
-
 export type InsightSnapshot = {
   id: string;
   userId: string;
@@ -36,8 +34,6 @@ export type InsightSnapshot = {
   rebalanceRequired: boolean;
 };
 
-// ── Financial Goal (extended) ──────────────────────────────────────────────
-
 export interface FinancialGoal {
   id: string;
   name: string;
@@ -47,8 +43,6 @@ export interface FinancialGoal {
   deadline?: string;
   userId: string;
 }
-
-// ── Insight Metrics & Cards ────────────────────────────────────────────────
 
 export interface InsightMetrics {
   healthScore: number;
@@ -68,15 +62,13 @@ export interface FinancialInsight {
   icon: 'safety' | 'debt' | 'growth' | 'diversification';
 }
 
-// ── Investment Subtypes ────────────────────────────────────────────────────
-
 export type StockInvestment = BaseInvestment & {
   type: 'stock';
   quantity: number;
   buyPrice: number;
   currentPrice: number;
   sector?: string;
-  marketCap?: string; // e.g. 'Large Cap' | 'Mid Cap' | 'Small Cap' | 'Micro Cap'
+  marketCap?: string;
   usdPrice?: number;
   usdToInr?: number;
 };
@@ -86,14 +78,14 @@ export type MutualFundInvestment = BaseInvestment & {
   units: number;
   nav: number;
   investedAmount: number;
-  schemeCode?: string; // AMFI scheme code — auto-resolved on first live price refresh
-  amfiCode?: string; // alias for schemeCode (legacy support)
+  schemeCode?: string;
+  amfiCode?: string;
 };
 
 export type BondInvestment = BaseInvestment & {
   type: 'bond';
   investedAmount: number;
-  interestRate: number; // annual %
+  interestRate: number;
   durationMonths: number;
   startDate: ISODateString;
   maturityDate: ISODateString;
@@ -103,7 +95,7 @@ export type FixedDepositInvestment = BaseInvestment & {
   type: 'fixed_deposit';
   bankName: string;
   investedAmount: number;
-  interestRate: number; // annual %
+  interestRate: number;
   durationMonths: number;
   startDate: ISODateString;
   maturityDate: ISODateString;
@@ -131,8 +123,6 @@ export type Investment =
   | BondInvestment
   | FixedDepositInvestment
   | OtherInvestment;
-
-// ── Settings ───────────────────────────────────────────────────────────────
 
 export type NotionConfig = {
   token?: string;
@@ -180,7 +170,7 @@ export type InsurancePayment = {
   id: string;
   policyId: string;
   amount: number;
-  paidAt: string; // YYYY-MM-DD
+  paidAt: string;
   note?: string;
   userId: string;
   createdAt: string;
@@ -191,8 +181,6 @@ export type EssentialsConfig = {
   emergencyFundTarget?: number;
   emergencyFundCurrent?: number;
 };
-
-// ── Snapshots ──────────────────────────────────────────────────────────────
 
 export type PortfolioSnapshot = {
   id: string;
@@ -211,10 +199,7 @@ export type NetWorthSnapshot = {
   netWorth: number;
 };
 
-// ── Liabilities ────────────────────────────────────────────────────────────
-
 export type LiabilityType = 'loan' | 'credit_card' | 'other';
-
 export type LiabilityStatus = 'active' | 'paid' | 'paused';
 
 export type Liability = {
@@ -234,8 +219,6 @@ export type Liability = {
   userId?: string;
 };
 
-// ── Bank Accounts ──────────────────────────────────────────────────────────
-
 export type AccountType = 'bank' | 'credit';
 
 export type Account = {
@@ -249,8 +232,6 @@ export type Account = {
   updatedAt: string;
   userId?: string;
 };
-
-// ── Cashflow ───────────────────────────────────────────────────────────────
 
 export type CashflowType = 'income' | 'expense';
 
@@ -267,8 +248,6 @@ export type CashflowEntry = {
   userId?: string;
 };
 
-// ── Financier / Lending (NEW) ──────────────────────────────────────────────
-
 export type LendingStatus = 'active' | 'closed';
 
 export type LendingTransactionType =
@@ -282,8 +261,8 @@ export type LendingBorrower = {
   phone?: string;
   status: LendingStatus;
   notes?: string;
-  interestRate?: number; // % per month or year (user defined)
-  nextDueDate?: string; // YYYY-MM-DD
+  interestRate?: number;
+  nextDueDate?: string;
   createdAt: string;
   updatedAt: string;
   userId: string;
@@ -301,7 +280,8 @@ export type LendingTransaction = {
   userId: string;
 };
 
-// ── Goals ──────────────────────────────────────────────────────────────────
+// ── Added GoalStatus ──
+export type GoalStatus = 'active' | 'completed';
 
 export type Goal = {
   id: string;
@@ -309,12 +289,11 @@ export type Goal = {
   targetAmount: number;
   currentAmount: number;
   dueDate?: ISODateString;
+  status?: GoalStatus; // Added field
   createdAt: string;
   updatedAt: string;
   userId?: string;
 };
-
-// ── Sold Trades (Profit Tracking) ─────────────────────────────────────────
 
 export type SoldTrade = {
   id: string;
@@ -333,8 +312,6 @@ export type SoldTrade = {
   createdAt: string;
   updatedAt: string;
 };
-
-// ── Agriculture ────────────────────────────────────────────────────────────
 
 export type Season = 'summer' | 'monsoon' | 'winter';
 export type LivestockType =
@@ -375,8 +352,8 @@ export type CropCycle = {
   fieldName?: string;
   cropName: string;
   season: Season;
-  startDate: string; // YYYY-MM-DD
-  expectedHarvestDate: string; // YYYY-MM-DD
+  startDate: string;
+  expectedHarvestDate: string;
   actualHarvestDate?: string;
   investedAmount: number;
   harvestIncome: number;
@@ -394,7 +371,7 @@ export type AgriExpense = {
   cropName?: string;
   category: AgriExpenseCategory;
   amount: number;
-  date: string; // YYYY-MM-DD
+  date: string;
   notes?: string;
   accountId?: string;
   userId: string;
@@ -418,7 +395,7 @@ export type Livestock = {
 
 export type MilkRecord = {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   liters: number;
   pricePerLiter: number;
   soldTo?: string;
@@ -427,8 +404,6 @@ export type MilkRecord = {
   createdAt: string;
   updatedAt: string;
 };
-
-// ── Livestock Event Tracking ───────────────────────────────────────────────
 
 export type LivestockEventType =
   | 'existing'
@@ -445,7 +420,7 @@ export type LivestockEvent = {
   price?: number;
   accountId?: string;
   notes?: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -455,7 +430,7 @@ export type CoconutSellMethod = 'by_count' | 'by_ton';
 
 export type CoconutRecord = {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   numberOfTrees: number;
   totalCoconuts: number;
   sellMethod: CoconutSellMethod;
@@ -473,42 +448,36 @@ export type CoconutRecord = {
   updatedAt: string;
 };
 
-// ── Produce Sales (Vegetables / Fruits) ───────────────────────────────────
-
 export type ProduceUnit = 'kg' | 'box' | 'piece' | 'bunch' | 'litre' | string;
-
-export type ProduceCategory = string; // free-form: "Vegetable", "Fruit", etc.
+export type ProduceCategory = string;
 
 export type ProduceSaleLot = {
   id: string;
   userId: string;
-  produceName: string; // e.g. "Tomato", "Onion", "Drumstick"
-  category: ProduceCategory; // e.g. "Vegetable", "Fruit"
-  unit: ProduceUnit; // "kg" | "box" | "piece" | custom string
-  customUnit?: string; // filled when user picks 'custom'
-  quantity: number; // no. of units sold
-  pricePerUnit: number; // ₹ per unit
-  commissionAmount?: number; // Optional Commission reduction
-  totalAmount: number; // NET Amount: (quantity × pricePerUnit) - commissionAmount
-  date: string; // YYYY-MM-DD
-  soldTo?: string; // buyer name / market
+  produceName: string;
+  category: ProduceCategory;
+  unit: ProduceUnit;
+  customUnit?: string;
+  quantity: number;
+  pricePerUnit: number;
+  commissionAmount?: number;
+  totalAmount: number;
+  date: string;
+  soldTo?: string;
   notes?: string;
-  accountId?: string; // bank account income goes to
+  accountId?: string;
   createdAt: string;
   updatedAt: string;
 };
 
-// ── Attendance Module ──────────────────────────────────────────────────────
-
 export type PaymentStatus = 'unpaid' | 'partially_paid' | 'paid';
-
 export type TransactionType = 'advance' | 'deduction' | 'extra';
 
 export type AttendanceEmployee = {
   id: string;
   name: string;
   phone?: string;
-  dailyWage: number; // ₹ per day
+  dailyWage: number;
   notes?: string;
   userId: string;
   createdAt: string;
@@ -518,7 +487,7 @@ export type AttendanceEmployee = {
 export type AttendanceRecord = {
   id: string;
   employeeId: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   present: boolean;
   wage: number;
   extraWork?: number;
@@ -535,7 +504,7 @@ export type AttendanceTransaction = {
   type: TransactionType;
   amount: number;
   note?: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -544,7 +513,7 @@ export type AttendanceTransaction = {
 export type SalaryRecord = {
   id: string;
   employeeId: string;
-  month: string; // YYYY-MM format e.g. "2024-06"
+  month: string;
   daysWorked: number;
   baseSalary: number;
   extraWork: number;

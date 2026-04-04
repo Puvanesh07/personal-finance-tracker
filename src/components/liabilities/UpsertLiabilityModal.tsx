@@ -1,12 +1,4 @@
 // src/components/liabilities/UpsertLiabilityModal.tsx
-//
-// UPDATED — Added three optional EMI fields (matching the updated Liability type):
-//   • emiAmount  — monthly EMI instalment in ₹
-//   • emiDay     — day of month (1–31) when EMI hits
-//   • status     — 'active' | 'paid' | 'paused'
-//
-// All three are optional and show only when type === 'loan' (makes UX sense).
-// Existing create/edit flows are unchanged — the new fields default to empty.
 
 import { FiCalendar, FiChevronDown, FiPlus, FiSave } from 'react-icons/fi';
 import type {
@@ -36,7 +28,6 @@ type FormState = {
   outstanding: string;
   interestRate: string;
   endDate: string;
-  // ── New EMI fields ──
   emiAmount: string;
   emiDay: string;
   status: LiabilityStatus | '';
@@ -63,7 +54,7 @@ export function UpsertLiabilityModal(props: Props) {
       endDate: '',
       emiAmount: '',
       emiDay: '',
-      status: '',
+      status: 'active',
     };
     if (props.mode === 'edit') {
       const l = props.liability;
@@ -75,7 +66,7 @@ export function UpsertLiabilityModal(props: Props) {
       base.endDate = l.endDate || '';
       base.emiAmount = l.emiAmount != null ? String(l.emiAmount) : '';
       base.emiDay = l.emiDay != null ? String(l.emiDay) : '';
-      base.status = l.status || '';
+      base.status = l.status || 'active';
     }
     return base;
   }, [props.mode, (props as any).liability]);
@@ -97,16 +88,19 @@ export function UpsertLiabilityModal(props: Props) {
   async function onSubmit() {
     setSaving(true);
     try {
+      // Force outstanding to 0 if marked as paid to ensure global dashboard math is correct
+      const finalOutstanding =
+        state.status === 'paid' ? 0 : toNum(state.outstanding);
+
       const payload: Partial<Liability> = {
         type: state.type,
         name: state.name.trim(),
         principal: toNum(state.principal),
-        outstanding: toNum(state.outstanding),
+        outstanding: finalOutstanding,
         ...(state.interestRate.trim()
           ? { interestRate: toNum(state.interestRate) }
           : {}),
         ...(state.endDate.trim() ? { endDate: state.endDate } : {}),
-        // New fields — only include if filled in
         ...(state.emiAmount.trim()
           ? { emiAmount: toNum(state.emiAmount) }
           : {}),
@@ -158,7 +152,6 @@ export function UpsertLiabilityModal(props: Props) {
     { id: 'other', label: 'Personal / Hand Loan (Friends/Family)' },
   ];
 
-  // Show EMI fields only for loans (most relevant)
   const showEmiFields = state.type === 'loan';
 
   return (
@@ -170,7 +163,6 @@ export function UpsertLiabilityModal(props: Props) {
       }
     >
       <div className='grid grid-cols-1 gap-5'>
-        {/* Type picker (create only) */}
         {props.mode === 'create' && (
           <div className='block relative'>
             <span className={labelCls}>Type of Debt</span>
@@ -212,7 +204,6 @@ export function UpsertLiabilityModal(props: Props) {
           </div>
         )}
 
-        {/* Name */}
         <label className='block'>
           <span className={labelCls}>Name / Description</span>
           <input
@@ -223,7 +214,6 @@ export function UpsertLiabilityModal(props: Props) {
           />
         </label>
 
-        {/* Principal + Outstanding */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
             <span className={labelCls}>Total Borrowed (Initial)</span>
@@ -239,11 +229,11 @@ export function UpsertLiabilityModal(props: Props) {
               className={inputCls}
               value={state.outstanding}
               onChange={(v) => set({ outstanding: v })}
+              disabled={state.status === 'paid'}
             />
           </label>
         </div>
 
-        {/* Interest + End Date */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
             <span className={labelCls}>Interest Rate (% Yearly)</span>
@@ -254,7 +244,6 @@ export function UpsertLiabilityModal(props: Props) {
               placeholder='e.g. 0 for friends'
             />
           </label>
-
           <label className='block'>
             <span className={labelCls}>Expected Repayment Date</span>
             <div className='relative'>
@@ -284,81 +273,75 @@ export function UpsertLiabilityModal(props: Props) {
           </label>
         </div>
 
-        {/* ── EMI Fields (loans only) ── */}
         {showEmiFields && (
-          <>
-            <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
-              <p className='text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600 mb-3'>
-                EMI Details (Optional)
-              </p>
-              <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                <label className='block'>
-                  <span className={labelCls}>Monthly EMI Amount (₹)</span>
-                  <NumericInput
-                    className={inputCls}
-                    value={state.emiAmount}
-                    onChange={(v) => set({ emiAmount: v })}
-                    placeholder='e.g. 5000'
-                  />
-                </label>
-
-                <label className='block'>
-                  <span className={labelCls}>EMI Due Day (Date of Month)</span>
-                  <input
-                    type='number'
-                    className={inputCls}
-                    value={state.emiDay}
-                    onChange={(e) => set({ emiDay: e.target.value })}
-                    placeholder='e.g. 5  (5th of every month)'
-                    min={1}
-                    max={31}
-                  />
-                </label>
-              </div>
+          <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
+            <p className='text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600 mb-3'>
+              EMI Details (Optional)
+            </p>
+            <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+              <label className='block'>
+                <span className={labelCls}>Monthly EMI Amount (₹)</span>
+                <NumericInput
+                  className={inputCls}
+                  value={state.emiAmount}
+                  onChange={(v) => set({ emiAmount: v })}
+                  placeholder='e.g. 5000'
+                />
+              </label>
+              <label className='block'>
+                <span className={labelCls}>EMI Due Day (Date of Month)</span>
+                <input
+                  type='number'
+                  className={inputCls}
+                  value={state.emiDay}
+                  onChange={(e) => set({ emiDay: e.target.value })}
+                  placeholder='e.g. 5'
+                  min={1}
+                  max={31}
+                />
+              </label>
             </div>
-
-            {/* Status */}
-            <div>
-              <span className={labelCls}>Loan Status</span>
-              <div className='flex gap-2'>
-                {(
-                  [
-                    {
-                      value: 'active',
-                      label: '✅ Active',
-                      cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
-                    },
-                    {
-                      value: 'paused',
-                      label: '⏸ Paused',
-                      cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
-                    },
-                    {
-                      value: 'paid',
-                      label: '🏁 Paid Off',
-                      cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
-                    },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type='button'
-                    onClick={() => set({ status: opt.value })}
-                    className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                      state.status === opt.value
-                        ? opt.cls
-                        : 'border-slate-700 text-slate-500 hover:border-slate-500 dark:border-slate-700'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
+          </div>
         )}
 
-        {/* Actions */}
+        {/* Status is now outside the EMI block, visible to ALL types */}
+        <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
+          <span className={labelCls}>Loan / Repayment Status</span>
+          <div className='flex gap-2'>
+            {(
+              [
+                {
+                  value: 'active',
+                  label: '✅ Active',
+                  cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+                },
+                {
+                  value: 'paused',
+                  label: '⏸ Paused',
+                  cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
+                },
+                {
+                  value: 'paid',
+                  label: '🏁 Paid Off / Returned',
+                  cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
+                },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type='button'
+                onClick={() => {
+                  set({ status: opt.value });
+                  if (opt.value === 'paid') set({ outstanding: '0' });
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${state.status === opt.value ? opt.cls : 'border-slate-700 text-slate-500 hover:border-slate-500 dark:border-slate-700'}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className='mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60'>
           <button
             type='button'

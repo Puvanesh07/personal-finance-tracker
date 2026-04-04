@@ -1,6 +1,7 @@
 // src/pages/Liabilities/LiabilitiesPage.tsx
 
 import {
+  FiCheckCircle,
   FiClock,
   FiCreditCard,
   FiEdit2,
@@ -21,19 +22,21 @@ export function LiabilitiesPage() {
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const deleteLiability = usePortfolioStore((s) => s.deleteLiability);
 
-  const totalOutstanding = liabilities.reduce(
+  // Exclude Paid off debts from totals
+  const activeLiabilities = liabilities.filter((l) => l.status !== 'paid');
+
+  const totalOutstanding = activeLiabilities.reduce(
     (a, l) => a + (l.outstanding || 0),
     0,
   );
 
-  // Graph Calculations
-  const loanTotal = liabilities
+  const loanTotal = activeLiabilities
     .filter((l) => l.type === 'loan')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
-  const ccTotal = liabilities
+  const ccTotal = activeLiabilities
     .filter((l) => l.type === 'credit_card')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
-  const personalTotal = liabilities
+  const personalTotal = activeLiabilities
     .filter((l) => l.type === 'other')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
 
@@ -51,7 +54,6 @@ export function LiabilitiesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Bulk delete state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
@@ -242,12 +244,17 @@ export function LiabilitiesPage() {
           </div>
         ) : (
           liabilities.map((l) => {
+            const isPaid = l.status === 'paid';
             const daysLeft = getDaysLeft(l.endDate, l.outstanding);
 
             return (
               <div
                 key={l.id}
-                className='relative flex flex-col gap-4 rounded-2xl border border-slate-200/60 bg-white/80 p-5 shadow-sm backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/60'
+                className={`relative flex flex-col gap-4 rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur-md transition-all ${
+                  isPaid
+                    ? 'opacity-70 border-emerald-500/40 dark:bg-slate-900/40'
+                    : 'border-slate-200/60 dark:border-slate-800/60 dark:bg-slate-900/60'
+                }`}
               >
                 <div className='flex items-start justify-between gap-4'>
                   <div className='flex items-start gap-3 min-w-0 flex-1'>
@@ -260,47 +267,54 @@ export function LiabilitiesPage() {
                     <div>
                       <span
                         className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider
-                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/10 dark:border-indigo-500/20' : ''}
-                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/10 dark:border-rose-500/20' : ''}
-                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/10 dark:border-emerald-500/20' : ''}
+                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/10' : ''}
+                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/10' : ''}
+                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/10' : ''}
                         `}
                       >
                         {getTypeLabel(l.type)}
                       </span>
-                      <h3 className='mt-2 truncate text-base font-bold text-slate-900 dark:text-slate-100'>
+                      {isPaid && (
+                        <span className='ml-2 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'>
+                          <FiCheckCircle /> Returned
+                        </span>
+                      )}
+                      <h3
+                        className={`mt-2 truncate text-base font-bold ${isPaid ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-slate-100'}`}
+                      >
                         {l.name}
                       </h3>
 
-                      <div className='mt-1.5 flex flex-wrap gap-2'>
-                        {daysLeft !== null &&
-                          daysLeft <= 3 &&
-                          daysLeft >= 0 && (
-                            <span className='inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'>
-                              <FiClock /> Due in {daysLeft}d
+                      {!isPaid && (
+                        <div className='mt-1.5 flex flex-wrap gap-2'>
+                          {daysLeft !== null &&
+                            daysLeft <= 3 &&
+                            daysLeft >= 0 && (
+                              <span className='inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-500/20'>
+                                <FiClock /> Due in {daysLeft}d
+                              </span>
+                            )}
+                          {daysLeft !== null && daysLeft < 0 && (
+                            <span className='inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-500/20'>
+                              <FiClock /> Overdue!
                             </span>
                           )}
-                        {daysLeft !== null && daysLeft < 0 && (
-                          <span className='inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20'>
-                            <FiClock /> Overdue!
-                          </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className='flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50'>
                     <button
                       type='button'
-                      title='Edit'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 dark:hover:bg-slate-700'
                       onClick={() => setEditId(l.id)}
                     >
                       <FiEdit2 className='h-4 w-4' />
                     </button>
                     <button
                       type='button'
-                      title='Delete'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 dark:hover:bg-slate-700'
                       onClick={() => openDeleteModal(l.id)}
                     >
                       <FiTrash2 className='h-4 w-4' />
@@ -310,15 +324,17 @@ export function LiabilitiesPage() {
 
                 <div className='grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-slate-800'>
                   <div>
-                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
                       Pending Amount
                     </p>
-                    <p className='mt-0.5 text-lg font-black text-slate-900 dark:text-slate-100'>
-                      {formatINR(l.outstanding)}
+                    <p
+                      className={`mt-0.5 text-lg font-black ${isPaid ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
+                    >
+                      {isPaid ? '₹0.00' : formatINR(l.outstanding)}
                     </p>
                   </div>
                   <div className='text-right'>
-                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
                       Target Date
                     </p>
                     <p className='mt-0.5 text-sm font-bold text-slate-700 dark:text-slate-300'>
@@ -338,7 +354,7 @@ export function LiabilitiesPage() {
       <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/50'>
         <div className='overflow-x-auto custom-scrollbar'>
           <table className='min-w-full text-left text-sm whitespace-nowrap'>
-            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
+            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50'>
               <tr>
                 <th className='px-5 py-4 w-12'>
                   <input
@@ -377,12 +393,13 @@ export function LiabilitiesPage() {
                 </tr>
               ) : (
                 liabilities.map((l) => {
+                  const isPaid = l.status === 'paid';
                   const daysLeft = getDaysLeft(l.endDate, l.outstanding);
 
                   return (
                     <tr
                       key={l.id}
-                      className='transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                      className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${isPaid ? 'opacity-70 bg-slate-50 dark:bg-slate-800/20' : ''}`}
                     >
                       <td className='px-5 py-4'>
                         <input
@@ -395,33 +412,43 @@ export function LiabilitiesPage() {
                       <td className='px-5 py-4'>
                         <span
                           className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border
-                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' : ''}
-                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' : ''}
-                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : ''}
+                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 border-indigo-500/20' : ''}
+                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 border-rose-500/20' : ''}
+                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 border-emerald-500/20' : ''}
                         `}
                         >
                           {getTypeLabel(l.type)}
                         </span>
                       </td>
 
-                      <td className='px-5 py-4 font-bold text-slate-900 dark:text-slate-50'>
+                      <td
+                        className={`px-5 py-4 font-bold ${isPaid ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-slate-50'}`}
+                      >
                         {l.name}
-                        {daysLeft !== null &&
+                        {isPaid && (
+                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 border border-emerald-500/20'>
+                            <FiCheckCircle className='h-3 w-3' /> Returned
+                          </span>
+                        )}
+                        {!isPaid &&
+                          daysLeft !== null &&
                           daysLeft <= 3 &&
                           daysLeft >= 0 && (
-                            <span className='ml-3 inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'>
+                            <span className='ml-3 inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-500/20'>
                               <FiClock className='h-3 w-3' /> Due in {daysLeft}d
                             </span>
                           )}
-                        {daysLeft !== null && daysLeft < 0 && (
-                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20'>
+                        {!isPaid && daysLeft !== null && daysLeft < 0 && (
+                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-500/20'>
                             <FiClock className='h-3 w-3' /> Overdue!
                           </span>
                         )}
                       </td>
 
-                      <td className='px-5 py-4 text-right text-base font-black tabular-nums text-slate-800 dark:text-slate-200'>
-                        {formatINR(l.outstanding)}
+                      <td
+                        className={`px-5 py-4 text-right text-base font-black tabular-nums ${isPaid ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-200'}`}
+                      >
+                        {isPaid ? '₹0.00' : formatINR(l.outstanding)}
                       </td>
 
                       <td className='px-5 py-4 text-right font-medium tabular-nums text-slate-600 dark:text-slate-400'>
@@ -434,16 +461,14 @@ export function LiabilitiesPage() {
                         <div className='flex justify-center gap-2'>
                           <button
                             type='button'
-                            title='Edit'
-                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
+                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'
                             onClick={() => setEditId(l.id)}
                           >
                             <FiEdit2 className='h-4 w-4' />
                           </button>
                           <button
                             type='button'
-                            title='Delete'
-                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
+                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-rose-50 hover:text-rose-600'
                             onClick={() => openDeleteModal(l.id)}
                           >
                             <FiTrash2 className='h-4 w-4' />

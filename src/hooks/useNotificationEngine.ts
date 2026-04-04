@@ -1,14 +1,4 @@
 // src/hooks/useNotificationEngine.ts
-//
-// Automatically generates in-app notifications from portfolio data.
-// Call once inside AppLayout (already wired in AppLayout.tsx).
-//
-// FIXED: Uses only fields that actually exist on the Liability type.
-//  • emiDay   — optional number (day of month EMI is due)
-//  • emiAmount — optional number
-//  • status   — optional 'active' | 'paid' | 'paused'
-// All three are the new optional fields added to investmentTypes.ts.
-
 import { differenceInDays, parseISO } from 'date-fns';
 
 import { useEffect } from 'react';
@@ -50,61 +40,75 @@ export function useNotificationEngine() {
       }
     });
 
-    // ── Liability EMI Reminders ─────────────────────────────────────────────
-    // Only fires when: emiDay is set AND status is 'active' (or status not set)
+    // ── Liability EMI & End Date Reminders ───────────────────────────────────
     liabilities?.forEach((liability) => {
-      // Guard: emiDay must be a valid number 1-31
-      if (
-        !liability.emiDay ||
-        typeof liability.emiDay !== 'number' ||
-        liability.emiDay < 1 ||
-        liability.emiDay > 31
-      )
-        return;
-
       // Guard: skip if explicitly paid or paused
       if (liability.status === 'paid' || liability.status === 'paused') return;
-
       // Guard: skip if nothing outstanding
       if ((liability.outstanding ?? 0) <= 0) return;
 
-      const todayDate = today.getDate();
-      const dueDay = liability.emiDay;
-
-      // Days until next EMI (handles month rollover)
-      let daysUntilEMI: number;
-      if (dueDay >= todayDate) {
-        daysUntilEMI = dueDay - todayDate;
-      } else {
-        // Already passed this month — calculate days to next month's dueDay
-        const nextMonth = new Date(
-          today.getFullYear(),
-          today.getMonth() + 1,
-          dueDay,
+      // 1. Overall Target / End Date Check (3 Days Before popup)
+      if (liability.endDate) {
+        const daysToTarget = differenceInDays(
+          parseISO(liability.endDate),
+          today,
         );
-        daysUntilEMI = differenceInDays(nextMonth, today);
+        if (daysToTarget >= 0 && daysToTarget <= 3) {
+          addNotification({
+            type: 'liability_due',
+            title:
+              daysToTarget === 0
+                ? '🚨 Liability Due Today!'
+                : `Liability Target Due in ${daysToTarget} Day${daysToTarget === 1 ? '' : 's'}`,
+            message: `Repayment for "${liability.name}" (₹${liability.outstanding.toLocaleString('en-IN')}) is due.`,
+            entityId: `liability_target_due_${liability.id}`,
+            actionLabel: 'View Liabilities',
+            actionPath: '/liabilities',
+          });
+        }
       }
 
-      if (daysUntilEMI <= 5) {
-        const emiStr = liability.emiAmount
-          ? `₹${liability.emiAmount.toLocaleString('en-IN')}`
-          : 'Check amount';
+      // 2. EMI Day Reminders
+      if (
+        liability.emiDay &&
+        typeof liability.emiDay === 'number' &&
+        liability.emiDay >= 1 &&
+        liability.emiDay <= 31
+      ) {
+        const todayDate = today.getDate();
+        const dueDay = liability.emiDay;
 
-        addNotification({
-          type: 'liability_due',
-          title:
-            daysUntilEMI === 0
-              ? 'EMI Due Today!'
-              : `EMI Due in ${daysUntilEMI} Day${daysUntilEMI === 1 ? '' : 's'}`,
-          message: `${liability.name} — EMI of ${emiStr} is due ${
-            daysUntilEMI === 0
-              ? 'today'
-              : `on the ${dueDay}${['th', 'st', 'nd', 'rd'][[0, 1, 2, 3].includes(dueDay % 10) && ![11, 12, 13].includes(dueDay % 100) ? dueDay % 10 : 0] ?? 'th'}`
-          }.`,
-          entityId: `liability_emi_${liability.id}`,
-          actionLabel: 'View Liabilities',
-          actionPath: '/liabilities',
-        });
+        let daysUntilEMI: number;
+        if (dueDay >= todayDate) {
+          daysUntilEMI = dueDay - todayDate;
+        } else {
+          const nextMonth = new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            dueDay,
+          );
+          daysUntilEMI = differenceInDays(nextMonth, today);
+        }
+
+        if (daysUntilEMI <= 5) {
+          const emiStr = liability.emiAmount
+            ? `₹${liability.emiAmount.toLocaleString('en-IN')}`
+            : 'Check amount';
+
+          addNotification({
+            type: 'liability_due',
+            title:
+              daysUntilEMI === 0
+                ? 'EMI Due Today!'
+                : `EMI Due in ${daysUntilEMI} Day${daysUntilEMI === 1 ? '' : 's'}`,
+            message: `${liability.name} — EMI of ${emiStr} is due ${
+              daysUntilEMI === 0 ? 'today' : `on the ${dueDay}th`
+            }.`,
+            entityId: `liability_emi_${liability.id}`,
+            actionLabel: 'View Liabilities',
+            actionPath: '/liabilities',
+          });
+        }
       }
     });
 
@@ -113,8 +117,9 @@ export function useNotificationEngine() {
       if (!goal.targetAmount || goal.targetAmount <= 0) return;
 
       const pct = (goal.currentAmount / goal.targetAmount) * 100;
+      const isCompleted = pct >= 100 || goal.status === 'completed';
 
-      if (pct >= 100) {
+      if (isCompleted) {
         addNotification({
           type: 'goal_achieved',
           title: '🎉 Goal Achieved!',
@@ -134,8 +139,5 @@ export function useNotificationEngine() {
         });
       }
     });
-
-    // Re-run only when list lengths change (avoids infinite loops)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [policies?.length, liabilities?.length, goals?.length]);
 }

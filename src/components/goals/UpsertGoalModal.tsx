@@ -1,4 +1,4 @@
-// src/components/goals/UpsertGoalModal.tsx (or your respective path)
+// src/components/goals/UpsertGoalModal.tsx
 
 import {
   FiCalendar,
@@ -8,6 +8,7 @@ import {
   FiPlus,
   FiSave,
 } from 'react-icons/fi';
+import type { Goal, GoalStatus } from '../../types/investmentTypes';
 import {
   addMonths,
   eachDayOfInterval,
@@ -24,13 +25,11 @@ import {
 } from 'date-fns';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { Goal } from '../../types/investmentTypes';
 import { Modal } from '../ui/Modal';
 import { NumericInput } from '../ui/NumericInput';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-// ── Smart Calendar Picker ──────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -63,29 +62,21 @@ function CalendarPicker({
     if (!triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
     const panelW = 280;
-
-    // Dynamically grab actual rendered height, or fallback to ~340px
     const panelH = panelRef.current ? panelRef.current.offsetHeight : 340;
-
     const rawLeft = r.left + window.scrollX;
     const clampedLeft = Math.min(
       rawLeft,
       window.innerWidth + window.scrollX - panelW - 16,
     );
-
-    // Smart Upward/Downward Positioning logic
     const spaceBelow = window.innerHeight - r.bottom;
     let top = r.bottom + 8 + window.scrollY;
 
-    // Flip upwards if there's no space below but enough space above!
     if (spaceBelow < panelH && r.top > spaceBelow) {
       top = r.top - panelH - 8 + window.scrollY;
     }
-
     setPos({ top, left: Math.max(8, clampedLeft) });
   }, []);
 
-  // Update position slightly after opening to capture true DOM height
   useEffect(() => {
     if (open) {
       updatePos();
@@ -156,13 +147,12 @@ function CalendarPicker({
               position: 'absolute',
               top: pos.top,
               left: pos.left,
-              zIndex: 99999, // Super high z-index to stay above modals
+              zIndex: 99999,
               width: 280,
               animation: 'none',
             }}
             className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200'
           >
-            {/* Month nav */}
             <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
               <button
                 type='button'
@@ -183,7 +173,6 @@ function CalendarPicker({
               </button>
             </div>
 
-            {/* Day headers */}
             <div className='grid grid-cols-7 px-3 pt-3 pb-1'>
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
@@ -195,7 +184,6 @@ function CalendarPicker({
               ))}
             </div>
 
-            {/* Days grid */}
             <div className='grid grid-cols-7 px-3 pb-3 gap-y-0.5'>
               {days.map((day) => {
                 const isSelected = selectedDate
@@ -224,7 +212,6 @@ function CalendarPicker({
               })}
             </div>
 
-            {/* Footer */}
             <div className='px-3 pb-3 flex justify-between gap-2 border-t border-slate-800 pt-2'>
               <button
                 type='button'
@@ -251,8 +238,6 @@ function CalendarPicker({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-
 type Props =
   | { open: boolean; onClose: () => void; mode: 'create'; goal?: undefined }
   | { open: boolean; onClose: () => void; mode: 'edit'; goal: Goal };
@@ -262,6 +247,7 @@ type FormState = {
   targetAmount: string;
   currentAmount: string;
   dueDate: string;
+  status: GoalStatus;
 };
 
 function toNum(v: string) {
@@ -279,12 +265,14 @@ export function UpsertGoalModal(props: Props) {
       targetAmount: '0',
       currentAmount: '0',
       dueDate: '',
+      status: 'active',
     };
     if (props.mode === 'edit') {
       base.name = props.goal.name;
       base.targetAmount = String(props.goal.targetAmount);
       base.currentAmount = String(props.goal.currentAmount);
       base.dueDate = props.goal.dueDate ?? '';
+      base.status = props.goal.status ?? 'active';
     }
     return base;
   }, [props.mode, (props as any).goal]);
@@ -304,6 +292,7 @@ export function UpsertGoalModal(props: Props) {
         targetAmount: toNum(state.targetAmount),
         currentAmount: toNum(state.currentAmount),
         dueDate: state.dueDate || undefined,
+        status: state.status,
       };
       if (props.mode === 'create') await addGoal(payload as any);
       else await updateGoal(props.goal.id, payload as any);
@@ -325,7 +314,6 @@ export function UpsertGoalModal(props: Props) {
       title={props.mode === 'create' ? 'Add Goal' : 'Edit Goal'}
     >
       <div className='grid grid-cols-1 gap-5'>
-        {/* Goal Name */}
         <div>
           <label className={labelCls}>Goal Name</label>
           <input
@@ -336,7 +324,6 @@ export function UpsertGoalModal(props: Props) {
           />
         </div>
 
-        {/* Amounts + Due Date */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
           <div>
             <label className={labelCls}>Target Amount</label>
@@ -356,7 +343,6 @@ export function UpsertGoalModal(props: Props) {
             />
           </div>
 
-          {/* Due Date — CalendarPicker */}
           <div>
             <label className={labelCls}>Due Date (Optional)</label>
             <CalendarPicker
@@ -367,7 +353,35 @@ export function UpsertGoalModal(props: Props) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Status Toggle */}
+        <div>
+          <span className={labelCls}>Goal Status</span>
+          <div className='flex gap-2'>
+            <button
+              type='button'
+              onClick={() => setState((s) => ({ ...s, status: 'active' }))}
+              className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                state.status === 'active'
+                  ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-400'
+                  : 'border-slate-700 text-slate-500 hover:border-slate-500'
+              }`}
+            >
+              🔄 Active
+            </button>
+            <button
+              type='button'
+              onClick={() => setState((s) => ({ ...s, status: 'completed' }))}
+              className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                state.status === 'completed'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                  : 'border-slate-700 text-slate-500 hover:border-slate-500'
+              }`}
+            >
+              🎉 Completed / Success
+            </button>
+          </div>
+        </div>
+
         <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
           <button
             type='button'
