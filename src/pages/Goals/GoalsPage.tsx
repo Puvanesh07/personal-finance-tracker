@@ -1,35 +1,71 @@
 // src/pages/Goals/GoalsPage.tsx
+//
+// UPDATED:
+//  • Status badge shown on each goal card/row
+//  • "Add Contribution" button on each goal → opens GoalContributeModal
+//  • Contributions update currentAmount in Firestore via updateGoal
+//  • Completed/Success goals shown with a special badge and can be filtered
+//  • Filter tabs: All | Active | Completed
 
 import {
-  FiCheckCircle,
   FiEdit2,
   FiFlag,
   FiPlus,
   FiTarget,
   FiTrash2,
+  FiTrendingUp,
 } from 'react-icons/fi';
+import type { Goal, GoalStatus } from '../../types/investmentTypes';
+import {
+  GoalContributeModal,
+  UpsertGoalModal,
+} from '../../components/goals/UpsertGoalModal';
 
-import type { Goal } from '../../types/investmentTypes';
 import { GoalsSkeleton } from '../../components/loader/skeletons';
 import { Modal } from '../../components/ui/Modal';
-import { UpsertGoalModal } from '../../components/goals/UpsertGoalModal';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useState } from 'react';
+
+// ── Status Badge ──────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status?: GoalStatus }) {
+  if (!status || status === 'active') return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${
+        status === 'success'
+          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+      }`}
+    >
+      {status === 'success' ? '🏆 Success' : '✅ Completed'}
+    </span>
+  );
+}
+
+type FilterTab = 'all' | 'active' | 'done';
 
 export function GoalsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const goals = usePortfolioStore((s) => s.goals);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
+  const updateGoal = usePortfolioStore((s) => s.updateGoal);
 
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Goal | null>(null);
 
+  // Contribute modal state
+  const [contributeGoal, setContributeGoal] = useState<Goal | null>(null);
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
 
+  // Bulk Delete State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  // Filter tab
+  const [filterTab, setFilterTab] = useState<FilterTab>('all');
 
   const openDeleteModal = (id: string) => {
     setSelectedGoalId(id);
@@ -37,16 +73,14 @@ export function GoalsPage() {
   };
 
   const confirmDelete = () => {
-    if (selectedGoalId) {
-      deleteGoal(selectedGoalId);
-    }
+    if (selectedGoalId) deleteGoal(selectedGoalId);
     setDeleteOpen(false);
     setSelectedGoalId(null);
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(new Set(goals.map((g) => g.id)));
+      setSelectedIds(new Set(filteredGoals.map((g) => g.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -65,21 +99,53 @@ export function GoalsPage() {
     setBulkDeleteOpen(false);
   };
 
+  // Handle contribution: add amount to currentAmount and save contribution record
+  async function handleContribute(amount: number, date: string) {
+    if (!contributeGoal) return;
+    const newAmount = contributeGoal.currentAmount + amount;
+    // Update the goal's currentAmount in Firestore
+    await updateGoal(contributeGoal.id, {
+      currentAmount: newAmount,
+      // Auto-mark as success if target reached
+      ...(newAmount >= contributeGoal.targetAmount
+        ? {
+            status: 'success' as GoalStatus,
+            completedAt: date,
+          }
+        : {}),
+    } as any);
+    // Optionally: also save a GoalContribution sub-doc via addGoalContribution store action
+    // await addGoalContribution({ goalId: contributeGoal.id, amount, note, date })
+  }
+
+  const filteredGoals = goals.filter((g) => {
+    if (filterTab === 'active') return !g.status || g.status === 'active';
+    if (filterTab === 'done')
+      return g.status === 'completed' || g.status === 'success';
+    return true;
+  });
+
   if (!ready) return <GoalsSkeleton />;
+
+  const tabCls = (tab: FilterTab) =>
+    `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+      filterTab === tab
+        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+        : 'text-slate-500 hover:text-slate-300 border border-transparent'
+    }`;
 
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
+      {/* Header */}
       <header className='flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
             <FiFlag className='h-6 w-6' />
           </div>
-
           <div>
             <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
               Financial Goals
             </h1>
-
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
               Set, track, and achieve your long-term milestones.
             </p>
@@ -97,17 +163,49 @@ export function GoalsPage() {
         </button>
       </header>
 
-      {goals.length === 0 ? (
+      {/* Filter Tabs */}
+      {goals.length > 0 && (
+        <div className='flex items-center gap-2'>
+          <button className={tabCls('all')} onClick={() => setFilterTab('all')}>
+            All ({goals.length})
+          </button>
+          <button
+            className={tabCls('active')}
+            onClick={() => setFilterTab('active')}
+          >
+            🎯 Active (
+            {goals.filter((g) => !g.status || g.status === 'active').length})
+          </button>
+          <button
+            className={tabCls('done')}
+            onClick={() => setFilterTab('done')}
+          >
+            🏆 Done (
+            {
+              goals.filter(
+                (g) => g.status === 'completed' || g.status === 'success',
+              ).length
+            }
+            )
+          </button>
+        </div>
+      )}
+
+      {/* Content Area */}
+      {filteredGoals.length === 0 ? (
         <div className='rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 p-10 text-center'>
           <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20'>
             <FiTarget className='h-6 w-6 text-emerald-600 dark:text-emerald-400' />
           </div>
           <p className='mt-4 text-sm font-bold text-slate-600 dark:text-slate-400'>
-            No goals set yet. Start planning your future!
+            {filterTab === 'done'
+              ? 'No completed goals yet. Keep going!'
+              : 'No goals set yet. Start planning your future!'}
           </p>
         </div>
       ) : (
         <>
+          {/* Action Bar for Bulk Delete */}
           {selectedIds.size > 0 && (
             <div className='flex justify-end'>
               <button
@@ -123,20 +221,21 @@ export function GoalsPage() {
 
           {/* 📱 Mobile Card View */}
           <div className='block md:hidden space-y-4'>
-            {goals.map((g) => {
+            {filteredGoals.map((g) => {
               const pct =
                 g.targetAmount > 0
                   ? Math.min(100, (g.currentAmount / g.targetAmount) * 100)
                   : 0;
-              const isCompleted = pct >= 100 || g.status === 'completed';
+              const isCompleted = pct >= 100;
+              const isDone = g.status === 'completed' || g.status === 'success';
 
               return (
                 <div
                   key={g.id}
-                  className={`relative flex flex-col gap-4 rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur-md dark:bg-slate-900/60 transition-all ${
-                    isCompleted
-                      ? 'border-emerald-500/30 dark:border-emerald-500/30'
-                      : 'border-slate-200/60 dark:border-slate-800/60'
+                  className={`relative flex flex-col gap-4 rounded-2xl border p-5 shadow-sm backdrop-blur-md ${
+                    isDone
+                      ? 'border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/5'
+                      : 'border-slate-200/60 bg-white/80 dark:border-slate-800/60 dark:bg-slate-900/60'
                   }`}
                 >
                   <div className='flex items-start justify-between gap-4'>
@@ -148,14 +247,12 @@ export function GoalsPage() {
                         className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
                       />
                       <div className='min-w-0 flex-1'>
-                        <h3 className='truncate text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
-                          {g.name}
-                          {isCompleted && (
-                            <span className='inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'>
-                              <FiCheckCircle /> Success
-                            </span>
-                          )}
-                        </h3>
+                        <div className='flex items-center gap-2 flex-wrap'>
+                          <h3 className='truncate text-base font-bold text-slate-900 dark:text-slate-100'>
+                            {g.name}
+                          </h3>
+                          <StatusBadge status={g.status} />
+                        </div>
                         {g.dueDate && (
                           <div className='mt-1 text-xs font-medium text-slate-500 dark:text-slate-400'>
                             Due by{' '}
@@ -164,11 +261,29 @@ export function GoalsPage() {
                             </span>
                           </div>
                         )}
+                        {g.completedAt && (
+                          <div className='mt-1 text-xs font-medium text-teal-500'>
+                            Achieved on {g.completedAt}
+                          </div>
+                        )}
                       </div>
                     </div>
+                    {/* Action Buttons */}
                     <div className='flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50'>
+                      {/* Contribute button — only for active goals */}
+                      {(!g.status || g.status === 'active') && (
+                        <button
+                          type='button'
+                          title='Add Contribution'
+                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                          onClick={() => setContributeGoal(g)}
+                        >
+                          <FiTrendingUp className='h-4 w-4' />
+                        </button>
+                      )}
                       <button
                         type='button'
+                        title='Edit'
                         className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                         onClick={() => setEdit(g)}
                       >
@@ -176,6 +291,7 @@ export function GoalsPage() {
                       </button>
                       <button
                         type='button'
+                        title='Delete'
                         className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                         onClick={() => openDeleteModal(g.id)}
                       >
@@ -184,6 +300,7 @@ export function GoalsPage() {
                     </div>
                   </div>
 
+                  {/* Progress Bar */}
                   <div className='flex flex-col gap-2'>
                     <div className='flex items-center justify-between text-xs font-bold'>
                       <span className='text-slate-500 uppercase tracking-wider text-[10px]'>
@@ -196,7 +313,7 @@ export function GoalsPage() {
                             : 'text-slate-500 dark:text-slate-400'
                         }
                       >
-                        {isCompleted ? '100%' : `${pct.toFixed(1)}%`}
+                        {pct.toFixed(1)}%
                       </span>
                     </div>
                     <div className='h-2.5 w-full overflow-hidden rounded-full bg-slate-100 shadow-inner dark:bg-slate-800'>
@@ -206,11 +323,12 @@ export function GoalsPage() {
                             ? 'bg-gradient-to-r from-emerald-400 to-emerald-600'
                             : 'bg-gradient-to-r from-emerald-500 to-teal-400'
                         }`}
-                        style={{ width: isCompleted ? '100%' : `${pct}%` }}
+                        style={{ width: `${pct}%` }}
                       />
                     </div>
                   </div>
 
+                  {/* Financials */}
                   <div className='flex justify-between items-end border-t border-slate-100 pt-3 dark:border-slate-800'>
                     <div>
                       <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
@@ -244,7 +362,8 @@ export function GoalsPage() {
                       <input
                         type='checkbox'
                         checked={
-                          goals.length > 0 && selectedIds.size === goals.length
+                          filteredGoals.length > 0 &&
+                          selectedIds.size === filteredGoals.length
                         }
                         onChange={handleSelectAll}
                         className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
@@ -256,8 +375,9 @@ export function GoalsPage() {
                     <th className='px-5 py-4 text-center'>Actions</th>
                   </tr>
                 </thead>
+
                 <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
-                  {goals.map((g) => {
+                  {filteredGoals.map((g) => {
                     const pct =
                       g.targetAmount > 0
                         ? Math.min(
@@ -265,12 +385,18 @@ export function GoalsPage() {
                             (g.currentAmount / g.targetAmount) * 100,
                           )
                         : 0;
-                    const isCompleted = pct >= 100 || g.status === 'completed';
+                    const isCompleted = pct >= 100;
+                    const isDone =
+                      g.status === 'completed' || g.status === 'success';
 
                     return (
                       <tr
                         key={g.id}
-                        className='transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        className={`transition-colors ${
+                          isDone
+                            ? 'bg-amber-500/3 hover:bg-amber-500/5'
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
                       >
                         <td className='px-5 py-5'>
                           <input
@@ -281,13 +407,11 @@ export function GoalsPage() {
                           />
                         </td>
                         <td className='px-5 py-5'>
-                          <div className='font-bold text-slate-900 dark:text-slate-50 flex items-center gap-2'>
-                            {g.name}
-                            {isCompleted && (
-                              <span className='inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'>
-                                Success
-                              </span>
-                            )}
+                          <div className='flex items-center gap-2 flex-wrap'>
+                            <span className='font-bold text-slate-900 dark:text-slate-50'>
+                              {g.name}
+                            </span>
+                            <StatusBadge status={g.status} />
                           </div>
                           {g.dueDate ? (
                             <div className='mt-1 text-xs font-medium text-slate-500 dark:text-slate-400'>
@@ -297,7 +421,13 @@ export function GoalsPage() {
                               </span>
                             </div>
                           ) : null}
+                          {g.completedAt && (
+                            <div className='mt-0.5 text-xs font-medium text-teal-500'>
+                              Achieved {g.completedAt}
+                            </div>
+                          )}
                         </td>
+
                         <td className='px-5 py-5'>
                           <div className='flex flex-col gap-2'>
                             <div className='flex items-center justify-between text-xs font-bold'>
@@ -311,7 +441,7 @@ export function GoalsPage() {
                                     : 'text-slate-500'
                                 }
                               >
-                                {isCompleted ? '100%' : `${pct.toFixed(1)}%`}
+                                {pct.toFixed(1)}%
                               </span>
                             </div>
                             <div className='h-2.5 w-full overflow-hidden rounded-full bg-slate-100 shadow-inner dark:bg-slate-800'>
@@ -321,20 +451,32 @@ export function GoalsPage() {
                                     ? 'bg-gradient-to-r from-emerald-400 to-emerald-600'
                                     : 'bg-gradient-to-r from-emerald-500 to-teal-400'
                                 }`}
-                                style={{
-                                  width: isCompleted ? '100%' : `${pct}%`,
-                                }}
+                                style={{ width: `${pct}%` }}
                               />
                             </div>
                           </div>
                         </td>
+
                         <td className='px-5 py-5 text-right text-base font-black tabular-nums text-slate-900 dark:text-slate-50'>
                           {formatINR(g.targetAmount)}
                         </td>
+
                         <td className='px-5 py-5'>
                           <div className='flex justify-center gap-2'>
+                            {/* Contribute — active goals only */}
+                            {(!g.status || g.status === 'active') && (
+                              <button
+                                type='button'
+                                title='Add Contribution'
+                                className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
+                                onClick={() => setContributeGoal(g)}
+                              >
+                                <FiTrendingUp className='h-4 w-4' />
+                              </button>
+                            )}
                             <button
                               type='button'
+                              title='Edit'
                               className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
                               onClick={() => setEdit(g)}
                             >
@@ -342,6 +484,7 @@ export function GoalsPage() {
                             </button>
                             <button
                               type='button'
+                              title='Delete'
                               className='flex h-9 w-9 items-center justify-center cursor-pointer rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
                               onClick={() => openDeleteModal(g.id)}
                             >
@@ -359,6 +502,7 @@ export function GoalsPage() {
         </>
       )}
 
+      {/* Modals */}
       <UpsertGoalModal
         open={open}
         onClose={() => setOpen(false)}
@@ -373,6 +517,16 @@ export function GoalsPage() {
           goal={edit}
         />
       ) : null}
+
+      {/* Contribute Modal */}
+      {contributeGoal && (
+        <GoalContributeModal
+          open={!!contributeGoal}
+          onClose={() => setContributeGoal(null)}
+          goal={contributeGoal}
+          onContribute={handleContribute}
+        />
+      )}
 
       <Modal
         open={deleteOpen}

@@ -1,4 +1,11 @@
 // src/utils/backup.ts
+//
+// VERSION 8 — updated to include:
+//  • Goal contributions sub-collection (goalContributions)
+//  • Goal status + completedAt fields preserved in goals array
+//  • Liability returnedAt field preserved in liabilities array
+//  • EPF is stored inside investments (type: 'other', assetType: 'epf') — no separate collection needed
+//  • Import accepts v1–8 for backwards compatibility
 
 import type {
   Account,
@@ -12,6 +19,7 @@ import type {
   EssentialsConfig,
   Field,
   Goal,
+  GoalContribution,
   InsurancePayment,
   Investment,
   LendingBorrower,
@@ -24,7 +32,7 @@ import type {
   NotionConfig,
   PortfolioSnapshot,
   ProduceSaleLot,
-  SalaryRecord
+  SalaryRecord,
 } from '../types/investmentTypes';
 import {
   collection,
@@ -38,13 +46,16 @@ import type { SettingsRecord } from '../store/portfolioStore';
 import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
+// ── Backup Payload ────────────────────────────────────────────────────────────
+
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   createdAt: string;
   investments: Investment[];
-  liabilities: Liability[];
+  liabilities: Liability[]; // includes returnedAt, status fields
   cashflows: CashflowEntry[];
-  goals: Goal[];
+  goals: Goal[]; // includes status, completedAt fields
+  goalContributions?: GoalContribution[]; // NEW v8
   snapshots: PortfolioSnapshot[];
   networthSnapshots: NetWorthSnapshot[];
   accounts: Account[];
@@ -64,15 +75,20 @@ export type BackupPayload = {
   attSalary?: SalaryRecord[];
   insurancePolicies?: any[];
   insurancePayments?: InsurancePayment[];
-  lendingBorrowers?: LendingBorrower[]; // NEW
-  lendingTransactions?: LendingTransaction[]; // NEW
+  lendingBorrowers?: LendingBorrower[];
+  lendingTransactions?: LendingTransaction[];
   sipPlans?: any[];
+  soldTrades?: any[];
 };
+
+// ── Firestore helpers ─────────────────────────────────────────────────────────
 
 const userSubCol = (uid: string, col: string) =>
   collection(db, 'users', uid, col);
+
 const userSubDoc = (uid: string, col: string, id: string) =>
   doc(db, 'users', uid, col, id);
+
 const settingsDocRef = (uid: string) =>
   doc(db, 'users', uid, 'settings', 'config');
 
@@ -83,14 +99,18 @@ async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
 
 async function batchSet(uid: string, colName: string, items: any[]) {
   if (!items?.length) return;
+  // Firestore batch limit is 500 writes — chunk into 499 to be safe
   for (let i = 0; i < items.length; i += 499) {
     const batch = writeBatch(db);
     items.slice(i, i + 499).forEach((item) => {
+      if (!item?.id) return; // skip items without an id
       batch.set(userSubDoc(uid, colName, item.id), { ...item, userId: uid });
     });
     await batch.commit();
   }
 }
+
+// ── Export ────────────────────────────────────────────────────────────────────
 
 export async function exportFullBackup(uid: string) {
   if (!uid) throw new Error('You must be logged in to export data.');
@@ -100,6 +120,7 @@ export async function exportFullBackup(uid: string) {
     liabilities,
     cashflows,
     goals,
+    goalContributions, // NEW v8
     snapshots,
     networthSnapshots,
     accounts,
@@ -117,14 +138,16 @@ export async function exportFullBackup(uid: string) {
     attSalary,
     insurancePolicies,
     insurancePayments,
-    lendingBorrowers, // NEW
-    lendingTransactions, // NEW
+    lendingBorrowers,
+    lendingTransactions,
     sipPlans,
+    soldTrades,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
     fetchSub<Liability>(uid, 'liabilities'),
     fetchSub<CashflowEntry>(uid, 'cashflows'),
     fetchSub<Goal>(uid, 'goals'),
+    fetchSub<GoalContribution>(uid, 'goalContributions'), // NEW v8
     fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
     fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
     fetchSub<Account>(uid, 'accounts'),
@@ -145,6 +168,7 @@ export async function exportFullBackup(uid: string) {
     fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
     fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
     fetchSub<any>(uid, 'sipPlans'),
+    fetchSub<any>(uid, 'soldTrades'),
   ]);
 
   const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -153,12 +177,13 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 7, // Bumped to 7
+    version: 8, // ← bumped to 8
     createdAt: new Date().toISOString(),
     investments,
-    liabilities,
+    liabilities, // now includes returnedAt + status: 'returned'
     cashflows,
-    goals,
+    goals, // now includes status + completedAt
+    goalContributions, // NEW v8
     snapshots,
     networthSnapshots,
     accounts,
@@ -181,6 +206,7 @@ export async function exportFullBackup(uid: string) {
     lendingBorrowers,
     lendingTransactions,
     sipPlans,
+    soldTrades,
   };
 
   saveAs(
@@ -191,23 +217,28 @@ export async function exportFullBackup(uid: string) {
   );
 }
 
+// ── Import ────────────────────────────────────────────────────────────────────
+
 export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
 
   const parsed = JSON.parse(jsonText) as BackupPayload;
 
-  // Accept versions 1–7
-  if (!parsed || ![1, 2, 3, 4, 5, 6, 7].includes(parsed.version as number))
-    throw new Error('Unsupported backup format. Expected version 1–7.');
+  // Accept versions 1–8
+  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8];
+  if (!parsed || !supportedVersions.includes(parsed.version as number)) {
+    throw new Error('Unsupported backup format. Expected version 1–8.');
+  }
 
   await Promise.all([
     batchSet(uid, 'investments', parsed.investments ?? []),
     batchSet(uid, 'liabilities', parsed.liabilities ?? []),
     batchSet(uid, 'cashflows', parsed.cashflows ?? []),
     batchSet(uid, 'goals', parsed.goals ?? []),
+    batchSet(uid, 'goalContributions', parsed.goalContributions ?? []), // NEW v8
     batchSet(uid, 'snapshots', parsed.snapshots ?? []),
     batchSet(uid, 'networthSnapshots', parsed.networthSnapshots ?? []),
-    batchSet(uid, 'accounts', (parsed as any).accounts ?? []),
+    batchSet(uid, 'accounts', parsed.accounts ?? []),
     batchSet(uid, 'agriFields', parsed.agriFields ?? []),
     batchSet(uid, 'agriCropCycles', parsed.agriCropCycles ?? []),
     batchSet(uid, 'agriExpenses', parsed.agriExpenses ?? []),
@@ -220,13 +251,15 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'attRecords', parsed.attRecords ?? []),
     batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
     batchSet(uid, 'attSalary', parsed.attSalary ?? []),
-    batchSet(uid, 'insurancePolicies', (parsed as any).insurancePolicies ?? []),
+    batchSet(uid, 'insurancePolicies', parsed.insurancePolicies ?? []),
     batchSet(uid, 'insurancePayments', parsed.insurancePayments ?? []),
     batchSet(uid, 'lendingBorrowers', parsed.lendingBorrowers ?? []),
     batchSet(uid, 'lendingTransactions', parsed.lendingTransactions ?? []),
-    batchSet(uid, 'sipPlans', (parsed as any).sipPlans ?? []),
+    batchSet(uid, 'sipPlans', parsed.sipPlans ?? []),
+    batchSet(uid, 'soldTrades', parsed.soldTrades ?? []),
   ]);
 
+  // Restore settings document
   const batch = writeBatch(db);
   batch.set(settingsDocRef(uid), {
     notion: parsed.notion ?? { enabled: false },

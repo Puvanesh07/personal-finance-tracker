@@ -1,6 +1,20 @@
 // src/components/liabilities/UpsertLiabilityModal.tsx
+//
+// UPDATED:
+//  • Added 'returned' status option for personal/hand loans (type === 'other')
+//  • returnedAt date field appears when status === 'returned'
+//  • EMI fields still show only for type === 'loan'
+//  • Status chips adapt based on loan type:
+//    - loan/credit_card: Active | Paused | Paid Off
+//    - other (personal): Active | Returned ✓
 
-import { FiCalendar, FiChevronDown, FiPlus, FiSave } from 'react-icons/fi';
+import {
+  FiCalendar,
+  FiCheck,
+  FiChevronDown,
+  FiPlus,
+  FiSave,
+} from 'react-icons/fi';
 import type {
   Liability,
   LiabilityStatus,
@@ -31,6 +45,7 @@ type FormState = {
   emiAmount: string;
   emiDay: string;
   status: LiabilityStatus | '';
+  returnedAt: string; // ← NEW: date the money was returned
 };
 
 function toNum(v: string) {
@@ -43,6 +58,7 @@ export function UpsertLiabilityModal(props: Props) {
   const updateLiability = usePortfolioStore((s) => s.updateLiability);
 
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const returnedDateRef = useRef<HTMLInputElement>(null);
 
   const initial = useMemo<FormState>(() => {
     const base: FormState = {
@@ -54,7 +70,8 @@ export function UpsertLiabilityModal(props: Props) {
       endDate: '',
       emiAmount: '',
       emiDay: '',
-      status: 'active',
+      status: '',
+      returnedAt: '',
     };
     if (props.mode === 'edit') {
       const l = props.liability;
@@ -66,7 +83,8 @@ export function UpsertLiabilityModal(props: Props) {
       base.endDate = l.endDate || '';
       base.emiAmount = l.emiAmount != null ? String(l.emiAmount) : '';
       base.emiDay = l.emiDay != null ? String(l.emiDay) : '';
-      base.status = l.status || 'active';
+      base.status = l.status || '';
+      base.returnedAt = l.returnedAt || '';
     }
     return base;
   }, [props.mode, (props as any).liability]);
@@ -85,18 +103,21 @@ export function UpsertLiabilityModal(props: Props) {
     }
   }, [props.open, initial]);
 
+  // When status changes to 'returned', auto-fill returnedAt with today
+  useEffect(() => {
+    if (state.status === 'returned' && !state.returnedAt) {
+      set({ returnedAt: new Date().toISOString().split('T')[0] });
+    }
+  }, [state.status]);
+
   async function onSubmit() {
     setSaving(true);
     try {
-      // Force outstanding to 0 if marked as paid to ensure global dashboard math is correct
-      const finalOutstanding =
-        state.status === 'paid' ? 0 : toNum(state.outstanding);
-
       const payload: Partial<Liability> = {
         type: state.type,
         name: state.name.trim(),
         principal: toNum(state.principal),
-        outstanding: finalOutstanding,
+        outstanding: toNum(state.outstanding),
         ...(state.interestRate.trim()
           ? { interestRate: toNum(state.interestRate) }
           : {}),
@@ -106,6 +127,10 @@ export function UpsertLiabilityModal(props: Props) {
           : {}),
         ...(state.emiDay.trim() ? { emiDay: toNum(state.emiDay) } : {}),
         ...(state.status ? { status: state.status as LiabilityStatus } : {}),
+        // Save returnedAt only if status is returned
+        ...(state.status === 'returned' && state.returnedAt
+          ? { returnedAt: state.returnedAt }
+          : { returnedAt: undefined }),
       };
 
       if (props.mode === 'create') await addLiability(payload as any);
@@ -131,12 +156,12 @@ export function UpsertLiabilityModal(props: Props) {
     });
   };
 
-  const handleDateClick = () => {
-    if (dateInputRef.current) {
+  const handleDateClick = (ref: React.RefObject<HTMLInputElement>) => {
+    if (ref.current) {
       try {
-        dateInputRef.current.showPicker();
+        ref.current.showPicker();
       } catch {
-        dateInputRef.current.focus();
+        ref.current.focus();
       }
     }
   };
@@ -153,6 +178,39 @@ export function UpsertLiabilityModal(props: Props) {
   ];
 
   const showEmiFields = state.type === 'loan';
+  const isPersonalLoan = state.type === 'other';
+
+  // Status chips differ by loan type
+  const statusOptions = isPersonalLoan
+    ? ([
+        {
+          value: 'active',
+          label: '✅ Active',
+          cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+        },
+        {
+          value: 'returned',
+          label: '🤝 Returned',
+          cls: 'border-teal-500/40 bg-teal-500/8 text-teal-400',
+        },
+      ] as const)
+    : ([
+        {
+          value: 'active',
+          label: '✅ Active',
+          cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+        },
+        {
+          value: 'paused',
+          label: '⏸ Paused',
+          cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
+        },
+        {
+          value: 'paid',
+          label: '🏁 Paid Off',
+          cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
+        },
+      ] as const);
 
   return (
     <Modal
@@ -163,6 +221,7 @@ export function UpsertLiabilityModal(props: Props) {
       }
     >
       <div className='grid grid-cols-1 gap-5'>
+        {/* Type picker (create only) */}
         {props.mode === 'create' && (
           <div className='block relative'>
             <span className={labelCls}>Type of Debt</span>
@@ -191,7 +250,7 @@ export function UpsertLiabilityModal(props: Props) {
                       type='button'
                       className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
                       onClick={() => {
-                        set({ type: opt.id as LiabilityType });
+                        set({ type: opt.id as LiabilityType, status: '' });
                         setIsDropdownOpen(false);
                       }}
                     >
@@ -204,6 +263,7 @@ export function UpsertLiabilityModal(props: Props) {
           </div>
         )}
 
+        {/* Name */}
         <label className='block'>
           <span className={labelCls}>Name / Description</span>
           <input
@@ -214,6 +274,7 @@ export function UpsertLiabilityModal(props: Props) {
           />
         </label>
 
+        {/* Principal + Outstanding */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
             <span className={labelCls}>Total Borrowed (Initial)</span>
@@ -229,11 +290,11 @@ export function UpsertLiabilityModal(props: Props) {
               className={inputCls}
               value={state.outstanding}
               onChange={(v) => set({ outstanding: v })}
-              disabled={state.status === 'paid'}
             />
           </label>
         </div>
 
+        {/* Interest + End Date */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
             <span className={labelCls}>Interest Rate (% Yearly)</span>
@@ -244,12 +305,17 @@ export function UpsertLiabilityModal(props: Props) {
               placeholder='e.g. 0 for friends'
             />
           </label>
+
           <label className='block'>
             <span className={labelCls}>Expected Repayment Date</span>
             <div className='relative'>
               <div
                 className={`${inputCls} flex items-center justify-between cursor-pointer`}
-                onClick={handleDateClick}
+                onClick={() =>
+                  handleDateClick(
+                    dateInputRef as React.RefObject<HTMLInputElement>,
+                  )
+                }
               >
                 <span
                   className={
@@ -273,6 +339,7 @@ export function UpsertLiabilityModal(props: Props) {
           </label>
         </div>
 
+        {/* ── EMI Fields (formal loans only) ── */}
         {showEmiFields && (
           <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
             <p className='text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600 mb-3'>
@@ -288,6 +355,7 @@ export function UpsertLiabilityModal(props: Props) {
                   placeholder='e.g. 5000'
                 />
               </label>
+
               <label className='block'>
                 <span className={labelCls}>EMI Due Day (Date of Month)</span>
                 <input
@@ -295,7 +363,7 @@ export function UpsertLiabilityModal(props: Props) {
                   className={inputCls}
                   value={state.emiDay}
                   onChange={(e) => set({ emiDay: e.target.value })}
-                  placeholder='e.g. 5'
+                  placeholder='e.g. 5  (5th of every month)'
                   min={1}
                   max={31}
                 />
@@ -304,37 +372,31 @@ export function UpsertLiabilityModal(props: Props) {
           </div>
         )}
 
-        {/* Status is now outside the EMI block, visible to ALL types */}
+        {/* ── Status ── */}
         <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
-          <span className={labelCls}>Loan / Repayment Status</span>
+          <span className={labelCls}>
+            {isPersonalLoan ? 'Repayment Status' : 'Loan Status'}
+          </span>
+
+          {/* Helpful hint for personal loans */}
+          {isPersonalLoan && (
+            <p className='text-[11px] text-slate-500 dark:text-slate-500 mb-2'>
+              Mark as <strong className='text-teal-400'>Returned</strong> once
+              you've paid back this borrowed amount.
+            </p>
+          )}
+
           <div className='flex gap-2'>
-            {(
-              [
-                {
-                  value: 'active',
-                  label: '✅ Active',
-                  cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
-                },
-                {
-                  value: 'paused',
-                  label: '⏸ Paused',
-                  cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
-                },
-                {
-                  value: 'paid',
-                  label: '🏁 Paid Off / Returned',
-                  cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
-                },
-              ] as const
-            ).map((opt) => (
+            {statusOptions.map((opt) => (
               <button
                 key={opt.value}
                 type='button'
-                onClick={() => {
-                  set({ status: opt.value });
-                  if (opt.value === 'paid') set({ outstanding: '0' });
-                }}
-                className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${state.status === opt.value ? opt.cls : 'border-slate-700 text-slate-500 hover:border-slate-500 dark:border-slate-700'}`}
+                onClick={() => set({ status: opt.value })}
+                className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                  state.status === opt.value
+                    ? opt.cls
+                    : 'border-slate-700 text-slate-500 hover:border-slate-500 dark:border-slate-700'
+                }`}
               >
                 {opt.label}
               </button>
@@ -342,6 +404,54 @@ export function UpsertLiabilityModal(props: Props) {
           </div>
         </div>
 
+        {/* ── Returned Date (only for personal loans marked returned) ── */}
+        {isPersonalLoan && state.status === 'returned' && (
+          <div className='rounded-xl border border-teal-500/30 bg-teal-500/5 p-4'>
+            <div className='flex items-center gap-2 mb-3'>
+              <FiCheck className='h-4 w-4 text-teal-400' />
+              <span className='text-xs font-bold uppercase tracking-wider text-teal-400'>
+                Mark as Returned
+              </span>
+            </div>
+            <label className='block'>
+              <span className={labelCls}>Date Returned</span>
+              <div className='relative'>
+                <div
+                  className={`${inputCls} flex items-center justify-between cursor-pointer`}
+                  onClick={() =>
+                    handleDateClick(
+                      returnedDateRef as React.RefObject<HTMLInputElement>,
+                    )
+                  }
+                >
+                  <span
+                    className={
+                      state.returnedAt
+                        ? 'text-slate-900 dark:text-slate-100'
+                        : 'text-slate-400'
+                    }
+                  >
+                    {formatDateLabel(state.returnedAt)}
+                  </span>
+                  <FiCalendar className='h-4 w-4 shrink-0 text-slate-400' />
+                </div>
+                <input
+                  ref={returnedDateRef}
+                  type='date'
+                  className='absolute inset-0 h-full w-full opacity-0 pointer-events-none'
+                  value={state.returnedAt}
+                  onChange={(e) => set({ returnedAt: e.target.value })}
+                />
+              </div>
+            </label>
+            <p className='mt-2 text-[11px] text-teal-500/70'>
+              This record will be kept for your history but excluded from
+              outstanding totals.
+            </p>
+          </div>
+        )}
+
+        {/* Actions */}
         <div className='mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60'>
           <button
             type='button'

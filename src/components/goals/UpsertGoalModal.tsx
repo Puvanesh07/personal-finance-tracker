@@ -1,12 +1,21 @@
 // src/components/goals/UpsertGoalModal.tsx
+//
+// UPDATED:
+//  • Goal status: 'active' | 'completed' | 'success'
+//  • Contribute modal: add amounts over time with a note + date
+//  • completedAt date auto-fills when marked success/completed
+//  • Contribution history is stored in GoalContribution Firestore sub-collection
+//    (add addGoalContribution to your portfolioStore to persist)
 
 import {
   FiCalendar,
+  FiCheckCircle,
   FiChevronDown,
   FiChevronLeft,
   FiChevronRight,
   FiPlus,
   FiSave,
+  FiTrendingUp,
 } from 'react-icons/fi';
 import type { Goal, GoalStatus } from '../../types/investmentTypes';
 import {
@@ -30,6 +39,7 @@ import { NumericInput } from '../ui/NumericInput';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
+// ── Smart Calendar Picker ──────────────────────────────────────────────────
 function CalendarPicker({
   value,
   onChange,
@@ -70,7 +80,6 @@ function CalendarPicker({
     );
     const spaceBelow = window.innerHeight - r.bottom;
     let top = r.bottom + 8 + window.scrollY;
-
     if (spaceBelow < panelH && r.top > spaceBelow) {
       top = r.top - panelH - 8 + window.scrollY;
     }
@@ -149,9 +158,8 @@ function CalendarPicker({
               left: pos.left,
               zIndex: 99999,
               width: 280,
-              animation: 'none',
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200'
+            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
             <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
               <button
@@ -172,7 +180,6 @@ function CalendarPicker({
                 <FiChevronRight className='h-4 w-4' />
               </button>
             </div>
-
             <div className='grid grid-cols-7 px-3 pt-3 pb-1'>
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
@@ -183,7 +190,6 @@ function CalendarPicker({
                 </div>
               ))}
             </div>
-
             <div className='grid grid-cols-7 px-3 pb-3 gap-y-0.5'>
               {days.map((day) => {
                 const isSelected = selectedDate
@@ -211,7 +217,6 @@ function CalendarPicker({
                 );
               })}
             </div>
-
             <div className='px-3 pb-3 flex justify-between gap-2 border-t border-slate-800 pt-2'>
               <button
                 type='button'
@@ -238,6 +243,142 @@ function CalendarPicker({
   );
 }
 
+// ── Contribute Modal ──────────────────────────────────────────────────────
+// Shown when clicking "Add Contribution" on an existing goal from GoalsPage.
+// This is a separate export you can use from GoalsPage.
+
+type ContributeProps = {
+  open: boolean;
+  onClose: () => void;
+  goal: Goal;
+  /** Called with the amount to add to currentAmount */
+  onContribute: (amount: number, note: string, date: string) => Promise<void>;
+};
+
+export function GoalContributeModal({
+  open,
+  onClose,
+  goal,
+  onContribute,
+}: ContributeProps) {
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setAmount('');
+      setNote('');
+      setDate(new Date().toISOString().split('T')[0]);
+    }
+  }, [open]);
+
+  const inputCls =
+    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+  const labelCls =
+    'text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 block';
+
+  const toNum = (v: string) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const remaining = goal.targetAmount - goal.currentAmount;
+
+  async function handleSubmit() {
+    const amt = toNum(amount);
+    if (amt <= 0) return;
+    setSaving(true);
+    try {
+      await onContribute(amt, note.trim(), date);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Contribute to "${goal.name}"`}>
+      <div className='grid grid-cols-1 gap-5'>
+        {/* Progress summary */}
+        <div className='rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3'>
+          <div className='flex justify-between text-xs font-bold text-slate-400 mb-2'>
+            <span>Current: ₹{goal.currentAmount.toLocaleString('en-IN')}</span>
+            <span>Target: ₹{goal.targetAmount.toLocaleString('en-IN')}</span>
+          </div>
+          <div className='h-2 w-full overflow-hidden rounded-full bg-slate-800'>
+            <div
+              className='h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700'
+              style={{
+                width: `${Math.min(100, (goal.currentAmount / goal.targetAmount) * 100)}%`,
+              }}
+            />
+          </div>
+          <p className='mt-2 text-[11px] text-slate-500'>
+            ₹{Math.max(0, remaining).toLocaleString('en-IN')} remaining
+          </p>
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className={labelCls}>Contribution Amount (₹)</label>
+          <NumericInput
+            className={inputCls}
+            value={amount}
+            onChange={setAmount}
+            placeholder='e.g. 5000'
+          />
+        </div>
+
+        {/* Date */}
+        <div>
+          <label className={labelCls}>Date</label>
+          <CalendarPicker
+            value={date}
+            onChange={setDate}
+            placeholder='Select date'
+          />
+        </div>
+
+        {/* Note */}
+        <div>
+          <label className={labelCls}>Note (Optional)</label>
+          <input
+            className={inputCls}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder='e.g. Monthly SIP, Bonus allocation…'
+          />
+        </div>
+
+        {/* Footer */}
+        <div className='flex items-center justify-end gap-3 border-t border-slate-800/60 pt-4'>
+          <button
+            type='button'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors'
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            type='button'
+            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 disabled:opacity-60'
+            onClick={() => void handleSubmit()}
+            disabled={saving || toNum(amount) <= 0}
+          >
+            <FiTrendingUp className='h-4 w-4' />
+            <span>{saving ? 'Saving…' : 'Add Contribution'}</span>
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Main Upsert Goal Modal ────────────────────────────────────────────────
+
 type Props =
   | { open: boolean; onClose: () => void; mode: 'create'; goal?: undefined }
   | { open: boolean; onClose: () => void; mode: 'edit'; goal: Goal };
@@ -248,6 +389,7 @@ type FormState = {
   currentAmount: string;
   dueDate: string;
   status: GoalStatus;
+  completedAt: string;
 };
 
 function toNum(v: string) {
@@ -266,6 +408,7 @@ export function UpsertGoalModal(props: Props) {
       currentAmount: '0',
       dueDate: '',
       status: 'active',
+      completedAt: '',
     };
     if (props.mode === 'edit') {
       base.name = props.goal.name;
@@ -273,6 +416,7 @@ export function UpsertGoalModal(props: Props) {
       base.currentAmount = String(props.goal.currentAmount);
       base.dueDate = props.goal.dueDate ?? '';
       base.status = props.goal.status ?? 'active';
+      base.completedAt = props.goal.completedAt ?? '';
     }
     return base;
   }, [props.mode, (props as any).goal]);
@@ -280,9 +424,22 @@ export function UpsertGoalModal(props: Props) {
   const [state, setState] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
 
+  const set = (patch: Partial<FormState>) =>
+    setState((s) => ({ ...s, ...patch }));
+
   useEffect(() => {
     if (props.open) setState(initial);
   }, [props.open, initial]);
+
+  // Auto-fill completedAt when status changes to completed/success
+  useEffect(() => {
+    if (
+      (state.status === 'completed' || state.status === 'success') &&
+      !state.completedAt
+    ) {
+      set({ completedAt: new Date().toISOString().split('T')[0] });
+    }
+  }, [state.status]);
 
   async function onSubmit() {
     setSaving(true);
@@ -293,6 +450,10 @@ export function UpsertGoalModal(props: Props) {
         currentAmount: toNum(state.currentAmount),
         dueDate: state.dueDate || undefined,
         status: state.status,
+        completedAt:
+          state.status === 'active'
+            ? undefined
+            : state.completedAt || undefined,
       };
       if (props.mode === 'create') await addGoal(payload as any);
       else await updateGoal(props.goal.id, payload as any);
@@ -307,6 +468,24 @@ export function UpsertGoalModal(props: Props) {
   const labelCls =
     'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 block';
 
+  const statusOptions: { value: GoalStatus; label: string; cls: string }[] = [
+    {
+      value: 'active',
+      label: '🎯 Active',
+      cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+    },
+    {
+      value: 'completed',
+      label: '✅ Completed',
+      cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
+    },
+    {
+      value: 'success',
+      label: '🏆 Success',
+      cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
+    },
+  ];
+
   return (
     <Modal
       open={props.open}
@@ -314,23 +493,25 @@ export function UpsertGoalModal(props: Props) {
       title={props.mode === 'create' ? 'Add Goal' : 'Edit Goal'}
     >
       <div className='grid grid-cols-1 gap-5'>
+        {/* Goal Name */}
         <div>
           <label className={labelCls}>Goal Name</label>
           <input
             className={inputCls}
             value={state.name}
-            onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
+            onChange={(e) => set({ name: e.target.value })}
             placeholder='e.g. Retirement, Emergency fund, Child education'
           />
         </div>
 
+        {/* Amounts + Due Date */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
           <div>
             <label className={labelCls}>Target Amount</label>
             <NumericInput
               className={inputCls}
               value={state.targetAmount}
-              onChange={(v) => setState((s) => ({ ...s, targetAmount: v }))}
+              onChange={(v) => set({ targetAmount: v })}
             />
           </div>
 
@@ -339,7 +520,7 @@ export function UpsertGoalModal(props: Props) {
             <NumericInput
               className={inputCls}
               value={state.currentAmount}
-              onChange={(v) => setState((s) => ({ ...s, currentAmount: v }))}
+              onChange={(v) => set({ currentAmount: v })}
             />
           </div>
 
@@ -347,41 +528,54 @@ export function UpsertGoalModal(props: Props) {
             <label className={labelCls}>Due Date (Optional)</label>
             <CalendarPicker
               value={state.dueDate}
-              onChange={(v) => setState((s) => ({ ...s, dueDate: v }))}
+              onChange={(v) => set({ dueDate: v })}
               placeholder='No due date'
             />
           </div>
         </div>
 
-        {/* Status Toggle */}
-        <div>
+        {/* ── Goal Status ── */}
+        <div className='border-t border-slate-800/60 pt-4'>
           <span className={labelCls}>Goal Status</span>
           <div className='flex gap-2'>
-            <button
-              type='button'
-              onClick={() => setState((s) => ({ ...s, status: 'active' }))}
-              className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                state.status === 'active'
-                  ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-400'
-                  : 'border-slate-700 text-slate-500 hover:border-slate-500'
-              }`}
-            >
-              🔄 Active
-            </button>
-            <button
-              type='button'
-              onClick={() => setState((s) => ({ ...s, status: 'completed' }))}
-              className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                state.status === 'completed'
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                  : 'border-slate-700 text-slate-500 hover:border-slate-500'
-              }`}
-            >
-              🎉 Completed / Success
-            </button>
+            {statusOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type='button'
+                onClick={() => set({ status: opt.value })}
+                className={`flex-1 py-2 px-2 rounded-xl border text-xs font-bold transition-all ${
+                  state.status === opt.value
+                    ? opt.cls
+                    : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* ── Completion Date (only when completed or success) ── */}
+        {(state.status === 'completed' || state.status === 'success') && (
+          <div className='rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3'>
+            <div className='flex items-center gap-2 mb-3'>
+              <FiCheckCircle className='h-4 w-4 text-amber-400' />
+              <span className='text-xs font-bold uppercase tracking-wider text-amber-400'>
+                {state.status === 'success'
+                  ? 'Goal Achieved!'
+                  : 'Goal Completed'}
+              </span>
+            </div>
+            <label className={labelCls}>Date Achieved</label>
+            <CalendarPicker
+              value={state.completedAt}
+              onChange={(v) => set({ completedAt: v })}
+              placeholder='Select date'
+            />
+          </div>
+        )}
+
+        {/* Footer */}
         <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
           <button
             type='button'

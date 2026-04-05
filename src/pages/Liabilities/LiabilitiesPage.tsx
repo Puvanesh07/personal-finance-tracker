@@ -1,7 +1,13 @@
 // src/pages/Liabilities/LiabilitiesPage.tsx
+//
+// UPDATED:
+//  • Shows "Returned" badge for personal loans marked as returned
+//  • Returned loans show returnedAt date and are excluded from outstanding total
+//  • Filter tabs: All | Active | Returned
+//  • "Mark as Returned" quick-action button on personal loan rows
 
 import {
-  FiCheckCircle,
+  FiCheck,
   FiClock,
   FiCreditCard,
   FiEdit2,
@@ -11,32 +17,35 @@ import {
 } from 'react-icons/fi';
 
 import { LiabilitiesSkeleton } from '../../components/loader/skeletons';
+import type { Liability } from '../../types/investmentTypes';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertLiabilityModal } from '../../components/liabilities/UpsertLiabilityModal';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useState } from 'react';
 
+type FilterTab = 'all' | 'active' | 'returned';
+
 export function LiabilitiesPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const deleteLiability = usePortfolioStore((s) => s.deleteLiability);
+  const updateLiability = usePortfolioStore((s) => s.updateLiability);
 
-  // Exclude Paid off debts from totals
-  const activeLiabilities = liabilities.filter((l) => l.status !== 'paid');
-
-  const totalOutstanding = activeLiabilities.reduce(
+  // Only count non-returned liabilities in outstanding total
+  const activeliabilities = liabilities.filter((l) => l.status !== 'returned');
+  const totalOutstanding = activeliabilities.reduce(
     (a, l) => a + (l.outstanding || 0),
     0,
   );
 
-  const loanTotal = activeLiabilities
+  const loanTotal = activeliabilities
     .filter((l) => l.type === 'loan')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
-  const ccTotal = activeLiabilities
+  const ccTotal = activeliabilities
     .filter((l) => l.type === 'credit_card')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
-  const personalTotal = activeLiabilities
+  const personalTotal = activeliabilities
     .filter((l) => l.type === 'other')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
 
@@ -48,7 +57,6 @@ export function LiabilitiesPage() {
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-
   const edit = liabilities.find((l) => l.id === editId) ?? null;
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -56,6 +64,8 @@ export function LiabilitiesPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  const [filterTab, setFilterTab] = useState<FilterTab>('all');
 
   const openDeleteModal = (id: string) => {
     setSelectedId(id);
@@ -70,7 +80,7 @@ export function LiabilitiesPage() {
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(new Set(liabilities.map((l) => l.id)));
+      setSelectedIds(new Set(filteredLiabilities.map((l) => l.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -89,7 +99,22 @@ export function LiabilitiesPage() {
     setBulkDeleteOpen(false);
   };
 
+  // Quick "Mark as Returned" for personal loans
+  async function markAsReturned(l: Liability) {
+    await updateLiability(l.id, {
+      status: 'returned',
+      outstanding: 0,
+      returnedAt: new Date().toISOString().split('T')[0],
+    } as any);
+  }
+
   if (!ready) return <LiabilitiesSkeleton />;
+
+  const filteredLiabilities = liabilities.filter((l) => {
+    if (filterTab === 'active') return l.status !== 'returned';
+    if (filterTab === 'returned') return l.status === 'returned';
+    return true;
+  });
 
   const getTypeLabel = (type: string) => {
     if (type === 'other') return 'Personal';
@@ -107,6 +132,13 @@ export function LiabilitiesPage() {
     }
     return null;
   };
+
+  const tabCls = (tab: FilterTab) =>
+    `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+      filterTab === tab
+        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+        : 'text-slate-500 hover:text-slate-300 border border-transparent'
+    }`;
 
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
@@ -135,6 +167,7 @@ export function LiabilitiesPage() {
         </button>
       </header>
 
+      {/* Summary Cards */}
       <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
         <div className='relative overflow-hidden rounded-2xl border border-rose-600 bg-gradient-to-br from-rose-500 to-rose-700 p-6 shadow-lg shadow-rose-500/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl'>
           <div className='text-sm font-bold uppercase tracking-wider text-rose-100'>
@@ -143,13 +176,19 @@ export function LiabilitiesPage() {
           <div className='mt-3 text-4xl font-black tabular-nums tracking-tight text-white'>
             {formatINR(totalOutstanding)}
           </div>
+          {liabilities.filter((l) => l.status === 'returned').length > 0 && (
+            <div className='mt-1 text-xs text-rose-200/70'>
+              {liabilities.filter((l) => l.status === 'returned').length}{' '}
+              returned &amp; excluded
+            </div>
+          )}
           <FiCreditCard className='absolute -bottom-4 -right-4 h-32 w-32 text-rose-400/30' />
         </div>
 
         <div className='lg:col-span-2 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/50 p-6 flex flex-col justify-center'>
           <div className='flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-5'>
             <FiPieChart className='h-4 w-4' />
-            Debt Breakdown
+            Debt Breakdown (Active Only)
           </div>
 
           {totalOutstanding === 0 ? (
@@ -219,6 +258,28 @@ export function LiabilitiesPage() {
         </div>
       </div>
 
+      {/* Filter Tabs */}
+      {liabilities.length > 0 && (
+        <div className='flex items-center gap-2'>
+          <button className={tabCls('all')} onClick={() => setFilterTab('all')}>
+            All ({liabilities.length})
+          </button>
+          <button
+            className={tabCls('active')}
+            onClick={() => setFilterTab('active')}
+          >
+            Active ({liabilities.filter((l) => l.status !== 'returned').length})
+          </button>
+          <button
+            className={tabCls('returned')}
+            onClick={() => setFilterTab('returned')}
+          >
+            🤝 Returned (
+            {liabilities.filter((l) => l.status === 'returned').length})
+          </button>
+        </div>
+      )}
+
       {selectedIds.size > 0 && (
         <div className='flex justify-end'>
           <button
@@ -233,27 +294,29 @@ export function LiabilitiesPage() {
 
       {/* 📱 Mobile Card View */}
       <div className='block md:hidden space-y-4'>
-        {liabilities.length === 0 ? (
+        {filteredLiabilities.length === 0 ? (
           <div className='rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 p-10 text-center'>
             <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20'>
               <FiCreditCard className='h-6 w-6 text-emerald-600 dark:text-emerald-400' />
             </div>
             <p className='mt-4 text-sm font-bold text-slate-600 dark:text-slate-400'>
-              No records found. You're debt free!
+              {filterTab === 'returned'
+                ? 'No returned liabilities.'
+                : "No records found. You're debt free!"}
             </p>
           </div>
         ) : (
-          liabilities.map((l) => {
-            const isPaid = l.status === 'paid';
+          filteredLiabilities.map((l) => {
             const daysLeft = getDaysLeft(l.endDate, l.outstanding);
+            const isReturned = l.status === 'returned';
 
             return (
               <div
                 key={l.id}
-                className={`relative flex flex-col gap-4 rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur-md transition-all ${
-                  isPaid
-                    ? 'opacity-70 border-emerald-500/40 dark:bg-slate-900/40'
-                    : 'border-slate-200/60 dark:border-slate-800/60 dark:bg-slate-900/60'
+                className={`relative flex flex-col gap-4 rounded-2xl border p-5 shadow-sm backdrop-blur-md ${
+                  isReturned
+                    ? 'border-teal-500/20 bg-teal-500/5 dark:bg-teal-500/5 opacity-80'
+                    : 'border-slate-200/60 bg-white/80 dark:border-slate-800/60 dark:bg-slate-900/60'
                 }`}
               >
                 <div className='flex items-start justify-between gap-4'>
@@ -267,54 +330,65 @@ export function LiabilitiesPage() {
                     <div>
                       <span
                         className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider
-                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/10' : ''}
-                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/10' : ''}
-                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/10' : ''}
-                        `}
+                        ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/10 dark:border-indigo-500/20' : ''}
+                        ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/10 dark:border-rose-500/20' : ''}
+                        ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/10 dark:border-emerald-500/20' : ''}
+                      `}
                       >
                         {getTypeLabel(l.type)}
                       </span>
-                      {isPaid && (
-                        <span className='ml-2 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'>
-                          <FiCheckCircle /> Returned
-                        </span>
-                      )}
-                      <h3
-                        className={`mt-2 truncate text-base font-bold ${isPaid ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-slate-100'}`}
-                      >
+                      <h3 className='mt-2 truncate text-base font-bold text-slate-900 dark:text-slate-100'>
                         {l.name}
                       </h3>
 
-                      {!isPaid && (
-                        <div className='mt-1.5 flex flex-wrap gap-2'>
-                          {daysLeft !== null &&
-                            daysLeft <= 3 &&
-                            daysLeft >= 0 && (
-                              <span className='inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-500/20'>
-                                <FiClock /> Due in {daysLeft}d
-                              </span>
-                            )}
-                          {daysLeft !== null && daysLeft < 0 && (
-                            <span className='inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-500/20'>
-                              <FiClock /> Overdue!
+                      <div className='mt-1.5 flex flex-wrap gap-2'>
+                        {isReturned && (
+                          <span className='inline-flex items-center gap-1 rounded bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400 border border-teal-500/20'>
+                            <FiCheck className='h-3 w-3' /> Returned{' '}
+                            {l.returnedAt ?? ''}
+                          </span>
+                        )}
+                        {!isReturned &&
+                          daysLeft !== null &&
+                          daysLeft <= 3 &&
+                          daysLeft >= 0 && (
+                            <span className='inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'>
+                              <FiClock /> Due in {daysLeft}d
                             </span>
                           )}
-                        </div>
-                      )}
+                        {!isReturned && daysLeft !== null && daysLeft < 0 && (
+                          <span className='inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20'>
+                            <FiClock /> Overdue!
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   <div className='flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50'>
+                    {/* Quick "Mark Returned" for active personal loans */}
+                    {l.type === 'other' && !isReturned && (
+                      <button
+                        type='button'
+                        title='Mark as Returned'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-teal-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-teal-400'
+                        onClick={() => void markAsReturned(l)}
+                      >
+                        <FiCheck className='h-4 w-4' />
+                      </button>
+                    )}
                     <button
                       type='button'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 dark:hover:bg-slate-700'
+                      title='Edit'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                       onClick={() => setEditId(l.id)}
                     >
                       <FiEdit2 className='h-4 w-4' />
                     </button>
                     <button
                       type='button'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 dark:hover:bg-slate-700'
+                      title='Delete'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                       onClick={() => openDeleteModal(l.id)}
                     >
                       <FiTrash2 className='h-4 w-4' />
@@ -324,17 +398,17 @@ export function LiabilitiesPage() {
 
                 <div className='grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-slate-800'>
                   <div>
-                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-                      Pending Amount
+                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                      {isReturned ? 'Original Amount' : 'Pending Amount'}
                     </p>
                     <p
-                      className={`mt-0.5 text-lg font-black ${isPaid ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
+                      className={`mt-0.5 text-lg font-black ${isReturned ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}
                     >
-                      {isPaid ? '₹0.00' : formatINR(l.outstanding)}
+                      {formatINR(l.principal)}
                     </p>
                   </div>
                   <div className='text-right'>
-                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                    <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                       Target Date
                     </p>
                     <p className='mt-0.5 text-sm font-bold text-slate-700 dark:text-slate-300'>
@@ -354,14 +428,14 @@ export function LiabilitiesPage() {
       <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/50'>
         <div className='overflow-x-auto custom-scrollbar'>
           <table className='min-w-full text-left text-sm whitespace-nowrap'>
-            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50'>
+            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
               <tr>
                 <th className='px-5 py-4 w-12'>
                   <input
                     type='checkbox'
                     checked={
-                      liabilities.length > 0 &&
-                      selectedIds.size === liabilities.length
+                      filteredLiabilities.length > 0 &&
+                      selectedIds.size === filteredLiabilities.length
                     }
                     onChange={handleSelectAll}
                     className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
@@ -369,13 +443,13 @@ export function LiabilitiesPage() {
                 </th>
                 <th className='px-5 py-4'>Type</th>
                 <th className='px-5 py-4'>Name / Description</th>
-                <th className='px-5 py-4 text-right'>Pending Amount</th>
+                <th className='px-5 py-4 text-right'>Amount</th>
                 <th className='px-5 py-4 text-right'>Target Date</th>
                 <th className='px-5 py-4 text-center'>Actions</th>
               </tr>
             </thead>
             <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
-              {liabilities.length === 0 ? (
+              {filteredLiabilities.length === 0 ? (
                 <tr>
                   <td
                     className='px-5 py-12 text-center text-slate-500'
@@ -386,20 +460,26 @@ export function LiabilitiesPage() {
                         <FiCreditCard className='h-8 w-8 text-slate-400' />
                       </div>
                       <p className='font-bold'>
-                        No records found. You're debt free!
+                        {filterTab === 'returned'
+                          ? 'No returned liabilities.'
+                          : "No records found. You're debt free!"}
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                liabilities.map((l) => {
-                  const isPaid = l.status === 'paid';
+                filteredLiabilities.map((l) => {
                   const daysLeft = getDaysLeft(l.endDate, l.outstanding);
+                  const isReturned = l.status === 'returned';
 
                   return (
                     <tr
                       key={l.id}
-                      className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${isPaid ? 'opacity-70 bg-slate-50 dark:bg-slate-800/20' : ''}`}
+                      className={`transition-colors ${
+                        isReturned
+                          ? 'bg-teal-500/3 opacity-75 hover:opacity-100'
+                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                      }`}
                     >
                       <td className='px-5 py-4'>
                         <input
@@ -412,43 +492,46 @@ export function LiabilitiesPage() {
                       <td className='px-5 py-4'>
                         <span
                           className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border
-                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 border-indigo-500/20' : ''}
-                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 border-rose-500/20' : ''}
-                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 border-emerald-500/20' : ''}
+                          ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' : ''}
+                          ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' : ''}
+                          ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : ''}
                         `}
                         >
                           {getTypeLabel(l.type)}
                         </span>
                       </td>
 
-                      <td
-                        className={`px-5 py-4 font-bold ${isPaid ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-slate-50'}`}
-                      >
+                      <td className='px-5 py-4 font-bold text-slate-900 dark:text-slate-50'>
                         {l.name}
-                        {isPaid && (
-                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 border border-emerald-500/20'>
-                            <FiCheckCircle className='h-3 w-3' /> Returned
+                        {isReturned && (
+                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400 border border-teal-500/20'>
+                            <FiCheck className='h-3 w-3' /> Returned{' '}
+                            {l.returnedAt ?? ''}
                           </span>
                         )}
-                        {!isPaid &&
+                        {!isReturned &&
                           daysLeft !== null &&
                           daysLeft <= 3 &&
                           daysLeft >= 0 && (
-                            <span className='ml-3 inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 border border-orange-500/20'>
+                            <span className='ml-3 inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-500/20'>
                               <FiClock className='h-3 w-3' /> Due in {daysLeft}d
                             </span>
                           )}
-                        {!isPaid && daysLeft !== null && daysLeft < 0 && (
-                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-500/20'>
+                        {!isReturned && daysLeft !== null && daysLeft < 0 && (
+                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20'>
                             <FiClock className='h-3 w-3' /> Overdue!
                           </span>
                         )}
                       </td>
 
-                      <td
-                        className={`px-5 py-4 text-right text-base font-black tabular-nums ${isPaid ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-200'}`}
-                      >
-                        {isPaid ? '₹0.00' : formatINR(l.outstanding)}
+                      <td className='px-5 py-4 text-right text-base font-black tabular-nums text-slate-800 dark:text-slate-200'>
+                        {isReturned ? (
+                          <span className='line-through text-slate-400 text-sm'>
+                            {formatINR(l.principal)}
+                          </span>
+                        ) : (
+                          formatINR(l.outstanding)
+                        )}
                       </td>
 
                       <td className='px-5 py-4 text-right font-medium tabular-nums text-slate-600 dark:text-slate-400'>
@@ -459,16 +542,29 @@ export function LiabilitiesPage() {
 
                       <td className='px-5 py-4'>
                         <div className='flex justify-center gap-2'>
+                          {/* Quick Mark as Returned for personal loans */}
+                          {l.type === 'other' && !isReturned && (
+                            <button
+                              type='button'
+                              title='Mark as Returned'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-500/20 dark:hover:text-teal-400'
+                              onClick={() => void markAsReturned(l)}
+                            >
+                              <FiCheck className='h-4 w-4' />
+                            </button>
+                          )}
                           <button
                             type='button'
-                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'
+                            title='Edit'
+                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
                             onClick={() => setEditId(l.id)}
                           >
                             <FiEdit2 className='h-4 w-4' />
                           </button>
                           <button
                             type='button'
-                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-rose-50 hover:text-rose-600'
+                            title='Delete'
+                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
                             onClick={() => openDeleteModal(l.id)}
                           >
                             <FiTrash2 className='h-4 w-4' />
@@ -484,6 +580,7 @@ export function LiabilitiesPage() {
         </div>
       </div>
 
+      {/* Modals */}
       <UpsertLiabilityModal
         open={open}
         onClose={() => setOpen(false)}

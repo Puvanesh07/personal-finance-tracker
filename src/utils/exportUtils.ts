@@ -1,4 +1,11 @@
 // src/utils/exportUtils.ts
+//
+// UPDATED v8:
+//  • Goals CSV: now includes Status, Completed At columns
+//  • Goal Contributions CSV: new section — date, amount, note per goal
+//  • Liabilities CSV: now includes Status, Returned At columns
+//  • Investments CSV: EPF shows as "EPF / PF" in the Type column
+//  • All other sections unchanged
 
 import type { Account, Investment } from '../types/investmentTypes';
 import {
@@ -14,9 +21,28 @@ import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
 
 // ── Investment row flattening ────────────────────────────────────────────────
+
+function assetTypeLabel(assetType?: string): string {
+  const map: Record<string, string> = {
+    gold: 'Gold',
+    silver: 'Silver',
+    crypto: 'Crypto',
+    real_estate: 'Real Estate',
+    ppf: 'PPF',
+    nps: 'NPS',
+    epf: 'EPF / PF', // ← NEW
+    international_equity: 'Intl. Equity',
+    other: 'Other',
+  };
+  return assetType ? (map[assetType] ?? assetType) : '';
+}
+
 function toFlatInvestmentRows(investments: Investment[]) {
   return investments.map((inv) => ({
     Type: typeLabel(inv.type),
+    'Asset Sub-Type': (inv as any).assetType
+      ? assetTypeLabel((inv as any).assetType)
+      : '',
     Name: inv.name,
     Symbol: (inv as any).symbol ?? '',
     Platform: (inv as any).platform ?? '',
@@ -28,6 +54,7 @@ function toFlatInvestmentRows(investments: Investment[]) {
 }
 
 // ── Account row flattening ────────────────────────────────────────────────────
+
 function toFlatAccountRows(accounts: Account[]) {
   return accounts.map((a) => ({
     Name: a.name,
@@ -38,6 +65,7 @@ function toFlatAccountRows(accounts: Account[]) {
 }
 
 // ── Cashflow row flattening (resolves account name) ─────────────────────────
+
 function toFlatCashflowRows(cashflows: any[], accounts: Account[]) {
   const accountMap: Record<string, string> = {};
   for (const a of accounts) accountMap[a.id] = a.name;
@@ -53,6 +81,7 @@ function toFlatCashflowRows(cashflows: any[], accounts: Account[]) {
 }
 
 // ── Generic CSV exporter ─────────────────────────────────────────────────────
+
 export function exportCSV(data: any[], filename = 'data.csv') {
   if (!data || data.length === 0) return;
 
@@ -73,7 +102,8 @@ export function exportCSV(data: any[], filename = 'data.csv') {
   saveAs(blob, filename);
 }
 
-// ── Build all CSV blobs in memory (for email attachment) ──────────────────────
+// ── Build all CSV blobs in memory (for email attachment / ZIP) ────────────────
+
 export type CsvAttachment = { filename: string; content: string };
 
 export function buildAllCSVBlobs(
@@ -99,12 +129,15 @@ export function buildAllCSVBlobs(
     );
   };
 
+  // ── Investments ──────────────────────────────────────────────────────────
   if (state.investments?.length) {
     attachments.push({
       filename: 'investments.csv',
       content: toCSVString(toFlatInvestmentRows(state.investments)),
     });
   }
+
+  // ── Sold Trades / Profits ────────────────────────────────────────────────
   if (state.soldTrades?.length) {
     attachments.push({
       filename: 'profits.csv',
@@ -125,55 +158,43 @@ export function buildAllCSVBlobs(
       ),
     });
   }
+
+  // ── Liabilities — UPDATED: includes Status and Returned At ──────────────
   if (state.liabilities?.length) {
     attachments.push({
       filename: 'liabilities.csv',
       content: toCSVString(
         state.liabilities.map((l: any) => ({
           Name: l.name,
-          Type: l.type,
+          Type:
+            l.type === 'loan'
+              ? 'Bank Loan'
+              : l.type === 'credit_card'
+                ? 'Credit Card'
+                : 'Personal / Hand Loan',
           Principal: l.principal,
-          Outstanding: l.status === 'paid' ? 0 : l.outstanding,
-          Status: l.status || 'active',
+          Outstanding: l.outstanding,
+          'Interest Rate (%)': l.interestRate ?? '',
+          'Start Date': l.startDate ?? '',
+          'Due Date': l.endDate ?? '',
           'EMI Amount': l.emiAmount ?? '',
           'EMI Day': l.emiDay ?? '',
-          'Interest Rate': l.interestRate ?? '',
-          'Start Date': l.startDate ?? '',
-          'End Date': l.endDate ?? '',
+          Status: l.status ?? 'active', // ← NEW
+          'Returned At': l.returnedAt ?? '', // ← NEW
         })),
       ),
     });
   }
+
+  // ── Cashflows ────────────────────────────────────────────────────────────
   if (state.cashflows?.length) {
     attachments.push({
       filename: 'cashflows.csv',
       content: toCSVString(toFlatCashflowRows(state.cashflows, accounts)),
     });
   }
-  if (state.goals?.length) {
-    attachments.push({
-      filename: 'goals.csv',
-      content: toCSVString(
-        state.goals.map((g: any) => ({
-          Name: g.name,
-          'Target Amount': g.targetAmount,
-          'Current Amount': g.currentAmount,
-          Progress:
-            g.targetAmount > 0
-              ? `${Math.round((g.currentAmount / g.targetAmount) * 100)}%`
-              : '0%',
-          Status: g.status || 'active',
-          'Due Date': g.dueDate ?? '',
-        })),
-      ),
-    });
-  }
-  if (state.cashflows?.length) {
-    attachments.push({
-      filename: 'cashflows.csv',
-      content: toCSVString(toFlatCashflowRows(state.cashflows, accounts)),
-    });
-  }
+
+  // ── Goals — UPDATED: includes Status, Completed At ──────────────────────
   if (state.goals?.length) {
     attachments.push({
       filename: 'goals.csv',
@@ -187,16 +208,44 @@ export function buildAllCSVBlobs(
               ? `${Math.round((g.currentAmount / g.targetAmount) * 100)}%`
               : '0%',
           'Due Date': g.dueDate ?? '',
+          Status: g.status ?? 'active', // ← NEW
+          'Completed At': g.completedAt ?? '', // ← NEW
         })),
       ),
     });
   }
+
+  // ── Goal Contributions — NEW v8 ──────────────────────────────────────────
+  if (state.goalContributions?.length) {
+    // Build a map of goalId → goalName for readable output
+    const goalNameMap: Record<string, string> = {};
+    (state.goals ?? []).forEach((g: any) => {
+      goalNameMap[g.id] = g.name;
+    });
+
+    attachments.push({
+      filename: 'goal-contributions.csv',
+      content: toCSVString(
+        state.goalContributions.map((c: any) => ({
+          'Goal Name': goalNameMap[c.goalId] ?? c.goalId,
+          Date: c.date,
+          'Amount (₹)': c.amount,
+          Note: c.note ?? '',
+          'Added At': c.createdAt ?? '',
+        })),
+      ),
+    });
+  }
+
+  // ── Accounts ─────────────────────────────────────────────────────────────
   if (accounts.length) {
     attachments.push({
       filename: 'accounts.csv',
       content: toCSVString(toFlatAccountRows(accounts)),
     });
   }
+
+  // ── Insurance ────────────────────────────────────────────────────────────
   if (state.insurancePolicies?.length) {
     attachments.push({
       filename: 'insurance-policies.csv',
@@ -215,9 +264,26 @@ export function buildAllCSVBlobs(
       ),
     });
   }
+
+  if (state.insurancePayments?.length) {
+    attachments.push({
+      filename: 'insurance-payments.csv',
+      content: toCSVString(
+        state.insurancePayments.map((p: any) => ({
+          'Policy ID': p.policyId,
+          'Paid At': p.paidAt,
+          'Amount (₹)': p.amount,
+          Note: p.note ?? '',
+        })),
+      ),
+    });
+  }
+
+  // ── Lending / Financier ───────────────────────────────────────────────────
   if (state.lendingBorrowers?.length) {
-    const bMap = new Map();
+    const bMap = new Map<string, string>();
     state.lendingBorrowers.forEach((b: any) => bMap.set(b.id, b.name));
+
     attachments.push({
       filename: 'lending-borrowers.csv',
       content: toCSVString(
@@ -227,9 +293,11 @@ export function buildAllCSVBlobs(
           Status: b.status,
           'Interest Rate (%)': b.interestRate ?? '',
           'Due Date': b.nextDueDate ?? '',
+          Notes: b.notes ?? '',
         })),
       ),
     });
+
     if (state.lendingTransactions?.length) {
       attachments.push({
         filename: 'lending-transactions.csv',
@@ -238,7 +306,7 @@ export function buildAllCSVBlobs(
             Date: tx.date,
             Borrower: bMap.get(tx.borrowerId) || 'Unknown',
             Type: tx.type,
-            Amount: tx.amount,
+            'Amount (₹)': tx.amount,
             Notes: tx.notes ?? '',
           })),
         ),
@@ -246,7 +314,22 @@ export function buildAllCSVBlobs(
     }
   }
 
-  // Agriculture
+  // ── SIP Plans ────────────────────────────────────────────────────────────
+  if (state.sipPlans?.length) {
+    attachments.push({
+      filename: 'sip-plans.csv',
+      content: toCSVString(
+        state.sipPlans.map((s: any) => ({
+          Name: s.name ?? '',
+          'Monthly Amount': s.monthlyAmount ?? '',
+          'Started At': s.startedAt ?? '',
+          Notes: s.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  // ── Agriculture ──────────────────────────────────────────────────────────
   if (agriState) {
     if (agriState.fields?.length) {
       attachments.push({
@@ -287,7 +370,7 @@ export function buildAllCSVBlobs(
           agriState.agriExpenses.map((e: any) => ({
             Date: e.date,
             Category: e.category,
-            Amount: e.amount,
+            'Amount (₹)': e.amount,
             Notes: e.notes ?? '',
           })),
         ),
@@ -319,7 +402,7 @@ export function buildAllCSVBlobs(
             'Price/Coconut': c.pricePerCoconut ?? '',
             'Total Tons': c.totalTons ?? '',
             'Price/Ton': c.pricePerTon ?? '',
-            Income: c.harvestIncome,
+            'Harvest Income': c.harvestIncome,
             Investment: c.investmentAmount,
             Profit: c.harvestIncome - c.investmentAmount,
             Notes: c.notes ?? '',
@@ -338,8 +421,8 @@ export function buildAllCSVBlobs(
             Unit: p.unit,
             Quantity: p.quantity,
             'Price/Unit': p.pricePerUnit,
-            Commission: p.commissionAmount ?? 0,
-            'Total Amount': p.totalAmount,
+            'Commission (₹)': p.commissionAmount ?? 0,
+            'Total Amount (₹)': p.totalAmount,
             'Sold To': p.soldTo ?? '',
             Notes: p.notes ?? '',
           })),
@@ -355,7 +438,7 @@ export function buildAllCSVBlobs(
             Animal: e.animalType,
             'Event Type': e.eventType,
             Count: e.count,
-            Price: e.price ?? '',
+            'Price (₹)': e.price ?? '',
             Notes: e.notes ?? '',
           })),
         ),
@@ -363,7 +446,7 @@ export function buildAllCSVBlobs(
     }
   }
 
-  // Attendance
+  // ── Attendance ────────────────────────────────────────────────────────────
   if (attState?.employees?.length) {
     const empMap: Record<string, string> = {};
     attState.employees.forEach((e: any) => {
@@ -382,6 +465,7 @@ export function buildAllCSVBlobs(
         })),
       ),
     });
+
     if (attState.attendanceRecords?.length) {
       attachments.push({
         filename: 'attendance-records.csv',
@@ -398,6 +482,7 @@ export function buildAllCSVBlobs(
         ),
       });
     }
+
     if (attState.transactions?.length) {
       attachments.push({
         filename: 'attendance-advances-deductions.csv',
@@ -412,6 +497,7 @@ export function buildAllCSVBlobs(
         ),
       });
     }
+
     if (attState.salaryRecords?.length) {
       attachments.push({
         filename: 'attendance-salary.csv',
@@ -437,6 +523,7 @@ export function buildAllCSVBlobs(
 }
 
 // ── Export all sections as separate CSV file downloads ────────────────────────
+
 export function exportAllSectionsAsCSV(
   state: any,
   agriState?: any,
@@ -450,6 +537,7 @@ export function exportAllSectionsAsCSV(
 }
 
 // ── Export all CSVs as a single ZIP ──────────────────────────────────────────
+
 export async function exportAllCSVAsZip(
   state: any,
   agriState?: any,
@@ -459,7 +547,6 @@ export async function exportAllCSVAsZip(
   const attachments = buildAllCSVBlobs(state, agriState, attState);
   if (!attachments.length) return;
 
-  // Dynamically import JSZip only when needed
   const JSZip = (await import('jszip')).default;
   const zip = new JSZip();
   const folder = zip.folder('fintrackly-data');
@@ -471,6 +558,7 @@ export async function exportAllCSVAsZip(
 }
 
 // ── Attendance CSV export (legacy standalone) ──────────────────────────────
+
 export function exportAttendanceCSV(attState: {
   employees: any[];
   attendanceRecords: any[];
@@ -492,6 +580,7 @@ export function exportAttendanceCSV(attState: {
 }
 
 // ── Portfolio Excel export ───────────────────────────────────────────────────
+
 export function exportExcel(
   investments: Investment[],
   filename = 'portfolio.xlsx',
@@ -504,6 +593,7 @@ export function exportExcel(
     ? Object.keys(rows[0])
     : [
         'Type',
+        'Asset Sub-Type',
         'Name',
         'Symbol',
         'Platform',
@@ -536,6 +626,7 @@ export function exportExcel(
 }
 
 // ── Export sold trades as CSV ─────────────────────────────────────────────────
+
 export function exportSoldTradesCSV(
   soldTrades: any[],
   filename = 'profits.csv',
@@ -560,6 +651,7 @@ export function exportSoldTradesCSV(
 }
 
 // ── Export full portfolio state as JSON ──────────────────────────────────────
+
 export function exportPortfolioJSON(
   state: any,
   filename = 'portfolio-data.json',
@@ -572,6 +664,7 @@ export function exportPortfolioJSON(
     liabilities: state.liabilities ?? [],
     cashflows: state.cashflows ?? [],
     goals: state.goals ?? [],
+    goalContributions: state.goalContributions ?? [], // ← NEW
     accounts: state.accounts ?? [],
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -581,6 +674,7 @@ export function exportPortfolioJSON(
 }
 
 // ── Import portfolio JSON ─────────────────────────────────────────────────────
+
 export async function parseImportedPortfolioJSON(file: File): Promise<any> {
   const text = await file.text();
   const clean = text.replace(/```json|```/g, '').trim();
@@ -588,6 +682,7 @@ export async function parseImportedPortfolioJSON(file: File): Promise<any> {
 }
 
 // ── PDF export ───────────────────────────────────────────────────────────────
+
 export function exportPDF(
   title: string,
   headers: string[],

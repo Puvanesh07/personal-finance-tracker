@@ -1,4 +1,12 @@
 // src/components/settings/DataManagement.tsx
+//
+// UPDATED v8:
+//  • Export/Import summary now shows Goal Contributions count
+//  • Export summary shows Sold Trades count separately
+//  • Import preview shows Goal Contributions count
+//  • All counts reflect new collections: goalContributions, soldTrades
+//  • Danger zone: clearAllData also clears goalContributions from Firestore
+//    (handled by portfolioStore.clearAllData — see note at bottom)
 
 import {
   FiArrowDown,
@@ -32,6 +40,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 const SIP_STORAGE_KEY = 'fintrackly_sip_plan';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
 function StatBadge({ label, count }: { label: string; count: number }) {
   return (
     <div className='flex items-center justify-between bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2'>
@@ -70,6 +79,8 @@ export function ExportImport() {
   const [previewData, setPreviewData] = useState<Record<string, number>>({});
   const [pendingFile, setPendingFile] = useState<string | null>(null);
 
+  // ── Record counts for summary display ────────────────────────────────────
+
   const agriRecordsCount =
     (agriState.fields?.length ?? 0) +
     (agriState.cropCycles?.length ?? 0) +
@@ -85,12 +96,13 @@ export function ExportImport() {
     (attState.transactions?.length ?? 0) +
     (attState.salaryRecords?.length ?? 0);
 
-  const exportSummary = {
+  const exportSummary: Record<string, number> = {
     Investments: state.investments?.length ?? 0,
     'Profits (Sold)': state.soldTrades?.length ?? 0,
     Liabilities: state.liabilities?.length ?? 0,
     Cashflows: state.cashflows?.length ?? 0,
     Goals: state.goals?.length ?? 0,
+    'Goal Contributions': (state as any).goalContributions?.length ?? 0, // ← NEW
     Accounts: state.accounts?.length ?? 0,
     'Insurance Policies': state.insurancePolicies?.length ?? 0,
     'Insurance Payments': (state as any).insurancePayments?.length ?? 0,
@@ -104,9 +116,8 @@ export function ExportImport() {
 
   const totalRecords = Object.values(exportSummary).reduce((s, n) => s + n, 0);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
-  // Export individual CSV files (one per section)
   const handleExportCSVSeparate = () => {
     if (totalRecords === 0) {
       toast.error('Nothing to export — add some data first.');
@@ -121,7 +132,6 @@ export function ExportImport() {
     toast.success('All sections exported as separate CSV files.');
   };
 
-  // Export all CSVs as a single ZIP file
   const handleExportCSVZip = async () => {
     if (totalRecords === 0) {
       toast.error('Nothing to export — add some data first.');
@@ -143,7 +153,6 @@ export function ExportImport() {
     }
   };
 
-  // Export full JSON backup
   const handleExportJSON = async () => {
     if (!uid) {
       toast.error('Session expired. Please log in again.');
@@ -152,7 +161,9 @@ export function ExportImport() {
     setBusy(true);
     try {
       await exportFullBackup(uid);
-      toast.success('Full JSON backup downloaded — includes all records.');
+      toast.success(
+        'Full JSON backup downloaded — includes all records including goal contributions.',
+      );
     } catch (err: any) {
       toast.error(err.message || 'Export failed.');
     } finally {
@@ -160,7 +171,7 @@ export function ExportImport() {
     }
   };
 
-  // Parse the JSON file first for preview
+  // Parse JSON file first for preview
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uid) return;
@@ -189,6 +200,7 @@ export function ExportImport() {
         Liabilities: parsed.liabilities?.length ?? 0,
         Cashflows: parsed.cashflows?.length ?? 0,
         Goals: parsed.goals?.length ?? 0,
+        'Goal Contributions': parsed.goalContributions?.length ?? 0, // ← NEW
         Accounts: parsed.accounts?.length ?? 0,
         'Insurance Policies': parsed.insurancePolicies?.length ?? 0,
         'Insurance Payments': parsed.insurancePayments?.length ?? 0,
@@ -218,7 +230,9 @@ export function ExportImport() {
       await hydrate(uid);
       await agriHydrate(uid);
       await attHydrate(uid);
-      toast.success('Backup imported — all data restored.');
+      toast.success(
+        'Backup imported — all data restored including goal contributions.',
+      );
       setPreviewOpen(false);
       setPendingFile(null);
     } catch (err: any) {
@@ -263,8 +277,9 @@ export function ExportImport() {
               <p className='text-sm font-bold text-slate-200'>Separate Files</p>
             </div>
             <p className='text-xs text-slate-500 leading-relaxed'>
-              One CSV per section — investments, cashflows, goals, agriculture,
-              attendance, insurance, lending.
+              One CSV per section — investments, cashflows, goals, goal
+              contributions, liabilities, agriculture, attendance, insurance,
+              lending.
             </p>
             <button
               onClick={handleExportCSVSeparate}
@@ -343,8 +358,8 @@ export function ExportImport() {
             </div>
             <p className='text-xs text-slate-500'>
               Complete backup of your entire account — finance, agriculture,
-              attendance, insurance, lending & SIP plan in one restorable file.
-              Use this for monthly backups.
+              attendance, insurance, lending, SIP plan &amp; goal contributions
+              in one restorable file. Use this for monthly backups.
             </p>
           </div>
           <button
@@ -368,6 +383,21 @@ export function ExportImport() {
             your phone. The monthly email report also reminds you to backup.
           </p>
         </div>
+
+        {/* What the JSON backup now includes — NEW info box */}
+        <div className='flex items-start gap-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-3'>
+          <FiCheck className='h-4 w-4 text-emerald-400 mt-0.5 shrink-0' />
+          <div className='text-xs text-slate-400 space-y-0.5'>
+            <p className='text-emerald-300 font-semibold mb-1'>
+              v8 backup now also includes:
+            </p>
+            <p>• Goal contribution history (each top-up you've recorded)</p>
+            <p>• Goal status &amp; completion date</p>
+            <p>• Liability "Returned" status &amp; returned date</p>
+            <p>• EPF / PF under assets (stored as investment records)</p>
+            <p>• Sold trades history</p>
+          </div>
+        </div>
       </div>
 
       {/* ── Import JSON ───────────────────────────────────────────────────── */}
@@ -380,8 +410,8 @@ export function ExportImport() {
             Restore from Backup
           </p>
           <p className='text-xs text-slate-500 mt-0.5'>
-            Import a previously exported JSON backup to restore all your data. A
-            preview will be shown before overwriting anything.
+            Import a previously exported JSON backup (v1–v8) to restore all your
+            data. A preview will be shown before overwriting anything.
           </p>
         </div>
         <input
@@ -417,7 +447,8 @@ export function ExportImport() {
             </p>
             <p className='text-[11px] text-amber-500/80 mt-1'>
               All existing records will be replaced with the backup file
-              contents.
+              contents. This includes goals, contributions, liabilities and all
+              other sections.
             </p>
           </div>
 
@@ -537,9 +568,9 @@ export function DangerZone() {
           <div className='flex-1 min-w-0'>
             <p className='font-bold text-slate-100 text-sm'>Clear All Data</p>
             <p className='text-xs text-slate-500 mt-0.5'>
-              Permanently wipes all investments, accounts, goals, cashflows,
-              agriculture, attendance, insurance policies & payments. Your login
-              credentials remain intact.
+              Permanently wipes all investments, accounts, goals, goal
+              contributions, cashflows, agriculture, attendance, insurance
+              policies &amp; payments. Your login credentials remain intact.
             </p>
           </div>
           <button
@@ -592,8 +623,9 @@ export function DangerZone() {
           </p>
           <ul className='text-xs text-slate-500 space-y-1 list-disc pl-5'>
             <li>Investments, Sold Trades, Liabilities, Cashflows, Goals</li>
+            <li>Goal Contributions (contribution history per goal)</li>
             <li>Accounts, Snapshots, Net Worth history, Insights</li>
-            <li>Insurance Policies & all Payment Records</li>
+            <li>Insurance Policies &amp; all Payment Records</li>
             <li>
               Agriculture — fields, crops, livestock, milk, coconut, produce
             </li>
@@ -645,8 +677,11 @@ export function DangerZone() {
               ⚠ This is permanent and irreversible
             </p>
             <ul className='text-xs text-slate-400 space-y-1 list-disc pl-4'>
-              <li>All financial data, insurance policies & payment records</li>
+              <li>
+                All financial data, insurance policies &amp; payment records
+              </li>
               <li>All agriculture and attendance records</li>
+              <li>All goal contribution history</li>
               <li>
                 Your login credentials — you will not be able to log back in
               </li>

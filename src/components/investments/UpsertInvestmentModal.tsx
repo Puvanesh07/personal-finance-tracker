@@ -130,6 +130,15 @@ const ASSET_CATEGORIES = [
         bg: 'bg-cyan-400/10',
         desc: 'National Pension System',
       },
+      {
+        id: 'epf',
+        label: 'EPF / PF',
+        type: 'other',
+        icon: FiBox,
+        color: 'text-violet-400',
+        bg: 'bg-violet-400/10',
+        desc: 'Employee Provident Fund',
+      },
     ],
   },
   {
