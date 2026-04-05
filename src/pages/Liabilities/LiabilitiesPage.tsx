@@ -1,10 +1,4 @@
 // src/pages/Liabilities/LiabilitiesPage.tsx
-//
-// UPDATED:
-//  • Shows "Returned" badge for personal loans marked as returned
-//  • Returned loans show returnedAt date and are excluded from outstanding total
-//  • Filter tabs: All | Active | Returned
-//  • "Mark as Returned" quick-action button on personal loan rows
 
 import {
   FiCheck,
@@ -24,7 +18,8 @@ import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useState } from 'react';
 
-type FilterTab = 'all' | 'active' | 'returned';
+// NEW: 'settled' tab groups both "paid" credit cards and "returned" personal loans
+type FilterTab = 'all' | 'active' | 'settled';
 
 export function LiabilitiesPage() {
   const ready = usePortfolioStore((s) => s.ready);
@@ -32,8 +27,11 @@ export function LiabilitiesPage() {
   const deleteLiability = usePortfolioStore((s) => s.deleteLiability);
   const updateLiability = usePortfolioStore((s) => s.updateLiability);
 
-  // Only count non-returned liabilities in outstanding total
-  const activeliabilities = liabilities.filter((l) => l.status !== 'returned');
+  // Only count truly active liabilities in the top summary metrics
+  const activeliabilities = liabilities.filter(
+    (l) => l.status !== 'returned' && l.status !== 'paid',
+  );
+
   const totalOutstanding = activeliabilities.reduce(
     (a, l) => a + (l.outstanding || 0),
     0,
@@ -65,7 +63,7 @@ export function LiabilitiesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  const [filterTab, setFilterTab] = useState<FilterTab>('all');
+  const [filterTab, setFilterTab] = useState<FilterTab>('active');
 
   const openDeleteModal = (id: string) => {
     setSelectedId(id);
@@ -108,12 +106,22 @@ export function LiabilitiesPage() {
     } as any);
   }
 
+  // NEW: Quick "Mark as Paid" for credit cards
+  async function markAsPaid(l: Liability) {
+    await updateLiability(l.id, {
+      status: 'paid',
+      outstanding: 0,
+    } as any);
+  }
+
   if (!ready) return <LiabilitiesSkeleton />;
 
   const filteredLiabilities = liabilities.filter((l) => {
-    if (filterTab === 'active') return l.status !== 'returned';
-    if (filterTab === 'returned') return l.status === 'returned';
-    return true;
+    if (filterTab === 'active')
+      return l.status !== 'returned' && l.status !== 'paid';
+    if (filterTab === 'settled')
+      return l.status === 'returned' || l.status === 'paid';
+    return true; // 'all'
   });
 
   const getTypeLabel = (type: string) => {
@@ -140,6 +148,10 @@ export function LiabilitiesPage() {
         : 'text-slate-500 hover:text-slate-300 border border-transparent'
     }`;
 
+  const settledCount = liabilities.filter(
+    (l) => l.status === 'returned' || l.status === 'paid',
+  ).length;
+
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
       <header className='flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
@@ -149,10 +161,10 @@ export function LiabilitiesPage() {
           </div>
           <div>
             <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
-              Borrowed Money (Liabilities)
+              Borrowed Money & Bills
             </h1>
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
-              Track money you owe to banks, credit cards, or friends.
+              Track loans, personal debts, and upcoming credit card bills.
             </p>
           </div>
         </div>
@@ -171,15 +183,14 @@ export function LiabilitiesPage() {
       <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
         <div className='relative overflow-hidden rounded-2xl border border-rose-600 bg-gradient-to-br from-rose-500 to-rose-700 p-6 shadow-lg shadow-rose-500/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl'>
           <div className='text-sm font-bold uppercase tracking-wider text-rose-100'>
-            Total Pending to Pay
+            Total Active Debt
           </div>
           <div className='mt-3 text-4xl font-black tabular-nums tracking-tight text-white'>
             {formatINR(totalOutstanding)}
           </div>
-          {liabilities.filter((l) => l.status === 'returned').length > 0 && (
+          {settledCount > 0 && (
             <div className='mt-1 text-xs text-rose-200/70'>
-              {liabilities.filter((l) => l.status === 'returned').length}{' '}
-              returned &amp; excluded
+              {settledCount} settled records excluded
             </div>
           )}
           <FiCreditCard className='absolute -bottom-4 -right-4 h-32 w-32 text-rose-400/30' />
@@ -261,21 +272,20 @@ export function LiabilitiesPage() {
       {/* Filter Tabs */}
       {liabilities.length > 0 && (
         <div className='flex items-center gap-2'>
-          <button className={tabCls('all')} onClick={() => setFilterTab('all')}>
-            All ({liabilities.length})
-          </button>
           <button
             className={tabCls('active')}
             onClick={() => setFilterTab('active')}
           >
-            Active ({liabilities.filter((l) => l.status !== 'returned').length})
+            Active ({activeliabilities.length})
           </button>
           <button
-            className={tabCls('returned')}
-            onClick={() => setFilterTab('returned')}
+            className={tabCls('settled')}
+            onClick={() => setFilterTab('settled')}
           >
-            🤝 Returned (
-            {liabilities.filter((l) => l.status === 'returned').length})
+            ✅ Settled ({settledCount})
+          </button>
+          <button className={tabCls('all')} onClick={() => setFilterTab('all')}>
+            All
           </button>
         </div>
       )}
@@ -300,22 +310,22 @@ export function LiabilitiesPage() {
               <FiCreditCard className='h-6 w-6 text-emerald-600 dark:text-emerald-400' />
             </div>
             <p className='mt-4 text-sm font-bold text-slate-600 dark:text-slate-400'>
-              {filterTab === 'returned'
-                ? 'No returned liabilities.'
+              {filterTab === 'settled'
+                ? 'No settled liabilities.'
                 : "No records found. You're debt free!"}
             </p>
           </div>
         ) : (
           filteredLiabilities.map((l) => {
             const daysLeft = getDaysLeft(l.endDate, l.outstanding);
-            const isReturned = l.status === 'returned';
+            const isSettled = l.status === 'returned' || l.status === 'paid';
 
             return (
               <div
                 key={l.id}
                 className={`relative flex flex-col gap-4 rounded-2xl border p-5 shadow-sm backdrop-blur-md ${
-                  isReturned
-                    ? 'border-teal-500/20 bg-teal-500/5 dark:bg-teal-500/5 opacity-80'
+                  isSettled
+                    ? 'border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/5 opacity-80'
                     : 'border-slate-200/60 bg-white/80 dark:border-slate-800/60 dark:bg-slate-900/60'
                 }`}
               >
@@ -342,13 +352,18 @@ export function LiabilitiesPage() {
                       </h3>
 
                       <div className='mt-1.5 flex flex-wrap gap-2'>
-                        {isReturned && (
+                        {l.status === 'returned' && (
                           <span className='inline-flex items-center gap-1 rounded bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400 border border-teal-500/20'>
                             <FiCheck className='h-3 w-3' /> Returned{' '}
                             {l.returnedAt ?? ''}
                           </span>
                         )}
-                        {!isReturned &&
+                        {l.status === 'paid' && (
+                          <span className='inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20'>
+                            <FiCheck className='h-3 w-3' /> Paid
+                          </span>
+                        )}
+                        {!isSettled &&
                           daysLeft !== null &&
                           daysLeft <= 3 &&
                           daysLeft >= 0 && (
@@ -356,7 +371,7 @@ export function LiabilitiesPage() {
                               <FiClock /> Due in {daysLeft}d
                             </span>
                           )}
-                        {!isReturned && daysLeft !== null && daysLeft < 0 && (
+                        {!isSettled && daysLeft !== null && daysLeft < 0 && (
                           <span className='inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20'>
                             <FiClock /> Overdue!
                           </span>
@@ -366,8 +381,8 @@ export function LiabilitiesPage() {
                   </div>
 
                   <div className='flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50'>
-                    {/* Quick "Mark Returned" for active personal loans */}
-                    {l.type === 'other' && !isReturned && (
+                    {/* Quick actions depending on type */}
+                    {l.type === 'other' && !isSettled && (
                       <button
                         type='button'
                         title='Mark as Returned'
@@ -377,6 +392,17 @@ export function LiabilitiesPage() {
                         <FiCheck className='h-4 w-4' />
                       </button>
                     )}
+                    {l.type === 'credit_card' && !isSettled && (
+                      <button
+                        type='button'
+                        title='Mark Bill as Paid'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                        onClick={() => void markAsPaid(l)}
+                      >
+                        <FiCheck className='h-4 w-4' />
+                      </button>
+                    )}
+
                     <button
                       type='button'
                       title='Edit'
@@ -399,17 +425,17 @@ export function LiabilitiesPage() {
                 <div className='grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 dark:border-slate-800'>
                   <div>
                     <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                      {isReturned ? 'Original Amount' : 'Pending Amount'}
+                      {isSettled ? 'Original Amount' : 'Pending Amount'}
                     </p>
                     <p
-                      className={`mt-0.5 text-lg font-black ${isReturned ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}
+                      className={`mt-0.5 text-lg font-black ${isSettled ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}
                     >
                       {formatINR(l.principal)}
                     </p>
                   </div>
                   <div className='text-right'>
                     <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                      Target Date
+                      {l.type === 'credit_card' ? 'Due Date' : 'Target Date'}
                     </p>
                     <p className='mt-0.5 text-sm font-bold text-slate-700 dark:text-slate-300'>
                       {l.endDate
@@ -444,7 +470,7 @@ export function LiabilitiesPage() {
                 <th className='px-5 py-4'>Type</th>
                 <th className='px-5 py-4'>Name / Description</th>
                 <th className='px-5 py-4 text-right'>Amount</th>
-                <th className='px-5 py-4 text-right'>Target Date</th>
+                <th className='px-5 py-4 text-right'>Target / Due Date</th>
                 <th className='px-5 py-4 text-center'>Actions</th>
               </tr>
             </thead>
@@ -460,8 +486,8 @@ export function LiabilitiesPage() {
                         <FiCreditCard className='h-8 w-8 text-slate-400' />
                       </div>
                       <p className='font-bold'>
-                        {filterTab === 'returned'
-                          ? 'No returned liabilities.'
+                        {filterTab === 'settled'
+                          ? 'No settled liabilities.'
                           : "No records found. You're debt free!"}
                       </p>
                     </div>
@@ -470,14 +496,15 @@ export function LiabilitiesPage() {
               ) : (
                 filteredLiabilities.map((l) => {
                   const daysLeft = getDaysLeft(l.endDate, l.outstanding);
-                  const isReturned = l.status === 'returned';
+                  const isSettled =
+                    l.status === 'returned' || l.status === 'paid';
 
                   return (
                     <tr
                       key={l.id}
                       className={`transition-colors ${
-                        isReturned
-                          ? 'bg-teal-500/3 opacity-75 hover:opacity-100'
+                        isSettled
+                          ? 'bg-emerald-500/3 opacity-75 hover:opacity-100'
                           : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
                       }`}
                     >
@@ -503,13 +530,18 @@ export function LiabilitiesPage() {
 
                       <td className='px-5 py-4 font-bold text-slate-900 dark:text-slate-50'>
                         {l.name}
-                        {isReturned && (
+                        {l.status === 'returned' && (
                           <span className='ml-3 inline-flex items-center gap-1 rounded bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400 border border-teal-500/20'>
                             <FiCheck className='h-3 w-3' /> Returned{' '}
                             {l.returnedAt ?? ''}
                           </span>
                         )}
-                        {!isReturned &&
+                        {l.status === 'paid' && (
+                          <span className='ml-3 inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20'>
+                            <FiCheck className='h-3 w-3' /> Paid
+                          </span>
+                        )}
+                        {!isSettled &&
                           daysLeft !== null &&
                           daysLeft <= 3 &&
                           daysLeft >= 0 && (
@@ -517,7 +549,7 @@ export function LiabilitiesPage() {
                               <FiClock className='h-3 w-3' /> Due in {daysLeft}d
                             </span>
                           )}
-                        {!isReturned && daysLeft !== null && daysLeft < 0 && (
+                        {!isSettled && daysLeft !== null && daysLeft < 0 && (
                           <span className='ml-3 inline-flex items-center gap-1 rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20'>
                             <FiClock className='h-3 w-3' /> Overdue!
                           </span>
@@ -525,7 +557,7 @@ export function LiabilitiesPage() {
                       </td>
 
                       <td className='px-5 py-4 text-right text-base font-black tabular-nums text-slate-800 dark:text-slate-200'>
-                        {isReturned ? (
+                        {isSettled ? (
                           <span className='line-through text-slate-400 text-sm'>
                             {formatINR(l.principal)}
                           </span>
@@ -542,8 +574,8 @@ export function LiabilitiesPage() {
 
                       <td className='px-5 py-4'>
                         <div className='flex justify-center gap-2'>
-                          {/* Quick Mark as Returned for personal loans */}
-                          {l.type === 'other' && !isReturned && (
+                          {/* Quick Actions depending on type */}
+                          {l.type === 'other' && !isSettled && (
                             <button
                               type='button'
                               title='Mark as Returned'
@@ -553,6 +585,17 @@ export function LiabilitiesPage() {
                               <FiCheck className='h-4 w-4' />
                             </button>
                           )}
+                          {l.type === 'credit_card' && !isSettled && (
+                            <button
+                              type='button'
+                              title='Mark Bill as Paid'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
+                              onClick={() => void markAsPaid(l)}
+                            >
+                              <FiCheck className='h-4 w-4' />
+                            </button>
+                          )}
+
                           <button
                             type='button'
                             title='Edit'

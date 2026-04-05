@@ -6,13 +6,177 @@ import type {
   Investment,
   Liability,
 } from '../../types/investmentTypes';
-import { FiSave, FiZap } from 'react-icons/fi';
+import { FiInfo, FiSave, FiZap } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
 import { useMemo, useState } from 'react';
 
 import { InsightsLoader } from '../../components/ui/SectionLoader';
+import { Modal } from '../../components/ui/Modal';
 import { summarizePortfolio } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EDUCATIONAL CONTENT DICTIONARY
+// ─────────────────────────────────────────────────────────────────────────────
+type MetricInfo = {
+  title: string;
+  what: React.ReactNode;
+  how: React.ReactNode;
+  proTip: React.ReactNode;
+};
+
+const METRIC_KNOWLEDGE_BASE: Record<string, MetricInfo> = {
+  net_worth: {
+    title: 'Net Worth',
+    what: 'Net Worth is the ultimate measure of your financial health. It is calculated simply as: Total Assets (everything you own) minus Total Liabilities (everything you owe).',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>Increase your income and savings rate.</li>
+        <li>Aggressively pay down high-interest debt.</li>
+        <li>
+          Invest your savings in appreciating assets (equity, real estate)
+          rather than depreciating ones (cars, gadgets).
+        </li>
+      </ul>
+    ),
+    proTip:
+      'Focus on the long-term trend, not daily fluctuations. A negative net worth is common early in your career (e.g., due to education or home loans), but the goal is a consistent upward trajectory.',
+  },
+  total_assets: {
+    title: 'Total Assets',
+    what: 'This represents the total current market value of everything you own. It includes your stocks, mutual funds, fixed deposits, real estate, gold, and cash balances.',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>Consistently invest a portion of your monthly income.</li>
+        <li>Reinvest dividends and interest to benefit from compounding.</li>
+        <li>
+          Diversify across asset classes to protect your total value from market
+          crashes.
+        </li>
+      </ul>
+    ),
+    proTip:
+      'Not all assets are equal. "Income-generating assets" (like dividend stocks or rental properties) and "Appreciating assets" (like equity MFs) build wealth faster than "Dead assets" (like idle cash in a savings account).',
+  },
+  liabilities: {
+    title: 'Liabilities',
+    what: 'Liabilities represent all your outstanding financial obligations and debts, including home loans, car loans, personal loans, and credit card balances.',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>Always pay your credit card bills in full every month.</li>
+        <li>
+          Use the "Avalanche Method": Pay off debts with the highest interest
+          rates first.
+        </li>
+        <li>Avoid taking loans for depreciating assets.</li>
+      </ul>
+    ),
+    proTip:
+      'Understand Good Debt vs. Bad Debt. A home loan (Good Debt) builds an asset and offers tax benefits under Section 24(b) and 80C. Credit card debt at 36%+ p.a. (Bad Debt) destroys wealth rapidly.',
+  },
+  debt_asset_ratio: {
+    title: 'Debt-to-Asset Ratio',
+    what: 'This ratio shows what percentage of your assets are financed by debt. Formula: (Total Liabilities ÷ Total Assets) × 100.',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>
+          <strong>Below 30%:</strong> Very healthy. You are in a highly solvent
+          position.
+        </li>
+        <li>
+          <strong>30% - 60%:</strong> Moderate. Usually acceptable if you have a
+          home loan.
+        </li>
+        <li>
+          <strong>Above 60%:</strong> High risk. Focus heavily on debt reduction
+          before making new investments.
+        </li>
+      </ul>
+    ),
+    proTip:
+      'If your ratio is high and interest rates are rising, prioritize prepaying floating-rate loans to reduce your financial burden.',
+  },
+  emergency_fund: {
+    title: 'Emergency Fund',
+    what: 'A liquid cash buffer set aside specifically for unplanned expenses or financial emergencies (like medical emergencies, sudden car repairs, or job loss).',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>Aim for 3 to 6 months of living expenses.</li>
+        <li>
+          If you have dependents or variable income (freelancer/business), aim
+          for 9 to 12 months.
+        </li>
+        <li>Keep this money strictly accessible within 24-48 hours.</li>
+      </ul>
+    ),
+    proTip:
+      'Do not chase high returns with this money! Park your emergency fund in a mix of Sweep-in FDs and Liquid Mutual Funds. The goal here is capital protection and liquidity, not growth.',
+  },
+  monthly_savings: {
+    title: 'Monthly Savings',
+    what: 'The difference between your monthly income and monthly expenses. This is the primary fuel for your wealth-building engine.',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>
+          Follow the <strong>50/30/20 Rule</strong>: 50% Needs, 30% Wants, 20%
+          Savings (minimum).
+        </li>
+        <li>
+          Track your expenses to identify and cut unnecessary subscriptions or
+          impulse purchases.
+        </li>
+        <li>
+          Automate your savings: Set up SIPs that deduct money on the 1st of
+          every month (Pay Yourself First).
+        </li>
+      </ul>
+    ),
+    proTip:
+      'If your savings rate is below 20%, focus on increasing income through upskilling or side hustles, while aggressively trimming "Wants".',
+  },
+  equity_pct: {
+    title: 'Equity Allocation (%)',
+    what: 'The percentage of your total portfolio invested in the stock market (direct stocks and equity mutual funds). Equity is the primary driver of long-term, inflation-beating growth.',
+    how: (
+      <ul className='list-disc list-outside space-y-1 ml-4'>
+        <li>
+          A common rule of thumb is "100 minus your age" (e.g., if you are 30,
+          keep 70% in equity).
+        </li>
+        <li>
+          If equity is &lt;20%: Your portfolio might not beat inflation.
+          Consider increasing your SIPs in Index Funds.
+        </li>
+        <li>
+          If equity is &gt;80%: Your portfolio is highly volatile. Ensure you
+          have a solid emergency fund to ride out market crashes.
+        </li>
+      </ul>
+    ),
+    proTip:
+      'Rebalance your portfolio once a year. If a bull market pushes your equity to 90%, sell some and buy debt (like FDs or Bonds) to lock in profits and restore your target allocation.',
+  },
+  tax_loss: {
+    title: 'Tax Loss Harvesting',
+    what: 'A strategy where you intentionally sell investments that are down in value to "realize" a loss. You can then use this loss to offset capital gains from your winning stocks, reducing your tax bill.',
+    how: (
+      <ol className='list-decimal list-inside space-y-1 ml-1'>
+        <li>Identify stocks/MFs trading below your purchase price.</li>
+        <li>Sell them to realize the capital loss.</li>
+        <li>
+          Apply these losses against Capital Gains (STCG/LTCG) realized in the
+          same financial year.
+        </li>
+        <li>
+          (Optional) Reinvest in similar assets a few days later to maintain
+          your allocation.
+        </li>
+      </ol>
+    ),
+    proTip:
+      'In India, Short-Term Capital Losses (STCL) can offset both STCG and LTCG. Long-Term Capital Losses (LTCL) can only offset LTCG. Unabsorbed losses can be carried forward for 8 years if you file your ITR on time.',
+  },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER FUNCTIONS
@@ -76,12 +240,6 @@ function calcHealthScore(
     0,
   );
 
-  // 1. Debt Score (30pts)
-  // Rules:
-  //   No assets AND no liabilities = no data = 0pts (not 30 - you have not earned it)
-  //   Has assets, zero liabilities  = debtRatio 0 = full 30pts
-  //   No assets but has liabilities = debtRatio 1 (worst) = 0pts
-  //   debtRatio >= 0.5 (50%+)       = 0pts
   const hasAnyFinancialData = totalValue > 0 || totalLiabilities > 0;
   const debtRatio = !hasAnyFinancialData
     ? 0
@@ -90,7 +248,6 @@ function calcHealthScore(
       : 1;
   const debtScore = !hasAnyFinancialData ? 0 : Math.max(0, 30 - debtRatio * 60);
 
-  // 2. Emergency Fund Score (20pts)
   const liquidInvestments = calcLiquidInvestments(investments);
   const emergencySaved = essentials.emergencyFundCurrent ?? 0;
   const emergencyTarget = essentials.emergencyFundTarget ?? 0;
@@ -101,20 +258,16 @@ function calcHealthScore(
   let emergencyScore = 0;
 
   if (avgExpense > 0) {
-    // FIX: use actual expense data for runway
     runway = totalLiquid / avgExpense;
     emergencyScore = Math.min(20, (runway / 6) * 20);
   } else if (emergencyTarget > 0) {
-    // FIX: no expense data → score by % of target reached (target ≈ 6 months expenses)
     const pct = Math.min(1, totalLiquid / emergencyTarget);
     emergencyScore = pct * 20;
-    runway = pct * 6; // implied runway
+    runway = pct * 6;
   } else if (totalLiquid > 0) {
-    // Has liquid assets but no reference point — minimal credit
     emergencyScore = 5;
   }
 
-  // 3. Savings Rate Score (25pts)
   const avgIncome = calcMonthlyAvg(cashflows, 'income');
   const savingsRate =
     avgIncome > 0 && avgExpense > 0
@@ -122,8 +275,6 @@ function calcHealthScore(
       : 0;
   const savingsScore = Math.min(25, Math.max(0, (savingsRate / 30) * 25));
 
-  // 4. Diversification Score (25pts)
-  // FIX: old code counted unique type strings — meaningless. Now awards 5pts per asset class.
   const hasEquity = investments.some(
     (i) => i.type === 'stock' || i.type === 'mutual_fund',
   );
@@ -178,12 +329,11 @@ function calcFIRE(
   emergencyTarget: number,
   expectedReturnPct = 10,
 ) {
-  // FIX: never hardcode ₹6L fallback — derive from emergency target or return uncalculable
   let annualExpense: number;
   if (monthlyExpense > 0) {
     annualExpense = monthlyExpense * 12;
   } else if (emergencyTarget > 0) {
-    annualExpense = emergencyTarget * 2; // target ≈ 6mo expenses → annual = target * 2
+    annualExpense = emergencyTarget * 2;
   } else {
     return {
       target: 0,
@@ -193,15 +343,13 @@ function calcFIRE(
     };
   }
 
-  const target = annualExpense * 25; // 4% safe withdrawal rule (25x)
+  const target = annualExpense * 25;
   const monthlyRate = expectedReturnPct / 12 / 100;
 
-  // FIX: already at FIRE?
   if (netWorth >= target) {
     return { target, yearsToFIRE: 0, achievable: true, uncalculable: false };
   }
 
-  // FIX: negative/zero savings with negative netWorth → never achievable, avoid infinite loop
   if (monthlySavings <= 0 && netWorth <= 0) {
     return {
       target,
@@ -310,27 +458,41 @@ function MetricCard({
   value,
   sub,
   color,
+  onInfoClick,
 }: {
   icon: string;
   label: string;
   value: string;
   sub?: string;
   color: string;
+  onInfoClick?: () => void;
 }) {
   return (
     <div
-      className='rounded-xl p-3.5 flex flex-col gap-1'
+      className='rounded-xl p-3.5 flex flex-col gap-1 relative'
       style={{
         background: '#0f172a',
         border: `1px solid ${color}22`,
         borderTop: `2px solid ${color}`,
       }}
     >
-      <div className='flex items-center gap-1.5'>
-        <span className='text-base'>{icon}</span>
-        <span className='text-[10px] text-slate-500 uppercase tracking-wider font-semibold'>
-          {label}
-        </span>
+      <div className='flex items-center justify-between'>
+        <div className='flex items-center gap-1.5'>
+          <span className='text-base'>{icon}</span>
+          <span className='text-[10px] text-slate-500 uppercase tracking-wider font-semibold'>
+            {label}
+          </span>
+        </div>
+        {/* Info Icon Button */}
+        {onInfoClick && (
+          <button
+            onClick={onInfoClick}
+            className='text-slate-500 hover:text-slate-300 transition-colors p-1 -mr-1 -mt-1 rounded-full hover:bg-slate-800/80 cursor-pointer'
+            title='More information'
+          >
+            <FiInfo className='h-3.5 w-3.5' />
+          </button>
+        )}
       </div>
       <div
         className='text-base font-bold text-slate-100'
@@ -387,6 +549,9 @@ export default function InsightsPage() {
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Single state to manage which metric's info modal is open
+  const [infoModalKey, setInfoModalKey] = useState<string | null>(null);
 
   const metrics = useMemo(() => {
     const { totalValue } = summarizePortfolio(investments);
@@ -469,7 +634,6 @@ export default function InsightsPage() {
     (essentials.emergencyFundCurrent ?? 0) === 0 &&
     (essentials.emergencyFundTarget ?? 0) === 0;
 
-  // ── Emergency card smart display ──────────────────────────────────────────
   const hasExpenseData = metrics.avgExpense > 0;
 
   const emergencyCardValue = hasExpenseData
@@ -478,8 +642,6 @@ export default function InsightsPage() {
       ? `${formatNumber(Math.min(100, (health.totalLiquid / health.emergencyTarget) * 100), 0)}%`
       : formatINR(health.totalLiquid);
 
-  // emergencySaved is the explicit field from Essentials (₹10,000)
-  // totalLiquid = liquidInvestments + emergencySaved — use emergencySaved for display clarity
   const displaySaved =
     health.emergencySaved + calcLiquidInvestments(investments);
   const emergencyCardSub = hasExpenseData
@@ -495,19 +657,22 @@ export default function InsightsPage() {
         : 'Not set up yet';
 
   const emergencyColor = (() => {
-    if (hasExpenseData) {
+    if (hasExpenseData)
       return health.runway >= 6
         ? '#22c55e'
         : health.runway >= 3
           ? '#f59e0b'
           : '#ef4444';
-    }
     if (health.emergencyTarget > 0) {
       const pct = health.totalLiquid / health.emergencyTarget;
       return pct >= 1 ? '#22c55e' : pct >= 0.5 ? '#f59e0b' : '#ef4444';
     }
     return '#ef4444';
   })();
+
+  const activeModalData = infoModalKey
+    ? METRIC_KNOWLEDGE_BASE[infoModalKey]
+    : null;
 
   return (
     <div className='flex flex-col gap-6 pb-10 max-w-5xl mx-auto'>
@@ -561,7 +726,6 @@ export default function InsightsPage() {
               Financial Health Score
             </h2>
             <div className='flex flex-col sm:flex-row gap-6 items-start'>
-              {/* Ring */}
               <div className='flex flex-col items-center gap-2 shrink-0'>
                 <ScoreRing score={health.total} />
                 <span
@@ -571,7 +735,6 @@ export default function InsightsPage() {
                   {healthLabel}
                 </span>
               </div>
-              {/* Bars */}
               <div className='flex-1 w-full flex flex-col gap-0.5'>
                 <MiniBar
                   label='Debt Management (30 pts)'
@@ -598,7 +761,6 @@ export default function InsightsPage() {
                   color='#f59e0b'
                 />
               </div>
-              {/* Score hints */}
               <div className='grid grid-cols-2 sm:grid-cols-1 gap-2 shrink-0 w-full sm:w-36'>
                 {[
                   {
@@ -659,12 +821,14 @@ export default function InsightsPage() {
                 label='Net Worth'
                 value={formatINR(metrics.netWorth)}
                 color={metrics.netWorth >= 0 ? '#22c55e' : '#ef4444'}
+                onInfoClick={() => setInfoModalKey('net_worth')}
               />
               <MetricCard
                 icon='🏦'
                 label='Total Assets'
                 value={formatINR(metrics.totalValue)}
                 color='#64748b'
+                onInfoClick={() => setInfoModalKey('total_assets')}
               />
               <MetricCard
                 icon='📉'
@@ -677,6 +841,7 @@ export default function InsightsPage() {
                       ? '#ef4444'
                       : '#f59e0b'
                 }
+                onInfoClick={() => setInfoModalKey('liabilities')}
               />
               <MetricCard
                 icon='📊'
@@ -700,6 +865,7 @@ export default function InsightsPage() {
                       ? '#f59e0b'
                       : '#ef4444'
                 }
+                onInfoClick={() => setInfoModalKey('debt_asset_ratio')}
               />
               <MetricCard
                 icon='🛡'
@@ -707,6 +873,7 @@ export default function InsightsPage() {
                 value={emergencyCardValue}
                 sub={emergencyCardSub}
                 color={emergencyColor}
+                onInfoClick={() => setInfoModalKey('emergency_fund')}
               />
               <MetricCard
                 icon='📈'
@@ -720,6 +887,7 @@ export default function InsightsPage() {
                       : 'Add cashflow data'
                 }
                 color={metrics.monthlySavings >= 0 ? '#22c55e' : '#ef4444'}
+                onInfoClick={() => setInfoModalKey('monthly_savings')}
               />
               <MetricCard
                 icon='📈'
@@ -743,6 +911,7 @@ export default function InsightsPage() {
                       ? '#f59e0b'
                       : '#22c55e'
                 }
+                onInfoClick={() => setInfoModalKey('equity_pct')}
               />
               <MetricCard
                 icon='🧾'
@@ -762,6 +931,7 @@ export default function InsightsPage() {
                       ? '#64748b'
                       : '#22c55e'
                 }
+                onInfoClick={() => setInfoModalKey('tax_loss')}
               />
             </div>
           </div>
@@ -865,7 +1035,7 @@ export default function InsightsPage() {
                         Priority Debt: {metrics.topDebt.name}
                       </p>
                       <p className='text-xs text-slate-400 mt-1'>
-                        {formatINR(metrics.topDebt.outstanding)} outstanding
+                        {formatINR(metrics.topDebt.outstanding)} outstanding{' '}
                         {metrics.topDebt.interestRate
                           ? ` at ${metrics.topDebt.interestRate}% p.a.`
                           : ''}{' '}
@@ -927,6 +1097,46 @@ export default function InsightsPage() {
           )}
         </div>
       )}
+
+      {/* ── Dynamic Educational Information Modal ── */}
+      <Modal
+        open={!!infoModalKey}
+        onClose={() => setInfoModalKey(null)}
+        title={activeModalData ? `💡 ${activeModalData.title} Explained` : ''}
+      >
+        {activeModalData && (
+          <div className='space-y-5 text-sm text-slate-300'>
+            <p>
+              <strong>What it is:</strong> {activeModalData.what}
+            </p>
+
+            <div>
+              <h4 className='font-bold text-slate-100 mb-2 border-b border-slate-800 pb-1'>
+                How to improve it:
+              </h4>
+              {activeModalData.how}
+            </div>
+
+            <div className='bg-amber-950/30 p-4 rounded-xl border border-amber-900/50'>
+              <h4 className='font-bold text-amber-500 mb-2 flex items-center gap-2'>
+                <FiZap className='w-4 h-4' /> Pro Tip
+              </h4>
+              <p className='text-xs text-amber-200/80 leading-relaxed'>
+                {activeModalData.proTip}
+              </p>
+            </div>
+
+            <div className='pt-2 flex justify-end'>
+              <button
+                onClick={() => setInfoModalKey(null)}
+                className='px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer'
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

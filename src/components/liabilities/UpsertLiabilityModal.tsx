@@ -1,12 +1,4 @@
 // src/components/liabilities/UpsertLiabilityModal.tsx
-//
-// UPDATED:
-//  • Added 'returned' status option for personal/hand loans (type === 'other')
-//  • returnedAt date field appears when status === 'returned'
-//  • EMI fields still show only for type === 'loan'
-//  • Status chips adapt based on loan type:
-//    - loan/credit_card: Active | Paused | Paid Off
-//    - other (personal): Active | Returned ✓
 
 import {
   FiCalendar,
@@ -45,7 +37,7 @@ type FormState = {
   emiAmount: string;
   emiDay: string;
   status: LiabilityStatus | '';
-  returnedAt: string; // ← NEW: date the money was returned
+  returnedAt: string;
 };
 
 function toNum(v: string) {
@@ -103,7 +95,6 @@ export function UpsertLiabilityModal(props: Props) {
     }
   }, [props.open, initial]);
 
-  // When status changes to 'returned', auto-fill returnedAt with today
   useEffect(() => {
     if (state.status === 'returned' && !state.returnedAt) {
       set({ returnedAt: new Date().toISOString().split('T')[0] });
@@ -127,7 +118,6 @@ export function UpsertLiabilityModal(props: Props) {
           : {}),
         ...(state.emiDay.trim() ? { emiDay: toNum(state.emiDay) } : {}),
         ...(state.status ? { status: state.status as LiabilityStatus } : {}),
-        // Save returnedAt only if status is returned
         ...(state.status === 'returned' && state.returnedAt
           ? { returnedAt: state.returnedAt }
           : { returnedAt: undefined }),
@@ -179,8 +169,9 @@ export function UpsertLiabilityModal(props: Props) {
 
   const showEmiFields = state.type === 'loan';
   const isPersonalLoan = state.type === 'other';
+  const isCreditCard = state.type === 'credit_card'; // NEW
 
-  // Status chips differ by loan type
+  // Status chips adapt based on type
   const statusOptions = isPersonalLoan
     ? ([
         {
@@ -194,34 +185,47 @@ export function UpsertLiabilityModal(props: Props) {
           cls: 'border-teal-500/40 bg-teal-500/8 text-teal-400',
         },
       ] as const)
-    : ([
-        {
-          value: 'active',
-          label: '✅ Active',
-          cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
-        },
-        {
-          value: 'paused',
-          label: '⏸ Paused',
-          cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
-        },
-        {
-          value: 'paid',
-          label: '🏁 Paid Off',
-          cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
-        },
-      ] as const);
+    : isCreditCard
+      ? ([
+          {
+            value: 'active',
+            label: '🔴 Pending',
+            cls: 'border-rose-500/40 bg-rose-500/8 text-rose-400',
+          },
+          {
+            value: 'paid',
+            label: '✅ Paid Off',
+            cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+          },
+        ] as const)
+      : ([
+          {
+            value: 'active',
+            label: '✅ Active',
+            cls: 'border-emerald-500/40 bg-emerald-500/8 text-emerald-400',
+          },
+          {
+            value: 'paused',
+            label: '⏸ Paused',
+            cls: 'border-amber-500/40 bg-amber-500/8 text-amber-400',
+          },
+          {
+            value: 'paid',
+            label: '🏁 Paid Off',
+            cls: 'border-blue-500/40 bg-blue-500/8 text-blue-400',
+          },
+        ] as const);
 
   return (
     <Modal
       open={props.open}
       onClose={props.onClose}
       title={
-        props.mode === 'create' ? 'Add Borrowed Money' : 'Edit Borrowed Money'
+        props.mode === 'create' ? 'Add Liability or Bill' : 'Edit Liability'
       }
     >
       <div className='grid grid-cols-1 gap-5'>
-        {/* Type picker (create only) */}
+        {/* Type picker */}
         {props.mode === 'create' && (
           <div className='block relative'>
             <span className={labelCls}>Type of Debt</span>
@@ -263,21 +267,33 @@ export function UpsertLiabilityModal(props: Props) {
           </div>
         )}
 
-        {/* Name */}
+        {/* Dynamic Name */}
         <label className='block'>
-          <span className={labelCls}>Name / Description</span>
+          <span className={labelCls}>
+            {isCreditCard
+              ? 'Card Name & Month (e.g. HDFC Jan)'
+              : 'Name / Description'}
+          </span>
           <input
             className={inputCls}
             value={state.name}
             onChange={(e) => set({ name: e.target.value })}
-            placeholder='e.g., Rent money from friend, Car EMI'
+            placeholder={
+              isCreditCard
+                ? 'e.g., SBI Millennia - Oct Bill'
+                : 'e.g., Rent money, Car EMI'
+            }
           />
         </label>
 
-        {/* Principal + Outstanding */}
+        {/* Dynamic Principal + Outstanding */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
           <label className='block'>
-            <span className={labelCls}>Total Borrowed (Initial)</span>
+            <span className={labelCls}>
+              {isCreditCard
+                ? 'Total Statement Bill (₹)'
+                : 'Total Borrowed (Initial)'}
+            </span>
             <NumericInput
               className={inputCls}
               value={state.principal}
@@ -285,7 +301,9 @@ export function UpsertLiabilityModal(props: Props) {
             />
           </label>
           <label className='block'>
-            <span className={labelCls}>Amount Left to Pay</span>
+            <span className={labelCls}>
+              {isCreditCard ? 'Pending Bill Amount (₹)' : 'Amount Left to Pay'}
+            </span>
             <NumericInput
               className={inputCls}
               value={state.outstanding}
@@ -296,21 +314,26 @@ export function UpsertLiabilityModal(props: Props) {
 
         {/* Interest + End Date */}
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-          <label className='block'>
-            <span className={labelCls}>Interest Rate (% Yearly)</span>
-            <NumericInput
-              className={inputCls}
-              value={state.interestRate}
-              onChange={(v) => set({ interestRate: v })}
-              placeholder='e.g. 0 for friends'
-            />
-          </label>
+          {/* Hide Interest Rate for Credit Cards to keep it simple */}
+          {!isCreditCard && (
+            <label className='block'>
+              <span className={labelCls}>Interest Rate (% Yearly)</span>
+              <NumericInput
+                className={inputCls}
+                value={state.interestRate}
+                onChange={(v) => set({ interestRate: v })}
+                placeholder='e.g. 0 for friends'
+              />
+            </label>
+          )}
 
-          <label className='block'>
-            <span className={labelCls}>Expected Repayment Date</span>
+          <label className={`block ${isCreditCard ? 'md:col-span-2' : ''}`}>
+            <span className={labelCls}>
+              {isCreditCard ? 'Bill Due Date' : 'Expected Repayment Date'}
+            </span>
             <div className='relative'>
               <div
-                className={`${inputCls} flex items-center justify-between cursor-pointer`}
+                className={`${inputCls} flex items-center justify-between cursor-pointer ${isCreditCard && !state.endDate ? 'border-rose-300 dark:border-rose-500/50' : ''}`}
                 onClick={() =>
                   handleDateClick(
                     dateInputRef as React.RefObject<HTMLInputElement>,
@@ -326,7 +349,9 @@ export function UpsertLiabilityModal(props: Props) {
                 >
                   {formatDateLabel(state.endDate)}
                 </span>
-                <FiCalendar className='h-4 w-4 shrink-0 text-slate-400' />
+                <FiCalendar
+                  className={`h-4 w-4 shrink-0 ${isCreditCard && !state.endDate ? 'text-rose-400' : 'text-slate-400'}`}
+                />
               </div>
               <input
                 ref={dateInputRef}
@@ -336,6 +361,11 @@ export function UpsertLiabilityModal(props: Props) {
                 onChange={(e) => set({ endDate: e.target.value })}
               />
             </div>
+            {isCreditCard && (
+              <p className='mt-1 text-[10px] text-slate-500'>
+                We will notify you 3 days before this due date.
+              </p>
+            )}
           </label>
         </div>
 
@@ -375,16 +405,12 @@ export function UpsertLiabilityModal(props: Props) {
         {/* ── Status ── */}
         <div className='border-t border-slate-200/60 dark:border-slate-800/60 pt-4'>
           <span className={labelCls}>
-            {isPersonalLoan ? 'Repayment Status' : 'Loan Status'}
+            {isPersonalLoan
+              ? 'Repayment Status'
+              : isCreditCard
+                ? 'Bill Status'
+                : 'Loan Status'}
           </span>
-
-          {/* Helpful hint for personal loans */}
-          {isPersonalLoan && (
-            <p className='text-[11px] text-slate-500 dark:text-slate-500 mb-2'>
-              Mark as <strong className='text-teal-400'>Returned</strong> once
-              you've paid back this borrowed amount.
-            </p>
-          )}
 
           <div className='flex gap-2'>
             {statusOptions.map((opt) => (
@@ -406,7 +432,7 @@ export function UpsertLiabilityModal(props: Props) {
 
         {/* ── Returned Date (only for personal loans marked returned) ── */}
         {isPersonalLoan && state.status === 'returned' && (
-          <div className='rounded-xl border border-teal-500/30 bg-teal-500/5 p-4'>
+          <div className='rounded-xl border border-teal-500/30 bg-teal-500/5 p-4 mt-2'>
             <div className='flex items-center gap-2 mb-3'>
               <FiCheck className='h-4 w-4 text-teal-400' />
               <span className='text-xs font-bold uppercase tracking-wider text-teal-400'>
@@ -444,10 +470,6 @@ export function UpsertLiabilityModal(props: Props) {
                 />
               </div>
             </label>
-            <p className='mt-2 text-[11px] text-teal-500/70'>
-              This record will be kept for your history but excluded from
-              outstanding totals.
-            </p>
           </div>
         )}
 
