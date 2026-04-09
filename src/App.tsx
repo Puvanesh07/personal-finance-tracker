@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import {
   AccountsSkeleton,
   AgricultureSkeleton,
@@ -49,6 +51,11 @@ const AccountsPage = lazy(() =>
 const GoalsPage = lazy(() =>
   import('./pages/Goals/GoalsPage').then((m) => ({ default: m.GoalsPage })),
 );
+const CredentialsPage = lazy(() =>
+  import('./pages/Credentials/CredentialsPage').then((m) => ({
+    default: m.CredentialsPage,
+  })),
+); // ← NEW
 const InsightsPage = lazy(() => import('./pages/Insights/InsightsPage'));
 const ToolsPage = lazy(() =>
   import('./Tools/ToolsPage').then((m) => ({ default: m.ToolsPage })),
@@ -154,6 +161,15 @@ export default function App() {
               }
             />
             <Route
+              path='/credentials'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <CredentialsPage />
+                </Suspense>
+              }
+            />{' '}
+            {/* ← NEW */}
+            <Route
               path='/insights'
               element={
                 <Suspense fallback={<InsightsSkeleton />}>
@@ -202,7 +218,6 @@ export default function App() {
               }
             />
           </Route>
-
           <Route path='*' element={<Navigate to='/dashboard' replace />} />
         </Routes>
       </Suspense>

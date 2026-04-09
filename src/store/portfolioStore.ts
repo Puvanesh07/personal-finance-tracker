@@ -1,20 +1,8 @@
 // src/store/portfolioStore.ts
-/**
- * portfolioStore.ts — ENCRYPTION-ENABLED version
- *
- * UPDATED v8:
- *  • GoalContribution sub-collection — addGoalContribution, deleteGoalContribution
- *  • goalContributions[] in state, hydrated from Firestore
- *  • Goal type now supports status ('active' | 'completed' | 'success') and completedAt
- *  • Liability type supports status: 'returned' and returnedAt
- *  • EPF stored as OtherInvestment with assetType: 'epf' (no store change needed)
- *  • clearAllData now also clears goalContributions collection
- *  • takeNetWorthSnapshot excludes returned liabilities from totalLiabilities
- */
-
 import type {
   Account,
   CashflowEntry,
+  Credential, // ← NEW
   EssentialsConfig,
   Goal,
   GoalContribution,
@@ -52,17 +40,12 @@ import { db } from '../services/firebase';
 import { summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 
-// ── Firestore helpers ─────────────────────────────────────────────────────────
-
 const userCol = (uid: string, col: string) => collection(db, 'users', uid, col);
 const userDoc = (uid: string, col: string, id: string) =>
   doc(db, 'users', uid, col, id);
 const settingsDocRef = (uid: string) =>
   doc(db, 'users', uid, 'settings', 'config');
 
-/**
- * Prevents crash: TypeError: Cannot read properties of undefined (reading 'localeCompare')
- */
 const safeCompare = (a: string | undefined, b: string | undefined) =>
   (a || '').localeCompare(b || '');
 
@@ -93,15 +76,11 @@ async function saveDoc<
   await setDoc(userDoc(uid, col, data.id), payload);
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
-
 export type SettingsRecord = {
   notion: NotionConfig;
   essentials?: EssentialsConfig;
   encryptionEnabled?: boolean;
 };
-
-// ── Store Type ────────────────────────────────────────────────────────────────
 
 type PortfolioState = {
   uid: string | null;
@@ -111,7 +90,8 @@ type PortfolioState = {
   liabilities: Liability[];
   cashflows: CashflowEntry[];
   goals: Goal[];
-  goalContributions: GoalContribution[]; // ← NEW
+  goalContributions: GoalContribution[];
+  credentials: Credential[]; // ← NEW
   networthSnapshots: NetWorthSnapshot[];
   latestInsight: InsightSnapshot | null;
   notion: NotionConfig;
@@ -127,7 +107,6 @@ type PortfolioState = {
 
   hydrate: (uid: string) => Promise<void>;
 
-  // Investments
   addInvestment: (
     investment: Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
@@ -137,28 +116,24 @@ type PortfolioState = {
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
 
-  // Liabilities
   addLiability: (
     liability: Omit<Liability, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
   deleteLiability: (id: string) => Promise<void>;
 
-  // Cashflows
   addCashflow: (
     entry: Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateCashflow: (id: string, patch: Partial<CashflowEntry>) => Promise<void>;
   deleteCashflow: (id: string) => Promise<void>;
 
-  // Goals
   addGoal: (
     goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateGoal: (id: string, patch: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
 
-  // Goal Contributions — NEW
   addGoalContribution: (
     contribution: Omit<
       GoalContribution,
@@ -167,14 +142,19 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteGoalContribution: (id: string) => Promise<void>;
 
-  // Accounts
+  // Credentials — NEW
+  addCredential: (
+    credential: Omit<Credential, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
+  ) => Promise<void>;
+  updateCredential: (id: string, patch: Partial<Credential>) => Promise<void>;
+  deleteCredential: (id: string) => Promise<void>;
+
   addAccount: (
     account: Omit<Account, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateAccount: (id: string, patch: Partial<Account>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
 
-  // Sold Trades
   addSoldTrade: (
     trade: Omit<
       SoldTrade,
@@ -184,7 +164,6 @@ type PortfolioState = {
   updateSoldTrade: (id: string, patch: Partial<SoldTrade>) => Promise<void>;
   deleteSoldTrade: (id: string) => Promise<void>;
 
-  // Insurance
   addInsurancePolicy: (
     policy: Omit<InsurancePolicy, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -201,7 +180,6 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteInsurancePayment: (id: string) => Promise<void>;
 
-  // Lending / Financier
   addLendingBorrower: (
     borrower: Omit<
       LendingBorrower,
@@ -222,7 +200,6 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteLendingTransaction: (id: string) => Promise<void>;
 
-  // SIP Plans
   addSipInstrument: (instrument: {
     name: string;
     percentage: number;
@@ -233,7 +210,6 @@ type PortfolioState = {
   upsertSipBudget: (budget: number) => Promise<string>;
   deleteSipBudget: () => Promise<void>;
 
-  // Settings & Snapshots
   clearAllData: () => Promise<void>;
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
@@ -245,12 +221,8 @@ type PortfolioState = {
   ) => Promise<void>;
 };
 
-// ── Defaults ──────────────────────────────────────────────────────────────────
-
 const DEFAULT_NOTION: NotionConfig = { enabled: false };
 const DEFAULT_ESSENTIALS: EssentialsConfig = {};
-
-// ── Store ─────────────────────────────────────────────────────────────────────
 
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   uid: null,
@@ -260,7 +232,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   liabilities: [],
   cashflows: [],
   goals: [],
-  goalContributions: [], // ← NEW
+  goalContributions: [],
+  credentials: [], // ← NEW
   networthSnapshots: [],
   latestInsight: null,
   notion: DEFAULT_NOTION,
@@ -274,8 +247,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   sipPlans: [],
   _lastSnapshotDate: null,
 
-  // ── HYDRATE ────────────────────────────────────────────────────────────────
-
   hydrate: async (uid) => {
     set({ uid });
     try {
@@ -285,7 +256,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         liabilities,
         cashflows,
         goals,
-        goalContributions, // ← NEW
+        goalContributions,
+        credentials, // ← NEW
         networthSnapshots,
         insights,
         accounts,
@@ -301,7 +273,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<Liability>(uid, 'liabilities'),
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
-        fetchSub<GoalContribution>(uid, 'goalContributions'), // ← NEW
+        fetchSub<GoalContribution>(uid, 'goalContributions'),
+        fetchSub<Credential>(uid, 'credentials'), // ← NEW
         fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
         fetchSub<InsightSnapshot>(uid, 'insights'),
         fetchSub<Account>(uid, 'accounts'),
@@ -339,12 +312,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             safeCompare(b.updatedAt, a.updatedAt),
         ),
         goals: goals.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)),
-        goalContributions: goalContributions.sort(
-          (
-            a,
-            b, // ← NEW
-          ) => safeCompare(b.date, a.date),
+        goalContributions: goalContributions.sort((a, b) =>
+          safeCompare(b.date, a.date),
         ),
+        credentials: credentials.sort((a, b) =>
+          safeCompare(b.updatedAt, a.updatedAt),
+        ), // ← NEW
         networthSnapshots: networthSnapshots.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
@@ -383,8 +356,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       set({ ready: true });
     }
   },
-
-  // ── INVESTMENTS ────────────────────────────────────────────────────────────
 
   addInvestment: async (investment) => {
     const uid = get().uid;
@@ -488,10 +459,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await get().recordSnapshotIfNeeded();
   },
 
-  // ── LIABILITIES ────────────────────────────────────────────────────────────
-  // status: 'returned' and returnedAt are just fields on the document.
-  // The clean() helper and spread operator handle them transparently.
-
   addLiability: async (liability) => {
     const uid = get().uid;
     if (!uid) return;
@@ -530,8 +497,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'liabilities', id));
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }));
   },
-
-  // ── CASHFLOWS ──────────────────────────────────────────────────────────────
 
   addCashflow: async (entry) => {
     const uid = get().uid;
@@ -576,10 +541,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ cashflows: s.cashflows.filter((x) => x.id !== id) }));
   },
 
-  // ── GOALS ──────────────────────────────────────────────────────────────────
-  // Goal now supports: status ('active' | 'completed' | 'success'), completedAt
-  // These are plain fields handled by clean() + spread.
-
   addGoal: async (goal) => {
     const uid = get().uid;
     if (!uid) return;
@@ -617,15 +578,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({ goals: s.goals.filter((x) => x.id !== id) }));
   },
 
-  // ── GOAL CONTRIBUTIONS — NEW ───────────────────────────────────────────────
-  //
-  // Each contribution is a separate Firestore document under:
-  //   users/{uid}/goalContributions/{contributionId}
-  //
-  // When a contribution is added, updateGoal is called separately by GoalsPage
-  // to update goal.currentAmount — this keeps the contribution atomic and
-  // the goal's currentAmount always correct.
-
   addGoalContribution: async (contribution) => {
     const uid = get().uid;
     if (!uid) return;
@@ -654,7 +606,50 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ── ACCOUNTS ───────────────────────────────────────────────────────────────
+  // ── CREDENTIALS ────────────────────────────────────────────────────────────
+
+  addCredential: async (credential) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...credential,
+      id: createId('cred'),
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as Credential;
+    await saveDoc(uid, 'credentials', withMeta);
+    set((s) => ({
+      credentials: [withMeta, ...s.credentials].sort((a, b) =>
+        safeCompare(b.updatedAt, a.updatedAt),
+      ),
+    }));
+  },
+
+  updateCredential: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().credentials.find((x) => x.id === id);
+    if (!existing) return;
+    const updated = clean({
+      ...existing,
+      ...patch,
+      id,
+      updatedAt: now(),
+    }) as Credential;
+    await saveDoc(uid, 'credentials', updated);
+    set((s) => ({
+      credentials: s.credentials.map((x) => (x.id === id ? updated : x)),
+    }));
+  },
+
+  deleteCredential: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'credentials', id));
+    set((s) => ({ credentials: s.credentials.filter((x) => x.id !== id) }));
+  },
 
   addAccount: async (account) => {
     const uid = get().uid;
@@ -692,8 +687,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'accounts', id));
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
   },
-
-  // ── SOLD TRADES ────────────────────────────────────────────────────────────
 
   addSoldTrade: async (trade) => {
     const uid = get().uid;
@@ -740,8 +733,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'soldTrades', id));
     set((s) => ({ soldTrades: s.soldTrades.filter((x) => x.id !== id) }));
   },
-
-  // ── INSURANCE ──────────────────────────────────────────────────────────────
 
   addInsurancePolicy: async (policy) => {
     const uid = get().uid;
@@ -817,8 +808,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       insurancePayments: s.insurancePayments.filter((x) => x.id !== id),
     }));
   },
-
-  // ── LENDING / FINANCIER ────────────────────────────────────────────────────
 
   addLendingBorrower: async (borrower) => {
     const uid = get().uid;
@@ -914,8 +903,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ── SIP PLANS ──────────────────────────────────────────────────────────────
-
   addSipInstrument: async (instrument) => {
     const uid = get().uid;
     if (!uid) return;
@@ -991,8 +978,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
-  // ── SETTINGS ───────────────────────────────────────────────────────────────
-
   setNotionConfig: async (patch) => {
     const uid = get().uid;
     if (!uid) return;
@@ -1016,8 +1001,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     );
     set({ essentials });
   },
-
-  // ── SNAPSHOTS ──────────────────────────────────────────────────────────────
 
   recordSnapshotIfNeeded: async () => {
     const uid = get().uid;
@@ -1059,12 +1042,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     const { totalValue } = summarizePortfolio(get().investments);
-
-    // Exclude 'returned' liabilities from net worth calculation
     const totalLiabilities = get()
       .liabilities.filter((l) => l.status !== 'returned')
       .reduce((acc, l) => acc + (l.outstanding || 0), 0);
-
     const t = now();
     const snap: NetWorthSnapshot = {
       id: createId('nws'),
@@ -1093,8 +1073,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set({ latestInsight: snapshot });
   },
 
-  // ── CLEAR ALL DATA ─────────────────────────────────────────────────────────
-
   clearAllData: async () => {
     const uid = get().uid;
     if (!uid) return;
@@ -1104,7 +1082,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'liabilities',
       'cashflows',
       'goals',
-      'goalContributions', // ← NEW
+      'goalContributions',
+      'credentials', // ← NEW
       'snapshots',
       'networthSnapshots',
       'insights',
@@ -1151,7 +1130,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         liabilities: [],
         cashflows: [],
         goals: [],
-        goalContributions: [], // ← NEW
+        goalContributions: [],
+        credentials: [], // ← NEW
         networthSnapshots: [],
         latestInsight: null,
         notion: { enabled: false },

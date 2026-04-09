@@ -411,6 +411,26 @@ function SectorCapCell({
   );
 }
 
+// ── Investment Category Helpers ────────────────────────────────────────────
+
+/**
+ * Returns true for stocks & mutual funds — assets that have live prices,
+ * quantities, dividends, and benefit from FolioSync analysis.
+ */
+function isEquityLike(inv: any): boolean {
+  if (inv.type === 'stock' || inv.type === 'mutual_fund') return true;
+  return false;
+}
+
+/**
+ * Returns true for fixed-income / government instruments:
+ * bonds, FDs, PPF, NPS, EPF, physical gold/silver, real estate, crypto, other.
+ * These show maturity date, interest rate, duration instead of qty/live price/dividend/FolioSync.
+ */
+function isFixedIncome(inv: any): boolean {
+  return !isEquityLike(inv);
+}
+
 // ── Chip Components ────────────────────────────────────────────────────────
 
 function TypeChip({ inv }: { inv: any }) {
@@ -571,6 +591,73 @@ function PriceCell({
         <span className='text-[9px] text-slate-400 ml-0.5'>{label}</span>
       )}
     </span>
+  );
+}
+
+// ── Fixed Income Detail Cell ───────────────────────────────────────────────
+/**
+ * Shows relevant details for bonds, FDs, PPF, NPS, EPF, real estate, gold etc.
+ * Replaces Qty / Live Price / Dividend / FolioSync for these asset types.
+ */
+function FixedIncomeDetails({ inv }: { inv: any }) {
+  const rows: { label: string; value: string; highlight?: boolean }[] = [];
+
+  if (inv.type === 'bond' || inv.type === 'fixed_deposit') {
+    if (inv.bankName) rows.push({ label: 'Bank', value: inv.bankName });
+    if (inv.interestRate)
+      rows.push({
+        label: 'Rate',
+        value: `${inv.interestRate}% p.a.`,
+        highlight: true,
+      });
+    if (inv.maturityDate)
+      rows.push({ label: 'Matures', value: inv.maturityDate });
+    if (inv.durationMonths)
+      rows.push({
+        label: 'Duration',
+        value:
+          `${inv.durationMonths >= 12 ? `${Math.floor(inv.durationMonths / 12)}y ${inv.durationMonths % 12 > 0 ? `${inv.durationMonths % 12}m` : ''}` : `${inv.durationMonths}m`}`.trim(),
+      });
+  } else if (inv.type === 'other') {
+    const assetType = inv.assetType || 'other';
+    if (assetType === 'ppf') {
+      rows.push({ label: 'Type', value: 'PPF' });
+      rows.push({ label: 'Rate', value: '7.1% p.a.', highlight: true });
+    } else if (assetType === 'nps') {
+      rows.push({ label: 'Type', value: 'NPS' });
+    } else if (assetType === 'epf') {
+      rows.push({ label: 'Type', value: 'EPF / PF' });
+      rows.push({ label: 'Rate', value: '8.25% p.a.', highlight: true });
+    } else if (assetType === 'gold' || assetType === 'silver') {
+      rows.push({
+        label: 'Asset',
+        value: assetType === 'gold' ? 'Physical Gold' : 'Physical Silver',
+      });
+    } else if (assetType === 'real_estate') {
+      rows.push({ label: 'Asset', value: 'Real Estate' });
+    } else if (assetType === 'crypto') {
+      rows.push({ label: 'Asset', value: 'Crypto' });
+    }
+  }
+
+  if (rows.length === 0)
+    return <span className='text-[12px] text-slate-600'>—</span>;
+
+  return (
+    <div className='flex flex-col gap-0.5'>
+      {rows.map((r) => (
+        <div key={r.label} className='flex items-center gap-1.5'>
+          <span className='text-[9px] text-slate-600 uppercase tracking-wider w-12 shrink-0'>
+            {r.label}
+          </span>
+          <span
+            className={`text-[11px] font-semibold ${r.highlight ? 'text-amber-400' : 'text-slate-300'}`}
+          >
+            {r.value}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1770,19 +1857,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                         {/* Action buttons */}
                         <div className='flex items-center gap-1 shrink-0'>
-                          {hasLiveSymbol && (
+                          {isEquityLike(inv) && hasLiveSymbol && (
                             <RowRefreshButton
                               onClick={() => handleRefreshRow(inv)}
                               refreshing={isRowRefreshing}
                             />
                           )}
-                          <button
-                            onClick={() => setSellTarget(inv)}
-                            title='Record sale & track profit'
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all'
-                          >
-                            <FiDollarSign size={12} />
-                          </button>
+                          {isEquityLike(inv) && (
+                            <button
+                              onClick={() => setSellTarget(inv)}
+                              title='Record sale & track profit'
+                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all'
+                            >
+                              <FiDollarSign size={12} />
+                            </button>
+                          )}
                           <button
                             onClick={() => setEdit(inv)}
                             className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white transition-all'
@@ -1798,7 +1887,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         </div>
                       </div>
 
-                      {/* Sector + Cap tags */}
+                      {/* Sector + Cap tags — stocks only */}
                       {inv.type === 'stock' && (
                         <div className='mt-2'>
                           <SectorCapCell
@@ -1809,17 +1898,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         </div>
                       )}
 
-                      {/* FolioSync Score (mobile) */}
-                      <div className='mt-2'>
-                        <FolioSyncCell
-                          inv={inv}
-                          storedFundamentals={
-                            folioSyncData[inv.id]?.fundamentals
-                          }
-                          storedResult={folioSyncData[inv.id]?.result}
-                          onSave={handleFolioSyncSave}
-                        />
-                      </div>
+                      {/* FolioSync Score (mobile) — equity only */}
+                      {isEquityLike(inv) && (
+                        <div className='mt-2'>
+                          <FolioSyncCell
+                            inv={inv}
+                            storedFundamentals={
+                              folioSyncData[inv.id]?.fundamentals
+                            }
+                            storedResult={folioSyncData[inv.id]?.result}
+                            onSave={handleFolioSyncSave}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1845,7 +1936,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <span className='text-[13px] font-bold text-white tabular-nums'>
                         {formatINR(current)}
                       </span>
-                      {hasLiveSymbol && (
+                      {isEquityLike(inv) && hasLiveSymbol && (
                         <PriceCell
                           inv={inv}
                           flashState={flashMap[inv.id] ?? 'none'}
@@ -1854,61 +1945,70 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       )}
                     </div>
 
-                    {/* Dividend */}
-                    <div className='flex flex-col gap-0.5 items-center'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
-                        Div ({shortFYLabel})
-                      </span>
-                      {canFetchDiv ? (
-                        isDivLoading ? (
-                          <span className='text-[10px] text-slate-500 mt-1'>
-                            <FiRefreshCw size={10} className='animate-spin' />
-                          </span>
-                        ) : dividendCurrentFY !== null &&
-                          dividendCurrentFY > 0 ? (
-                          <div
-                            className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
-                            title='Click to view full history'
-                            onClick={() => setDivDetailsTarget(inv)}
-                          >
-                            <span className='text-[13px] font-bold text-emerald-400 tabular-nums'>
-                              {formatINR(dividendCurrentFY)}
-                            </span>
-                            <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
-                              History
-                            </span>
-                          </div>
-                        ) : dividendCurrentFY !== null &&
-                          dividendCurrentFY === 0 ? (
-                          <div
-                            className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
-                            title='Click to view full history'
-                            onClick={() => setDivDetailsTarget(inv)}
-                          >
-                            <span className='text-[13px] font-medium text-slate-600'>
-                              ₹0
-                            </span>
-                            <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
-                              History
-                            </span>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRefreshRowDiv(inv);
-                            }}
-                            className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
-                          >
-                            <FiRefreshCw size={8} /> Fetch
-                          </button>
-                        )
-                      ) : (
-                        <span className='text-[13px] font-medium text-slate-600'>
-                          —
+                    {/* Dividend (equity) | Details (fixed income) */}
+                    {isEquityLike(inv) ? (
+                      <div className='flex flex-col gap-0.5 items-center'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                          Div ({shortFYLabel})
                         </span>
-                      )}
-                    </div>
+                        {canFetchDiv ? (
+                          isDivLoading ? (
+                            <span className='text-[10px] text-slate-500 mt-1'>
+                              <FiRefreshCw size={10} className='animate-spin' />
+                            </span>
+                          ) : dividendCurrentFY !== null &&
+                            dividendCurrentFY > 0 ? (
+                            <div
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
+                              title='Click to view full history'
+                              onClick={() => setDivDetailsTarget(inv)}
+                            >
+                              <span className='text-[13px] font-bold text-emerald-400 tabular-nums'>
+                                {formatINR(dividendCurrentFY)}
+                              </span>
+                              <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
+                                History
+                              </span>
+                            </div>
+                          ) : dividendCurrentFY !== null &&
+                            dividendCurrentFY === 0 ? (
+                            <div
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
+                              title='Click to view full history'
+                              onClick={() => setDivDetailsTarget(inv)}
+                            >
+                              <span className='text-[13px] font-medium text-slate-600'>
+                                ₹0
+                              </span>
+                              <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
+                                History
+                              </span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRefreshRowDiv(inv);
+                              }}
+                              className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                            >
+                              <FiRefreshCw size={8} /> Fetch
+                            </button>
+                          )
+                        ) : (
+                          <span className='text-[13px] font-medium text-slate-600'>
+                            —
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className='flex flex-col gap-0.5 items-center'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                          Details
+                        </span>
+                        <FixedIncomeDetails inv={inv} />
+                      </div>
+                    )}
 
                     {/* P&L */}
                     <div className='flex flex-col gap-0.5 items-end'>
@@ -2205,26 +2305,40 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                       {/* ── Sector · Cap ── */}
                       <td className={`px-4 py-3.5 ${bdClass}`}>
-                        <SectorCapCell
-                          inv={inv}
-                          marketCap={marketCap}
-                          onSave={handleSaveClassification}
-                        />
+                        {inv.type === 'stock' ? (
+                          <SectorCapCell
+                            inv={inv}
+                            marketCap={marketCap}
+                            onSave={handleSaveClassification}
+                          />
+                        ) : isFixedIncome(inv) ? (
+                          <FixedIncomeDetails inv={inv} />
+                        ) : (
+                          <SectorCapCell
+                            inv={inv}
+                            marketCap={marketCap}
+                            onSave={handleSaveClassification}
+                          />
+                        )}
                       </td>
 
-                      {/* ── Qty ── */}
+                      {/* ── Qty — equity only ── */}
                       <td
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
-                        <span className='text-[13px] font-medium text-slate-300'>
-                          {qty !== null && qty !== undefined ? (
-                            Number(qty).toLocaleString('en-IN', {
-                              maximumFractionDigits: 4,
-                            })
-                          ) : (
-                            <span className='text-slate-600'>—</span>
-                          )}
-                        </span>
+                        {isEquityLike(inv) ? (
+                          <span className='text-[13px] font-medium text-slate-300'>
+                            {qty !== null && qty !== undefined ? (
+                              Number(qty).toLocaleString('en-IN', {
+                                maximumFractionDigits: 4,
+                              })
+                            ) : (
+                              <span className='text-slate-600'>—</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className='text-slate-700 text-xs'>—</span>
+                        )}
                       </td>
 
                       {/* ── Invested ── */}
@@ -2245,77 +2359,88 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         </span>
                       </td>
 
-                      {/* ── Dividend ── */}
+                      {/* ── Dividend — equity only ── */}
                       <td
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
-                        {canFetchDiv ? (
-                          isDivLoading ? (
-                            <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-500'>
-                              <FiRefreshCw size={10} className='animate-spin' />
-                            </span>
-                          ) : dividendCurrentFY !== null &&
-                            dividendCurrentFY > 0 ? (
-                            <div
-                              className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
-                              title='Click to view full history'
-                              onClick={() => setDivDetailsTarget(inv)}
-                            >
-                              <span className='text-[13px] font-bold text-emerald-400'>
-                                {formatINR(dividendCurrentFY)}
+                        {isEquityLike(inv) ? (
+                          canFetchDiv ? (
+                            isDivLoading ? (
+                              <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-500'>
+                                <FiRefreshCw
+                                  size={10}
+                                  className='animate-spin'
+                                />
                               </span>
-                              <span className='text-[9px] text-slate-500 font-medium'>
-                                History
-                              </span>
-                            </div>
-                          ) : dividendCurrentFY !== null &&
-                            dividendCurrentFY === 0 ? (
-                            <div
-                              className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
-                              title='Click to view full history'
-                              onClick={() => setDivDetailsTarget(inv)}
-                            >
-                              <span className='text-[13px] font-medium text-slate-600'>
-                                ₹0
-                              </span>
-                              <span className='text-[9px] text-slate-500 font-medium'>
-                                History
-                              </span>
-                            </div>
-                          ) : (
-                            <div className='flex justify-end opacity-0 group-hover:opacity-100 transition-opacity'>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRefreshRowDiv(inv);
-                                }}
-                                className='inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                            ) : dividendCurrentFY !== null &&
+                              dividendCurrentFY > 0 ? (
+                              <div
+                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                                title='Click to view full history'
+                                onClick={() => setDivDetailsTarget(inv)}
                               >
-                                <FiRefreshCw size={10} /> Get Div
-                              </button>
-                            </div>
+                                <span className='text-[13px] font-bold text-emerald-400'>
+                                  {formatINR(dividendCurrentFY)}
+                                </span>
+                                <span className='text-[9px] text-slate-500 font-medium'>
+                                  History
+                                </span>
+                              </div>
+                            ) : dividendCurrentFY !== null &&
+                              dividendCurrentFY === 0 ? (
+                              <div
+                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                                title='Click to view full history'
+                                onClick={() => setDivDetailsTarget(inv)}
+                              >
+                                <span className='text-[13px] font-medium text-slate-600'>
+                                  ₹0
+                                </span>
+                                <span className='text-[9px] text-slate-500 font-medium'>
+                                  History
+                                </span>
+                              </div>
+                            ) : (
+                              <div className='flex justify-end opacity-0 group-hover:opacity-100 transition-opacity'>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRefreshRowDiv(inv);
+                                  }}
+                                  className='inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                                >
+                                  <FiRefreshCw size={10} /> Get Div
+                                </button>
+                              </div>
+                            )
+                          ) : (
+                            <span className='text-[13px] font-medium text-slate-600'>
+                              —
+                            </span>
                           )
                         ) : (
-                          <span className='text-[13px] font-medium text-slate-600'>
-                            —
-                          </span>
+                          <span className='text-slate-700 text-xs'>—</span>
                         )}
                       </td>
 
-                      {/* ── Live Price ── */}
+                      {/* ── Live Price — equity only ── */}
                       <td
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
-                        <PriceCell
-                          inv={inv}
-                          flashState={flashMap[inv.id] ?? 'none'}
-                          isRefreshing={isRowRefreshing}
-                        />
+                        {isEquityLike(inv) ? (
+                          <PriceCell
+                            inv={inv}
+                            flashState={flashMap[inv.id] ?? 'none'}
+                            isRefreshing={isRowRefreshing}
+                          />
+                        ) : (
+                          <span className='text-slate-700 text-xs'>—</span>
+                        )}
                       </td>
 
-                      {/* ── Refresh button (separate col) ── */}
+                      {/* ── Refresh button — equity only ── */}
                       <td className={`px-2 py-3.5 text-center ${bdClass}`}>
-                        {hasLiveSymbol ? (
+                        {isEquityLike(inv) && hasLiveSymbol ? (
                           <span className='opacity-0 group-hover:opacity-100 transition-opacity'>
                             <RowRefreshButton
                               onClick={() => handleRefreshRow(inv)}
@@ -2327,16 +2452,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         )}
                       </td>
 
-                      {/* ── FolioSync Score ── */}
+                      {/* ── FolioSync Score — equity only ── */}
                       <td className={`px-3 py-2.5 ${bdClass}`}>
-                        <FolioSyncCell
-                          inv={inv}
-                          storedFundamentals={
-                            folioSyncData[inv.id]?.fundamentals
-                          }
-                          storedResult={folioSyncData[inv.id]?.result}
-                          onSave={handleFolioSyncSave}
-                        />
+                        {isEquityLike(inv) ? (
+                          <FolioSyncCell
+                            inv={inv}
+                            storedFundamentals={
+                              folioSyncData[inv.id]?.fundamentals
+                            }
+                            storedResult={folioSyncData[inv.id]?.result}
+                            onSave={handleFolioSyncSave}
+                          />
+                        ) : (
+                          <span className='text-slate-700 text-xs'>—</span>
+                        )}
                       </td>
 
                       {/* ── P&L ── */}
@@ -2359,13 +2488,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       {/* ── Actions ── */}
                       <td className={`px-3 py-3.5 ${bdClass}`}>
                         <div className='flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
-                          <button
-                            onClick={() => setSellTarget(inv)}
-                            title='Record sale & track profit'
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all'
-                          >
-                            <FiDollarSign size={12} />
-                          </button>
+                          {isEquityLike(inv) && (
+                            <button
+                              onClick={() => setSellTarget(inv)}
+                              title='Record sale & track profit'
+                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all'
+                            >
+                              <FiDollarSign size={12} />
+                            </button>
+                          )}
                           <button
                             onClick={() => setEdit(inv)}
                             className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'

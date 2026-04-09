@@ -1,11 +1,4 @@
 // src/utils/backup.ts
-//
-// VERSION 8 — updated to include:
-//  • Goal contributions sub-collection (goalContributions)
-//  • Goal status + completedAt fields preserved in goals array
-//  • Liability returnedAt field preserved in liabilities array
-//  • EPF is stored inside investments (type: 'other', assetType: 'epf') — no separate collection needed
-//  • Import accepts v1–8 for backwards compatibility
 
 import type {
   Account,
@@ -15,6 +8,7 @@ import type {
   AttendanceTransaction,
   CashflowEntry,
   CoconutRecord,
+  Credential,
   CropCycle,
   EssentialsConfig,
   Field,
@@ -46,16 +40,15 @@ import type { SettingsRecord } from '../store/portfolioStore';
 import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
-// ── Backup Payload ────────────────────────────────────────────────────────────
-
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   createdAt: string;
   investments: Investment[];
-  liabilities: Liability[]; // includes returnedAt, status fields
+  liabilities: Liability[];
   cashflows: CashflowEntry[];
-  goals: Goal[]; // includes status, completedAt fields
-  goalContributions?: GoalContribution[]; // NEW v8
+  goals: Goal[];
+  goalContributions?: GoalContribution[];
+  credentials?: Credential[]; // ← NEW
   snapshots: PortfolioSnapshot[];
   networthSnapshots: NetWorthSnapshot[];
   accounts: Account[];
@@ -81,14 +74,10 @@ export type BackupPayload = {
   soldTrades?: any[];
 };
 
-// ── Firestore helpers ─────────────────────────────────────────────────────────
-
 const userSubCol = (uid: string, col: string) =>
   collection(db, 'users', uid, col);
-
 const userSubDoc = (uid: string, col: string, id: string) =>
   doc(db, 'users', uid, col, id);
-
 const settingsDocRef = (uid: string) =>
   doc(db, 'users', uid, 'settings', 'config');
 
@@ -99,18 +88,15 @@ async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
 
 async function batchSet(uid: string, colName: string, items: any[]) {
   if (!items?.length) return;
-  // Firestore batch limit is 500 writes — chunk into 499 to be safe
   for (let i = 0; i < items.length; i += 499) {
     const batch = writeBatch(db);
     items.slice(i, i + 499).forEach((item) => {
-      if (!item?.id) return; // skip items without an id
+      if (!item?.id) return;
       batch.set(userSubDoc(uid, colName, item.id), { ...item, userId: uid });
     });
     await batch.commit();
   }
 }
-
-// ── Export ────────────────────────────────────────────────────────────────────
 
 export async function exportFullBackup(uid: string) {
   if (!uid) throw new Error('You must be logged in to export data.');
@@ -120,7 +106,8 @@ export async function exportFullBackup(uid: string) {
     liabilities,
     cashflows,
     goals,
-    goalContributions, // NEW v8
+    goalContributions,
+    credentials, // ← NEW
     snapshots,
     networthSnapshots,
     accounts,
@@ -147,7 +134,8 @@ export async function exportFullBackup(uid: string) {
     fetchSub<Liability>(uid, 'liabilities'),
     fetchSub<CashflowEntry>(uid, 'cashflows'),
     fetchSub<Goal>(uid, 'goals'),
-    fetchSub<GoalContribution>(uid, 'goalContributions'), // NEW v8
+    fetchSub<GoalContribution>(uid, 'goalContributions'),
+    fetchSub<Credential>(uid, 'credentials'), // ← NEW
     fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
     fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
     fetchSub<Account>(uid, 'accounts'),
@@ -177,13 +165,14 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 8, // ← bumped to 8
+    version: 9,
     createdAt: new Date().toISOString(),
     investments,
-    liabilities, // now includes returnedAt + status: 'returned'
+    liabilities,
     cashflows,
-    goals, // now includes status + completedAt
-    goalContributions, // NEW v8
+    goals,
+    goalContributions,
+    credentials, // ← NEW
     snapshots,
     networthSnapshots,
     accounts,
@@ -217,17 +206,13 @@ export async function exportFullBackup(uid: string) {
   );
 }
 
-// ── Import ────────────────────────────────────────────────────────────────────
-
 export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
 
   const parsed = JSON.parse(jsonText) as BackupPayload;
-
-  // Accept versions 1–8
-  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8];
+  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   if (!parsed || !supportedVersions.includes(parsed.version as number)) {
-    throw new Error('Unsupported backup format. Expected version 1–8.');
+    throw new Error('Unsupported backup format.');
   }
 
   await Promise.all([
@@ -235,7 +220,8 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'liabilities', parsed.liabilities ?? []),
     batchSet(uid, 'cashflows', parsed.cashflows ?? []),
     batchSet(uid, 'goals', parsed.goals ?? []),
-    batchSet(uid, 'goalContributions', parsed.goalContributions ?? []), // NEW v8
+    batchSet(uid, 'goalContributions', parsed.goalContributions ?? []),
+    batchSet(uid, 'credentials', parsed.credentials ?? []), // ← NEW
     batchSet(uid, 'snapshots', parsed.snapshots ?? []),
     batchSet(uid, 'networthSnapshots', parsed.networthSnapshots ?? []),
     batchSet(uid, 'accounts', parsed.accounts ?? []),
@@ -259,7 +245,6 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'soldTrades', parsed.soldTrades ?? []),
   ]);
 
-  // Restore settings document
   const batch = writeBatch(db);
   batch.set(settingsDocRef(uid), {
     notion: parsed.notion ?? { enabled: false },

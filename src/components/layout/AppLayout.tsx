@@ -1,13 +1,4 @@
 // src/components/layout/AppLayout.tsx
-//
-// UPDATED — Added to header/topbar:
-//  • NotificationBell (top bell icon with unread count)
-//  • CurrencySelector (multi-currency display + privacy eye toggle)
-//  • useNotificationEngine (auto-generates insurance/goal/liability notifications)
-//
-// No structural layout changes — only the header area is modified.
-// Replace the existing AppLayout.tsx with this file.
-
 import {
   FiActivity,
   FiBarChart2,
@@ -18,6 +9,7 @@ import {
   FiFlag,
   FiGrid,
   FiHome,
+  FiLock,
   FiLogOut,
   FiSettings,
   FiShield,
@@ -38,8 +30,6 @@ import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
 import { useLiabilityReminders } from '../../hooks/useLiabilityReminders';
 import { useNotificationEngine } from '../../hooks/useNotificationEngine';
-
-// ─── Nav items ─────────────────────────────────────────────────────────────
 
 const NAV_GROUPS = [
   {
@@ -102,6 +92,13 @@ const NAV_GROUPS = [
         bg: 'bg-amber-500/10',
       },
       {
+        to: '/credentials',
+        icon: FiLock,
+        label: 'Credentials',
+        accent: 'text-fuchsia-400',
+        bg: 'bg-fuchsia-500/10',
+      }, // ← NEW
+      {
         to: '/agriculture',
         icon: GiWheat,
         label: 'Agriculture',
@@ -129,8 +126,8 @@ const NAV_GROUPS = [
         to: '/tools',
         icon: AiFillCalculator,
         label: 'Tools',
-        accent: 'text-fuchsia-400',
-        bg: 'bg-fuchsia-500/10',
+        accent: 'text-purple-400',
+        bg: 'bg-purple-500/10',
       },
       {
         to: '/snapshots',
@@ -179,7 +176,7 @@ function iconOnlyLinkClass(isActive: boolean, accent: string, bg: string) {
 
 export function AppLayout() {
   useLiabilityReminders();
-  useNotificationEngine(); // ← NEW: auto-generate notifications
+  useNotificationEngine();
 
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -211,16 +208,10 @@ export function AppLayout() {
     <div className='h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-50 flex relative'>
       <style
         dangerouslySetInnerHTML={{
-          __html: `
-        @keyframes smoothFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-        .animate-float { animation: smoothFloat 3s ease-in-out infinite; }
-        .scrollbar-none::-webkit-scrollbar { display: none; }
-        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-      `,
+          __html: `@keyframes smoothFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } } .animate-float { animation: smoothFloat 3s ease-in-out infinite; } .scrollbar-none::-webkit-scrollbar { display: none; } .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }`,
         }}
       />
 
-      {/* DESKTOP SIDEBAR */}
       <aside className='hidden lg:flex h-full w-[220px] shrink-0 flex-col border-r border-slate-800/60 bg-slate-900/80 px-3 py-5'>
         <div className='mb-6 flex items-center gap-3 px-2'>
           <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 text-white'>
@@ -307,7 +298,6 @@ export function AppLayout() {
         </NavLink>
       </aside>
 
-      {/* TABLET SIDEBAR */}
       <aside className='hidden md:flex lg:hidden h-full w-16 shrink-0 flex-col border-r border-slate-800/60 bg-slate-900/80 py-5 items-center gap-1'>
         <div className='mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 text-white'>
           <FiTrendingUp className='h-4 w-4' />
@@ -346,29 +336,21 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className='flex-1 overflow-y-auto relative flex flex-col'>
-        {/* ── Top Bar with Notification Bell + Currency Selector ── */}
         <div className='sticky top-0 z-50 flex items-center justify-end gap-2 px-4 py-2.5 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/40 md:px-6'>
           <NotificationBell />
         </div>
-
         <div className='p-4 pb-28 md:p-6 md:pb-8 max-w-7xl mx-auto min-h-full w-full'>
           <Outlet />
         </div>
       </main>
 
-      {/* MOBILE FAB */}
       <div
         className={`md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-y-2' : ''}`}
       >
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`relative flex h-[54px] w-[54px] items-center justify-center rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-colors duration-300 active:scale-90 ${
-            isMobileMenuOpen
-              ? 'bg-slate-800 text-white border border-slate-700'
-              : 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-[0_4px_20px_rgba(16,185,129,0.4)] animate-float'
-          }`}
+          className={`relative flex h-[54px] w-[54px] items-center justify-center rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-colors duration-300 active:scale-90 ${isMobileMenuOpen ? 'bg-slate-800 text-white border border-slate-700' : 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-[0_4px_20px_rgba(16,185,129,0.4)] animate-float'}`}
         >
           <div
             className={`transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-90' : 'rotate-0 scale-90'}`}
@@ -389,34 +371,10 @@ export function AppLayout() {
         />
       )}
 
-      {/* MOBILE BOTTOM SHEET */}
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 z-[70] bg-slate-900 border-t border-slate-800 rounded-t-3xl pt-4 pb-24 px-4 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'}`}
       >
         <div className='w-10 h-1 bg-slate-700 rounded-full mx-auto mb-5' />
-        <div className='flex items-center gap-3 mb-5 px-1 pb-4 border-b border-slate-800'>
-          {user?.photoURL && !sidebarImgError ? (
-            <img
-              src={user.photoURL}
-              alt=''
-              className='h-9 w-9 rounded-full object-cover'
-              onError={() => setSidebarImgError(true)}
-            />
-          ) : (
-            <div className='h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-700/30 border border-emerald-500/20 flex items-center justify-center'>
-              <span className='text-xs font-black text-emerald-400'>
-                {firstLetter}
-              </span>
-            </div>
-          )}
-          <div className='min-w-0 flex-1'>
-            <p className='text-sm font-bold text-slate-100 truncate'>
-              {user?.displayName || 'My Account'}
-            </p>
-            <p className='text-[11px] text-slate-500 truncate'>{user?.email}</p>
-          </div>
-        </div>
-
         <div className='grid grid-cols-4 gap-y-4 gap-x-2'>
           {ALL_NAV_ITEMS.map((item) => (
             <NavLink
@@ -440,24 +398,9 @@ export function AppLayout() {
               )}
             </NavLink>
           ))}
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              setTimeout(() => setLogoutOpen(true), 250);
-            }}
-            className='flex flex-col items-center gap-1.5 transition-transform active:scale-95'
-          >
-            <div className='flex h-[50px] w-[50px] items-center justify-center rounded-2xl bg-slate-800/80 border border-slate-700/50 text-rose-400'>
-              <FiLogOut className='h-[20px] w-[20px]' />
-            </div>
-            <span className='text-[9px] font-bold tracking-wide text-slate-400 mt-0.5'>
-              Logout
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* LOGOUT MODAL */}
       <Modal
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
