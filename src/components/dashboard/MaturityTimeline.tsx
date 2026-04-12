@@ -51,10 +51,10 @@ export function MaturityTimeline() {
   return (
     <Card 
       title={<div className="flex items-center gap-2"><FiClock className="text-amber-500"/> Maturity Timeline</div>} 
-      right={rows.length ? <span className="text-xs font-bold text-slate-400">Next 8</span> : undefined}
+      right={rows.length ? <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Next 8</span> : undefined}
     >
       {rows.length === 0 ? (
-        <div className="flex h-full items-center justify-center rounded-xl bg-slate-50/50 p-6 text-sm font-medium text-slate-500 dark:bg-slate-800/30">
+        <div className="flex h-full items-center justify-center rounded-xl bg-slate-50/50 p-6 text-sm font-medium text-slate-900 dark:text-slate-500 dark:bg-slate-800/30">
           Add a bond or fixed deposit to track maturity dates.
         </div>
       ) : (

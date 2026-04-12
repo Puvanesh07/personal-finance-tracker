@@ -58,9 +58,9 @@ const PIE_COLORS = [
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 
 const inputCls =
-  'w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
+  'w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
 const labelCls =
-  'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1';
+  'block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1';
 
 // ─── Reusable Dropdown ────────────────────────────────────────────────────────
 
@@ -135,19 +135,19 @@ function ProduceDropdown({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition-all duration-200 ${
           open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_12px_rgba(16,185,129,0.12)] text-slate-100'
-            : 'border-slate-700 bg-slate-800 text-slate-100 hover:border-slate-600'
+            ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_12px_rgba(16,185,129,0.12)] text-slate-900 dark:text-slate-100'
+            : 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:border-slate-300 dark:border-slate-600'
         }`}
       >
         <span className='truncate'>
           {selected ? (
             `${selected.emoji ? selected.emoji + ' ' : ''}${selected.label}`
           ) : (
-            <span className='text-slate-500'>{placeholder}</span>
+            <span className='text-slate-900 dark:text-slate-500'>{placeholder}</span>
           )}
         </span>
         <FiChevronDown
-          className={`ml-2 h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-200 ${
+          className={`ml-2 h-3.5 w-3.5 shrink-0 text-slate-900 dark:text-slate-500 transition-transform duration-200 ${
             open ? 'rotate-180 text-emerald-400' : ''
           }`}
         />
@@ -164,7 +164,7 @@ function ProduceDropdown({
               width: pos.width,
               zIndex: 9999,
             }}
-            className='overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl'
+            className='overflow-hidden rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl'
           >
             <div className='flex max-h-64 flex-col overflow-y-auto p-1.5'>
               {options.map((opt) => (
@@ -178,7 +178,7 @@ function ProduceDropdown({
                   className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-all text-left ${
                     value === opt.value
                       ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
+                      : 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
                   }`}
                 >
                   <span>
@@ -224,12 +224,12 @@ function SummaryCard({
     >
       <div className='flex items-center gap-2'>
         <span className='text-lg'>{icon}</span>
-        <span className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+        <span className='text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
           {label}
         </span>
       </div>
-      <div className='text-xl font-bold text-slate-100 font-mono'>{value}</div>
-      {sub && <div className='text-[11px] text-slate-500'>{sub}</div>}
+      <div className='text-xl font-bold text-slate-900 dark:text-slate-100 font-mono'>{value}</div>
+      {sub && <div className='text-[11px] text-slate-900 dark:text-slate-500'>{sub}</div>}
     </div>
   );
 }
@@ -249,7 +249,7 @@ function DeleteConfirmBtn({ onDelete }: { onDelete: () => void }) {
         </button>
         <button
           onClick={() => setConfirm(false)}
-          className='px-2 py-1 rounded-lg bg-slate-700 text-slate-300 text-xs font-bold'
+          className='px-2 py-1 rounded-lg bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-700 dark:text-slate-300 text-xs font-bold'
         >
           No
         </button>
@@ -258,7 +258,7 @@ function DeleteConfirmBtn({ onDelete }: { onDelete: () => void }) {
   return (
     <button
       onClick={() => setConfirm(true)}
-      className='p-1.5 rounded-lg bg-slate-800 text-red-400 hover:bg-red-500/10 transition-colors'
+      className='p-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-red-400 hover:bg-red-500/10 transition-colors'
       title='Delete'
     >
       <FiTrash2 className='w-3.5 h-3.5' />
@@ -564,12 +564,12 @@ export function ProduceSalesTab() {
           {allUnitSummary.map((u) => (
             <div
               key={u.unit}
-              className='rounded-xl bg-slate-900 border border-slate-800 px-4 py-3 flex flex-col gap-0.5 min-w-[120px]'
+              className='rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-3 flex flex-col gap-0.5 min-w-[120px]'
             >
-              <div className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+              <div className='text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                 Total {u.unit}
               </div>
-              <div className='text-lg font-bold text-slate-100 font-mono'>
+              <div className='text-lg font-bold text-slate-900 dark:text-slate-100 font-mono'>
                 {formatNumber(
                   u.totalQuantity,
                   u.unit === 'kg' || u.unit === 'litre' ? 2 : 0,
@@ -588,8 +588,8 @@ export function ProduceSalesTab() {
       {produceSales.length > 0 && (
         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
           {byProduce.length > 0 && (
-            <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
-              <div className='text-sm font-bold text-slate-100 mb-4'>
+            <div className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4'>
+              <div className='text-sm font-bold text-slate-900 dark:text-slate-100 mb-4'>
                 💰 Revenue by Produce
               </div>
               <ResponsiveContainer width='100%' height={220}>
@@ -628,8 +628,8 @@ export function ProduceSalesTab() {
           )}
 
           {byCategory.length > 0 && (
-            <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
-              <div className='text-sm font-bold text-slate-100 mb-4'>
+            <div className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4'>
+              <div className='text-sm font-bold text-slate-900 dark:text-slate-100 mb-4'>
                 🌿 Revenue by Category
               </div>
               <ResponsiveContainer width='100%' height={220}>
@@ -668,20 +668,20 @@ export function ProduceSalesTab() {
       {/* ── Filtered unit totals ── */}
       {(filterCategory !== 'all' || filterProduce !== 'all') &&
         filteredUnitSummary.length > 0 && (
-          <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
-            <div className='text-xs font-bold uppercase tracking-wider text-slate-400 mb-3'>
+          <div className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4'>
+            <div className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3'>
               📊 Filtered Totals by Unit
             </div>
             <div className='flex flex-wrap gap-3'>
               {filteredUnitSummary.map((u) => (
                 <div
                   key={u.unit}
-                  className='rounded-xl bg-slate-800 px-4 py-2 flex flex-col gap-0.5'
+                  className='rounded-xl bg-slate-200 dark:bg-slate-800 px-4 py-2 flex flex-col gap-0.5'
                 >
-                  <div className='text-[10px] text-slate-400 uppercase font-bold'>
+                  <div className='text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold'>
                     {u.unit}
                   </div>
-                  <div className='text-base font-bold font-mono text-slate-100'>
+                  <div className='text-base font-bold font-mono text-slate-900 dark:text-slate-100'>
                     {formatNumber(
                       u.totalQuantity,
                       u.unit === 'kg' || u.unit === 'litre' ? 2 : 0,
@@ -698,13 +698,13 @@ export function ProduceSalesTab() {
         )}
 
       {/* ── Records table ── */}
-      <div className='bg-slate-900 border border-slate-800 rounded-2xl p-4'>
+      <div className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4'>
         <div className='flex items-center justify-between mb-4 flex-wrap gap-2'>
           <div>
-            <div className='text-sm font-bold text-slate-100'>
+            <div className='text-sm font-bold text-slate-900 dark:text-slate-100'>
               🧺 Produce Sales Records
             </div>
-            <div className='text-[10px] text-slate-500 mt-0.5'>
+            <div className='text-[10px] text-slate-900 dark:text-slate-500 mt-0.5'>
               Income auto-synced to Cashflow · {filtered.length} records
             </div>
           </div>
@@ -749,7 +749,7 @@ export function ProduceSalesTab() {
         </div>
 
         {filtered.length === 0 ? (
-          <p className='text-xs text-slate-500 text-center py-10'>
+          <p className='text-xs text-slate-900 dark:text-slate-500 text-center py-10'>
             {produceSales.length === 0
               ? 'No produce sales recorded yet. Click "+ Add Sale" to get started.'
               : 'No records match the selected filter.'}
@@ -758,7 +758,7 @@ export function ProduceSalesTab() {
           <div className='overflow-x-auto'>
             <table className='w-full text-xs'>
               <thead>
-                <tr className='text-slate-500 border-b border-slate-800'>
+                <tr className='text-slate-900 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800'>
                   {[
                     'Date',
                     'Produce',
@@ -788,9 +788,9 @@ export function ProduceSalesTab() {
                   return (
                     <tr
                       key={lot.id}
-                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                      className='border-b border-slate-200/70 dark:border-slate-800/50 hover:bg-slate-100/80 dark:bg-slate-800/30'
                     >
-                      <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap'>
                         {lot.date}
                       </td>
                       <td className='px-3 py-2 font-bold text-emerald-400 whitespace-nowrap'>
@@ -806,13 +806,13 @@ export function ProduceSalesTab() {
                           {unit}
                         </span>
                       </td>
-                      <td className='px-3 py-2 text-slate-100 font-bold font-mono'>
+                      <td className='px-3 py-2 text-slate-900 dark:text-slate-100 font-bold font-mono'>
                         {formatNumber(
                           lot.quantity,
                           unit === 'kg' || unit === 'litre' ? 2 : 0,
                         )}
                       </td>
-                      <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap'>
                         ₹{lot.pricePerUnit}/{unit}
                       </td>
                       <td className='px-3 py-2 text-red-400 whitespace-nowrap'>
@@ -823,13 +823,13 @@ export function ProduceSalesTab() {
                       <td className='px-3 py-2 text-green-400 font-bold whitespace-nowrap'>
                         {formatINR(lot.totalAmount)}
                       </td>
-                      <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap'>
                         {lot.soldTo ?? '—'}
                       </td>
-                      <td className='px-3 py-2 text-slate-500 max-w-[140px] truncate'>
+                      <td className='px-3 py-2 text-slate-900 dark:text-slate-500 max-w-[140px] truncate'>
                         {lot.notes ?? '—'}
                       </td>
-                      <td className='px-3 py-2 text-slate-400 whitespace-nowrap'>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap'>
                         {accounts.find((a) => a.id === lot.accountId)?.name ??
                           '—'}
                       </td>
@@ -841,7 +841,7 @@ export function ProduceSalesTab() {
                               resetForm(lot);
                               setShowModal(true);
                             }}
-                            className='p-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors'
+                            className='p-1.5 rounded-lg bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:bg-slate-600 transition-colors'
                             title='Edit'
                           >
                             <FiEdit2 className='w-3.5 h-3.5' />
@@ -856,10 +856,10 @@ export function ProduceSalesTab() {
                 })}
               </tbody>
               <tfoot>
-                <tr className='border-t border-slate-700 bg-slate-900/60'>
+                <tr className='border-t border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/60'>
                   <td
                     colSpan={7}
-                    className='px-3 py-2 text-slate-400 font-bold text-[10px] uppercase text-right'
+                    className='px-3 py-2 text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase text-right'
                   >
                     Net Total ({filtered.length} records)
                   </td>
@@ -1026,22 +1026,22 @@ export function ProduceSalesTab() {
             </div>
             <div className='grid grid-cols-4 gap-2 text-center items-center'>
               <div>
-                <div className='text-[10px] text-slate-500 uppercase'>
+                <div className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
                   Gross
                 </div>
-                <div className='text-sm font-bold text-slate-300 font-mono'>
+                <div className='text-sm font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 font-mono'>
                   {formatINR(grossAmount)}
                 </div>
               </div>
-              <div className='text-xl text-slate-600 font-mono'>-</div>
+              <div className='text-xl text-slate-500 dark:text-slate-600 font-mono'>-</div>
               <div>
-                <div className='text-[10px] text-slate-500 uppercase'>Comm</div>
+                <div className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>Comm</div>
                 <div className='text-sm font-bold text-red-400 font-mono'>
                   {formatINR(commission)}
                 </div>
               </div>
               <div>
-                <div className='text-[10px] text-slate-500 uppercase'>
+                <div className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
                   Net Income
                 </div>
                 <div className='text-sm font-bold text-emerald-400 font-mono bg-emerald-500/10 rounded-lg py-1 px-2 border border-emerald-500/20'>
@@ -1063,13 +1063,13 @@ export function ProduceSalesTab() {
           </p>
         )}
 
-        <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-800'>
+        <div className='flex justify-end gap-2 pt-4 mt-2 border-t border-slate-200 dark:border-slate-800'>
           <button
             onClick={() => {
               setShowModal(false);
               setEditing(null);
             }}
-            className='px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800 text-sm font-bold'
+            className='px-4 py-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 text-sm font-bold'
           >
             Cancel
           </button>

@@ -333,7 +333,7 @@ export default function LendingDashboard() {
           <p className='text-xs font-bold uppercase tracking-wider text-indigo-400 mb-1'>
             Total Principal Given
           </p>
-          <p className='text-2xl font-bold text-slate-100'>
+          <p className='text-2xl font-bold text-slate-900 dark:text-slate-100'>
             {formatINR(stats.totalInvested)}
           </p>
           <div className='mt-2 flex items-center gap-1.5 text-xs text-indigo-300/80'>
@@ -362,15 +362,15 @@ export default function LendingDashboard() {
             <FiClock className='h-3.5 w-3.5' /> Yet to be returned
           </div>
         </div>
-        <div className='bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 shadow-sm'>
-          <p className='text-xs font-bold uppercase tracking-wider text-slate-400 mb-1'>
+        <div className='bg-slate-100/90 dark:bg-slate-800/40 border border-slate-300/70 dark:border-slate-700/60 rounded-2xl p-5 shadow-sm'>
+          <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1'>
             Accounts
           </p>
-          <p className='text-2xl font-bold text-slate-100'>
+          <p className='text-2xl font-bold text-slate-900 dark:text-slate-100'>
             {stats.activeAccounts}{' '}
-            <span className='text-lg text-slate-500 font-medium'>Active</span>
+            <span className='text-lg text-slate-900 dark:text-slate-500 font-medium'>Active</span>
           </p>
-          <div className='mt-2 flex items-center gap-1.5 text-xs text-slate-400'>
+          <div className='mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400'>
             <FiCheckCircle className='h-3.5 w-3.5' /> {stats.closedAccounts}{' '}
             Closed Accounts
           </div>
@@ -378,19 +378,19 @@ export default function LendingDashboard() {
       </div>
 
       {/* TOOLBAR */}
-      <div className='flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50'>
+      <div className='flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-300/60 dark:border-slate-700/50'>
         <div className='flex flex-1 items-center gap-3'>
           <input
             type='text'
             placeholder='Search borrower...'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className='w-full md:max-w-xs bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:border-indigo-500 outline-none'
+            className='w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className='bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none cursor-pointer'
+            className='cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
           >
             <option value='all'>All Status</option>
             <option value='active'>Active</option>
@@ -401,7 +401,7 @@ export default function LendingDashboard() {
           {/* TRIGGER GLOBAL EXPORT MODAL */}
           <button
             onClick={() => setExportPrompt({ open: true, type: 'all' })}
-            className='flex items-center gap-2 bg-slate-700 cursor-pointer hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition'
+            className='flex cursor-pointer items-center gap-2 rounded-xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600'
           >
             <FiDownload className='hidden sm:block' /> Report
           </button>
@@ -420,10 +420,10 @@ export default function LendingDashboard() {
       {/* CARDS GRID */}
       {borrowersWithMetrics.length === 0 ? (
         <div className='py-20 text-center flex flex-col items-center'>
-          <div className='h-16 w-16 bg-slate-800 rounded-full flex items-center justify-center mb-4'>
-            <FiUsers className='h-8 w-8 text-slate-500' />
+          <div className='h-16 w-16 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4'>
+            <FiUsers className='h-8 w-8 text-slate-900 dark:text-slate-500' />
           </div>
-          <p className='text-slate-400 font-medium'>No borrowers found.</p>
+          <p className='text-slate-500 dark:text-slate-400 font-medium'>No borrowers found.</p>
         </div>
       ) : (
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
@@ -436,7 +436,7 @@ export default function LendingDashboard() {
               <div
                 key={b.id}
                 onClick={() => setSelectedBorrower(b)}
-                className='group relative bg-slate-800/60 border border-slate-700/50 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition-all hover:-translate-y-1 shadow-sm hover:shadow-indigo-500/10'
+                className='group relative bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700/50 hover:border-indigo-500/50 rounded-2xl p-5 cursor-pointer transition-all hover:-translate-y-1 shadow-sm hover:shadow-indigo-500/10'
               >
                 <div className='flex justify-between items-start mb-4'>
                   <div>
@@ -444,11 +444,11 @@ export default function LendingDashboard() {
                       {b.name}
                     </h3>
                     {b.phone && (
-                      <p className='text-xs text-slate-400 mt-0.5'>{b.phone}</p>
+                      <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>{b.phone}</p>
                     )}
                   </div>
                   <div
-                    className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${b.status === 'active' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600'}`}
+                    className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${b.status === 'active' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-200 dark:bg-slate-300 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600'}`}
                   >
                     {b.status}
                   </div>
@@ -456,13 +456,13 @@ export default function LendingDashboard() {
 
                 <div className='space-y-3 mb-4'>
                   <div className='flex justify-between text-sm'>
-                    <span className='text-slate-500'>Principal Given</span>
-                    <span className='font-semibold text-slate-200'>
+                    <span className='text-slate-900 dark:text-slate-500'>Principal Given</span>
+                    <span className='font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                       {formatINR(b.given)}
                     </span>
                   </div>
                   <div className='flex justify-between text-sm'>
-                    <span className='text-slate-500'>Interest Earned</span>
+                    <span className='text-slate-900 dark:text-slate-500'>Interest Earned</span>
                     <span className='font-semibold text-emerald-400'>
                       +{formatINR(b.interest)}
                     </span>
@@ -471,14 +471,14 @@ export default function LendingDashboard() {
                   {/* Progress Bar for Principal Return */}
                   <div className='pt-2'>
                     <div className='flex justify-between text-xs mb-1'>
-                      <span className='text-slate-400 font-medium'>
+                      <span className='text-slate-500 dark:text-slate-400 font-medium'>
                         Repayment Progress
                       </span>
-                      <span className='text-slate-300 font-bold'>
+                      <span className='text-slate-600 dark:text-slate-700 dark:text-slate-300 font-bold'>
                         {progressPct}%
                       </span>
                     </div>
-                    <div className='w-full bg-slate-700 rounded-full h-1.5 overflow-hidden'>
+                    <div className='w-full bg-slate-300 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden'>
                       <div
                         className={`h-1.5 rounded-full ${progressPct === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
                         style={{ width: `${progressPct}%` }}
@@ -486,8 +486,8 @@ export default function LendingDashboard() {
                     </div>
                   </div>
 
-                  <div className='flex justify-between text-sm border-t border-slate-700/50 pt-2'>
-                    <span className='text-slate-400 font-medium'>
+                  <div className='flex justify-between text-sm border-t border-slate-300/60 dark:border-slate-700/50 pt-2'>
+                    <span className='text-slate-500 dark:text-slate-400 font-medium'>
                       Outstanding
                     </span>
                     <span
@@ -518,24 +518,24 @@ export default function LendingDashboard() {
         <div className='grid grid-cols-2 gap-4 py-4'>
           <button
             onClick={() => executeExport('csv')}
-            className='flex flex-col items-center gap-3 p-6 border border-slate-700 bg-slate-800 hover:bg-indigo-500/10 hover:border-indigo-500/50 rounded-2xl transition'
+            className='flex flex-col items-center gap-3 p-6 border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 hover:bg-indigo-500/10 hover:border-indigo-500/50 rounded-2xl transition'
           >
-            <FiFileText className='text-4xl text-slate-400' />
+            <FiFileText className='text-4xl text-slate-500 dark:text-slate-400' />
             <div className='text-center'>
               <p className='font-bold text-white'>CSV (Excel)</p>
-              <p className='text-xs text-slate-500 mt-1'>
+              <p className='text-xs text-slate-900 dark:text-slate-500 mt-1'>
                 Best for spreadsheets
               </p>
             </div>
           </button>
           <button
             onClick={() => executeExport('pdf')}
-            className='flex flex-col items-center gap-3 p-6 border border-slate-700 bg-slate-800 hover:bg-rose-500/10 hover:border-rose-500/50 rounded-2xl transition'
+            className='flex flex-col items-center gap-3 p-6 border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/10 hover:border-rose-500/50 rounded-2xl transition'
           >
             <FiFile className='text-4xl text-rose-400' />
             <div className='text-center'>
               <p className='font-bold text-white'>PDF Document</p>
-              <p className='text-xs text-slate-500 mt-1'>
+              <p className='text-xs text-slate-900 dark:text-slate-500 mt-1'>
                 Best for printing/sharing
               </p>
             </div>
@@ -546,21 +546,21 @@ export default function LendingDashboard() {
       {/* CONFIRMATION OVERLAY */}
       {deletePrompt.open && (
         <div className='fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200'>
-          <div className='bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-md w-full'>
+          <div className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 p-6 rounded-2xl shadow-2xl max-w-md w-full'>
             <h3 className='text-lg font-bold text-white mb-4 flex items-center gap-2'>
               <FiAlertCircle className='text-rose-500' /> Confirm Deletion
             </h3>
-            <p className='text-sm text-slate-300 mb-6'>
+            <p className='text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 mb-6'>
               {deletePrompt.type === 'borrower'
                 ? 'Are you absolutely sure you want to delete this borrower? All their money records and transactions will be permanently deleted. This cannot be undone.'
                 : 'Are you sure you want to delete this specific transaction? This cannot be undone.'}
             </p>
-            <div className='flex justify-end gap-3 pt-4 border-t border-slate-800'>
+            <div className='flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800'>
               <button
                 onClick={() =>
                   setDeletePrompt({ open: false, type: 'borrower', id: '' })
                 }
-                className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition'
+                className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition'
               >
                 Cancel
               </button>
@@ -657,7 +657,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
     >
       <div className='space-y-4'>
         <div>
-          <label className='text-xs font-bold text-slate-400'>
+          <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
             Name <span className='text-rose-500'>*</span>
           </label>
           <input
@@ -665,13 +665,13 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder='e.g. Rahul Sharma'
-            className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+            className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
           />
         </div>
 
         {!initialData && (
           <div>
-            <label className='text-xs font-bold text-slate-400'>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
               Initial Principal Given (₹){' '}
               <span className='text-rose-500'>*</span>
             </label>
@@ -680,23 +680,23 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               value={initialAmount}
               onChange={(e) => setInitialAmount(e.target.value)}
               placeholder='e.g. 100000'
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
             />
           </div>
         )}
 
         <div className='grid grid-cols-2 gap-4'>
           <div>
-            <label className='text-xs font-bold text-slate-400'>Phone</label>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>Phone</label>
             <input
               type='text'
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
             />
           </div>
           <div>
-            <label className='text-xs font-bold text-slate-400'>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
               Email Address
             </label>
             <input
@@ -704,14 +704,14 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder='For statements'
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
             />
           </div>
         </div>
 
         <div className='grid grid-cols-2 gap-4'>
           <div>
-            <label className='text-xs font-bold text-slate-400'>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
               Interest Rate (% per mo)
             </label>
             <input
@@ -720,29 +720,29 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               placeholder='e.g. 2'
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
             />
           </div>
           <div>
-            <label className='text-xs font-bold text-slate-400'>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
               Next Due Date
             </label>
             <input
               type='date'
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
             />
           </div>
         </div>
 
         {!initialData && (
           <div>
-            <label className='text-xs font-bold text-slate-400'>Status</label>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>Status</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
             >
               <option value='active'>Active</option>
               <option value='closed'>Closed</option>
@@ -819,13 +819,13 @@ function UpsertTransactionModal({
     >
       <div className='space-y-4'>
         <div>
-          <label className='text-xs font-bold text-slate-400'>
+          <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
             Transaction Type
           </label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value as any)}
-            className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
+            className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
           >
             <option value='interest_paid'>Interest Received (Profit)</option>
             <option value='principal_given'>
@@ -839,14 +839,14 @@ function UpsertTransactionModal({
 
         <div className='grid grid-cols-2 gap-4'>
           <div>
-            <label className='text-xs font-bold text-slate-400'>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
               Amount (₹) <span className='text-rose-500'>*</span>
             </label>
             <input
               type='number'
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
             />
             {!initialData &&
               type === 'interest_paid' &&
@@ -858,18 +858,18 @@ function UpsertTransactionModal({
               )}
           </div>
           <div>
-            <label className='text-xs font-bold text-slate-400'>Date</label>
+            <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>Date</label>
             <input
               type='date'
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
+              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
             />
           </div>
         </div>
 
         <div>
-          <label className='text-xs font-bold text-slate-400'>
+          <label className='text-xs font-bold text-slate-500 dark:text-slate-400'>
             Notes (Optional)
           </label>
           <input
@@ -877,7 +877,7 @@ function UpsertTransactionModal({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder='e.g. Bank Transfer'
-            className='w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
+            className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1 outline-none focus:border-indigo-500'
           />
         </div>
 
@@ -887,7 +887,7 @@ function UpsertTransactionModal({
               type='checkbox'
               checked={advanceDue}
               onChange={(e) => setAdvanceDue(e.target.checked)}
-              className='mt-1 w-4 h-4 rounded bg-slate-900 border-slate-600 text-indigo-500 focus:ring-indigo-500'
+              className='mt-1 w-4 h-4 rounded bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-indigo-500 focus:ring-indigo-500'
             />
             <div>
               <p className='text-sm font-bold text-indigo-400'>
@@ -954,19 +954,19 @@ function BorrowerDetailModal({
       : 0;
 
   return (
-    <div className='fixed inset-0 z-[100] bg-slate-950 flex flex-col animate-in slide-in-from-bottom-8 duration-300'>
+    <div className='fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-950 flex flex-col animate-in slide-in-from-bottom-8 duration-300'>
       {/* HEADER */}
-      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-4 sticky top-0 z-10'>
+      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 sticky top-0 z-10'>
         <div>
           <div className='flex items-center gap-3 mb-1'>
             <h2 className='text-xl font-bold text-white'>{borrower.name}</h2>
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${borrower.status === 'active' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-700 text-slate-400'}`}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${borrower.status === 'active' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}
             >
               {borrower.status}
             </span>
           </div>
-          <p className='text-xs text-slate-400 flex items-center gap-4'>
+          <p className='text-xs text-slate-500 dark:text-slate-400 flex items-center gap-4'>
             {borrower.phone && <span>📞 {borrower.phone}</span>}
             {borrower.email && <span>✉️ {borrower.email}</span>}
             {borrower.interestRate ? (
@@ -990,7 +990,7 @@ function BorrowerDetailModal({
         <div className='flex flex-wrap items-center gap-2'>
           <button
             onClick={onEditBorrower}
-            className='p-2 text-slate-400 cursor-pointer hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
+            className='p-2 text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 rounded-lg transition-colors'
           >
             <FiEdit2 />
           </button>
@@ -999,19 +999,19 @@ function BorrowerDetailModal({
           <button
             onClick={onExport}
             title='Download Statement'
-            className='p-2 text-slate-400 cursor-pointer hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
+            className='p-2 text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 rounded-lg transition-colors'
           >
             <FiDownload />
           </button>
           <button
             onClick={onDeleteBorrower}
             title='Delete Borrower'
-            className='p-2 text-rose-400 cursor-pointer hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
+            className='p-2 text-rose-400 cursor-pointer hover:text-rose-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 rounded-lg transition-colors'
           >
             <FiTrash2 />
           </button>
 
-          <div className='w-px h-6 bg-slate-700 mx-1 hidden sm:block'></div>
+          <div className='w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1 hidden sm:block'></div>
 
           <button
             onClick={onClose}
@@ -1024,13 +1024,13 @@ function BorrowerDetailModal({
 
       <div className='flex-1 overflow-y-auto p-4 md:p-6 space-y-6'>
         {/* Progress Bar Section */}
-        <div className='bg-slate-900/60 border border-slate-800 rounded-2xl p-5'>
+        <div className='bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5'>
           <div className='flex justify-between items-end mb-2'>
             <div>
-              <p className='text-sm font-bold text-slate-200'>
+              <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                 Principal Repayment Progress
               </p>
-              <p className='text-xs text-slate-500'>
+              <p className='text-xs text-slate-900 dark:text-slate-500'>
                 How much of the original loan has been recovered
               </p>
             </div>
@@ -1040,7 +1040,7 @@ function BorrowerDetailModal({
               </span>
             </div>
           </div>
-          <div className='w-full bg-slate-800 rounded-full h-3 overflow-hidden'>
+          <div className='w-full bg-slate-200 dark:bg-slate-800 rounded-full h-3 overflow-hidden'>
             <div
               className={`h-full rounded-full ${progressPct === 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
               style={{ width: `${progressPct}%` }}
@@ -1050,11 +1050,11 @@ function BorrowerDetailModal({
 
         {/* TOP STATS */}
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-          <div className='bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4'>
-            <p className='text-[10px] font-bold uppercase text-slate-400'>
+          <div className='bg-slate-100 dark:bg-slate-800/50 border border-slate-300/60 dark:border-slate-700/50 rounded-2xl p-4'>
+            <p className='text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400'>
               Total Given
             </p>
-            <p className='text-xl font-bold text-slate-200'>
+            <p className='text-xl font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
               {formatINR(borrower.given)}
             </p>
           </div>
@@ -1085,8 +1085,8 @@ function BorrowerDetailModal({
         </div>
 
         {/* CHART SECTION */}
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-5 h-[300px]'>
-          <h3 className='text-sm font-bold text-slate-400 mb-4'>
+        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 h-[300px]'>
+          <h3 className='text-sm font-bold text-slate-500 dark:text-slate-400 mb-4'>
             Interest Earned Over Time
           </h3>
           {interestData.length > 0 ? (
@@ -1125,22 +1125,22 @@ function BorrowerDetailModal({
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className='flex h-full items-center justify-center text-slate-500'>
+            <div className='flex h-full items-center justify-center text-slate-900 dark:text-slate-500'>
               No interest data yet.
             </div>
           )}
         </div>
 
         {/* LEDGER TABLE */}
-        <div className='bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden'>
-          <div className='px-5 py-4 border-b border-slate-800 flex justify-between items-center'>
-            <h3 className='text-sm font-bold text-slate-200'>
+        <div className='bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden'>
+          <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center'>
+            <h3 className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
               Transaction Ledger
             </h3>
           </div>
           <div className='overflow-x-auto'>
             <table className='w-full text-left text-sm whitespace-nowrap'>
-              <thead className='bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider'>
+              <thead className='bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider'>
                 <tr>
                   <th className='px-5 py-3'>Date</th>
                   <th className='px-5 py-3'>Type</th>
@@ -1149,10 +1149,10 @@ function BorrowerDetailModal({
                   <th className='px-5 py-3 text-center'>Action</th>
                 </tr>
               </thead>
-              <tbody className='divide-y divide-slate-800'>
+              <tbody className='divide-y divide-slate-200 dark:divide-slate-800'>
                 {borrower.txns.map((t: any) => (
-                  <tr key={t.id} className='hover:bg-slate-800/30'>
-                    <td className='px-5 py-3 text-slate-300'>
+                  <tr key={t.id} className='hover:bg-slate-100/80 dark:bg-slate-800/30'>
+                    <td className='px-5 py-3 text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                       {format(parseISO(t.date), 'dd MMM yyyy')}
                     </td>
                     <td className='px-5 py-3'>
@@ -1172,7 +1172,7 @@ function BorrowerDetailModal({
                         </span>
                       )}
                     </td>
-                    <td className='px-5 py-3 text-slate-500 truncate max-w-[200px]'>
+                    <td className='px-5 py-3 text-slate-900 dark:text-slate-500 truncate max-w-[200px]'>
                       {t.notes || '-'}
                     </td>
                     <td className='px-5 py-3 text-right font-bold text-white'>
@@ -1182,14 +1182,14 @@ function BorrowerDetailModal({
                       <button
                         onClick={() => onEditTxn(t)}
                         title='Edit Transaction'
-                        className='text-slate-500 hover:text-indigo-400 cursor-pointer transition-colors p-1'
+                        className='text-slate-900 dark:text-slate-500 hover:text-indigo-400 cursor-pointer transition-colors p-1'
                       >
                         <FiEdit2 />
                       </button>
                       <button
                         onClick={() => onDeleteTxn(t.id)}
                         title='Delete Transaction'
-                        className='text-slate-500 hover:text-rose-400 cursor-pointer transition-colors p-1'
+                        className='text-slate-900 dark:text-slate-500 hover:text-rose-400 cursor-pointer transition-colors p-1'
                       >
                         <FiTrash2 />
                       </button>
@@ -1198,7 +1198,7 @@ function BorrowerDetailModal({
                 ))}
                 {borrower.txns.length === 0 && (
                   <tr>
-                    <td colSpan={5} className='text-center py-8 text-slate-500'>
+                    <td colSpan={5} className='text-center py-8 text-slate-900 dark:text-slate-500'>
                       No transactions recorded.
                     </td>
                   </tr>

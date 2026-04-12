@@ -1,12 +1,6 @@
 // ============================================================
-//  src/components/settings/EncryptionSettings.tsx
-//
-//  NO external deps beyond firebase — no react-firebase-hooks needed.
-//  Import and drop into your SettingsPage.tsx:
-//
-//    import { EncryptionSettings } from '../../components/settings/EncryptionSettings';
-//    ...
-//    <EncryptionSettings uid={currentUserId} />
+//  src/pages/Settings/EncryptionSettings.tsx
+//  Theme-aware (light / dark) — matches FinTrackly settings cards.
 // ============================================================
 
 import {
@@ -17,17 +11,9 @@ import {
 } from '../../services/encryptionService';
 import { useCallback, useEffect, useState } from 'react';
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
 interface EncryptionSettingsProps {
-  /** Pass the Firebase uid from wherever you store auth state, e.g.:
-   *    const { uid } = usePortfolioStore();
-   *    <EncryptionSettings uid={uid} />
-   */
   uid: string | null;
 }
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
   const [enabled, setEnabledState] = useState<boolean | null>(null);
@@ -37,12 +23,11 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
   const [progressTotal, setProgressTotal] = useState(0);
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Load current flag on mount
   useEffect(() => {
     if (!uid) return;
     isEncryptionEnabled(uid)
       .then((val) => setEnabledState(val))
-      .catch(() => setEnabledState(true)); // Default ON on error
+      .catch(() => setEnabledState(true));
   }, [uid]);
 
   const handleToggle = useCallback(async () => {
@@ -99,124 +84,69 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
     progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
 
   return (
-    <div
-      style={{
-        background: 'var(--color-surface, #1e1e2e)',
-        border: '1px solid var(--color-border, #313244)',
-        borderRadius: 12,
-        padding: 24,
-        maxWidth: 560,
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <span style={{ fontSize: 24 }}>🔐</span>
+    <div className='max-w-xl rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/60'>
+      <div className='mb-4 flex items-center gap-3'>
+        <span className='text-2xl' aria-hidden>
+          🔐
+        </span>
         <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+          <h3 className='text-base font-bold text-slate-900 dark:text-slate-100'>
             Data Encryption
           </h3>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.6 }}>
+          <p className='text-xs text-slate-500 dark:text-slate-400'>
             AES-256-GCM · Key derived from your account
           </p>
         </div>
       </div>
 
       {enabled === null ? (
-        <p style={{ opacity: 0.5 }}>Loading…</p>
+        <p className='text-sm text-slate-500 dark:text-slate-400'>Loading…</p>
       ) : (
         <>
-          {/* Status badge */}
           <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 14px',
-              borderRadius: 99,
-              marginBottom: 20,
-              background: enabled
-                ? 'rgba(166,227,161,0.15)'
-                : 'rgba(243,139,168,0.15)',
-              color: enabled ? '#a6e3a1' : '#f38ba8',
-              fontWeight: 600,
-              fontSize: 13,
-            }}
+            className={`mb-5 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold ${
+              enabled
+                ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                : 'border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+            }`}
           >
             <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: enabled ? '#a6e3a1' : '#f38ba8',
-                display: 'inline-block',
-              }}
+              className={`h-2 w-2 rounded-full ${enabled ? 'bg-emerald-500' : 'bg-rose-500'}`}
             />
             {enabled ? 'Encryption is ON' : 'Encryption is OFF'}
           </div>
 
-          {/* Description */}
-          <p
-            style={{
-              fontSize: 13,
-              opacity: 0.7,
-              lineHeight: 1.6,
-              marginBottom: 20,
-            }}
-          >
-            When <strong>ON</strong>, every document is encrypted client-side
-            before leaving your browser using AES-256-GCM. The raw data in
-            Firebase looks like random bytes.
+          <p className='mb-5 text-sm leading-relaxed text-slate-600 dark:text-slate-400'>
+            When <strong className='text-slate-900 dark:text-slate-200'>ON</strong>
+            , every document is encrypted client-side before leaving your browser
+            using AES-256-GCM. The raw data in Firebase looks like random bytes.
             <br />
             <br />
-            The flag <code>encryptionEnabled</code> lives at{' '}
-            <code>users/{uid}/settings/config</code>. After toggling, click{' '}
-            <strong>Migrate</strong> to re-encrypt or decrypt all existing
-            documents.
+            The flag <code className='rounded bg-slate-200 px-1 py-0.5 text-[11px] text-slate-800 dark:bg-slate-800 dark:text-slate-200'>encryptionEnabled</code>{' '}
+            lives at{' '}
+            <code className='rounded bg-slate-200 px-1 py-0.5 text-[11px] text-slate-800 dark:bg-slate-800 dark:text-slate-200'>
+              users/{uid}/settings/config
+            </code>
+            . After toggling, click <strong className='text-slate-900 dark:text-slate-200'>Migrate</strong> to re-encrypt or decrypt all existing documents.
           </p>
 
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className='flex flex-wrap gap-3'>
             <button
-              className='cursor-pointer'
+              type='button'
+              className='cursor-pointer rounded-xl px-5 py-2.5 text-sm font-bold text-slate-900 transition-opacity disabled:cursor-not-allowed disabled:opacity-50'
+              style={{
+                background: enabled ? '#fb7185' : '#34d399',
+              }}
               onClick={handleToggle}
               disabled={migrating}
-              style={{
-                padding: '10px 20px',
-                borderRadius: 8,
-                border: 'none',
-                cursor: migrating ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-                fontSize: 14,
-                background: enabled ? '#f38ba8' : '#a6e3a1',
-                color: '#1e1e2e',
-                opacity: migrating ? 0.5 : 1,
-              }}
             >
               {enabled ? 'Turn OFF Encryption' : 'Turn ON Encryption'}
             </button>
-
             <button
-              className='cursor-pointer'
+              type='button'
+              className='cursor-pointer rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
               onClick={handleMigrate}
               disabled={migrating}
-              style={{
-                padding: '10px 20px',
-                borderRadius: 8,
-                border: '1px solid var(--color-border, #313244)',
-                cursor: migrating ? 'not-allowed' : 'pointer',
-                fontWeight: 600,
-                fontSize: 14,
-                background: 'transparent',
-                color: 'inherit',
-                opacity: migrating ? 0.5 : 1,
-              }}
             >
               {migrating
                 ? '⏳ Migrating…'
@@ -224,47 +154,27 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
             </button>
           </div>
 
-          {/* Progress bar */}
           {migrating && progressCol && (
-            <div
-              style={{
-                marginTop: 16,
-                padding: 12,
-                borderRadius: 8,
-                background: 'rgba(137,180,250,0.1)',
-                fontSize: 13,
-              }}
-            >
-              <div style={{ marginBottom: 6, opacity: 0.7 }}>
-                Collection: <strong>{progressCol}</strong>
+            <div className='mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-slate-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-slate-200'>
+              <div className='mb-1.5 text-slate-600 dark:text-slate-400'>
+                Collection: <strong className='text-slate-900 dark:text-slate-100'>{progressCol}</strong>
               </div>
-              <div
-                style={{
-                  height: 6,
-                  borderRadius: 3,
-                  background: 'rgba(255,255,255,0.1)',
-                  overflow: 'hidden',
-                }}
-              >
+              <div className='h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700'>
                 <div
-                  style={{
-                    height: '100%',
-                    borderRadius: 3,
-                    background: '#89b4fa',
-                    width: `${pct}%`,
-                    transition: 'width 0.2s',
-                  }}
+                  className='h-full rounded-full bg-blue-500 transition-[width] duration-200'
+                  style={{ width: `${pct}%` }}
                 />
               </div>
-              <div style={{ marginTop: 4, opacity: 0.6 }}>
+              <div className='mt-1 text-xs text-slate-500 dark:text-slate-400'>
                 {progressDone} / {progressTotal} documents ({pct}%)
               </div>
             </div>
           )}
 
-          {/* Status message */}
           {statusMsg && (
-            <p style={{ marginTop: 16, fontSize: 13 }}>{statusMsg}</p>
+            <p className='mt-4 text-sm text-slate-700 dark:text-slate-300'>
+              {statusMsg}
+            </p>
           )}
         </>
       )}

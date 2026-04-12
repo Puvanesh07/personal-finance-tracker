@@ -28,7 +28,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 function SnapStat({
   label,
   value,
-  color = 'text-slate-200',
+  color = 'text-slate-900 dark:text-slate-800 dark:text-slate-200',
 }: {
   label: string;
   value: string;
@@ -36,7 +36,7 @@ function SnapStat({
 }) {
   return (
     <div className='flex flex-col gap-0.5'>
-      <p className='text-[9px] font-bold uppercase tracking-wider text-slate-500'>
+      <p className='text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
         {label}
       </p>
       <p className={`text-sm font-bold tabular-nums ${color}`}>{value}</p>
@@ -195,10 +195,10 @@ export function SnapshotsPage() {
               <FiCamera className='h-6 w-6' />
             </div>
             <div>
-              <h1 className='text-2xl font-bold text-white'>
+              <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>
                 Net Worth Snapshots
               </h1>
-              <p className='text-sm text-slate-400 mt-0.5'>
+              <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
                 Freeze your financial picture at any moment and track how you
                 grow over time.
               </p>
@@ -206,9 +206,9 @@ export function SnapshotsPage() {
           </div>
           <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3'>
             <div className='relative group'>
-              <FiTag className='absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors' />
+              <FiTag className='absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400 group-focus-within:text-emerald-500 transition-colors' />
               <input
-                className='w-full sm:w-60 rounded-xl border border-slate-700/80 bg-slate-900/60 py-2.5 pl-10 pr-4 text-sm outline-none text-slate-100 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600'
+                className='w-full sm:w-60 rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-900/60 py-2.5 pl-10 pr-4 text-sm outline-none text-slate-900 dark:text-slate-100 focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600'
                 placeholder='Label (e.g. Q1 2026, Pre-Wedding…)'
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
@@ -232,21 +232,21 @@ export function SnapshotsPage() {
       </header>
 
       {/* ── What is a Snapshot? ── */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/40 p-5'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 p-5'>
         <div className='flex items-start gap-3 mb-4'>
           <span className='text-2xl shrink-0'>📸</span>
           <div>
-            <h2 className='text-base font-bold text-slate-100'>
+            <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>
               What is a Snapshot?
             </h2>
-            <p className='text-sm text-slate-400 mt-1 leading-relaxed'>
+            <p className='text-sm text-slate-500 dark:text-slate-400 mt-1 leading-relaxed'>
               A snapshot is like a{' '}
-              <strong className='text-slate-200'>financial photograph</strong> —
+              <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>financial photograph</strong> —
               it records your complete financial position right now: your
               investments, cash, debts, goals, insurance, and farm income all
               frozen at this exact moment.
             </p>
-            <p className='text-sm text-slate-400 mt-2 leading-relaxed'>
+            <p className='text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed'>
               <strong className='text-emerald-400'>Example:</strong> You take a
               snapshot today labelled "Pre-Marriage". Six months later you take
               another labelled "Post-Marriage". You can instantly see that your
@@ -258,8 +258,8 @@ export function SnapshotsPage() {
         </div>
 
         {/* Current live preview */}
-        <div className='border-t border-slate-800/60 pt-4'>
-          <p className='text-xs font-bold uppercase tracking-wider text-slate-500 mb-3'>
+        <div className='border-t border-slate-200/70 dark:border-slate-800/60 pt-4'>
+          <p className='text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-3'>
             📊 Current snapshot will capture
           </p>
           <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3'>
@@ -297,14 +297,14 @@ export function SnapshotsPage() {
             ].map((item) => (
               <div
                 key={item.section}
-                className='flex items-center gap-2.5 rounded-xl bg-slate-800/50 px-3 py-2.5'
+                className='flex items-center gap-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-3 py-2.5'
               >
                 <SectionIcon type={item.section} />
                 <div className='min-w-0'>
-                  <p className='text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate'>
+                  <p className='text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 truncate'>
                     {item.label}
                   </p>
-                  <p className='text-xs font-bold text-slate-200 tabular-nums truncate'>
+                  <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 tabular-nums truncate'>
                     {item.value}
                   </p>
                 </div>
@@ -323,7 +323,7 @@ export function SnapshotsPage() {
             </div>
             {nwChange !== null && (
               <div className='sm:ml-auto text-right'>
-                <p className='text-xs text-slate-400'>vs previous snapshot</p>
+                <p className='text-xs text-slate-500 dark:text-slate-400'>vs previous snapshot</p>
                 <p
                   className={`text-lg font-bold tabular-nums ${nwChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
                 >
@@ -337,13 +337,13 @@ export function SnapshotsPage() {
       </div>
 
       {/* ── Snapshot History Table ── */}
-      <div className='overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 shadow-lg'>
-        <div className='flex items-center justify-between px-5 py-4 border-b border-slate-800/60'>
-          <h2 className='text-base font-bold text-slate-100 flex items-center gap-2'>
+      <div className='overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 shadow-lg'>
+        <div className='flex items-center justify-between px-5 py-4 border-b border-slate-200/70 dark:border-slate-800/60'>
+          <h2 className='text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2'>
             <FiCamera className='h-4 w-4 text-emerald-400' />
             Snapshot History
             {networthSnapshots.length > 0 && (
-              <span className='text-xs font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full ml-1'>
+              <span className='text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full ml-1'>
                 {networthSnapshots.length} snapshots
               </span>
             )}
@@ -352,14 +352,14 @@ export function SnapshotsPage() {
 
         {networthSnapshots.length === 0 ? (
           <div className='flex flex-col items-center justify-center py-16 px-6 text-center gap-4'>
-            <div className='flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800'>
-              <FiCamera className='h-7 w-7 text-slate-600' />
+            <div className='flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-800'>
+              <FiCamera className='h-7 w-7 text-slate-500 dark:text-slate-600' />
             </div>
             <div>
-              <p className='text-base font-bold text-slate-300'>
+              <p className='text-base font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                 No snapshots yet
               </p>
-              <p className='text-sm text-slate-500 mt-1 max-w-sm'>
+              <p className='text-sm text-slate-900 dark:text-slate-500 mt-1 max-w-sm'>
                 Take your first snapshot to start tracking your financial growth
                 over time. Give it a meaningful label like "Start 2026" or
                 "Before investing".
@@ -372,28 +372,28 @@ export function SnapshotsPage() {
             <div className='hidden md:block overflow-x-auto'>
               <table className='w-full text-sm'>
                 <thead>
-                  <tr className='border-b border-slate-800/60 bg-slate-800/20'>
-                    <th className='px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                  <tr className='border-b border-slate-200/70 dark:border-slate-800/60 bg-slate-200 dark:bg-slate-800/20'>
+                    <th className='px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                       Date & Time
                     </th>
-                    <th className='px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                    <th className='px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                       Label
                     </th>
-                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                       Total Assets
                     </th>
-                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                       Liabilities
                     </th>
-                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                       Net Worth
                     </th>
-                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                    <th className='px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                       Change
                     </th>
                   </tr>
                 </thead>
-                <tbody className='divide-y divide-slate-800/40'>
+                <tbody className='divide-y divide-slate-200 dark:divide-slate-800/40'>
                   {sorted.map((s, idx) => {
                     const dateObj = new Date(s.createdAt);
                     const prev = sorted[idx + 1];
@@ -402,7 +402,7 @@ export function SnapshotsPage() {
                     return (
                       <tr
                         key={s.id}
-                        className={`transition-colors hover:bg-slate-800/30 ${isLatest ? 'bg-emerald-500/3' : ''}`}
+                        className={`transition-colors hover:bg-slate-100/80 dark:bg-slate-800/30 ${isLatest ? 'bg-emerald-500/3' : ''}`}
                       >
                         <td className='px-5 py-4'>
                           <div className='flex items-center gap-2'>
@@ -410,14 +410,14 @@ export function SnapshotsPage() {
                               <span className='h-2 w-2 rounded-full bg-emerald-400 shrink-0' />
                             )}
                             <div>
-                              <p className='text-sm font-semibold text-slate-200'>
+                              <p className='text-sm font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                                 {dateObj.toLocaleDateString('en-IN', {
                                   day: 'numeric',
                                   month: 'short',
                                   year: 'numeric',
                                 })}
                               </p>
-                              <p className='text-xs text-slate-500'>
+                              <p className='text-xs text-slate-900 dark:text-slate-500'>
                                 {dateObj.toLocaleTimeString('en-IN', {
                                   hour: '2-digit',
                                   minute: '2-digit',
@@ -428,12 +428,12 @@ export function SnapshotsPage() {
                         </td>
                         <td className='px-5 py-4'>
                           {s.label ? (
-                            <span className='inline-flex items-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700/60 px-2.5 py-1 text-xs font-semibold text-slate-300'>
-                              <FiTag className='h-3 w-3 text-slate-400' />
+                            <span className='inline-flex items-center gap-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-300/70 dark:border-slate-700/60 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
+                              <FiTag className='h-3 w-3 text-slate-500 dark:text-slate-400' />
                               {s.label}
                             </span>
                           ) : (
-                            <span className='text-slate-600 text-xs'>—</span>
+                            <span className='text-slate-500 dark:text-slate-600 text-xs'>—</span>
                           )}
                         </td>
                         <td className='px-5 py-4 text-right'>
@@ -447,7 +447,7 @@ export function SnapshotsPage() {
                           </span>
                         </td>
                         <td className='px-5 py-4 text-right'>
-                          <span className='text-base font-black tabular-nums text-slate-100'>
+                          <span className='text-base font-black tabular-nums text-slate-900 dark:text-slate-100'>
                             {formatINR(s.netWorth)}
                           </span>
                         </td>
@@ -473,7 +473,7 @@ export function SnapshotsPage() {
                               )}
                             </div>
                           ) : (
-                            <span className='text-xs text-slate-600'>
+                            <span className='text-xs text-slate-500 dark:text-slate-600'>
                               First snapshot
                             </span>
                           )}
@@ -486,7 +486,7 @@ export function SnapshotsPage() {
             </div>
 
             {/* Mobile cards */}
-            <div className='md:hidden flex flex-col divide-y divide-slate-800/40'>
+            <div className='md:hidden flex flex-col divide-y divide-slate-200 dark:divide-slate-800/40'>
               {sorted.map((s, idx) => {
                 const dateObj = new Date(s.createdAt);
                 const prev = sorted[idx + 1];
@@ -503,14 +503,14 @@ export function SnapshotsPage() {
                           <span className='h-2 w-2 rounded-full bg-emerald-400 shrink-0' />
                         )}
                         <div>
-                          <p className='text-sm font-semibold text-slate-200'>
+                          <p className='text-sm font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                             {dateObj.toLocaleDateString('en-IN', {
                               day: 'numeric',
                               month: 'short',
                               year: 'numeric',
                             })}
                           </p>
-                          <p className='text-xs text-slate-500'>
+                          <p className='text-xs text-slate-900 dark:text-slate-500'>
                             {dateObj.toLocaleTimeString('en-IN', {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -519,7 +519,7 @@ export function SnapshotsPage() {
                         </div>
                       </div>
                       {s.label && (
-                        <span className='inline-flex items-center gap-1 rounded-lg bg-slate-800 border border-slate-700/60 px-2 py-0.5 text-[10px] font-semibold text-slate-300'>
+                        <span className='inline-flex items-center gap-1 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-300/70 dark:border-slate-700/60 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                           <FiTag className='h-2.5 w-2.5' /> {s.label}
                         </span>
                       )}
@@ -538,7 +538,7 @@ export function SnapshotsPage() {
                       <SnapStat
                         label='Net Worth'
                         value={formatINR(s.netWorth)}
-                        color='text-slate-100'
+                        color='text-slate-900 dark:text-slate-100'
                       />
                     </div>
                     {change !== null && (

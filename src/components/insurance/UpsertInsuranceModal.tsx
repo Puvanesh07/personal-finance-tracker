@@ -186,11 +186,11 @@ export function UpsertInsuranceModal(props: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 block';
+    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-1.5 block';
   const sectionLabel =
-    'text-[10px] font-black uppercase tracking-widest text-slate-500 col-span-2 mt-2 pb-1 border-b border-slate-800/60';
+    'text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 col-span-2 mt-2 pb-1 border-b border-slate-200/70 dark:border-slate-800/60';
 
   const showLicFields = isTraditional(state.type);
 
@@ -478,10 +478,10 @@ export function UpsertInsuranceModal(props: Props) {
         </div>
       </div>
 
-      <div className='mt-6 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
+      <div className='mt-6 flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-5'>
         <button
           type='button'
-          className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
+          className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
           onClick={props.onClose}
           disabled={saving}
         >

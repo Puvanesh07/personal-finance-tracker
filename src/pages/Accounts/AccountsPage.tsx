@@ -96,9 +96,9 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 block';
+    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-1.5 block';
 
   return (
     <Modal
@@ -121,7 +121,7 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
                     ? t === 'bank'
                       ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
                       : 'border-violet-500/50 bg-violet-500/10 text-violet-400'
-                    : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-600'
+                    : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600'
                 }`}
               >
                 {t === 'bank' ? (
@@ -171,9 +171,9 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
             value={openingBalanceDate}
             onChange={(e) => setOpeningBalanceDate(e.target.value)}
           />
-          <div className='mt-2 flex items-start gap-2 rounded-xl bg-slate-800/60 border border-slate-700/50 px-3 py-2.5'>
+          <div className='mt-2 flex items-start gap-2 rounded-xl bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700/50 px-3 py-2.5'>
             <FiInfo className='h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5' />
-            <p className='text-[11px] text-slate-400 leading-relaxed'>
+            <p className='text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed'>
               Enter your current bank balance and set today as the date. Only
               cashflow entries on or after this date will adjust the live
               balance — older entries are ignored.
@@ -182,12 +182,12 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
         </div>
 
         {/* Footer */}
-        <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
+        <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-5'>
           <button
             type='button'
             onClick={onClose}
             disabled={saving}
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'
           >
             Cancel
           </button>
@@ -277,14 +277,14 @@ function AccountCard({
           <button
             type='button'
             onClick={onEdit}
-            className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
+            className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600 dark:hover:text-indigo-400'
           >
             <FiEdit2 className='h-3.5 w-3.5' />
           </button>
           <button
             type='button'
             onClick={onDelete}
-            className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
+            className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400'
           >
             <FiTrash2 className='h-3.5 w-3.5' />
           </button>
@@ -293,7 +293,7 @@ function AccountCard({
 
       {/* Live Balance */}
       <div className='mt-4 space-y-1'>
-        <p className='text-xs font-bold uppercase tracking-wider text-slate-400'>
+        <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
           {isCredit ? 'Outstanding' : 'Current Balance'}
         </p>
         <p
@@ -303,7 +303,7 @@ function AccountCard({
           {formatINR(liveBalance)}
         </p>
         {liveBalance !== openingBal && (
-          <p className='text-[11px] text-slate-500'>
+          <p className='text-[11px] text-slate-900 dark:text-slate-500'>
             Opening: {formatINR(openingBal)}
             {account.openingBalanceDate
               ? ` · ${account.openingBalanceDate}`
@@ -624,7 +624,7 @@ export function AccountsPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className='flex h-[240px] items-center justify-center text-slate-400'>
+              <div className='flex h-[240px] items-center justify-center text-slate-500 dark:text-slate-400'>
                 <p className='text-sm'>
                   Add account balances to see distribution.
                 </p>
@@ -659,15 +659,15 @@ export function AccountsPage() {
         title='⚠ Delete Account'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             This will permanently delete the account. Existing transactions
             linked to this account will remain but lose their account
             association.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteId(null)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
             >
               Cancel
             </button>

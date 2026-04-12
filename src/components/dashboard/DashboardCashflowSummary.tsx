@@ -34,9 +34,9 @@ export function DashboardCashflowSummary() {
   const savings = income - expense;
 
   return (
-    <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
+    <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
       <div className='mb-4 flex items-center justify-between'>
-        <h2 className='flex items-center gap-2 text-lg font-bold text-slate-100'>
+        <h2 className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100'>
           <FiActivity className='text-purple-400' />
           This Month's Cashflow
         </h2>
@@ -44,14 +44,14 @@ export function DashboardCashflowSummary() {
         <button
           onClick={() => navigate('/cashflow')}
           title='Go to Cashflow'
-          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-purple-400 transition-colors'
+          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-purple-400 transition-colors'
         >
           <FiArrowUpRight className='h-4 w-4' />
         </button>
       </div>
 
       <div className='mb-5'>
-        <p className='text-xs font-medium text-slate-400 uppercase tracking-wider'>
+        <p className='text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider'>
           Net Savings
         </p>
         <p
@@ -62,20 +62,20 @@ export function DashboardCashflowSummary() {
         </p>
       </div>
 
-      <div className='mt-auto grid grid-cols-2 gap-4 border-t border-slate-800/60 pt-4'>
+      <div className='mt-auto grid grid-cols-2 gap-4 border-t border-slate-200/70 dark:border-slate-800/60 pt-4'>
         <div>
-          <p className='flex items-center gap-1 text-xs font-medium text-slate-400 mb-1'>
+          <p className='flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1'>
             <FiArrowUpRight className='text-emerald-500' /> Income
           </p>
-          <p className='text-sm font-semibold text-slate-200'>
+          <p className='text-sm font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
             {formatCurrency(income)}
           </p>
         </div>
         <div>
-          <p className='flex items-center gap-1 text-xs font-medium text-slate-400 mb-1'>
+          <p className='flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1'>
             <FiArrowDownRight className='text-rose-500' /> Expense
           </p>
-          <p className='text-sm font-semibold text-slate-200'>
+          <p className='text-sm font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
             {formatCurrency(expense)}
           </p>
         </div>

@@ -49,25 +49,25 @@ function BudgetModal({
 }) {
   const [val, setVal] = useState(current > 0 ? String(current) : '');
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4'>
-      <div className='w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl p-6'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-slate-900/70 backdrop-blur-md p-4'>
+      <div className='w-full max-w-sm rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl p-6'>
         <div className='flex items-center justify-between mb-5'>
-          <h3 className='text-base font-bold text-slate-100'>
+          <h3 className='text-base font-bold text-slate-900 dark:text-slate-100'>
             Set Monthly Budget
           </h3>
           <button
             onClick={onClose}
-            className='text-slate-500 hover:text-slate-300 cursor-pointer transition-colors'
+            className='text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 cursor-pointer transition-colors'
           >
             <FiX className='h-4 w-4' />
           </button>
         </div>
-        <p className='text-sm text-slate-400 mb-4'>
+        <p className='text-sm text-slate-500 dark:text-slate-400 mb-4'>
           Enter the total amount you invest every month. Add instruments as a %
           of this budget.
         </p>
         <div className='relative'>
-          <span className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold'>
+          <span className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-sm font-bold'>
             ₹
           </span>
           <input
@@ -75,7 +75,7 @@ function BudgetModal({
             value={val}
             onChange={(e) => setVal(e.target.value)}
             placeholder='e.g. 25000'
-            className='w-full rounded-xl cursor-pointer border border-slate-700 bg-slate-800 pl-8 pr-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600'
+            className='w-full rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 pl-8 pr-4 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600'
             autoFocus
           />
         </div>
@@ -83,7 +83,7 @@ function BudgetModal({
           <button
             onClick={onClose}
             disabled={saving}
-            className='px-4 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors disabled:opacity-50'
+            className='px-4 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors disabled:opacity-50'
           >
             Cancel
           </button>
@@ -135,19 +135,19 @@ function InstrumentForm({
   };
 
   return (
-    <div className='rounded-xl border border-emerald-500/30 bg-slate-800/60 p-4'>
+    <div className='rounded-xl border border-emerald-500/30 bg-slate-200/70 dark:bg-slate-800/60 p-4'>
       <div className='flex gap-2 mb-4'>
         <button
           type='button'
           onClick={() => setMode('asset')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'asset' ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'asset' ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
         >
           ⇌ From Assets
         </button>
         <button
           type='button'
           onClick={() => setMode('custom')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-bold transition-all border ${mode === 'custom' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-700 text-slate-500 hover:text-slate-300'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-bold transition-all border ${mode === 'custom' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
         >
           T Custom Name
         </button>
@@ -159,14 +159,14 @@ function InstrumentForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder='e.g. Goldbees, Axis Small Cap…'
-            className='flex-1 rounded-xl cursor-pointer border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none focus:border-emerald-500/60 placeholder:text-slate-600'
+            className='flex-1 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 placeholder:text-slate-500 dark:text-slate-600'
             autoFocus
           />
         ) : (
           <select
             value={selectedAssetId}
             onChange={(e) => setSelectedAssetId(e.target.value)}
-            className='flex-1 rounded-xl cursor-pointer border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none focus:border-emerald-500/60'
+            className='flex-1 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60'
           >
             <option value=''>Select an investment…</option>
             {investmentNames.map((inv) => (
@@ -176,7 +176,7 @@ function InstrumentForm({
             ))}
           </select>
         )}
-        <span className='text-xs text-slate-500 font-medium shrink-0 hidden sm:block'>
+        <span className='text-xs text-slate-900 dark:text-slate-500 font-medium shrink-0 hidden sm:block'>
           Monthly amt
         </span>
         <div className='relative shrink-0'>
@@ -187,9 +187,9 @@ function InstrumentForm({
             placeholder='%'
             min={0}
             max={100}
-            className='w-20 rounded-xl cursor-pointer border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-100 outline-none focus:border-emerald-500/60 pr-6'
+            className='w-20 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 pr-6'
           />
-          <FiPercent className='absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500' />
+          <FiPercent className='absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-900 dark:text-slate-500' />
         </div>
         <button
           onClick={handleSave}
@@ -205,7 +205,7 @@ function InstrumentForm({
         <button
           onClick={onCancel}
           disabled={saving}
-          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl cursor-pointer bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors'
+          className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl cursor-pointer bg-slate-300 dark:bg-slate-700 hover:bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors'
         >
           <FiX className='h-4 w-4' />
         </button>
@@ -293,13 +293,13 @@ export function MonthlySipPlanPage() {
       <div className='rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 flex items-start gap-3'>
         <span className='text-2xl shrink-0'>💡</span>
         <div>
-          <p className='text-sm font-bold text-slate-200'>
+          <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
             Set a monthly budget
           </p>
-          <p className='text-sm text-slate-400 mt-0.5'>
+          <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
             Enter a total monthly amount and then add each instrument as a
             percentage — e.g.{' '}
-            <span className='font-bold text-slate-200'>
+            <span className='font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
               Axis BC Fund at 30%
             </span>
             , Nifty at 50%, etc.
@@ -315,34 +315,34 @@ export function MonthlySipPlanPage() {
 
       {/* Budget bar */}
       {budget > 0 && (
-        <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-5'>
+        <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-5'>
           <div className='flex items-center justify-between mb-3'>
             <div>
-              <p className='text-xs font-bold uppercase tracking-wider text-slate-400'>
+              <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                 Monthly Budget
               </p>
-              <p className='text-2xl font-bold text-slate-100 mt-1'>
+              <p className='text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1'>
                 {formatINR(budget)}
               </p>
             </div>
             <button
               onClick={() => setShowBudgetModal(true)}
-              className='text-xs font-bold text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors flex items-center gap-1 bg-slate-800 px-3 py-1.5 rounded-lg'
+              className='text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors flex items-center gap-1 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 rounded-lg'
             >
               <FiEdit2 className='h-3 w-3' /> Edit
             </button>
           </div>
-          <div className='w-full h-2 rounded-full bg-slate-800 overflow-hidden'>
+          <div className='w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden'>
             <div
               className={`h-full rounded-full transition-all duration-500 ${totalPct > 100 ? 'bg-red-500' : 'bg-emerald-500'}`}
               style={{ width: `${Math.min(100, totalPct)}%` }}
             />
           </div>
           <div className='flex items-center justify-between mt-2'>
-            <p className='text-xs text-slate-400'>
+            <p className='text-xs text-slate-500 dark:text-slate-400'>
               {totalPct.toFixed(0)}% allocated
               {remaining > 0 && (
-                <span className='text-slate-500'>
+                <span className='text-slate-900 dark:text-slate-500'>
                   {' '}
                   · {remaining.toFixed(0)}% remaining
                 </span>
@@ -354,7 +354,7 @@ export function MonthlySipPlanPage() {
                 </span>
               )}
             </p>
-            <p className='text-xs font-bold text-slate-300'>
+            <p className='text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
               {formatINR((budget * totalPct) / 100)} / {formatINR(budget)}
             </p>
           </div>
@@ -362,23 +362,23 @@ export function MonthlySipPlanPage() {
       )}
 
       {/* Instruments */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 overflow-hidden'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-hidden'>
         {instruments.length === 0 && !showAddForm ? (
           <div className='flex flex-col items-center justify-center py-16 text-center px-6'>
             <span className='text-5xl mb-4'>💰</span>
-            <p className='text-base font-semibold text-slate-300'>
+            <p className='text-base font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
               No monthly SIP plan yet
             </p>
-            <p className='text-sm text-slate-500 mt-1 max-w-xs'>
+            <p className='text-sm text-slate-900 dark:text-slate-500 mt-1 max-w-xs'>
               Track your monthly investments across mutual funds, stocks, and
               other instruments.
             </p>
-            <p className='text-xs text-slate-600 mt-1'>
+            <p className='text-xs text-slate-500 dark:text-slate-600 mt-1'>
               Add your SIPs to see where your money goes each month.
             </p>
           </div>
         ) : (
-          <div className='divide-y divide-slate-800/60'>
+          <div className='divide-y divide-slate-200 dark:divide-slate-800/60'>
             {instruments.map((inst) => {
               const monthlyAmt =
                 budget > 0 ? (budget * inst.percentage) / 100 : 0;
@@ -397,14 +397,14 @@ export function MonthlySipPlanPage() {
               ) : (
                 <div
                   key={inst.id}
-                  className='flex items-center gap-4 px-5 py-4 hover:bg-slate-800/30 transition-colors group'
+                  className='flex items-center gap-4 px-5 py-4 hover:bg-slate-100/80 dark:bg-slate-800/30 transition-colors group'
                 >
                   <div className='flex-1 min-w-0'>
-                    <p className='text-sm font-semibold text-slate-100 truncate'>
+                    <p className='text-sm font-semibold text-slate-900 dark:text-slate-100 truncate'>
                       {inst.name}
                     </p>
                     {inst.fromAsset && (
-                      <p className='text-[10px] text-slate-500 mt-0.5'>
+                      <p className='text-[10px] text-slate-900 dark:text-slate-500 mt-0.5'>
                         Linked from assets
                       </p>
                     )}
@@ -415,21 +415,21 @@ export function MonthlySipPlanPage() {
                     </p>
                   )}
                   <div className='flex items-center gap-1 shrink-0'>
-                    <span className='text-sm font-bold text-slate-200 tabular-nums'>
+                    <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 tabular-nums'>
                       {inst.percentage}
                     </span>
-                    <span className='text-xs text-slate-500'>%</span>
+                    <span className='text-xs text-slate-900 dark:text-slate-500'>%</span>
                   </div>
                   <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0'>
                     <button
                       onClick={() => setEditingId(inst.id)}
-                      className='p-1.5 rounded-lg cursor-pointer text-slate-500 hover:text-slate-200 hover:bg-slate-700 transition-colors'
+                      className='p-1.5 rounded-lg cursor-pointer text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
                     >
                       <FiEdit2 className='h-3.5 w-3.5' />
                     </button>
                     <button
                       onClick={() => handleDelete(inst.id)}
-                      className='p-1.5 rounded-lg cursor-pointer text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors'
+                      className='p-1.5 rounded-lg cursor-pointer text-slate-900 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors'
                     >
                       <FiTrash2 className='h-3.5 w-3.5' />
                     </button>
@@ -440,7 +440,7 @@ export function MonthlySipPlanPage() {
           </div>
         )}
         {showAddForm && (
-          <div className='p-4 border-t border-slate-800/60'>
+          <div className='p-4 border-t border-slate-200/70 dark:border-slate-800/60'>
             <InstrumentForm
               investmentNames={investmentNames}
               saving={savingInstrument}
@@ -454,7 +454,7 @@ export function MonthlySipPlanPage() {
             setShowAddForm(true);
             setEditingId(null);
           }}
-          className='w-full flex items-center cursor-pointer justify-center gap-2 py-4 text-sm font-bold text-slate-400 hover:text-emerald-400 hover:bg-slate-800/30 border-t border-slate-800/60 transition-colors'
+          className='w-full flex items-center cursor-pointer justify-center gap-2 py-4 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-100/80 dark:bg-slate-800/30 border-t border-slate-200/70 dark:border-slate-800/60 transition-colors'
         >
           <FiPlus className='h-4 w-4' /> Add Instrument
         </button>

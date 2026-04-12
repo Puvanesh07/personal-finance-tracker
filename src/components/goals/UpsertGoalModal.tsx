@@ -131,20 +131,20 @@ function CalendarPicker({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
           open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400'
-            : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'
+            ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400'
+            : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'
         }`}
       >
         <FiCalendar
-          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500'}`}
+          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
         />
         <span
-          className={`flex-1 text-left ${!selectedDate ? 'text-slate-500' : ''}`}
+          className={`flex-1 text-left ${!selectedDate ? 'text-slate-900 dark:text-slate-500' : ''}`}
         >
           {displayLabel}
         </span>
         <FiChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -159,23 +159,23 @@ function CalendarPicker({
               zIndex: 99999,
               width: 280,
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
+            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -184,7 +184,7 @@ function CalendarPicker({
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
                   key={d}
-                  className='text-center text-[10px] font-bold text-slate-500 pb-1'
+                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
                 >
                   {d}
                 </div>
@@ -208,8 +208,8 @@ function CalendarPicker({
                         : isTodayDay
                           ? 'border border-emerald-500/40 text-emerald-400'
                           : isCurMonth
-                            ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
-                            : 'text-slate-600 hover:bg-slate-800/50'
+                            ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
+                            : 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50'
                     }`}
                   >
                     {format(day, 'd')}
@@ -217,14 +217,14 @@ function CalendarPicker({
                 );
               })}
             </div>
-            <div className='px-3 pb-3 flex justify-between gap-2 border-t border-slate-800 pt-2'>
+            <div className='px-3 pb-3 flex justify-between gap-2 border-t border-slate-200 dark:border-slate-800 pt-2'>
               <button
                 type='button'
                 onClick={() => {
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors px-2 py-1'
+                className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors px-2 py-1'
               >
                 Clear
               </button>
@@ -275,9 +275,9 @@ export function GoalContributeModal({
   }, [open]);
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 block';
+    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-1.5 block';
 
   const toNum = (v: string) => {
     const n = Number(v);
@@ -303,11 +303,11 @@ export function GoalContributeModal({
       <div className='grid grid-cols-1 gap-5'>
         {/* Progress summary */}
         <div className='rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3'>
-          <div className='flex justify-between text-xs font-bold text-slate-400 mb-2'>
+          <div className='flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2'>
             <span>Current: ₹{goal.currentAmount.toLocaleString('en-IN')}</span>
             <span>Target: ₹{goal.targetAmount.toLocaleString('en-IN')}</span>
           </div>
-          <div className='h-2 w-full overflow-hidden rounded-full bg-slate-800'>
+          <div className='h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800'>
             <div
               className='h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700'
               style={{
@@ -315,7 +315,7 @@ export function GoalContributeModal({
               }}
             />
           </div>
-          <p className='mt-2 text-[11px] text-slate-500'>
+          <p className='mt-2 text-[11px] text-slate-900 dark:text-slate-500'>
             ₹{Math.max(0, remaining).toLocaleString('en-IN')} remaining
           </p>
         </div>
@@ -353,10 +353,10 @@ export function GoalContributeModal({
         </div>
 
         {/* Footer */}
-        <div className='flex items-center justify-end gap-3 border-t border-slate-800/60 pt-4'>
+        <div className='flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-4'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
             onClick={onClose}
             disabled={saving}
           >
@@ -464,7 +464,7 @@ export function UpsertGoalModal(props: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
     'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 block';
 
@@ -535,7 +535,7 @@ export function UpsertGoalModal(props: Props) {
         </div>
 
         {/* ── Goal Status ── */}
-        <div className='border-t border-slate-800/60 pt-4'>
+        <div className='border-t border-slate-200/70 dark:border-slate-800/60 pt-4'>
           <span className={labelCls}>Goal Status</span>
           <div className='flex gap-2'>
             {statusOptions.map((opt) => (
@@ -546,7 +546,7 @@ export function UpsertGoalModal(props: Props) {
                 className={`flex-1 py-2 px-2 rounded-xl border text-xs font-bold transition-all ${
                   state.status === opt.value
                     ? opt.cls
-                    : 'border-slate-700 text-slate-500 hover:border-slate-500'
+                    : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500'
                 }`}
               >
                 {opt.label}
@@ -576,10 +576,10 @@ export function UpsertGoalModal(props: Props) {
         )}
 
         {/* Footer */}
-        <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
+        <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-5'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'
             onClick={props.onClose}
             disabled={saving}
           >

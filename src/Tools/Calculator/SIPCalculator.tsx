@@ -34,7 +34,7 @@ export function InputField({
   return (
     <div className="mb-5">
       <div className="mb-2 flex items-center justify-between">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{label}</label>
         <span className={`rounded-lg px-2.5 py-1 text-xs font-black tabular-nums ${badgeMap[color] ?? badgeMap.blue}`}>
           {unit === '₹' ? `₹${value.toLocaleString('en-IN')}` : `${value.toLocaleString()}${unit}`}
         </span>
@@ -44,7 +44,7 @@ export function InputField({
         onChange={e => onChange(Number(e.target.value))}
         className={`h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 dark:bg-slate-700 ${accentMap[color] ?? accentMap.blue}`}
       />
-      <div className="mt-1 flex justify-between text-[9px] text-slate-400">
+      <div className="mt-1 flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
         <span>{unit === '₹' ? `₹${Number(min).toLocaleString('en-IN')}` : `${min}${unit}`}</span>
         <span>{unit === '₹' ? `₹${Number(max).toLocaleString('en-IN')}` : `${max}${unit}`}</span>
       </div>
@@ -115,7 +115,7 @@ export function CardShell({ children, color = 'blue', title, subtitle, Icon }: {
         </div>
         <div>
           <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">{title}</h3>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{subtitle}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">{subtitle}</p>
         </div>
       </div>
       {children}

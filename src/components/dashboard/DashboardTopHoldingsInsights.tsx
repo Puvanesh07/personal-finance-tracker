@@ -53,7 +53,7 @@ const TYPE_PILL: Record<string, string> = {
   'FD/RD': 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
   Gold: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
   RE: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
-  Other: 'bg-slate-500/10 text-slate-400 border border-slate-500/20',
+  Other: 'bg-slate-500/5 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-400/30 dark:border-slate-500/20',
 };
 
 function formatShort(n: number): string {
@@ -73,10 +73,10 @@ function HoldingCard({ inv }: { inv: Investment }) {
   const tag = typeLabel(inv);
 
   return (
-    <div className='rounded-xl border border-slate-800/80 bg-slate-800/30 p-4 flex flex-col gap-2 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200'>
+    <div className='rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-100/80 dark:bg-slate-800/30 p-4 flex flex-col gap-2 hover:border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-800/50 transition-all duration-200'>
       {/* Name + tag */}
       <div className='flex items-start justify-between gap-2'>
-        <p className='text-sm font-semibold text-slate-100 leading-tight line-clamp-2 flex-1'>
+        <p className='text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex-1'>
           {inv.name}
         </p>
         <span
@@ -86,7 +86,7 @@ function HoldingCard({ inv }: { inv: Investment }) {
         </span>
       </div>
       {/* Value */}
-      <p className='text-xl font-bold text-slate-50 tabular-nums'>
+      <p className='text-xl font-bold text-slate-900 dark:text-slate-50 tabular-nums'>
         {formatShort(cv)}
       </p>
       {/* P&L */}
@@ -127,13 +127,13 @@ function InsightRow({
     ) : severity === 'tip' ? (
       <BsFillLightbulbFill className='h-4 w-4 text-sky-400 shrink-0 mt-0.5' />
     ) : (
-      <FiInfo className='h-4 w-4 text-slate-400 shrink-0 mt-0.5' />
+      <FiInfo className='h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5' />
     );
 
   return (
-    <div className='flex items-start gap-3 py-3 border-b border-slate-800/60 last:border-0'>
+    <div className='flex items-start gap-3 py-3 border-b border-slate-200/70 dark:border-slate-800/60 last:border-0'>
       {icon}
-      <p className='text-sm text-slate-300 flex-1 leading-snug'>{title}</p>
+      <p className='text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 flex-1 leading-snug'>{title}</p>
       {action && onAction && (
         <button
           onClick={onAction}
@@ -299,24 +299,24 @@ export function DashboardTopHoldingsInsights() {
   return (
     <div className='grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6'>
       {/* ── Top Holdings ─────────────────────────────────────────── */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-5 shadow-sm'>
         <div className='mb-4 flex items-center justify-between'>
-          <h2 className='flex items-center gap-2 text-base font-bold text-slate-100'>
+          <h2 className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100'>
             <FiTrendingUp className='text-emerald-400 h-4 w-4' />
             Top Holdings
           </h2>
           <button
             onClick={() => navigate('/investments')}
-            className='flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-800'
+            className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
           >
             View all <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
         </div>
 
         {topHoldings.length === 0 ? (
-          <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-800'>
-            <FiTrendingUp className='h-8 w-8 text-slate-600 mb-2' />
-            <p className='text-sm text-slate-500'>No investments yet.</p>
+          <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
+            <FiTrendingUp className='h-8 w-8 text-slate-500 dark:text-slate-600 mb-2' />
+            <p className='text-sm text-slate-900 dark:text-slate-500'>No investments yet.</p>
             <button
               onClick={() => navigate('/investments')}
               className='mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
@@ -334,15 +334,15 @@ export function DashboardTopHoldingsInsights() {
       </div>
 
       {/* ── Insights ─────────────────────────────────────────────── */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-5 shadow-sm'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-5 shadow-sm'>
         <div className='mb-4 flex items-center justify-between'>
-          <h2 className='flex items-center gap-2 text-base font-bold text-slate-100'>
+          <h2 className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100'>
             <FiZap className='text-amber-400 h-4 w-4' />
             Insights
           </h2>
           <button
             onClick={() => navigate('/insights')}
-            className='flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-800'
+            className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-amber-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
           >
             Full analysis <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
@@ -350,9 +350,9 @@ export function DashboardTopHoldingsInsights() {
 
         <div className='flex flex-col'>
           {insights.length === 0 ? (
-            <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-800'>
-              <FiZap className='h-8 w-8 text-slate-600 mb-2' />
-              <p className='text-sm text-slate-500'>
+            <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
+              <FiZap className='h-8 w-8 text-slate-500 dark:text-slate-600 mb-2' />
+              <p className='text-sm text-slate-900 dark:text-slate-500'>
                 No insights yet. Add data to get started.
               </p>
             </div>

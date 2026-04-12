@@ -8,6 +8,7 @@
 //  • Filter tabs: All | Active | Completed
 
 import {
+  FiDownload,
   FiEdit2,
   FiFlag,
   FiPlus,
@@ -22,8 +23,10 @@ import {
 } from '../../components/goals/UpsertGoalModal';
 
 import { GoalsSkeleton } from '../../components/loader/skeletons';
+import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
 import { formatINR } from '../../utils/format';
+import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useState } from 'react';
 
@@ -99,6 +102,11 @@ export function GoalsPage() {
     setBulkDeleteOpen(false);
   };
 
+  const handleExportSelected = () => {
+    const list = goals.filter((g) => selectedIds.has(g.id));
+    exportGoalsCSV(list, 'goals-selection.csv');
+  };
+
   // Handle contribution: add amount to currentAmount and save contribution record
   async function handleContribute(amount: number, date: string) {
     if (!contributeGoal) return;
@@ -131,7 +139,7 @@ export function GoalsPage() {
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
       filterTab === tab
         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-        : 'text-slate-500 hover:text-slate-300 border border-transparent'
+        : 'text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 border border-transparent'
     }`;
 
   return (
@@ -165,7 +173,15 @@ export function GoalsPage() {
 
       {/* Filter Tabs */}
       {goals.length > 0 && (
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
+          <SavedViewsMenu
+            pageId='goals'
+            getState={() => ({ filterTab })}
+            applyState={(s) => {
+              if (s.filterTab === 'all' || s.filterTab === 'active' || s.filterTab === 'done')
+                setFilterTab(s.filterTab);
+            }}
+          />
           <button className={tabCls('all')} onClick={() => setFilterTab('all')}>
             All ({goals.length})
           </button>
@@ -207,7 +223,15 @@ export function GoalsPage() {
         <>
           {/* Action Bar for Bulk Delete */}
           {selectedIds.size > 0 && (
-            <div className='flex justify-end'>
+            <div className='flex flex-wrap justify-end gap-2'>
+              <button
+                type='button'
+                onClick={handleExportSelected}
+                className='flex items-center cursor-pointer gap-2 rounded-xl border border-slate-200/80 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+              >
+                <FiDownload className='h-4 w-4' /> Export selected (
+                {selectedIds.size})
+              </button>
               <button
                 type='button'
                 onClick={() => setBulkDeleteOpen(true)}
@@ -275,7 +299,7 @@ export function GoalsPage() {
                         <button
                           type='button'
                           title='Add Contribution'
-                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
                           onClick={() => setContributeGoal(g)}
                         >
                           <FiTrendingUp className='h-4 w-4' />
@@ -284,7 +308,7 @@ export function GoalsPage() {
                       <button
                         type='button'
                         title='Edit'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                         onClick={() => setEdit(g)}
                       >
                         <FiEdit2 className='h-4 w-4' />
@@ -292,7 +316,7 @@ export function GoalsPage() {
                       <button
                         type='button'
                         title='Delete'
-                        className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
+                        className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                         onClick={() => openDeleteModal(g.id)}
                       >
                         <FiTrash2 className='h-4 w-4' />
@@ -303,7 +327,7 @@ export function GoalsPage() {
                   {/* Progress Bar */}
                   <div className='flex flex-col gap-2'>
                     <div className='flex items-center justify-between text-xs font-bold'>
-                      <span className='text-slate-500 uppercase tracking-wider text-[10px]'>
+                      <span className='text-slate-900 dark:text-slate-500 uppercase tracking-wider text-[10px]'>
                         Progress
                       </span>
                       <span
@@ -356,7 +380,7 @@ export function GoalsPage() {
           <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/50'>
             <div className='overflow-x-auto custom-scrollbar'>
               <table className='min-w-full text-left text-sm whitespace-nowrap'>
-                <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
+                <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
                   <tr>
                     <th className='px-5 py-4 w-12'>
                       <input
@@ -438,7 +462,7 @@ export function GoalsPage() {
                                 className={
                                   isCompleted
                                     ? 'text-emerald-600 dark:text-emerald-400'
-                                    : 'text-slate-500'
+                                    : 'text-slate-900 dark:text-slate-500'
                                 }
                               >
                                 {pct.toFixed(1)}%
@@ -468,7 +492,7 @@ export function GoalsPage() {
                               <button
                                 type='button'
                                 title='Add Contribution'
-                                className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
+                                className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
                                 onClick={() => setContributeGoal(g)}
                               >
                                 <FiTrendingUp className='h-4 w-4' />
@@ -477,7 +501,7 @@ export function GoalsPage() {
                             <button
                               type='button'
                               title='Edit'
-                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
                               onClick={() => setEdit(g)}
                             >
                               <FiEdit2 className='h-4 w-4' />
@@ -485,7 +509,7 @@ export function GoalsPage() {
                             <button
                               type='button'
                               title='Delete'
-                              className='flex h-9 w-9 items-center justify-center cursor-pointer rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
+                              className='flex h-9 w-9 items-center justify-center cursor-pointer rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
                               onClick={() => openDeleteModal(g.id)}
                             >
                               <FiTrash2 className='h-4 w-4' />
@@ -534,13 +558,13 @@ export function GoalsPage() {
         title='⚠ Confirm Data Deletion'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             This will delete the goal permanently.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteOpen(false)}
-              className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
@@ -560,13 +584,13 @@ export function GoalsPage() {
         title='⚠ Confirm Bulk Deletion'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             This will permanently delete {selectedIds.size} selected goals.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setBulkDeleteOpen(false)}
-              className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 text-sm cursor-pointer font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>

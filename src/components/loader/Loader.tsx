@@ -3,10 +3,7 @@
 
 export function Loader() {
     return (
-      <div
-        className="grid h-screen w-full place-items-center"
-        style={{ background: "#020b18" }}
-      >
+      <div className="grid h-screen w-full place-items-center bg-slate-100 dark:bg-[#020b18]">
         <style>{`
           @keyframes bar-grow {
             0%   { transform: scaleY(0.08); opacity: 0.25; }
@@ -190,12 +187,12 @@ export function Loader() {
               letterSpacing: "-0.03em",
               marginBottom: 6,
             }}>
-              <span style={{ color: "#f1f5f9" }}>Fin</span>
+              <span className="text-slate-800 dark:text-slate-100">Fin</span>
               <span className="shimmer-text">Trackly</span>
             </div>
             <div style={{
               fontSize: 12,
-              color: "rgba(148,163,184,0.6)",
+              color: "var(--chart-tick)",
               fontWeight: 500,
               letterSpacing: "0.08em",
               textTransform: "uppercase",

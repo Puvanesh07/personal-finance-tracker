@@ -40,7 +40,7 @@ function Card({ children, color = 'blue', title, subtitle, Icon }: {
         </div>
         <div>
           <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white">{title}</h3>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{subtitle}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">{subtitle}</p>
         </div>
       </div>
       {children}
@@ -50,7 +50,7 @@ function Card({ children, color = 'blue', title, subtitle, Icon }: {
 
 function EmptyState({ msg }: { msg: string }) {
   return (
-    <div className="p-10 flex flex-col items-center gap-2 text-center text-sm text-slate-400">
+    <div className="p-10 flex flex-col items-center gap-2 text-center text-sm text-slate-500 dark:text-slate-400">
       <FiBarChart2 className="h-8 w-8 opacity-20" />
       {msg}
     </div>
@@ -75,7 +75,7 @@ export function PortfolioRebalancing() {
       {summary.totalValue === 0 ? <EmptyState msg="Add investments to see rebalancing suggestions." /> : (
         <div className="p-6 space-y-4">
           <div className="flex justify-between items-end">
-            <span className="text-xs font-bold uppercase text-slate-500">Current Equity Allocation</span>
+            <span className="text-xs font-bold uppercase text-slate-900 dark:text-slate-500">Current Equity Allocation</span>
             <span className="text-2xl font-black text-slate-900 dark:text-white">{currentEquityPct.toFixed(1)}%</span>
           </div>
           {/* Bar: current */}
@@ -114,7 +114,7 @@ export function PortfolioRebalancing() {
                 return (
                   <div key={type}>
                     <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-500 capitalize font-semibold">{type.replace('_', ' ')}</span>
+                      <span className="text-slate-900 dark:text-slate-500 capitalize font-semibold">{type.replace('_', ' ')}</span>
                       <span className="font-black text-slate-700 dark:text-slate-200">{pct.toFixed(1)}%</span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -172,20 +172,20 @@ export function DividendTracker() {
     <Card color="indigo" title="Passive Income" subtitle="Dividend & Interest Projection" Icon={FiTrendingUp}>
       <div className="p-6">
         <div className="mb-6">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Monthly Projection</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Monthly Projection</p>
           <p className="text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight">{formatINR(projection.monthly)}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Annual Income</p>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Annual Income</p>
             <p className="text-sm font-black text-slate-900 dark:text-white">{formatINR(projection.yearly)}</p>
           </div>
           <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Blended Yield</p>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Blended Yield</p>
             <p className="text-sm font-black text-emerald-600">{projection.yieldPct.toFixed(2)}%</p>
           </div>
         </div>
-        <p className="text-[10px] text-slate-400 italic text-center">Stocks 1.5% · MF 1.0% · FD/Bond at stated rate</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic text-center">Stocks 1.5% · MF 1.0% · FD/Bond at stated rate</p>
       </div>
     </Card>
   )
@@ -214,25 +214,25 @@ export function XIRRCalculator() {
       {investments.length === 0 ? <EmptyState msg="Add investments to calculate XIRR." /> : (
         <div className="p-6">
           <div className="text-center mb-6">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">True Portfolio XIRR</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">True Portfolio XIRR</p>
             <p className={`text-5xl font-black ${stats.returnVal >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {stats.returnVal >= 0 ? '+' : ''}{stats.returnVal.toFixed(2)}%
             </p>
-            <p className="text-[10px] text-slate-400 mt-1">over {stats.years.toFixed(1)} years</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">over {stats.years.toFixed(1)} years</p>
           </div>
           <div className="flex justify-around border-t border-slate-100 dark:border-slate-800 pt-4">
             <div className="text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Invested</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Invested</p>
               <p className="text-sm font-black text-slate-700 dark:text-white">{formatINR(stats.invested)}</p>
             </div>
             <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
             <div className="text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Current</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Current</p>
               <p className="text-sm font-black text-slate-700 dark:text-white">{formatINR(stats.current)}</p>
             </div>
             <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
             <div className="text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Gain</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Gain</p>
               <p className={`text-sm font-black ${stats.current >= stats.invested ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {formatINR(stats.current - stats.invested)}
               </p>
@@ -276,7 +276,7 @@ export function AssetAllocationMap() {
                   <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{labelMap[type] ?? type}</span>
                   <div className="flex items-center gap-2 text-xs">
                     <span className="font-black text-slate-900 dark:text-white">{pct.toFixed(1)}%</span>
-                    <span className="text-slate-400">{formatINR(data.current)}</span>
+                    <span className="text-slate-500 dark:text-slate-400">{formatINR(data.current)}</span>
                   </div>
                 </div>
                 <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -290,7 +290,7 @@ export function AssetAllocationMap() {
             )
           })}
           <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex justify-between">
-            <span className="text-xs font-bold text-slate-500">Total Portfolio</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-500">Total Portfolio</span>
             <span className="text-sm font-black text-slate-900 dark:text-white">{formatINR(summary.totalValue)}</span>
           </div>
         </div>
@@ -328,7 +328,7 @@ export function StockPLSummary() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                <tr className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
                   <th className="text-left pb-2 pr-2">Stock</th>
                   <th className="text-right pb-2 pr-2">Invested</th>
                   <th className="text-right pb-2 pr-2">Current</th>
@@ -340,9 +340,9 @@ export function StockPLSummary() {
                   <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="py-2.5 pr-2 font-semibold text-slate-800 dark:text-slate-100">
                       {r.name}
-                      <span className="ml-1 text-[10px] text-slate-400">×{r.quantity}</span>
+                      <span className="ml-1 text-[10px] text-slate-500 dark:text-slate-400">×{r.quantity}</span>
                     </td>
-                    <td className="py-2.5 pr-2 text-right tabular-nums text-slate-500 text-xs">{formatINR(r.invested)}</td>
+                    <td className="py-2.5 pr-2 text-right tabular-nums text-slate-900 dark:text-slate-500 text-xs">{formatINR(r.invested)}</td>
                     <td className="py-2.5 pr-2 text-right tabular-nums text-xs text-slate-700 dark:text-slate-200">{formatINR(r.current)}</td>
                     <td className={`py-2.5 text-right tabular-nums text-xs font-black ${r.pl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                       <div>{r.pl >= 0 ? '+' : ''}{formatINR(r.pl)}</div>
@@ -354,7 +354,7 @@ export function StockPLSummary() {
             </table>
           </div>
           <div className={`mt-4 rounded-xl p-4 text-center ${summary.totalPL >= 0 ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-rose-500/5 border border-rose-500/20'}`}>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Portfolio P&L</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Total Portfolio P&L</p>
             <p className={`text-2xl font-black mt-1 ${summary.totalPL >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {summary.totalPL >= 0 ? '+' : ''}{formatINR(summary.totalPL)}
               <span className="text-sm ml-1 font-semibold">({summary.totalPct >= 0 ? '+' : ''}{summary.totalPct.toFixed(1)}%)</span>
@@ -397,7 +397,7 @@ export function FDMaturityTracker() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <p className="font-black text-sm text-slate-800 dark:text-slate-100">{r.name}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{r.bankName} · {r.interestRate}% p.a. · {r.durationMonths}mo</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{r.bankName} · {r.interestRate}% p.a. · {r.durationMonths}mo</p>
                   </div>
                   {isMatured ? (
                     <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-1 rounded-lg">Matured</span>
@@ -410,15 +410,15 @@ export function FDMaturityTracker() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold">Invested</p>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold">Invested</p>
                     <p className="text-xs font-black text-slate-700 dark:text-slate-200">{formatINR(r.investedAmount)}</p>
                   </div>
                   <div className="rounded-lg bg-teal-500/5 border border-teal-500/15 p-2">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold">Interest</p>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold">Interest</p>
                     <p className="text-xs font-black text-teal-600">{formatINR(r.interest)}</p>
                   </div>
                   <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold">Maturity</p>
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold">Maturity</p>
                     <p className="text-xs font-black text-slate-700 dark:text-slate-200">{formatINR(r.maturity)}</p>
                   </div>
                 </div>
@@ -455,7 +455,7 @@ export function TaxHarvestingFinder() {
           <div className="py-8 text-center">
             <p className="text-3xl mb-2">✅</p>
             <p className="text-sm font-bold text-emerald-600">No loss positions found!</p>
-            <p className="text-xs text-slate-400 mt-1">All your holdings are in profit.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">All your holdings are in profit.</p>
           </div>
         ) : (
           <>
@@ -465,7 +465,7 @@ export function TaxHarvestingFinder() {
                   <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{c.name}</span>
                   <div className="text-right">
                     <p className="text-sm font-black text-rose-600">{formatINR(c.loss)}</p>
-                    <p className="text-[10px] text-slate-400">harvestable</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">harvestable</p>
                   </div>
                 </div>
               ))}
@@ -475,7 +475,7 @@ export function TaxHarvestingFinder() {
               <p className="text-2xl font-black text-white mt-1">{formatINR(taxSaved)}</p>
               <p className="text-[10px] text-rose-200 mt-0.5">Total harvestable loss: {formatINR(totalHarvestable)}</p>
             </div>
-            <p className="text-[10px] text-slate-400 mt-3 text-center italic">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 text-center italic">
               Book these losses to offset STCG/LTCG and reduce tax liability.
             </p>
           </>

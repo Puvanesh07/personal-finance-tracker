@@ -127,7 +127,7 @@ export function PPFCalculator() {
     <CardShell color="emerald" title="PPF Calculator" subtitle="Public Provident Fund" Icon={FiShield}>
       <div className="p-6 space-y-1">
         <div className="mb-4 flex items-center justify-between rounded-xl bg-emerald-500/5 border border-emerald-500/15 px-4 py-3">
-          <span className="text-xs font-semibold text-slate-500">Govt. Fixed PPF Rate</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-slate-500">Govt. Fixed PPF Rate</span>
           <span className="text-sm font-black text-emerald-600">7.1% p.a.</span>
         </div>
         <InputField label="Yearly Deposit (max ₹1.5L)" value={yearly} min={500} max={150000} step={500} onChange={setYearly} unit="₹" color="emerald" />
@@ -242,11 +242,11 @@ export function CAGRCalculator() {
       <div className="p-6">
         <div className="space-y-4 mb-5">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1.5">Initial Value (₹)</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Initial Value (₹)</label>
             <input type="number" className={inputCls} value={initial} onChange={e => setInitial(e.target.value)} placeholder="e.g. 100000" min="0" />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1.5">Final Value (₹)</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1.5">Final Value (₹)</label>
             <input type="number" className={inputCls} value={final} onChange={e => setFinal(e.target.value)} placeholder="e.g. 250000" min="0" />
           </div>
           <InputField label="Time Period" value={years} min={1} max={40} onChange={setYears} unit=" Yrs" color="emerald" />

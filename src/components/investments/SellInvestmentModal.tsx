@@ -110,7 +110,7 @@ function CalendarPicker({
     onChange(format(d, 'yyyy-MM-dd'));
     setOpen(false);
   };
-  const inputCls = `flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`;
+  const inputCls = `flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 text-emerald-400' : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'}`;
 
   return (
     <>
@@ -121,10 +121,10 @@ function CalendarPicker({
         className={inputCls}
       >
         <FiCalendar
-          className={`h-4 w-4 shrink-0 ${open ? 'text-emerald-400' : 'text-slate-500'}`}
+          className={`h-4 w-4 shrink-0 ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
         />
         <span
-          className={`flex-1 text-left ${!selectedDate ? 'text-slate-500' : ''}`}
+          className={`flex-1 text-left ${!selectedDate ? 'text-slate-900 dark:text-slate-500' : ''}`}
         >
           {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
         </span>
@@ -140,23 +140,23 @@ function CalendarPicker({
               zIndex: 99999,
               width: 280,
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
+            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 transition-colors'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 transition-colors'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -165,7 +165,7 @@ function CalendarPicker({
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
                   key={d}
-                  className='text-center text-[10px] font-bold text-slate-500 pb-1'
+                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
                 >
                   {d}
                 </div>
@@ -183,14 +183,14 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-800/50'}`}
+                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50'}`}
                   >
                     {format(day, 'd')}
                   </button>
                 );
               })}
             </div>
-            <div className='px-3 pb-3 flex justify-end border-t border-slate-800 pt-2'>
+            <div className='px-3 pb-3 flex justify-end border-t border-slate-200 dark:border-slate-800 pt-2'>
               <button
                 type='button'
                 onClick={() => selectDay(new Date())}
@@ -300,31 +300,31 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block ml-1';
+    'text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5 block ml-1';
 
   return (
     <Modal open={open} onClose={onClose} title='Record Sale & Track Profit'>
       <div className='space-y-5'>
         {/* Asset info banner */}
-        <div className='rounded-xl border border-slate-700/60 bg-slate-800/50 px-4 py-3 flex items-center gap-3'>
+        <div className='rounded-xl border border-slate-300/70 dark:border-slate-700/60 bg-slate-100 dark:bg-slate-800/50 px-4 py-3 flex items-center gap-3'>
           <div className='flex-1 min-w-0'>
-            <p className='font-bold text-slate-100 text-sm truncate'>
+            <p className='font-bold text-slate-900 dark:text-slate-100 text-sm truncate'>
               {investment.name}
             </p>
-            <p className='text-[11px] text-slate-500 mt-0.5 capitalize'>
+            <p className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5 capitalize'>
               {investment.type.replace('_', ' ')} ·{' '}
               {investment.platform ?? 'Manual'}
             </p>
           </div>
           <div className='text-right shrink-0'>
-            <p className='text-[10px] text-slate-500'>Portfolio Value</p>
+            <p className='text-[10px] text-slate-900 dark:text-slate-500'>Portfolio Value</p>
             <p className='text-sm font-bold text-white'>
               {formatINR(originalCurrentVal)}
             </p>
             {hasQty && (
-              <p className='text-[10px] text-slate-500 mt-0.5'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-500 mt-0.5'>
                 {totalQty} units total
               </p>
             )}
@@ -336,7 +336,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
           <div>
             <label className={labelCls}>
               Quantity to Sell{' '}
-              <span className='text-slate-600 font-normal normal-case tracking-normal'>
+              <span className='text-slate-500 dark:text-slate-600 font-normal normal-case tracking-normal'>
                 (max: {totalQty})
               </span>
             </label>
@@ -368,7 +368,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
               </div>
             )}
             {perUnitSellPrice > 0 && (
-              <p className='text-[10px] text-slate-600 mt-1 ml-1'>
+              <p className='text-[10px] text-slate-500 dark:text-slate-600 mt-1 ml-1'>
                 ~{formatINR(perUnitSellPrice)} per unit (current) · ~
                 {formatINR(perUnitBuyPrice)} per unit (buy)
               </p>
@@ -385,7 +385,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
               value={buyTotal}
               onChange={setBuyTotal}
             />
-            <p className='text-[10px] text-slate-600 mt-1 ml-1'>
+            <p className='text-[10px] text-slate-500 dark:text-slate-600 mt-1 ml-1'>
               Original invested amount
             </p>
           </div>
@@ -396,7 +396,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
               value={sellTotal}
               onChange={setSellTotal}
             />
-            <p className='text-[10px] text-slate-600 mt-1 ml-1'>
+            <p className='text-[10px] text-slate-500 dark:text-slate-600 mt-1 ml-1'>
               Amount credited to bank
             </p>
           </div>
@@ -416,7 +416,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
             )}
           </div>
           <div className='flex-1'>
-            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
               {isProfit ? 'Realized Profit' : 'Realized Loss'}
             </p>
             <p
@@ -429,7 +429,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
           <div
             className={`text-right ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
           >
-            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
               Return
             </p>
             <p className='text-lg font-bold tabular-nums mt-0.5'>
@@ -460,12 +460,12 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
         </div>
 
         {/* Actions */}
-        <div className='flex items-center justify-end gap-3 border-t border-slate-800/60 pt-4'>
+        <div className='flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-4'>
           <button
             type='button'
             onClick={onClose}
             disabled={saving}
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-50'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 disabled:opacity-50'
           >
             Cancel
           </button>

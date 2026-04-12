@@ -11,7 +11,7 @@ export function Modal({
 
   return (
     <div
-      className='fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-md overflow-y-auto'
+      className='fixed inset-0 z-50 flex items-start justify-center bg-slate-100 dark:bg-slate-900/60 backdrop-blur-md overflow-y-auto'
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -20,15 +20,15 @@ export function Modal({
     >
       {/* Outer wrapper — centres vertically when content is short, scrolls when tall */}
       <div className='flex min-h-full w-full items-start sm:items-center justify-center p-3 sm:p-4'>
-        <div className='w-full max-w-2xl animate-fade-in-up rounded-2xl border border-slate-700/80 bg-slate-900/95 shadow-2xl backdrop-blur-xl flex flex-col my-2 sm:my-4'>
+        <div className='w-full max-w-2xl animate-fade-in-up rounded-2xl border border-slate-300/80 dark:border-slate-700/80 bg-white dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl flex flex-col my-2 sm:my-4'>
           {/* ── Fixed header ── */}
-          <header className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-800/60 bg-slate-800/30 px-5 py-4 rounded-t-2xl'>
-            <div className='text-base font-bold tracking-tight text-slate-100'>
+          <header className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 dark:border-slate-800/60 bg-slate-100/80 dark:bg-slate-800/30 px-5 py-4 rounded-t-2xl'>
+            <div className='text-base font-bold tracking-tight text-slate-900 dark:text-slate-100'>
               {title}
             </div>
             <button
               type='button'
-              className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400'
+              className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400'
               onClick={onClose}
               title='Close'
             >

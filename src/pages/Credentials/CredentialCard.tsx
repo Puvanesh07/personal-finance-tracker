@@ -44,7 +44,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
       case 'note':
         return <FiFileText className='h-5 w-5 text-emerald-400' />;
       case 'other':
-        return <FiFileText className='h-5 w-5 text-slate-400' />;
+        return <FiFileText className='h-5 w-5 text-slate-500 dark:text-slate-400' />;
       case 'login':
       default:
         return <FiLock className='h-5 w-5 text-fuchsia-400' />;
@@ -53,17 +53,17 @@ export function CredentialCard({ credential }: { credential: Credential }) {
 
   return (
     <>
-      <div className='flex flex-col rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm hover:border-slate-700 transition-colors'>
+      <div className='flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5 shadow-sm hover:border-slate-300 dark:border-slate-700 transition-colors'>
         <div className='flex items-start justify-between mb-4'>
           <div className='flex items-center gap-3'>
-            <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 border border-slate-700/50'>
+            <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50'>
               {getIcon()}
             </div>
             <div>
-              <h3 className='text-sm font-bold text-slate-100 truncate'>
+              <h3 className='text-sm font-bold text-slate-900 dark:text-slate-100 truncate'>
                 {credential.title}
               </h3>
-              <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+              <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                 {credential.category}
               </p>
             </div>
@@ -71,13 +71,13 @@ export function CredentialCard({ credential }: { credential: Credential }) {
           <div className='flex items-center gap-1'>
             <button
               onClick={() => setIsEditOpen(true)}
-              className='p-1.5 text-slate-500 hover:text-white transition-colors'
+              className='p-1.5 text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors'
             >
               <FiEdit2 size={14} />
             </button>
             <button
               onClick={() => setDeleteConfirm(true)}
-              className='p-1.5 text-slate-500 hover:text-rose-400 transition-colors'
+              className='p-1.5 text-slate-900 dark:text-slate-500 hover:text-rose-400 transition-colors'
             >
               <FiTrash2 size={14} />
             </button>
@@ -86,21 +86,21 @@ export function CredentialCard({ credential }: { credential: Credential }) {
 
         <div className='flex flex-col gap-3 flex-1'>
           {credential.identifier && (
-            <div className='rounded-xl bg-slate-800/40 border border-slate-700/30 p-3'>
-              <p className='text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1'>
+            <div className='rounded-xl bg-slate-100/90 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700/30 p-3'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest mb-1'>
                 {credential.category === 'identity'
                   ? 'ID Number'
                   : 'Identifier'}
               </p>
               <div className='flex items-center justify-between gap-2'>
-                <span className='text-sm font-mono text-slate-200 truncate'>
+                <span className='text-sm font-mono text-slate-900 dark:text-slate-800 dark:text-slate-200 truncate'>
                   {credential.identifier}
                 </span>
                 <button
                   onClick={() =>
                     copyToClipboard(credential.identifier!, 'Identifier')
                   }
-                  className='text-slate-500 hover:text-emerald-400'
+                  className='text-slate-900 dark:text-slate-500 hover:text-emerald-400'
                 >
                   <FiCopy size={14} />
                 </button>
@@ -109,18 +109,18 @@ export function CredentialCard({ credential }: { credential: Credential }) {
           )}
 
           {credential.secret && (
-            <div className='rounded-xl bg-slate-800/40 border border-slate-700/30 p-3'>
-              <p className='text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1'>
+            <div className='rounded-xl bg-slate-100/90 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700/30 p-3'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest mb-1'>
                 Secret / Password
               </p>
               <div className='flex items-center justify-between gap-2'>
-                <span className='text-sm font-mono text-slate-200 truncate'>
+                <span className='text-sm font-mono text-slate-900 dark:text-slate-800 dark:text-slate-200 truncate'>
                   {showSecret ? credential.secret : '••••••••••••'}
                 </span>
                 <div className='flex items-center gap-2'>
                   <button
                     onClick={() => setShowSecret(!showSecret)}
-                    className='text-slate-500 hover:text-white'
+                    className='text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'
                   >
                     {showSecret ? <FiEyeOff size={14} /> : <FiEye size={14} />}
                   </button>
@@ -128,7 +128,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
                     onClick={() =>
                       copyToClipboard(credential.secret!, 'Password')
                     }
-                    className='text-slate-500 hover:text-emerald-400'
+                    className='text-slate-900 dark:text-slate-500 hover:text-emerald-400'
                   >
                     <FiCopy size={14} />
                   </button>
@@ -139,10 +139,10 @@ export function CredentialCard({ credential }: { credential: Credential }) {
 
           {credential.notes && (
             <div className='mt-2'>
-              <p className='text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest mb-1'>
                 Notes
               </p>
-              <p className='text-xs text-slate-400 whitespace-pre-wrap leading-relaxed'>
+              <p className='text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap leading-relaxed'>
                 {credential.notes}
               </p>
             </div>
@@ -165,14 +165,17 @@ export function CredentialCard({ credential }: { credential: Credential }) {
         title='Delete Credential?'
       >
         <div className='space-y-4'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             Are you sure you want to delete{' '}
-            <strong className='text-white'>{credential.title}</strong>?
+            <strong className='text-slate-900 dark:text-slate-100'>
+              {credential.title}
+            </strong>
+            ?
           </p>
-          <div className='flex justify-end gap-3 pt-4 border-t border-slate-800'>
+          <div className='flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800'>
             <button
               onClick={() => setDeleteConfirm(false)}
-              className='px-4 py-2 text-sm font-bold text-slate-400 hover:text-white'
+              className='px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             >
               Cancel
             </button>

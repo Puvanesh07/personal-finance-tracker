@@ -3,12 +3,14 @@
 import {
   FiArrowDown,
   FiArrowUp,
+  FiBookmark,
   FiBox,
   FiBriefcase,
   FiCheck,
   FiCheckSquare,
   FiChevronDown,
   FiDollarSign,
+  FiDownload,
   FiEdit2,
   FiFolder,
   FiGlobe,
@@ -26,6 +28,8 @@ import {
   FiX,
   FiZap,
 } from 'react-icons/fi';
+import { expandExportFilenamePattern, ensureCsvExtension } from '../../utils/exportFilename';
+import { exportInvestmentsCSV } from '../../utils/exportUtils';
 import type {
   FolioSyncResult,
   FundamentalData,
@@ -44,6 +48,8 @@ import { formatINR } from '../../utils/format';
 import { resolveAmfiCodes } from '../../services/amfiLookupService';
 import toast from 'react-hot-toast';
 import { todayISO } from '../../utils/dateUtils';
+import { useExportPresetsStore } from '../../store/exportPresetsStore';
+import { usePinnedInvestmentsStore } from '../../store/pinnedInvestmentsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 const BULK_CATEGORIES = [
@@ -178,18 +184,18 @@ function BulkCategoryDropdown({
         onClick={() => setOpen((v) => !v)}
         className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all outline-none ${
           open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-100'
-            : 'border-slate-700/80 bg-slate-900/80 hover:border-slate-600 hover:bg-slate-800/80 text-slate-200'
+            ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-900 dark:text-slate-100'
+            : 'border-slate-300/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/80 hover:border-slate-300 dark:border-slate-600 hover:bg-slate-200/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-800 dark:text-slate-200'
         }`}
       >
         <div className='flex items-center gap-3'>
           <Icon
-            className={`h-4 w-4 ${open ? 'text-emerald-400' : 'text-slate-400'}`}
+            className={`h-4 w-4 ${open ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}
           />
           <span>{selected.label}</span>
         </div>
         <FiChevronDown
-          className={`h-4 w-4 transition-transform text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-4 w-4 transition-transform text-slate-500 dark:text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -204,7 +210,7 @@ function BulkCategoryDropdown({
               width: pos.width,
               zIndex: 99999,
             }}
-            className='max-h-60 overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 shadow-2xl custom-scrollbar py-1.5'
+            className='max-h-60 overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 shadow-2xl custom-scrollbar py-1.5'
           >
             {BULK_CATEGORIES.map((cat) => {
               const CatIcon = cat.icon;
@@ -220,12 +226,12 @@ function BulkCategoryDropdown({
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
                     isSelected
                       ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                      : 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-300 dark:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <div className='flex items-center gap-3'>
                     <CatIcon
-                      className={`h-4 w-4 ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}
+                      className={`h-4 w-4 ${isSelected ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}
                     />
                     <span>{cat.label}</span>
                   </div>
@@ -303,7 +309,7 @@ function SectorCapCell({
   }, [open, updatePos]);
 
   if (inv.type !== 'stock') {
-    return <span className='text-[11px] text-slate-600'>—</span>;
+    return <span className='text-[11px] text-slate-500 dark:text-slate-600'>—</span>;
   }
 
   const hasTags = inv.sector || marketCap;
@@ -323,22 +329,22 @@ function SectorCapCell({
             {inv.sector ? (
               <SectorChip sector={inv.sector} />
             ) : (
-              <span className='text-[10px] text-slate-600 italic'>—</span>
+              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>—</span>
             )}
             {marketCap ? (
               <MarketCapChip cap={marketCap} />
             ) : (
-              <span className='text-[10px] text-slate-600 italic'>—</span>
+              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>—</span>
             )}
           </>
         ) : (
-          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors'>
+          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors'>
             <FiTag size={9} /> Add Tags
           </span>
         )}
         <FiEdit2
           size={10}
-          className={`text-slate-600 transition-opacity shrink-0 ml-0.5 ${hasTags ? 'opacity-0 group-hover/class:opacity-100' : 'opacity-100'}`}
+          className={`text-slate-500 dark:text-slate-600 transition-opacity shrink-0 ml-0.5 ${hasTags ? 'opacity-0 group-hover/class:opacity-100' : 'opacity-100'}`}
         />
       </div>
 
@@ -352,30 +358,30 @@ function SectorCapCell({
               left: pos.left,
               zIndex: 99999,
             }}
-            className='w-[240px] p-3 rounded-xl border border-slate-700 bg-slate-800 shadow-2xl backdrop-blur-xl animate-in fade-in cursor-default'
+            className='w-[240px] p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 shadow-2xl backdrop-blur-xl animate-in fade-in cursor-default'
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className='flex flex-col gap-3'>
               <div>
-                <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
+                <label className='text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1 block'>
                   Sector
                 </label>
                 <input
                   value={sector}
                   onChange={(e) => setSector(e.target.value)}
                   placeholder='e.g. Railway, IT, Defence'
-                  className='w-full rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
+                  className='w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-500 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-100'
                 />
               </div>
               <div>
-                <label className='text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block'>
+                <label className='text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1 block'>
                   Market Cap
                 </label>
                 <select
                   value={cap}
                   onChange={(e) => setCap(e.target.value)}
-                  className='w-full appearance-none rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-xs text-white outline-none focus:border-emerald-500'
+                  className='w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-500 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-100'
                 >
                   <option value=''>Select Cap...</option>
                   <option value='Large Cap'>Large Cap</option>
@@ -388,7 +394,7 @@ function SectorCapCell({
                 <button
                   type='button'
                   onClick={() => setOpen(false)}
-                  className='px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors'
+                  className='px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors'
                 >
                   Cancel
                 </button>
@@ -437,7 +443,7 @@ function TypeChip({ inv }: { inv: any }) {
   const type = inv.type;
   const assetType = inv.assetType;
   let label = type.replace('_', ' ');
-  let color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
+  let color = 'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-600 dark:text-slate-700 dark:text-slate-300';
   let Icon = FiBox;
 
   if (type === 'stock') {
@@ -499,7 +505,7 @@ function SectorChip({ sector }: { sector?: string }) {
 
 function MarketCapChip({ cap }: { cap?: string }) {
   if (!cap) return null;
-  let color = 'border-slate-500/30 bg-slate-500/10 text-slate-300';
+  let color = 'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-600 dark:text-slate-700 dark:text-slate-300';
   const c = cap.toLowerCase();
   if (c.includes('large'))
     color = 'border-blue-500/30 bg-blue-500/10 text-blue-300';
@@ -558,14 +564,14 @@ function PriceCell({
 
   if (isRefreshing) {
     return (
-      <span className='inline-flex items-center gap-1 text-xs text-slate-500'>
+      <span className='inline-flex items-center gap-1 text-xs text-slate-900 dark:text-slate-500'>
         <FiRefreshCw size={10} className='animate-spin' />…
       </span>
     );
   }
 
   if (price === null || price === undefined) {
-    return <span className='text-slate-600 text-xs font-medium'>—</span>;
+    return <span className='text-slate-500 dark:text-slate-600 text-xs font-medium'>—</span>;
   }
 
   const flashClass =
@@ -588,7 +594,7 @@ function PriceCell({
       {isUS ? '$' : '₹'}
       {Number(price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
       {label && (
-        <span className='text-[9px] text-slate-400 ml-0.5'>{label}</span>
+        <span className='text-[9px] text-slate-500 dark:text-slate-400 ml-0.5'>{label}</span>
       )}
     </span>
   );
@@ -641,17 +647,17 @@ function FixedIncomeDetails({ inv }: { inv: any }) {
   }
 
   if (rows.length === 0)
-    return <span className='text-[12px] text-slate-600'>—</span>;
+    return <span className='text-[12px] text-slate-500 dark:text-slate-600'>—</span>;
 
   return (
     <div className='flex flex-col gap-0.5'>
       {rows.map((r) => (
         <div key={r.label} className='flex items-center gap-1.5'>
-          <span className='text-[9px] text-slate-600 uppercase tracking-wider w-12 shrink-0'>
+          <span className='text-[9px] text-slate-500 dark:text-slate-600 uppercase tracking-wider w-12 shrink-0'>
             {r.label}
           </span>
           <span
-            className={`text-[11px] font-semibold ${r.highlight ? 'text-amber-400' : 'text-slate-300'}`}
+            className={`text-[11px] font-semibold ${r.highlight ? 'text-amber-400' : 'text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
           >
             {r.value}
           </span>
@@ -679,7 +685,7 @@ function RowRefreshButton({
       title='Refresh live price for this row'
       className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all border ${
         refreshing
-          ? 'border-slate-700 bg-slate-800 text-slate-600 cursor-not-allowed'
+          ? 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-600 cursor-not-allowed'
           : 'border-emerald-500/25 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/50 active:scale-95'
       }`}
     >
@@ -735,7 +741,7 @@ function SortIcon({
     return (
       <FiArrowUp
         size={11}
-        className='text-slate-600 group-hover/th:text-slate-400 transition-colors'
+        className='text-slate-500 dark:text-slate-600 group-hover/th:text-slate-500 dark:text-slate-400 transition-colors'
       />
     );
   if (sortDir === 'asc')
@@ -1387,17 +1393,40 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     });
   }, [rows, sortCol, sortDir, folioSyncData]);
 
+  const pinnedIds = usePinnedInvestmentsStore((s) => s.ids);
+  const togglePin = usePinnedInvestmentsStore((s) => s.togglePin);
+
+  const displayRows = useMemo(() => {
+    const pinSet = new Set(pinnedIds);
+    const pinned = sortedRows.filter((r) => pinSet.has(r.inv.id));
+    pinned.sort(
+      (a, b) => pinnedIds.indexOf(a.inv.id) - pinnedIds.indexOf(b.inv.id),
+    );
+    const rest = sortedRows.filter((r) => !pinSet.has(r.inv.id));
+    return [...pinned, ...rest];
+  }, [sortedRows, pinnedIds]);
+
   const isAllSelected =
-    sortedRows.length > 0 && selectedIds.length === sortedRows.length;
+    displayRows.length > 0 && selectedIds.length === displayRows.length;
   const toggleSelectAll = () => {
     if (isAllSelected) setSelectedIds([]);
-    else setSelectedIds(sortedRows.map((r) => r.inv.id));
+    else setSelectedIds(displayRows.map((r) => r.inv.id));
   };
   const toggleRow = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
+
+  const handleExportSelected = useCallback(() => {
+    const invs = investments.filter((i) => selectedIds.includes(i.id));
+    const pattern =
+      useExportPresetsStore.getState().getLastFilename('investments-bulk-csv') ??
+      'investments-selection-{date}';
+    const fn = ensureCsvExtension(expandExportFilenamePattern(pattern));
+    exportInvestmentsCSV(invs, fn);
+    useExportPresetsStore.getState().rememberFilename('investments-bulk-csv', pattern);
+  }, [investments, selectedIds]);
 
   const handleSingleDelete = async () => {
     if (deleteId) {
@@ -1463,7 +1492,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   if (rows.length === 0) {
     return (
-      <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-slate-500'>
+      <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 text-slate-900 dark:text-slate-500'>
         <FiSearch className='h-8 w-8 mb-2 opacity-20' />
         <p className='text-sm font-medium'>No assets found</p>
       </div>
@@ -1473,18 +1502,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   return (
     <div className='space-y-3 relative'>
       {/* ── Single unified header bar ── */}
-      <div className='flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800 min-w-0'>
+      <div className='flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0'>
         {/* Left: count */}
         <div className='flex items-center gap-2 shrink-0'>
           <FiList className='h-3.5 w-3.5 text-emerald-500' />
-          <span className='text-[11px] font-bold text-slate-400 whitespace-nowrap'>
-            <span className='text-white'>{rows.length}</span> asset
+          <span className='text-[11px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap'>
+            <span className='font-black text-slate-900 dark:text-slate-100'>
+              {rows.length}
+            </span>{' '}
+            asset
             {rows.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         {/* Divider */}
-        <span className='w-px h-4 bg-slate-700 shrink-0' />
+        <span className='w-px h-4 bg-slate-300 dark:bg-slate-700 shrink-0' />
 
         {/* Centre: legend dots */}
         <div className='flex items-center gap-3 overflow-x-auto no-scrollbar flex-1 min-w-0'>
@@ -1508,18 +1540,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               {item.label}
             </span>
           ))}
-          <span className='text-[9px] text-slate-600 whitespace-nowrap hidden sm:block'>
+          <span className='text-[9px] text-slate-500 dark:text-slate-600 whitespace-nowrap hidden sm:block'>
             · hover row → ⚡ Live to refresh one
           </span>
         </div>
 
         {/* Divider */}
-        <span className='w-px h-4 bg-slate-700 shrink-0' />
+        <span className='w-px h-4 bg-slate-300 dark:bg-slate-700 shrink-0' />
 
         {/* Right: Actions */}
         <div className='flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar'>
           {lastUpdated && !refreshError && (
-            <span className='text-[10px] text-slate-500 whitespace-nowrap hidden md:block'>
+            <span className='text-[10px] text-slate-900 dark:text-slate-500 whitespace-nowrap hidden md:block'>
               Updated {lastUpdated}
             </span>
           )}
@@ -1535,7 +1567,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             disabled={refreshingAll}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
               refreshingAll
-                ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 cursor-not-allowed'
                 : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 active:scale-95'
             }`}
             title='Refresh live prices for all visible assets'
@@ -1566,7 +1598,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               disabled={divRefreshingAll}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
                 divRefreshingAll
-                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 cursor-not-allowed'
                   : 'bg-indigo-950/60 border-indigo-800/60 text-indigo-400 hover:bg-indigo-900/60 hover:border-indigo-700 hover:text-indigo-300 active:scale-95'
               }`}
               title='Fetch historical dividends for all Indian stocks'
@@ -1603,7 +1635,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               disabled={bulkFetching}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
                 bulkFetching
-                  ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 cursor-not-allowed'
                   : 'bg-emerald-950/60 border-emerald-800/60 text-emerald-500 hover:bg-emerald-900/60 hover:border-emerald-700 hover:text-emerald-300 active:scale-95'
               }`}
               title='Auto-fetch fundamentals from Screener.in for all Indian equity stocks'
@@ -1635,7 +1667,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
       {/* Progress bar — only for large portfolios */}
       {refreshingAll && fetchProgress && fetchProgress.total > 20 && (
-        <div className='h-0.5 w-full bg-slate-800 rounded-full overflow-hidden -mt-1'>
+        <div className='h-0.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden -mt-1'>
           <div
             className='h-full bg-emerald-500 rounded-full transition-all duration-300'
             style={{
@@ -1698,7 +1730,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
             {/* Avg score */}
             <div className='flex items-center gap-1 shrink-0'>
-              <span className='text-[10px] text-slate-500'>Avg</span>
+              <span className='text-[10px] text-slate-900 dark:text-slate-500'>Avg</span>
               <span
                 className='text-[13px] font-black tabular-nums'
                 style={{
@@ -1712,7 +1744,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               >
                 {avgScore.toFixed(1)}
               </span>
-              <span className='text-[9px] text-slate-600'>/10</span>
+              <span className='text-[9px] text-slate-500 dark:text-slate-600'>/10</span>
             </div>
 
             <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
@@ -1755,7 +1787,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             {unscored > 0 && (
               <>
                 <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
-                <span className='text-[10px] text-slate-600 whitespace-nowrap'>
+                <span className='text-[10px] text-slate-500 dark:text-slate-600 whitespace-nowrap'>
                   {unscored} unscored
                 </span>
               </>
@@ -1770,7 +1802,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         <div className='flex items-center justify-between px-1 py-1'>
           <button
             onClick={toggleSelectAll}
-            className='flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-emerald-400 transition-colors'
+            className='flex items-center gap-2 text-[11px] font-bold text-slate-900 dark:text-slate-500 uppercase tracking-wider hover:text-emerald-400 transition-colors'
           >
             {isAllSelected ? (
               <FiCheckSquare size={15} className='text-emerald-500' />
@@ -1779,12 +1811,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             )}
             {isAllSelected ? 'Deselect All' : 'Select All'}
           </button>
-          <span className='text-[11px] text-slate-600 font-medium'>
-            {sortedRows.length} assets
+          <span className='text-[11px] text-slate-500 dark:text-slate-600 font-medium'>
+            {displayRows.length} assets
           </span>
         </div>
 
-        {sortedRows.map(
+        {displayRows.map(
           ({
             inv,
             invested,
@@ -1801,6 +1833,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             const isRowRefreshing = !!rowRefreshingMap[inv.id];
             const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
             const isProfit = pl >= 0;
+            const isRowPinned = pinnedIds.includes(inv.id);
 
             return (
               <div
@@ -1808,7 +1841,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 className={`relative rounded-2xl border overflow-hidden transition-all duration-150 ${
                   isSelected
                     ? 'border-emerald-500/40 bg-emerald-500/[0.05]'
-                    : 'border-slate-800 bg-slate-900/60'
+                    : isRowPinned
+                      ? 'border-amber-500/45 bg-amber-500/[0.04] dark:bg-amber-500/[0.06]'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60'
                 }`}
               >
                 {/* Profit/Loss accent bar on left edge */}
@@ -1821,7 +1856,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   <div className='flex items-start gap-2.5'>
                     <button
                       onClick={() => toggleRow(inv.id)}
-                      className='mt-0.5 shrink-0 text-slate-500 hover:text-emerald-400 transition-colors'
+                      className='mt-0.5 shrink-0 text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
                     >
                       {isSelected ? (
                         <FiCheckSquare size={15} className='text-emerald-500' />
@@ -1834,18 +1869,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <div className='flex items-start justify-between gap-2'>
                         <div className='min-w-0 flex-1'>
                           <h3
-                            className='font-bold text-[14px] text-slate-100 truncate leading-tight'
+                            className='font-bold text-[14px] text-slate-900 dark:text-slate-100 truncate leading-tight'
                             title={inv.name}
                           >
                             {inv.name}
                           </h3>
                           <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
                             <TypeChip inv={inv} />
-                            <span className='inline-flex items-center rounded-md bg-slate-800 border border-slate-700/50 px-1.5 py-0.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider'>
+                            <span className='inline-flex items-center rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider'>
                               {formatPlatformName(inv.platform)}
                             </span>
                             {qty !== null && qty !== undefined && (
-                              <span className='text-[10px] text-slate-600 font-medium'>
+                              <span className='text-[10px] text-slate-500 dark:text-slate-600 font-medium'>
                                 ×{' '}
                                 {Number(qty).toLocaleString('en-IN', {
                                   maximumFractionDigits: 4,
@@ -1857,6 +1892,25 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                         {/* Action buttons */}
                         <div className='flex items-center gap-1 shrink-0'>
+                          <button
+                            type='button'
+                            onClick={() => togglePin(inv.id)}
+                            title={
+                              isRowPinned
+                                ? 'Unpin from top of table'
+                                : 'Pin to top of table'
+                            }
+                            className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all ${
+                              isRowPinned
+                                ? 'bg-amber-500/15 border-amber-500/35 text-amber-600 dark:text-amber-400'
+                                : 'bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400'
+                            }`}
+                          >
+                            <FiBookmark
+                              size={12}
+                              className={isRowPinned ? 'fill-current' : ''}
+                            />
+                          </button>
                           {isEquityLike(inv) && hasLiveSymbol && (
                             <RowRefreshButton
                               onClick={() => handleRefreshRow(inv)}
@@ -1874,7 +1928,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           )}
                           <button
                             onClick={() => setEdit(inv)}
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white transition-all'
+                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all'
                           >
                             <FiEdit2 size={12} />
                           </button>
@@ -1916,24 +1970,24 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                   {/* ── Row 2: Stats grid ── */}
                   <div
-                    className={`mt-3 pt-3 border-t grid grid-cols-4 gap-1 ${isSelected ? 'border-emerald-500/20' : 'border-slate-800/60'}`}
+                    className={`mt-3 pt-3 border-t grid grid-cols-4 gap-1 ${isSelected ? 'border-emerald-500/20' : 'border-slate-200/70 dark:border-slate-800/60'}`}
                   >
                     {/* Invested */}
                     <div className='flex flex-col gap-0.5'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                         Invested
                       </span>
-                      <span className='text-[13px] font-semibold text-slate-400 tabular-nums'>
+                      <span className='text-[13px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums'>
                         {formatINR(invested)}
                       </span>
                     </div>
 
                     {/* Current Value */}
                     <div className='flex flex-col gap-0.5 items-center'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                         Curr. Value
                       </span>
-                      <span className='text-[13px] font-bold text-white tabular-nums'>
+                      <span className='text-[13px] font-bold tabular-nums text-slate-900 dark:text-slate-100'>
                         {formatINR(current)}
                       </span>
                       {isEquityLike(inv) && hasLiveSymbol && (
@@ -1948,39 +2002,39 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     {/* Dividend (equity) | Details (fixed income) */}
                     {isEquityLike(inv) ? (
                       <div className='flex flex-col gap-0.5 items-center'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Div ({shortFYLabel})
                         </span>
                         {canFetchDiv ? (
                           isDivLoading ? (
-                            <span className='text-[10px] text-slate-500 mt-1'>
+                            <span className='text-[10px] text-slate-900 dark:text-slate-500 mt-1'>
                               <FiRefreshCw size={10} className='animate-spin' />
                             </span>
                           ) : dividendCurrentFY !== null &&
                             dividendCurrentFY > 0 ? (
                             <div
-                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 transition-colors'
                               title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
                               <span className='text-[13px] font-bold text-emerald-400 tabular-nums'>
                                 {formatINR(dividendCurrentFY)}
                               </span>
-                              <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
+                              <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium tabular-nums'>
                                 History
                               </span>
                             </div>
                           ) : dividendCurrentFY !== null &&
                             dividendCurrentFY === 0 ? (
                             <div
-                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 transition-colors'
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 transition-colors'
                               title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
-                              <span className='text-[13px] font-medium text-slate-600'>
+                              <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
                                 ₹0
                               </span>
-                              <span className='text-[9px] text-slate-500 font-medium tabular-nums'>
+                              <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium tabular-nums'>
                                 History
                               </span>
                             </div>
@@ -1990,20 +2044,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 e.stopPropagation();
                                 handleRefreshRowDiv(inv);
                               }}
-                              className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                              className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
                             >
                               <FiRefreshCw size={8} /> Fetch
                             </button>
                           )
                         ) : (
-                          <span className='text-[13px] font-medium text-slate-600'>
+                          <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
                             —
                           </span>
                         )}
                       </div>
                     ) : (
                       <div className='flex flex-col gap-0.5 items-center'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Details
                         </span>
                         <FixedIncomeDetails inv={inv} />
@@ -2012,7 +2066,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                     {/* P&L */}
                     <div className='flex flex-col gap-0.5 items-end'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                         P&amp;L
                       </span>
                       <span
@@ -2036,17 +2090,17 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       </div>
 
       {/* ── DESKTOP VIEW ── */}
-      <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl'>
+      <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 shadow-xl'>
         <div className='overflow-x-auto pb-2'>
           <table className='w-full text-sm border-separate border-spacing-0'>
             {/* ── HEADER ── */}
             <thead>
               <tr className='whitespace-nowrap'>
                 {/* Checkbox */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-3 py-2.5 w-10 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-3 py-2.5 w-10 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={toggleSelectAll}
-                    className='flex items-center justify-center text-slate-500 hover:text-emerald-400 transition-colors'
+                    className='flex items-center justify-center text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
                   >
                     {isAllSelected ? (
                       <FiCheckSquare size={14} className='text-emerald-500' />
@@ -2057,10 +2111,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Asset */}
-                <th className='sticky top-0 z-10 bg-slate-900 pl-2 pr-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 pl-2 pr-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('name')}
-                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     Asset
                     <SortIcon col='name' sortCol={sortCol} sortDir={sortDir} />
@@ -2068,10 +2122,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Broker */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('broker')}
-                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     Broker
                     <SortIcon
@@ -2083,10 +2137,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Sector · Cap */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('sector')}
-                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     Sector · Cap
                     <SortIcon
@@ -2098,10 +2152,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Qty */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('qty')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     <SortIcon col='qty' sortCol={sortCol} sortDir={sortDir} />
                     Qty
@@ -2109,10 +2163,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Invested */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('invested')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     <SortIcon
                       col='invested'
@@ -2124,10 +2178,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Curr. Value */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('current')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     <SortIcon
                       col='current'
@@ -2139,10 +2193,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Dividend */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('dividend')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     <SortIcon
                       col='dividend'
@@ -2154,10 +2208,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Live Price */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('livePrice')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
                   >
                     <SortIcon
                       col='livePrice'
@@ -2169,12 +2223,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Refresh */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-2 py-2.5 w-10 text-center text-[10px] font-semibold text-slate-600 border-b border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-2 py-2.5 w-10 text-center text-[10px] font-semibold text-slate-500 dark:text-slate-600 border-b border-slate-300/70 dark:border-slate-700/60'>
                   ⚡
                 </th>
 
                 {/* FolioSync Score */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-3 py-2.5 border-b border-slate-700/60 min-w-[140px]'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-3 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60 min-w-[140px]'>
                   <button
                     onClick={() => handleSort('folioScore')}
                     className='flex items-center gap-1.5 group/th'
@@ -2193,11 +2247,11 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* P&L */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-4 py-2.5 border-b border-slate-700/60 min-w-[120px]'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60 min-w-[120px]'>
                   <div className='flex items-center justify-end gap-2'>
                     <button
                       onClick={() => handleSort('pl')}
-                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-200 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-500'}`}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
                     >
                       <span className='flex items-center gap-1'>
                         <SortIcon
@@ -2208,10 +2262,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         P&amp;L
                       </span>
                     </button>
-                    <span className='text-slate-700 text-[10px]'>/</span>
+                    <span className='text-slate-600 dark:text-slate-700 text-[10px]'>/</span>
                     <button
                       onClick={() => handleSort('plPct')}
-                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-200 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-500'}`}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
                     >
                       <span className='flex items-center gap-1'>
                         %{' '}
@@ -2226,13 +2280,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Actions */}
-                <th className='sticky top-0 z-10 bg-slate-900 px-3 py-2.5 w-16 border-b border-slate-700/60' />
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-3 py-2.5 w-16 border-b border-slate-300/70 dark:border-slate-700/60' />
               </tr>
             </thead>
 
             {/* ── BODY ── */}
             <tbody>
-              {sortedRows.map(
+              {displayRows.map(
                 (
                   {
                     inv,
@@ -2251,19 +2305,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   const isSelected = selectedIds.includes(inv.id);
                   const isRowRefreshing = !!rowRefreshingMap[inv.id];
                   const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
-                  const isLast = rowIdx === sortedRows.length - 1;
-                  const bdClass = !isLast ? 'border-b border-slate-800/70' : '';
+                  const isRowPinned = pinnedIds.includes(inv.id);
+                  const isLast = rowIdx === displayRows.length - 1;
+                  const bdClass = !isLast ? 'border-b border-slate-200 dark:border-slate-800/70' : '';
 
                   return (
                     <tr
                       key={inv.id}
-                      className={`group transition-colors duration-100 ${isSelected ? 'bg-emerald-500/[0.07]' : 'hover:bg-slate-800/50'}`}
+                      className={`group transition-colors duration-100 ${isSelected ? 'bg-emerald-500/[0.07]' : isRowPinned ? 'bg-amber-500/[0.06] hover:bg-amber-500/[0.09] dark:bg-amber-500/[0.08]' : 'hover:bg-slate-100 dark:bg-slate-800/50'}`}
                     >
                       {/* ── Checkbox ── */}
                       <td className={`px-3 py-3.5 ${bdClass}`}>
                         <button
                           onClick={() => toggleRow(inv.id)}
-                          className='flex items-center justify-center text-slate-500 hover:text-emerald-400 transition-colors'
+                          className='flex items-center justify-center text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
                         >
                           {isSelected ? (
                             <FiCheckSquare
@@ -2280,7 +2335,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <td className={`pl-2 pr-4 py-3.5 ${bdClass}`}>
                         <div className='flex flex-col gap-1 min-w-[150px] max-w-[210px]'>
                           <span
-                            className='font-semibold text-[13px] text-slate-100 truncate leading-tight'
+                            className='font-semibold text-[13px] text-slate-900 dark:text-slate-100 truncate leading-tight'
                             title={inv.name}
                           >
                             {inv.name}
@@ -2288,7 +2343,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           <div className='flex items-center gap-1.5'>
                             <TypeChip inv={inv} />
                             {inv.symbol && (
-                              <span className='text-[10px] font-bold text-slate-600 tracking-wide'>
+                              <span className='text-[10px] font-bold text-slate-500 dark:text-slate-600 tracking-wide'>
                                 {inv.symbol}
                               </span>
                             )}
@@ -2298,7 +2353,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                       {/* ── Broker ── */}
                       <td className={`px-4 py-3.5 ${bdClass}`}>
-                        <span className='inline-flex items-center rounded-md bg-slate-800 border border-slate-700/50 px-2 py-0.5 text-[10px] font-bold text-slate-300 uppercase tracking-wider whitespace-nowrap'>
+                        <span className='inline-flex items-center rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 uppercase tracking-wider whitespace-nowrap'>
                           {formatPlatformName(inv.platform)}
                         </span>
                       </td>
@@ -2327,17 +2382,17 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
                         {isEquityLike(inv) ? (
-                          <span className='text-[13px] font-medium text-slate-300'>
+                          <span className='text-[13px] font-medium text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                             {qty !== null && qty !== undefined ? (
                               Number(qty).toLocaleString('en-IN', {
                                 maximumFractionDigits: 4,
                               })
                             ) : (
-                              <span className='text-slate-600'>—</span>
+                              <span className='text-slate-500 dark:text-slate-600'>—</span>
                             )}
                           </span>
                         ) : (
-                          <span className='text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
                         )}
                       </td>
 
@@ -2345,7 +2400,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <td
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
-                        <span className='text-[13px] font-medium text-slate-400'>
+                        <span className='text-[13px] font-medium text-slate-500 dark:text-slate-400'>
                           {formatINR(invested)}
                         </span>
                       </td>
@@ -2354,7 +2409,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <td
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
-                        <span className='text-[13px] font-bold text-white'>
+                        <span className='text-[13px] font-bold text-slate-900 dark:text-slate-100'>
                           {formatINR(current)}
                         </span>
                       </td>
@@ -2366,7 +2421,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         {isEquityLike(inv) ? (
                           canFetchDiv ? (
                             isDivLoading ? (
-                              <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-500'>
+                              <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-900 dark:text-slate-500'>
                                 <FiRefreshCw
                                   size={10}
                                   className='animate-spin'
@@ -2375,28 +2430,28 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             ) : dividendCurrentFY !== null &&
                               dividendCurrentFY > 0 ? (
                               <div
-                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 -mr-1 transition-colors'
                                 title='Click to view full history'
                                 onClick={() => setDivDetailsTarget(inv)}
                               >
                                 <span className='text-[13px] font-bold text-emerald-400'>
                                   {formatINR(dividendCurrentFY)}
                                 </span>
-                                <span className='text-[9px] text-slate-500 font-medium'>
+                                <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium'>
                                   History
                                 </span>
                               </div>
                             ) : dividendCurrentFY !== null &&
                               dividendCurrentFY === 0 ? (
                               <div
-                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 -mr-1 transition-colors'
                                 title='Click to view full history'
                                 onClick={() => setDivDetailsTarget(inv)}
                               >
-                                <span className='text-[13px] font-medium text-slate-600'>
+                                <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
                                   ₹0
                                 </span>
-                                <span className='text-[9px] text-slate-500 font-medium'>
+                                <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium'>
                                   History
                                 </span>
                               </div>
@@ -2407,19 +2462,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                     e.stopPropagation();
                                     handleRefreshRowDiv(inv);
                                   }}
-                                  className='inline-flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors'
+                                  className='inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
                                 >
                                   <FiRefreshCw size={10} /> Get Div
                                 </button>
                               </div>
                             )
                           ) : (
-                            <span className='text-[13px] font-medium text-slate-600'>
+                            <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
                               —
                             </span>
                           )
                         ) : (
-                          <span className='text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
                         )}
                       </td>
 
@@ -2434,7 +2489,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             isRefreshing={isRowRefreshing}
                           />
                         ) : (
-                          <span className='text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
                         )}
                       </td>
 
@@ -2448,7 +2503,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             />
                           </span>
                         ) : (
-                          <span className='text-slate-700 text-[10px]'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-[10px]'>—</span>
                         )}
                       </td>
 
@@ -2464,7 +2519,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             onSave={handleFolioSyncSave}
                           />
                         ) : (
-                          <span className='text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
                         )}
                       </td>
 
@@ -2487,28 +2542,49 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                       {/* ── Actions ── */}
                       <td className={`px-3 py-3.5 ${bdClass}`}>
-                        <div className='flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
-                          {isEquityLike(inv) && (
+                        <div className='flex items-center justify-center gap-1'>
+                          <button
+                            type='button'
+                            onClick={() => togglePin(inv.id)}
+                            title={
+                              isRowPinned
+                                ? 'Unpin from top of table'
+                                : 'Pin to top of table'
+                            }
+                            className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all ${
+                              isRowPinned
+                                ? 'bg-amber-500/15 border-amber-500/35 text-amber-600 dark:text-amber-400'
+                                : 'bg-slate-200 dark:bg-slate-800 border border-slate-300/70 dark:border-slate-700/60 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400'
+                            }`}
+                          >
+                            <FiBookmark
+                              size={12}
+                              className={isRowPinned ? 'fill-current' : ''}
+                            />
+                          </button>
+                          <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                            {isEquityLike(inv) && (
+                              <button
+                                onClick={() => setSellTarget(inv)}
+                                title='Record sale & track profit'
+                                className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all'
+                              >
+                                <FiDollarSign size={12} />
+                              </button>
+                            )}
                             <button
-                              onClick={() => setSellTarget(inv)}
-                              title='Record sale & track profit'
-                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all'
+                              onClick={() => setEdit(inv)}
+                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300/70 dark:border-slate-700/60 transition-all'
                             >
-                              <FiDollarSign size={12} />
+                              <FiEdit2 size={12} />
                             </button>
-                          )}
-                          <button
-                            onClick={() => setEdit(inv)}
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
-                          >
-                            <FiEdit2 size={12} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(inv.id)}
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-all'
-                          >
-                            <FiTrash2 size={12} />
-                          </button>
+                            <button
+                              onClick={() => setDeleteId(inv.id)}
+                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 dark:text-slate-400 hover:text-rose-400 border border-slate-300/70 dark:border-slate-700/60 transition-all'
+                            >
+                              <FiTrash2 size={12} />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -2521,23 +2597,23 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className='fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 z-40 animate-in slide-in-from-bottom-8 fade-in duration-300'>
+        <div className='fixed bottom-8 left-1/2 z-40 flex -translate-x-1/2 animate-in items-center gap-4 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-slate-900 shadow-2xl fade-in slide-in-from-bottom-8 duration-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'>
           <div className='flex items-center gap-2'>
             <span className='flex items-center justify-center bg-emerald-500 text-white text-xs font-bold h-6 w-6 rounded-full'>
               {selectedIds.length}
             </span>
-            <span className='text-sm font-semibold text-slate-300 hidden sm:block'>
+            <span className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300 hidden sm:block'>
               selected
             </span>
           </div>
-          <div className='w-px h-6 bg-slate-700 mx-1' />
+          <div className='w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1' />
 
           <button
             onClick={handleRefreshSelected}
             disabled={refreshingSelected}
             className={`flex items-center gap-2 text-sm font-bold transition-colors ${
               refreshingSelected
-                ? 'text-slate-500 cursor-not-allowed'
+                ? 'text-slate-900 dark:text-slate-500 cursor-not-allowed'
                 : 'text-emerald-400 hover:text-emerald-300'
             }`}
             title='Fetch live prices for selected assets'
@@ -2551,11 +2627,22 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               {refreshingSelected ? 'Fetching…' : 'Refresh Prices'}
             </span>
           </button>
-          <div className='w-px h-6 bg-slate-700 mx-1' />
+          <div className='w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1' />
+
+          <button
+            type='button'
+            onClick={handleExportSelected}
+            className='flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-400 transition-colors'
+            title='Export selected rows as CSV'
+          >
+            <FiDownload size={15} />
+            <span className='hidden sm:block'>Export CSV</span>
+          </button>
+          <div className='w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1' />
 
           <button
             onClick={() => setBulkEditOpen(true)}
-            className='flex items-center gap-2 text-sm font-bold text-slate-200 hover:text-emerald-400 transition-colors'
+            className='flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:text-emerald-400 transition-colors'
           >
             <FiFolder size={16} />
             <span className='hidden sm:block'>Edit Category</span>
@@ -2567,10 +2654,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <FiTrash2 size={16} />
             <span className='hidden sm:block'>Delete</span>
           </button>
-          <div className='w-px h-6 bg-slate-700 mx-1' />
+          <div className='w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1' />
           <button
             onClick={() => setSelectedIds([])}
-            className='p-1 text-slate-400 hover:text-white transition-colors'
+            className='p-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors'
           >
             <FiX size={18} />
           </button>
@@ -2618,17 +2705,17 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               title={`Dividend History: ${inv.name}`}
             >
               <div className='space-y-4'>
-                <div className='bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between'>
+                <div className='bg-slate-200 dark:bg-slate-800 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-between'>
                   <div className='flex flex-col'>
-                    <span className='text-[10px] text-slate-500 uppercase font-bold tracking-widest'>
+                    <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest'>
                       Current Holdings
                     </span>
-                    <span className='text-base font-bold text-slate-200 mt-1'>
+                    <span className='text-base font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 mt-1'>
                       {qty} Shares
                     </span>
                   </div>
                   <div className='flex flex-col text-right'>
-                    <span className='text-[10px] text-slate-500 uppercase font-bold tracking-widest'>
+                    <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest'>
                       {divFilterFY !== 'All' || divFilterMonth !== 'All'
                         ? 'Filtered Earned'
                         : 'Total Earned'}
@@ -2639,9 +2726,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </div>
                 </div>
 
-                <div className='text-sm text-slate-300 pt-2'>
+                <div className='text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 pt-2'>
                   <div className='flex items-center justify-between mb-3'>
-                    <h4 className='font-bold text-slate-400 uppercase text-[10px] tracking-wider'>
+                    <h4 className='font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider'>
                       Payout Timeline
                     </h4>
 
@@ -2650,7 +2737,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <select
                         value={divFilterFY}
                         onChange={(e) => setDivFilterFY(e.target.value)}
-                        className='bg-slate-900 border border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
+                        className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
                       >
                         <option value='All'>All FYs</option>
                         {availableFYs.map((fy) => (
@@ -2663,7 +2750,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <select
                         value={divFilterMonth}
                         onChange={(e) => setDivFilterMonth(e.target.value)}
-                        className='bg-slate-900 border border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
+                        className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
                       >
                         <option value='All'>All Months</option>
                         {MONTHS.map((m) => (
@@ -2688,19 +2775,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         return (
                           <div
                             key={i}
-                            className='flex flex-col sm:flex-row sm:items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 gap-2 hover:bg-slate-800/40 transition-colors'
+                            className='flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-300/60 dark:border-slate-700/50 gap-2 hover:bg-slate-100/90 dark:bg-slate-800/40 transition-colors'
                           >
                             <div className='flex flex-col'>
-                              <span className='font-semibold text-slate-200'>
+                              <span className='font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                                 {formattedDate}
                               </span>
-                              <span className='text-[9px] font-bold text-slate-500 mt-0.5'>
+                              <span className='text-[9px] font-bold text-slate-900 dark:text-slate-500 mt-0.5'>
                                 {getFinancialYear(h.date)}
                               </span>
                             </div>
-                            <div className='flex items-center flex-1 justify-between text-xs bg-slate-800/50 rounded px-2 py-1.5 sm:ml-4'>
-                              <span className='text-slate-400'>Qty: {qty}</span>
-                              <span className='text-slate-400'>
+                            <div className='flex items-center flex-1 justify-between text-xs bg-slate-100 dark:bg-slate-800/50 rounded px-2 py-1.5 sm:ml-4'>
+                              <span className='text-slate-500 dark:text-slate-400'>Qty: {qty}</span>
+                              <span className='text-slate-500 dark:text-slate-400'>
                                 ₹{h.amount.toFixed(2)}/sh
                               </span>
                               <span className='font-bold text-emerald-400 ml-2'>
@@ -2712,7 +2799,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       })}
                     </div>
                   ) : (
-                    <p className='text-center text-slate-500 py-8 text-xs italic bg-slate-900/30 rounded-xl border border-dashed border-slate-800'>
+                    <p className='text-center text-slate-900 dark:text-slate-500 py-8 text-xs italic bg-white dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
                       No historical dividend data found for this filter.
                     </p>
                   )}
@@ -2745,14 +2832,14 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         title='⚠ Confirm Deletion'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             Are you sure you want to permanently delete this asset? This cannot
             be undone.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteId(null)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
@@ -2772,18 +2859,18 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         title='⚠ Bulk Delete Assets'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             You are about to delete{' '}
-            <span className='text-white font-bold'>
+            <span className='font-bold text-slate-900 dark:text-slate-100'>
               {selectedIds.length} assets
             </span>
             . This cannot be undone.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setBulkDeleteOpen(false)}
               disabled={bulkLoading}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors disabled:opacity-50'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors disabled:opacity-50'
             >
               Cancel
             </button>
@@ -2804,15 +2891,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         title='Bulk Edit Category'
       >
         <div className='space-y-5'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             Move{' '}
-            <span className='text-white font-bold'>
+            <span className='font-bold text-slate-900 dark:text-slate-100'>
               {selectedIds.length} selected assets
             </span>{' '}
             to a new category.
           </p>
           <div>
-            <label className='text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block ml-1'>
+            <label className='text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block ml-1'>
               New Category
             </label>
             <BulkCategoryDropdown
@@ -2820,11 +2907,11 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               onChange={setSelectedBulkCat}
             />
           </div>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setBulkEditOpen(false)}
               disabled={bulkLoading}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors disabled:opacity-50'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors disabled:opacity-50'
             >
               Cancel
             </button>

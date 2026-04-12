@@ -157,7 +157,7 @@ export function UpsertLiabilityModal(props: Props) {
   };
 
   const inputCls =
-    'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500';
+    'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500';
   const labelCls =
     'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block';
 
@@ -238,7 +238,7 @@ export function UpsertLiabilityModal(props: Props) {
                 {typeOptions.find((o) => o.id === state.type)?.label}
               </span>
               <FiChevronDown
-                className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                className={`h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
               />
             </button>
             {isDropdownOpen && (
@@ -252,7 +252,7 @@ export function UpsertLiabilityModal(props: Props) {
                     <button
                       key={opt.id}
                       type='button'
-                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
                       onClick={() => {
                         set({ type: opt.id as LiabilityType, status: '' });
                         setIsDropdownOpen(false);
@@ -344,13 +344,13 @@ export function UpsertLiabilityModal(props: Props) {
                   className={
                     state.endDate
                       ? 'text-slate-900 dark:text-slate-100'
-                      : 'text-slate-400'
+                      : 'text-slate-500 dark:text-slate-400'
                   }
                 >
                   {formatDateLabel(state.endDate)}
                 </span>
                 <FiCalendar
-                  className={`h-4 w-4 shrink-0 ${isCreditCard && !state.endDate ? 'text-rose-400' : 'text-slate-400'}`}
+                  className={`h-4 w-4 shrink-0 ${isCreditCard && !state.endDate ? 'text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}
                 />
               </div>
               <input
@@ -362,7 +362,7 @@ export function UpsertLiabilityModal(props: Props) {
               />
             </div>
             {isCreditCard && (
-              <p className='mt-1 text-[10px] text-slate-500'>
+              <p className='mt-1 text-[10px] text-slate-900 dark:text-slate-500'>
                 We will notify you 3 days before this due date.
               </p>
             )}
@@ -421,7 +421,7 @@ export function UpsertLiabilityModal(props: Props) {
                 className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
                   state.status === opt.value
                     ? opt.cls
-                    : 'border-slate-700 text-slate-500 hover:border-slate-500 dark:border-slate-700'
+                    : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500 dark:border-slate-700'
                 }`}
               >
                 {opt.label}
@@ -454,12 +454,12 @@ export function UpsertLiabilityModal(props: Props) {
                     className={
                       state.returnedAt
                         ? 'text-slate-900 dark:text-slate-100'
-                        : 'text-slate-400'
+                        : 'text-slate-500 dark:text-slate-400'
                     }
                   >
                     {formatDateLabel(state.returnedAt)}
                   </span>
-                  <FiCalendar className='h-4 w-4 shrink-0 text-slate-400' />
+                  <FiCalendar className='h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400' />
                 </div>
                 <input
                   ref={returnedDateRef}
@@ -477,7 +477,7 @@ export function UpsertLiabilityModal(props: Props) {
         <div className='mt-4 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-900 dark:text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
             onClick={props.onClose}
             disabled={saving}
           >

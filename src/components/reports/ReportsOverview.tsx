@@ -1,13 +1,47 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePortfolioStore } from '../../store/portfolioStore'
+import { useExportPresetsStore } from '../../store/exportPresetsStore'
 import { summarizePortfolio, typeLabel } from '../../utils/calculations'
+import {
+  ensureCsvExtension,
+  ensureXlsxExtension,
+  expandExportFilenamePattern,
+} from '../../utils/exportFilename'
 import { formatINR } from '../../utils/format'
-import { exportCSV, exportExcel } from '../../utils/exportUtils'
+import { exportExcel, exportInvestmentsCSV } from '../../utils/exportUtils'
 import { Card } from '../ui/Card'
-import { FiDownload, FiPieChart, FiTrendingUp, FiDollarSign } from 'react-icons/fi'
+import { FiBookmark, FiDownload, FiPieChart, FiTrendingUp, FiDollarSign } from 'react-icons/fi'
+
+const SCOPE_CSV = 'reports-investments-csv' as const
+const SCOPE_XLSX = 'reports-investments-xlsx' as const
 
 export function ReportsOverview() {
   const investments = usePortfolioStore((s) => s.investments)
+  const presets = useExportPresetsStore((s) => s.presets)
+  const addPreset = useExportPresetsStore((s) => s.addPreset)
+  const removePreset = useExportPresetsStore((s) => s.removePreset)
+  const rememberFilename = useExportPresetsStore((s) => s.rememberFilename)
+
+  const [csvPattern, setCsvPattern] = useState('investments-{date}')
+  const [xlsxPattern, setXlsxPattern] = useState('portfolio-{date}')
+
+  useEffect(() => {
+    const st = useExportPresetsStore.getState()
+    const c = st.getLastFilename(SCOPE_CSV)
+    const x = st.getLastFilename(SCOPE_XLSX)
+    if (c) setCsvPattern(c)
+    if (x) setXlsxPattern(x)
+  }, [])
+
+  const csvPresets = useMemo(
+    () => presets.filter((p) => p.scope === SCOPE_CSV),
+    [presets],
+  )
+  const xlsxPresets = useMemo(
+    () => presets.filter((p) => p.scope === SCOPE_XLSX),
+    [presets],
+  )
+
   const summary = useMemo(() => summarizePortfolio(investments), [investments])
 
   const allocation = useMemo(
@@ -45,33 +79,135 @@ export function ReportsOverview() {
       </Card>
 
       <Card title={<div className="flex items-center gap-2"><FiDownload className="text-indigo-500"/> Data Exports</div>}>
-        <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-5">
-          Download your complete investment dataset for external analysis. Includes computed invested, current, and P&L fields.
+        <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4">
+          Download your complete investment dataset for external analysis. Includes computed invested, current, and P&L fields. Use <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">{'{date}'}</code>, <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 rounded">{'{datetime}'}</code> in filenames.
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            type="button"
-            className="group flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-3 text-sm font-semibold text-slate-700 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
-            onClick={() => exportCSV(investments)}
-          >
-            <FiDownload className="h-4 w-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-            <span>Export as CSV</span>
-          </button>
-          <button
-            type="button"
-            className="group flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-3 text-sm font-semibold text-slate-700 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
-            onClick={() => exportExcel(investments)}
-          >
-            <FiDownload className="h-4 w-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-            <span>Export as Excel</span>
-          </button>
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/40 p-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">CSV filename</span>
+              {csvPresets.map((p) => (
+                <div
+                  key={p.id}
+                  className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    title={p.pattern}
+                    onClick={() => setCsvPattern(p.pattern)}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-emerald-500/10"
+                  >
+                    <FiBookmark className="h-3 w-3 text-emerald-500" />
+                    {p.label}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove preset ${p.label}`}
+                    onClick={() => removePreset(p.id)}
+                    className="px-1.5 py-1 text-slate-400 hover:bg-rose-500/15 hover:text-rose-500 text-xs font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <input
+              value={csvPattern}
+              onChange={(e) => setCsvPattern(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-mono text-slate-800 dark:text-slate-100"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const label = window.prompt('Name this CSV filename preset')
+                  if (!label?.trim()) return
+                  addPreset(SCOPE_CSV, label.trim(), csvPattern)
+                }}
+                className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+              >
+                Save CSV preset
+              </button>
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/40 p-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Excel filename</span>
+              {xlsxPresets.map((p) => (
+                <div
+                  key={p.id}
+                  className="inline-flex items-center rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    title={p.pattern}
+                    onClick={() => setXlsxPattern(p.pattern)}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-indigo-500/10"
+                  >
+                    <FiBookmark className="h-3 w-3 text-indigo-500" />
+                    {p.label}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove preset ${p.label}`}
+                    onClick={() => removePreset(p.id)}
+                    className="px-1.5 py-1 text-slate-400 hover:bg-rose-500/15 hover:text-rose-500 text-xs font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <input
+              value={xlsxPattern}
+              onChange={(e) => setXlsxPattern(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-mono text-slate-800 dark:text-slate-100"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const label = window.prompt('Name this Excel filename preset')
+                if (!label?.trim()) return
+                addPreset(SCOPE_XLSX, label.trim(), xlsxPattern)
+              }}
+              className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              Save Excel preset
+            </button>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              className="group flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-3 text-sm font-semibold text-slate-600 dark:text-slate-700 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
+              onClick={() => {
+                const fn = ensureCsvExtension(expandExportFilenamePattern(csvPattern))
+                exportInvestmentsCSV(investments, fn)
+                rememberFilename(SCOPE_CSV, csvPattern)
+              }}
+            >
+              <FiDownload className="h-4 w-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 transition-colors" />
+              <span>Export as CSV</span>
+            </button>
+            <button
+              type="button"
+              className="group flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-3 text-sm font-semibold text-slate-600 dark:text-slate-700 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
+              onClick={() => {
+                const fn = ensureXlsxExtension(expandExportFilenamePattern(xlsxPattern))
+                exportExcel(investments, fn)
+                rememberFilename(SCOPE_XLSX, xlsxPattern)
+              }}
+            >
+              <FiDownload className="h-4 w-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 transition-colors" />
+              <span>Export as Excel</span>
+            </button>
+          </div>
         </div>
       </Card>
 
       <Card title={<div className="flex items-center gap-2"><FiPieChart className="text-purple-500"/> Asset Allocation</div>}>
         {allocation.length === 0 ? (
           <div className="flex h-32 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800/50">
-            <span className="text-sm font-medium text-slate-500">Add investments to see allocation breakdown.</span>
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-500">Add investments to see allocation breakdown.</span>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

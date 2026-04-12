@@ -17,9 +17,9 @@ import { useAttendanceStore } from '../../store/attendanceStore';
 
 // ── Style constants ──────────────────────────────────────────────────────────
 const inp =
-  'w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
+  'w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
 const lbl =
-  'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1';
+  'block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
@@ -92,7 +92,7 @@ function ConfirmDelete({ onDelete }: { onDelete: () => void }) {
       </button>
       <button
         onClick={() => setAsk(false)}
-        className='rounded-lg bg-slate-700 px-2 py-1 text-xs font-bold text-slate-300'
+        className='rounded-lg bg-slate-300 dark:bg-slate-700 px-2 py-1 text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'
       >
         Cancel
       </button>
@@ -100,7 +100,7 @@ function ConfirmDelete({ onDelete }: { onDelete: () => void }) {
   ) : (
     <button
       onClick={() => setAsk(true)}
-      className='rounded-lg bg-slate-800 px-2 py-1 text-xs font-bold text-red-400 hover:bg-red-500/10'
+      className='rounded-lg bg-slate-200 dark:bg-slate-800 px-2 py-1 text-xs font-bold text-red-400 hover:bg-red-500/10'
     >
       Delete
     </button>
@@ -232,30 +232,30 @@ function DashboardTab() {
           >
             <div className='flex items-center gap-2'>
               <span style={{ fontSize: 18 }}>{c.icon}</span>
-              <span className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+              <span className='text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
                 {c.label}
               </span>
             </div>
-            <div className='text-xl font-bold font-mono text-slate-100'>
+            <div className='text-xl font-bold font-mono text-slate-900 dark:text-slate-100'>
               {c.value}
             </div>
           </div>
         ))}
       </div>
 
-      <div className='rounded-2xl border border-slate-800 bg-slate-900 p-4'>
-        <div className='text-sm font-bold text-slate-100 mb-4'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
+        <div className='text-sm font-bold text-slate-900 dark:text-slate-100 mb-4'>
           {monthLabel(month)} — Employee Summary
         </div>
         {empSummary.length === 0 ? (
-          <p className='text-xs text-slate-500 text-center py-6'>
+          <p className='text-xs text-slate-900 dark:text-slate-500 text-center py-6'>
             No workers yet. Add workers in the Employees tab.
           </p>
         ) : (
           <div className='overflow-x-auto'>
             <table className='w-full text-xs'>
               <thead>
-                <tr className='border-b border-slate-800 text-slate-500'>
+                <tr className='border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-500'>
                   {[
                     'Worker',
                     'Days',
@@ -289,12 +289,12 @@ function DashboardTab() {
                   }) => (
                     <tr
                       key={emp.id}
-                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                      className='border-b border-slate-200/70 dark:border-slate-800/50 hover:bg-slate-100/80 dark:bg-slate-800/30'
                     >
                       <td className='px-3 py-2'>
                         <div className='flex items-center gap-2'>
                           <Avatar name={emp.name} index={i} />
-                          <span className='font-bold text-slate-100'>
+                          <span className='font-bold text-slate-900 dark:text-slate-100'>
                             {emp.name}
                           </span>
                         </div>
@@ -302,7 +302,7 @@ function DashboardTab() {
                       <td className='px-3 py-2 text-emerald-400 font-mono font-bold'>
                         {days}
                       </td>
-                      <td className='px-3 py-2 text-slate-400'>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400'>
                         {fmt(emp.dailyWage)}
                       </td>
                       <td className='px-3 py-2 text-teal-400'>
@@ -439,7 +439,7 @@ function EmployeesTab() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className='py-16 text-center text-sm text-slate-500'>
+        <div className='py-16 text-center text-sm text-slate-900 dark:text-slate-500'>
           No workers yet. Click "Add Worker" to get started.
         </div>
       ) : (
@@ -449,15 +449,15 @@ function EmployeesTab() {
             return (
               <div
                 key={emp.id}
-                className='flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4'
+                className='flex flex-col gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'
               >
                 <div className='flex items-center gap-3'>
                   <Avatar name={emp.name} index={i} />
                   <div className='min-w-0 flex-1'>
-                    <div className='truncate text-sm font-bold text-slate-100'>
+                    <div className='truncate text-sm font-bold text-slate-900 dark:text-slate-100'>
                       {emp.name}
                     </div>
-                    <div className='text-xs text-slate-500'>
+                    <div className='text-xs text-slate-900 dark:text-slate-500'>
                       {fmt(emp.dailyWage)}/day
                       {emp.phone ? ` · ${emp.phone}` : ''}
                     </div>
@@ -482,8 +482,8 @@ function EmployeesTab() {
                       color: 'text-amber-400',
                     },
                   ].map((c) => (
-                    <div key={c.label} className='rounded-xl bg-slate-800 p-2'>
-                      <div className='text-[10px] text-slate-500'>
+                    <div key={c.label} className='rounded-xl bg-slate-200 dark:bg-slate-800 p-2'>
+                      <div className='text-[10px] text-slate-900 dark:text-slate-500'>
                         {c.label}
                       </div>
                       <div className={`text-xs font-bold ${c.color}`}>
@@ -494,7 +494,7 @@ function EmployeesTab() {
                 </div>
 
                 {emp.notes && (
-                  <div className='text-xs italic text-slate-500'>
+                  <div className='text-xs italic text-slate-900 dark:text-slate-500'>
                     {emp.notes}
                   </div>
                 )}
@@ -502,7 +502,7 @@ function EmployeesTab() {
                 <div className='flex gap-2'>
                   <button
                     onClick={() => openAdd(emp)}
-                    className='flex-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700'
+                    className='flex-1 rounded-lg bg-slate-200 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:bg-slate-700'
                   >
                     Edit
                   </button>
@@ -554,11 +554,11 @@ function EmployeesTab() {
             />
           </div>
         </div>
-        <div className='mt-4 flex justify-end gap-2 border-t border-slate-800 pt-4'>
+        <div className='mt-4 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4'>
           <button
             onClick={() => setOpen(false)}
             disabled={saving}
-            className='rounded-xl px-4 py-2 text-sm font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-50'
+            className='rounded-xl px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 disabled:opacity-50'
           >
             Cancel
           </button>
@@ -734,7 +734,7 @@ function AttendanceTab() {
               className={`rounded-xl px-3 py-2 text-xs font-bold transition-all ${
                 statusFilter === s
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-300 dark:bg-slate-700'
               }`}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -763,18 +763,18 @@ function AttendanceTab() {
               borderTop: `2px solid ${c.color}`,
             }}
           >
-            <div className='text-lg font-bold font-mono text-slate-100'>
+            <div className='text-lg font-bold font-mono text-slate-900 dark:text-slate-100'>
               {c.val}
             </div>
-            <div className='text-[10px] text-slate-500'>{c.label}</div>
+            <div className='text-[10px] text-slate-900 dark:text-slate-500'>{c.label}</div>
           </div>
         ))}
       </div>
 
       {/* Quick mark section */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900 p-4'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
         <div className='mb-4 flex flex-wrap items-center justify-between gap-2'>
-          <div className='text-sm font-bold text-slate-100'>
+          <div className='text-sm font-bold text-slate-900 dark:text-slate-100'>
             ⚡ Quick Attendance — {date}
           </div>
           <div className='flex gap-2'>
@@ -812,7 +812,7 @@ function AttendanceTab() {
         </div>
 
         {employees.length === 0 ? (
-          <p className='py-8 text-center text-sm text-slate-500'>
+          <p className='py-8 text-center text-sm text-slate-900 dark:text-slate-500'>
             Add workers first in the Employees tab.
           </p>
         ) : (
@@ -832,7 +832,7 @@ function AttendanceTab() {
                   className={`rounded-xl border p-3 transition-all ${
                     d.present
                       ? 'border-emerald-500/20 bg-emerald-500/5'
-                      : 'border-slate-700 bg-slate-800'
+                      : 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800'
                   }`}
                 >
                   <div className='flex flex-wrap items-center gap-3'>
@@ -846,16 +846,16 @@ function AttendanceTab() {
                       className={`h-11 w-11 rounded-xl text-xl font-bold transition-all ${
                         d.present
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                          : 'bg-slate-700 text-slate-500'
+                          : 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-500'
                       }`}
                     >
                       {d.present ? '✅' : '❌'}
                     </button>
                     <div className='min-w-0 flex-1'>
-                      <div className='text-sm font-bold text-slate-100'>
+                      <div className='text-sm font-bold text-slate-900 dark:text-slate-100'>
                         {emp.name}
                       </div>
-                      <div className='text-xs text-slate-500'>
+                      <div className='text-xs text-slate-900 dark:text-slate-500'>
                         {fmt(emp.dailyWage)}/day
                         {d.present && (
                           <span className='ml-2 text-emerald-400'>
@@ -866,10 +866,10 @@ function AttendanceTab() {
                     </div>
                     {d.present && (
                       <div className='flex items-center gap-2'>
-                        <span className='text-xs text-slate-500'>Extra ₹</span>
+                        <span className='text-xs text-slate-900 dark:text-slate-500'>Extra ₹</span>
                         <input
                           type='number'
-                          className='w-24 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100'
+                          className='w-24 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-900 dark:text-slate-100'
                           value={d.extra}
                           onChange={(ev) =>
                             setQuickData((prev) => ({
@@ -882,7 +882,7 @@ function AttendanceTab() {
                       </div>
                     )}
                     <input
-                      className='w-28 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-400'
+                      className='w-28 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-500 dark:text-slate-400'
                       value={d.note}
                       onChange={(ev) =>
                         setQuickData((prev) => ({
@@ -911,13 +911,13 @@ function AttendanceTab() {
       </div>
 
       {/* Advances & Deductions */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900 p-4'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
         <div className='mb-4 flex items-center justify-between'>
           <div>
-            <div className='text-sm font-bold text-slate-100'>
+            <div className='text-sm font-bold text-slate-900 dark:text-slate-100'>
               💸 Advances & Deductions
             </div>
-            <div className='text-[10px] text-slate-500 mt-0.5'>
+            <div className='text-[10px] text-slate-900 dark:text-slate-500 mt-0.5'>
               Extra work pay → mark in Quick Attendance above
             </div>
           </div>
@@ -937,14 +937,14 @@ function AttendanceTab() {
         </div>
 
         {transactions.length === 0 ? (
-          <p className='py-4 text-center text-xs text-slate-500'>
+          <p className='py-4 text-center text-xs text-slate-900 dark:text-slate-500'>
             No records yet.
           </p>
         ) : (
           <div className='overflow-x-auto'>
             <table className='w-full text-xs'>
               <thead>
-                <tr className='border-b border-slate-800 text-slate-500'>
+                <tr className='border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-500'>
                   {['Date', 'Worker', 'Type', 'Amount', 'Note', ''].map((h) => (
                     <th
                       key={h}
@@ -966,10 +966,10 @@ function AttendanceTab() {
                   return (
                     <tr
                       key={t.id}
-                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                      className='border-b border-slate-200/70 dark:border-slate-800/50 hover:bg-slate-100/80 dark:bg-slate-800/30'
                     >
-                      <td className='px-3 py-2 text-slate-400'>{t.date}</td>
-                      <td className='px-3 py-2 font-bold text-slate-100'>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400'>{t.date}</td>
+                      <td className='px-3 py-2 font-bold text-slate-900 dark:text-slate-100'>
                         {emp?.name ?? '—'}
                       </td>
                       <td className='px-3 py-2'>
@@ -986,7 +986,7 @@ function AttendanceTab() {
                       >
                         {fmt(t.amount)}
                       </td>
-                      <td className='px-3 py-2 text-slate-500'>
+                      <td className='px-3 py-2 text-slate-900 dark:text-slate-500'>
                         {t.note ?? '—'}
                       </td>
                       <td className='px-3 py-2'>
@@ -1036,7 +1036,7 @@ function AttendanceTab() {
                   className={`flex-1 rounded-xl border py-2 text-xs font-bold capitalize transition-all ${
                     txnType === t
                       ? 'border-emerald-600 bg-emerald-600 text-white'
-                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'
+                      : 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-500'
                   }`}
                 >
                   {t === 'advance' ? '💸 Advance' : '➖ Deduction'}
@@ -1067,11 +1067,11 @@ function AttendanceTab() {
             />
           </div>
         </div>
-        <div className='mt-4 flex justify-end gap-2 border-t border-slate-800 pt-4'>
+        <div className='mt-4 flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4'>
           <button
             onClick={() => setTxnOpen(false)}
             disabled={txnSaving}
-            className='rounded-xl px-4 py-2 text-sm font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-50'
+            className='rounded-xl px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 disabled:opacity-50'
           >
             Cancel
           </button>
@@ -1289,7 +1289,7 @@ function SalaryTab() {
               className={`rounded-xl px-3 py-2 text-xs font-bold transition-all ${
                 filterStatus === s
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-300 dark:bg-slate-700'
               }`}
             >
               {s === 'all'
@@ -1310,7 +1310,7 @@ function SalaryTab() {
           </button>
           <button
             onClick={exportCSV}
-            className='rounded-xl bg-slate-700 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-600'
+            className='rounded-xl bg-slate-300 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:bg-slate-600'
           >
             📤 CSV
           </button>
@@ -1342,10 +1342,10 @@ function SalaryTab() {
                 borderTop: `2px solid ${c.color}`,
               }}
             >
-              <div className='text-sm font-bold font-mono text-slate-100'>
+              <div className='text-sm font-bold font-mono text-slate-900 dark:text-slate-100'>
                 {c.val}
               </div>
-              <div className='text-[10px] text-slate-500'>{c.label}</div>
+              <div className='text-[10px] text-slate-900 dark:text-slate-500'>{c.label}</div>
             </div>
           ))}
         </div>
@@ -1377,7 +1377,7 @@ function SalaryTab() {
 
       {/* Salary cards */}
       {filtered.length === 0 ? (
-        <p className='py-8 text-center text-sm text-slate-500'>
+        <p className='py-8 text-center text-sm text-slate-900 dark:text-slate-500'>
           No salary records. Click "Generate All" to create.
         </p>
       ) : (
@@ -1389,17 +1389,17 @@ function SalaryTab() {
             return (
               <div
                 key={s.id}
-                className='rounded-2xl border border-slate-800 bg-slate-900 p-4'
+                className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'
               >
                 {/* Header */}
                 <div className='mb-3 flex items-center justify-between'>
                   <div className='flex items-center gap-3'>
                     <Avatar name={emp?.name ?? '?'} index={empIdx} />
                     <div>
-                      <div className='text-sm font-bold text-slate-100'>
+                      <div className='text-sm font-bold text-slate-900 dark:text-slate-100'>
                         {emp?.name ?? '—'}
                       </div>
-                      <div className='text-xs text-slate-500'>
+                      <div className='text-xs text-slate-900 dark:text-slate-500'>
                         {s.daysWorked} days worked
                       </div>
                     </div>
@@ -1410,34 +1410,34 @@ function SalaryTab() {
                 {/* Calculation rows */}
                 <div className='mb-3 flex flex-col gap-1'>
                   <div className='flex justify-between text-xs'>
-                    <span className='text-slate-500'>
+                    <span className='text-slate-900 dark:text-slate-500'>
                       Base ({s.daysWorked} × {fmt(emp?.dailyWage ?? 0)})
                     </span>
-                    <span className='text-slate-300'>{fmt(s.baseSalary)}</span>
+                    <span className='text-slate-600 dark:text-slate-700 dark:text-slate-300'>{fmt(s.baseSalary)}</span>
                   </div>
                   {s.extraWork > 0 && (
                     <div className='flex justify-between text-xs'>
-                      <span className='text-slate-500'>Extra work</span>
+                      <span className='text-slate-900 dark:text-slate-500'>Extra work</span>
                       <span className='text-teal-400'>+{fmt(s.extraWork)}</span>
                     </div>
                   )}
                   {s.advance > 0 && (
                     <div className='flex justify-between text-xs'>
-                      <span className='text-slate-500'>Advance</span>
+                      <span className='text-slate-900 dark:text-slate-500'>Advance</span>
                       <span className='text-amber-400'>−{fmt(s.advance)}</span>
                     </div>
                   )}
                   {s.deductions > 0 && (
                     <div className='flex justify-between text-xs'>
-                      <span className='text-slate-500'>Deductions</span>
+                      <span className='text-slate-900 dark:text-slate-500'>Deductions</span>
                       <span className='text-red-400'>−{fmt(s.deductions)}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Final pay box */}
-                <div className='mb-3 flex items-center justify-between rounded-xl bg-slate-800 px-4 py-3'>
-                  <span className='text-sm font-bold text-slate-300'>
+                <div className='mb-3 flex items-center justify-between rounded-xl bg-slate-200 dark:bg-slate-800 px-4 py-3'>
+                  <span className='text-sm font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                     Final Pay
                   </span>
                   <span className='text-xl font-bold font-mono text-emerald-400'>
@@ -1465,7 +1465,7 @@ function SalaryTab() {
                       </span>
                     </div>
                     {/* Progress bar */}
-                    <div className='mt-2 h-1.5 w-full rounded-full bg-slate-700'>
+                    <div className='mt-2 h-1.5 w-full rounded-full bg-slate-300 dark:bg-slate-700'>
                       <div
                         className='h-1.5 rounded-full bg-amber-400 transition-all'
                         style={{
@@ -1473,7 +1473,7 @@ function SalaryTab() {
                         }}
                       />
                     </div>
-                    <div className='mt-1 text-right text-[10px] text-slate-500'>
+                    <div className='mt-1 text-right text-[10px] text-slate-900 dark:text-slate-500'>
                       {((s.paidAmount / s.finalSalary) * 100).toFixed(0)}% paid
                     </div>
                   </div>
@@ -1516,7 +1516,7 @@ function SalaryTab() {
                       });
                       toast.success('Refreshed');
                     }}
-                    className='rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700'
+                    className='rounded-lg bg-slate-200 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:bg-slate-700'
                   >
                     🔄 Refresh
                   </button>
@@ -1538,15 +1538,15 @@ function SalaryTab() {
       >
         {payRecord && (
           <div className='flex flex-col gap-4'>
-            <div className='rounded-xl bg-slate-800 p-3 text-xs'>
-              <div className='text-slate-400'>
+            <div className='rounded-xl bg-slate-200 dark:bg-slate-800 p-3 text-xs'>
+              <div className='text-slate-500 dark:text-slate-400'>
                 Worker:{' '}
-                <strong className='text-slate-100'>
+                <strong className='text-slate-900 dark:text-slate-100'>
                   {employees.find((e) => e.id === payRecord.employeeId)?.name}
                 </strong>
               </div>
               <div className='mt-1 flex justify-between'>
-                <span className='text-slate-400'>Final Salary</span>
+                <span className='text-slate-500 dark:text-slate-400'>Final Salary</span>
                 <span className='font-bold text-green-400'>
                   {fmt(payRecord.finalSalary)}
                 </span>
@@ -1554,13 +1554,13 @@ function SalaryTab() {
               {payRecord.paidAmount > 0 && (
                 <>
                   <div className='mt-1 flex justify-between'>
-                    <span className='text-slate-400'>Already Paid</span>
+                    <span className='text-slate-500 dark:text-slate-400'>Already Paid</span>
                     <span className='font-bold text-amber-400'>
                       {fmt(payRecord.paidAmount)}
                     </span>
                   </div>
                   <div className='mt-1 flex justify-between'>
-                    <span className='text-slate-400'>Remaining</span>
+                    <span className='text-slate-500 dark:text-slate-400'>Remaining</span>
                     <span className='font-bold text-red-400'>
                       {fmt(payRecord.finalSalary - payRecord.paidAmount)}
                     </span>
@@ -1575,7 +1575,7 @@ function SalaryTab() {
                 value={payAmt}
                 onChange={setPayAmt}
               />
-              <div className='mt-1 text-xs text-slate-500'>
+              <div className='mt-1 text-xs text-slate-900 dark:text-slate-500'>
                 Enter total cumulative paid amount (including previous payments)
               </div>
             </div>
@@ -1590,7 +1590,7 @@ function SalaryTab() {
                       className={`flex-1 rounded-xl border py-2 text-xs font-bold transition-all ${
                         payStatus === s
                           ? 'border-emerald-600 bg-emerald-600 text-white'
-                          : 'border-slate-700 bg-slate-800 text-slate-400'
+                          : 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                       }`}
                     >
                       {s === 'partially_paid'
@@ -1601,11 +1601,11 @@ function SalaryTab() {
                 )}
               </div>
             </div>
-            <div className='flex justify-end gap-2 border-t border-slate-800 pt-4'>
+            <div className='flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4'>
               <button
                 onClick={() => setPayOpen(false)}
                 disabled={paySaving}
-                className='rounded-xl px-4 py-2 text-sm font-bold text-slate-400 hover:bg-slate-800 disabled:opacity-50'
+                className='rounded-xl px-4 py-2 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 disabled:opacity-50'
               >
                 Cancel
               </button>
@@ -1701,8 +1701,8 @@ function ReportsTab() {
   return (
     <div className='flex flex-col gap-5'>
       {/* Export / Import */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900 p-4'>
-        <div className='mb-4 text-sm font-bold text-slate-100'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
+        <div className='mb-4 text-sm font-bold text-slate-900 dark:text-slate-100'>
           📦 Export & Import Data
         </div>
         <div className='flex flex-wrap gap-3'>
@@ -1725,26 +1725,26 @@ function ReportsTab() {
             className='hidden'
             onChange={handleImport}
           />
-          <div className='self-center text-xs text-slate-500'>
+          <div className='self-center text-xs text-slate-900 dark:text-slate-500'>
             Backup includes all workers, attendance, advances & salary records.
           </div>
         </div>
       </div>
 
       {/* Productivity table */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900 p-4'>
-        <div className='mb-4 text-sm font-bold text-slate-100'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
+        <div className='mb-4 text-sm font-bold text-slate-900 dark:text-slate-100'>
           📊 Worker Productivity Report
         </div>
         {productivity.length === 0 ? (
-          <p className='py-4 text-center text-xs text-slate-500'>
+          <p className='py-4 text-center text-xs text-slate-900 dark:text-slate-500'>
             No data yet.
           </p>
         ) : (
           <div className='overflow-x-auto'>
             <table className='w-full text-xs'>
               <thead>
-                <tr className='border-b border-slate-800 text-slate-500'>
+                <tr className='border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-500'>
                   {[
                     'Worker',
                     'Present',
@@ -1782,12 +1782,12 @@ function ReportsTab() {
                   ) => (
                     <tr
                       key={emp.id}
-                      className='border-b border-slate-800/50 hover:bg-slate-800/30'
+                      className='border-b border-slate-200/70 dark:border-slate-800/50 hover:bg-slate-100/80 dark:bg-slate-800/30'
                     >
                       <td className='px-3 py-2'>
                         <div className='flex items-center gap-2'>
                           <Avatar name={emp.name} index={i} />
-                          <span className='font-bold text-slate-100'>
+                          <span className='font-bold text-slate-900 dark:text-slate-100'>
                             {emp.name}
                           </span>
                         </div>
@@ -1797,7 +1797,7 @@ function ReportsTab() {
                       </td>
                       <td className='px-3 py-2'>
                         <div className='flex items-center gap-2'>
-                          <div className='h-1.5 w-16 rounded-full bg-slate-800'>
+                          <div className='h-1.5 w-16 rounded-full bg-slate-200 dark:bg-slate-800'>
                             <div
                               className='h-1.5 rounded-full transition-all'
                               style={{
@@ -1874,7 +1874,7 @@ export function AttendancePage() {
   if (!ready)
     return (
       <div className='flex h-40 items-center justify-center'>
-        <div className='text-sm text-slate-400'>Loading…</div>
+        <div className='text-sm text-slate-500 dark:text-slate-400'>Loading…</div>
       </div>
     );
 
@@ -1890,7 +1890,7 @@ export function AttendancePage() {
             <h1 className='text-xl font-bold text-slate-900 dark:text-white'>
               Attendance
             </h1>
-            <p className='mt-0.5 text-sm text-slate-500'>
+            <p className='mt-0.5 text-sm text-slate-900 dark:text-slate-500'>
               Workers · Daily Attendance · Salary & Payments
             </p>
           </div>
@@ -1898,15 +1898,15 @@ export function AttendancePage() {
       </header>
 
       {/* Tab bar */}
-      <div className='flex flex-wrap gap-1 rounded-xl bg-slate-900 p-1 w-fit'>
+      <div className='flex flex-wrap gap-1 rounded-xl bg-white dark:bg-slate-900 p-1 w-fit'>
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition-all ${
               tab === t.id
-                ? 'bg-slate-800 text-blue-400 shadow-sm'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-slate-200 dark:bg-slate-800 text-blue-400 shadow-sm'
+                : 'text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'
             }`}
           >
             <span>{t.emoji}</span>

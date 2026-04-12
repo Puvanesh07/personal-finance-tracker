@@ -689,9 +689,9 @@ export function getSignalConfig(signal: FolioSyncResult['signal']) {
       return {
         label: 'N/A',
         color: '#64748B',
-        bg: 'bg-slate-700/30',
-        border: 'border-slate-600/40',
-        text: 'text-slate-400',
+        bg: 'bg-slate-300 dark:bg-slate-700/30',
+        border: 'border-slate-300 dark:border-slate-600/40',
+        text: 'text-slate-500 dark:text-slate-400',
         glow: 'none',
       };
   }

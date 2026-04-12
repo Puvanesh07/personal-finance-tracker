@@ -23,7 +23,7 @@ const TYPE_COLORS: Record<string, string> = {
   goal_achieved: 'bg-emerald-500/10 border-emerald-500/20',
   goal_progress: 'bg-teal-500/10 border-teal-500/20',
   investment_alert: 'bg-amber-500/10 border-amber-500/20',
-  system: 'bg-slate-500/10 border-slate-500/20',
+  system: 'bg-slate-500/5 dark:bg-slate-500/10 border-slate-400/30 dark:border-slate-500/20',
   strategy_tip: 'bg-violet-500/10 border-violet-500/20',
 };
 
@@ -37,19 +37,19 @@ function NotifCard({ notif, onRead, onDismiss, onAction }: {
     <div
       className={`relative flex gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
         notif.read ? 'opacity-60' : ''
-      } ${TYPE_COLORS[notif.type] || 'bg-slate-800/40 border-slate-700/40'}`}
+      } ${TYPE_COLORS[notif.type] || 'bg-slate-100/90 dark:bg-slate-800/40 border-slate-300/50 dark:border-slate-700/40'}`}
       onClick={() => { onRead(); if (notif.actionPath) onAction(); }}
     >
       <span className="text-lg shrink-0 mt-0.5">{TYPE_ICONS[notif.type] || '🔔'}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-slate-200 leading-snug">{notif.title}</p>
-        <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{notif.message}</p>
+        <p className="text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 leading-snug">{notif.title}</p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{notif.message}</p>
         {notif.dueDate && (
-          <p className="text-[10px] text-slate-500 mt-1">
+          <p className="text-[10px] text-slate-900 dark:text-slate-500 mt-1">
             Due: {format(new Date(notif.dueDate), 'dd MMM yyyy')}
           </p>
         )}
-        <p className="text-[10px] text-slate-600 mt-1">
+        <p className="text-[10px] text-slate-500 dark:text-slate-600 mt-1">
           {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
         </p>
         {notif.actionLabel && !notif.read && (
@@ -63,7 +63,7 @@ function NotifCard({ notif, onRead, onDismiss, onAction }: {
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-        className="shrink-0 text-slate-600 hover:text-slate-400 transition-colors h-4 w-4 mt-0.5"
+        className="shrink-0 text-slate-500 dark:text-slate-600 hover:text-slate-900 dark:text-slate-500 dark:hover:text-slate-500 dark:text-slate-400 transition-colors h-4 w-4 mt-0.5"
       >
         <FiX className="h-3.5 w-3.5" />
       </button>
@@ -98,8 +98,8 @@ export function NotificationBell() {
         onClick={() => setOpen((v) => !v)}
         className={`relative flex items-center justify-center h-8 w-8 rounded-lg transition-all border ${
           open
-            ? 'bg-slate-700 border-slate-600 text-white'
-            : 'bg-slate-800/80 border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/80'
+            ? 'bg-slate-300 dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-white'
+            : 'bg-slate-200/80 dark:bg-slate-800/80 border-slate-300/60 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/80 dark:bg-slate-300 dark:bg-slate-700/80'
         }`}
       >
         <FiBell className="h-4 w-4" />
@@ -111,12 +111,12 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl shadow-black/60 z-[200] overflow-hidden">
+        <div className="absolute right-0 top-full mt-1.5 w-80 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl shadow-black/60 z-[200] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <FiBell className="h-3.5 w-3.5 text-slate-400" />
-              <span className="text-sm font-bold text-slate-200">Notifications</span>
+              <FiBell className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200">Notifications</span>
               {count > 0 && (
                 <span className="text-[10px] font-black bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded-full">
                   {count} new
@@ -138,8 +138,8 @@ export function NotificationBell() {
           <div className="max-h-96 overflow-y-auto p-2 space-y-1.5">
             {recent.length === 0 ? (
               <div className="py-10 text-center">
-                <FiCheck className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                <p className="text-xs text-slate-500 font-medium">You're all caught up!</p>
+                <FiCheck className="h-8 w-8 text-slate-600 dark:text-slate-700 mx-auto mb-2" />
+                <p className="text-xs text-slate-900 dark:text-slate-500 font-medium">You're all caught up!</p>
               </div>
             ) : (
               recent.map((n) => (
@@ -158,10 +158,10 @@ export function NotificationBell() {
           </div>
 
           {notifications.length > 0 && (
-            <div className="border-t border-slate-800 p-2">
+            <div className="border-t border-slate-200 dark:border-slate-800 p-2">
               <button
                 onClick={() => { useNotificationStore.getState().clearAll(); setOpen(false); }}
-                className="w-full text-center text-[11px] font-bold text-slate-500 hover:text-slate-300 py-1.5 transition-colors"
+                className="w-full text-center text-[11px] font-bold text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 py-1.5 transition-colors"
               >
                 Clear all notifications
               </button>

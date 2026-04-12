@@ -7,7 +7,12 @@
 //  • Investments CSV: EPF shows as "EPF / PF" in the Type column
 //  • All other sections unchanged
 
-import type { Account, Investment } from '../types/investmentTypes';
+import type {
+  Account,
+  Goal,
+  Investment,
+  Liability,
+} from '../types/investmentTypes';
 import {
   currentValue,
   investedValue,
@@ -37,7 +42,7 @@ function assetTypeLabel(assetType?: string): string {
   return assetType ? (map[assetType] ?? assetType) : '';
 }
 
-function toFlatInvestmentRows(investments: Investment[]) {
+export function toFlatInvestmentRows(investments: Investment[]) {
   return investments.map((inv) => ({
     Type: typeLabel(inv.type),
     'Asset Sub-Type': (inv as any).assetType
@@ -81,6 +86,63 @@ function toFlatCashflowRows(cashflows: any[], accounts: Account[]) {
 }
 
 // ── Generic CSV exporter ─────────────────────────────────────────────────────
+
+/** CSV for a subset of investments (same columns as full portfolio export). */
+export function exportInvestmentsCSV(
+  investments: Investment[],
+  filename = 'investments-selection.csv',
+) {
+  const rows = toFlatInvestmentRows(investments);
+  if (rows.length === 0) return;
+  exportCSV(rows, filename);
+}
+
+/** CSV for cashflow rows with account names resolved. */
+export function exportCashflowsCSV(
+  cashflows: any[],
+  accounts: Account[],
+  filename = 'cashflow-selection.csv',
+) {
+  const rows = toFlatCashflowRows(cashflows, accounts);
+  if (rows.length === 0) return;
+  exportCSV(rows, filename);
+}
+
+export function exportGoalsCSV(goals: Goal[], filename = 'goals-selection.csv') {
+  if (!goals?.length) return;
+  exportCSV(
+    goals.map((g) => ({
+      Name: g.name,
+      'Target (₹)': g.targetAmount,
+      'Current (₹)': g.currentAmount,
+      'Due Date': g.dueDate ?? '',
+      Status: g.status ?? '',
+      'Completed At': g.completedAt ?? '',
+    })),
+    filename,
+  );
+}
+
+export function exportLiabilitiesCSV(
+  rows: Liability[],
+  filename = 'liabilities-selection.csv',
+) {
+  if (!rows?.length) return;
+  exportCSV(
+    rows.map((l) => ({
+      Type: l.type,
+      Name: l.name,
+      Principal: l.principal,
+      Outstanding: l.outstanding,
+      'Interest %': l.interestRate ?? '',
+      'Start Date': l.startDate ?? '',
+      'End Date': l.endDate ?? '',
+      Status: l.status ?? '',
+      'Returned At': l.returnedAt ?? '',
+    })),
+    filename,
+  );
+}
 
 export function exportCSV(data: any[], filename = 'data.csv') {
   if (!data || data.length === 0) return;

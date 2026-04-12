@@ -158,7 +158,7 @@ const ASSET_CATEGORIES = [
         label: 'Physical Silver',
         type: 'other',
         icon: FiBox,
-        color: 'text-slate-300',
+        color: 'text-slate-600 dark:text-slate-700 dark:text-slate-300',
         bg: 'bg-slate-400/10',
         desc: 'Coins, Bars, Ornaments',
       },
@@ -185,7 +185,7 @@ const ASSET_CATEGORIES = [
         label: 'Other Asset',
         type: 'other',
         icon: FiBox,
-        color: 'text-slate-400',
+        color: 'text-slate-500 dark:text-slate-400',
         bg: 'bg-slate-400/10',
         desc: 'Startups, P2P, Cash',
       },
@@ -274,8 +274,8 @@ function RichAssetDropdown({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all duration-200 outline-none ${
           open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20'
-            : 'border-slate-700/80 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800/60'
+            ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20'
+            : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:border-slate-300 dark:border-slate-600 hover:bg-slate-200/70 dark:bg-slate-800/60'
         }`}
       >
         <div className='flex items-center gap-3'>
@@ -285,14 +285,14 @@ function RichAssetDropdown({
             <Icon className={`h-4 w-4 ${selected.color}`} />
           </div>
           <div className='flex flex-col items-start'>
-            <span className='font-bold text-slate-100'>{selected.label}</span>
-            <span className='text-[10px] font-medium text-slate-500'>
+            <span className='font-bold text-slate-900 dark:text-slate-100'>{selected.label}</span>
+            <span className='text-[10px] font-medium text-slate-900 dark:text-slate-500'>
               {selected.desc}
             </span>
           </div>
         </div>
         <FiChevronDown
-          className={`h-4 w-4 transition-transform duration-200 text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-4 w-4 transition-transform duration-200 text-slate-500 dark:text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -307,12 +307,12 @@ function RichAssetDropdown({
               width: pos.width,
               zIndex: 99999,
             }}
-            className='overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl'
+            className='overflow-hidden rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl'
           >
             <div className='max-h-[400px] overflow-y-auto custom-scrollbar p-2'>
               {ASSET_CATEGORIES.map((group, gIdx) => (
                 <div key={group.group} className={gIdx > 0 ? 'mt-3' : ''}>
-                  <div className='px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                  <div className='px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                     {group.group}
                   </div>
                   <div className='flex flex-col gap-1'>
@@ -333,7 +333,7 @@ function RichAssetDropdown({
                           className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-all ${
                             isSelected
                               ? 'bg-emerald-500/10 border border-emerald-500/20'
-                              : 'border border-transparent hover:bg-slate-800/80 hover:border-slate-700'
+                              : 'border border-transparent hover:bg-slate-200/80 dark:bg-slate-800/80 hover:border-slate-300 dark:border-slate-700'
                           }`}
                         >
                           <div className='flex items-center gap-3'>
@@ -344,11 +344,11 @@ function RichAssetDropdown({
                             </div>
                             <div className='flex flex-col'>
                               <span
-                                className={`text-sm font-bold ${isSelected ? 'text-emerald-400' : 'text-slate-200'}`}
+                                className={`text-sm font-bold ${isSelected ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
                               >
                                 {opt.label}
                               </span>
-                              <span className='text-[10px] font-medium text-slate-500'>
+                              <span className='text-[10px] font-medium text-slate-900 dark:text-slate-500'>
                                 {opt.desc}
                               </span>
                             </div>
@@ -456,18 +456,18 @@ function CalendarPicker({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`}
+        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'}`}
       >
         <FiCalendar
-          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500'}`}
+          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
         />
         <span
-          className={`flex-1 text-left ${!selectedDate ? 'text-slate-500' : ''}`}
+          className={`flex-1 text-left ${!selectedDate ? 'text-slate-900 dark:text-slate-500' : ''}`}
         >
           {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
         </span>
         <FiChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -482,23 +482,23 @@ function CalendarPicker({
               zIndex: 99999,
               width: 280,
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
+            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -507,7 +507,7 @@ function CalendarPicker({
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
                   key={d}
-                  className='text-center text-[10px] font-bold text-slate-500 pb-1'
+                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
                 >
                   {d}
                 </div>
@@ -525,21 +525,21 @@ function CalendarPicker({
                     key={day.toISOString()}
                     type='button'
                     onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100' : 'text-slate-600 hover:bg-slate-800/50'}`}
+                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50'}`}
                   >
                     {format(day, 'd')}
                   </button>
                 );
               })}
             </div>
-            <div className='px-3 pb-3 flex justify-between border-t border-slate-800 pt-2'>
+            <div className='px-3 pb-3 flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2'>
               <button
                 type='button'
                 onClick={() => {
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors px-2 py-1'
+                className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors px-2 py-1'
               >
                 Clear
               </button>
@@ -831,9 +831,9 @@ export function UpsertInvestmentModal(props: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block ml-1';
+    'text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5 block ml-1';
 
   return (
     <Modal
@@ -856,7 +856,7 @@ export function UpsertInvestmentModal(props: Props) {
           />
         </div>
 
-        <div className='overflow-y-auto md:overflow-visible custom-scrollbar pr-2 -mr-2 md:pr-0 md:mr-0 rounded-2xl border border-slate-800 bg-slate-900/30 p-4 space-y-5'>
+        <div className='overflow-y-auto md:overflow-visible custom-scrollbar pr-2 -mr-2 md:pr-0 md:mr-0 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 p-4 space-y-5'>
           <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
             <div>
               <label className={labelCls}>Asset Name</label>
@@ -908,7 +908,7 @@ export function UpsertInvestmentModal(props: Props) {
           {state.type === 'stock' && !isUsStock && (
             <div>
               <div className='mb-1.5 flex items-center justify-between ml-1'>
-                <label className='text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-0'>
+                <label className='text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-0'>
                   Sector
                 </label>
                 <button
@@ -1000,19 +1000,19 @@ export function UpsertInvestmentModal(props: Props) {
                 {/* Converted INR preview */}
                 {toNumber(state.usdToInr) > 0 && (
                   <div className='grid grid-cols-2 gap-3 pt-1'>
-                    <div className='rounded-lg bg-slate-800/60 px-3 py-2'>
-                      <p className='text-[10px] text-slate-500 mb-0.5'>
+                    <div className='rounded-lg bg-slate-200/70 dark:bg-slate-800/60 px-3 py-2'>
+                      <p className='text-[10px] text-slate-900 dark:text-slate-500 mb-0.5'>
                         Buy Price (INR)
                       </p>
-                      <p className='text-sm font-bold text-slate-100'>
+                      <p className='text-sm font-bold text-slate-900 dark:text-slate-100'>
                         ₹
                         {(
                           toNumber(state.buyPriceUsd) * toNumber(state.usdToInr)
                         ).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <div className='rounded-lg bg-slate-800/60 px-3 py-2'>
-                      <p className='text-[10px] text-slate-500 mb-0.5'>
+                    <div className='rounded-lg bg-slate-200/70 dark:bg-slate-800/60 px-3 py-2'>
+                      <p className='text-[10px] text-slate-900 dark:text-slate-500 mb-0.5'>
                         Current Price (INR)
                       </p>
                       <p className='text-sm font-bold text-emerald-400'>
@@ -1193,10 +1193,10 @@ export function UpsertInvestmentModal(props: Props) {
           )}
         </div>
 
-        <div className='mt-6 shrink-0 flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
+        <div className='mt-6 shrink-0 flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-5'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'
             onClick={props.onClose}
             disabled={saving}
           >

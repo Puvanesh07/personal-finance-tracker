@@ -65,7 +65,7 @@ function MetricCard({
       {/* ✅ FIX: Redirect arrow shown on hover for clickable cards */}
       {isClickable && (
         <div
-          className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${variant === 'primary' || variant === 'danger' ? 'text-white/70' : 'text-slate-400'}`}
+          className={`absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ${variant === 'primary' || variant === 'danger' ? 'text-white/70' : 'text-slate-500 dark:text-slate-400'}`}
         >
           <FiExternalLink className='h-3.5 w-3.5' />
         </div>

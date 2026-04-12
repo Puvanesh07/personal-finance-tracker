@@ -26,10 +26,10 @@ export function DashboardPage() {
             <FiHome className='h-5 w-5 md:h-6 md:w-6' />
           </div>
           <div>
-            <h1 className='text-xl md:text-2xl font-semibold tracking-tight text-white leading-tight'>
+            <h1 className='text-xl font-semibold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white'>
               Dashboard
             </h1>
-            <p className='mt-0.5 text-[11px] md:text-sm font-medium text-slate-400 leading-snug'>
+            <p className='mt-0.5 text-[11px] md:text-sm font-medium text-slate-500 dark:text-slate-400 leading-snug'>
               Unified portfolio overview and health summary.
             </p>
           </div>
@@ -63,7 +63,7 @@ export function DashboardPage() {
       <section>
         <div className='mb-3 flex items-center gap-2 px-1'>
           <FiPieChart className='h-4 w-4 text-emerald-500' />
-          <h2 className='text-sm md:text-lg font-semibold text-slate-100'>
+          <h2 className='text-sm md:text-lg font-semibold text-slate-900 dark:text-slate-100'>
             Asset Allocation
           </h2>
         </div>

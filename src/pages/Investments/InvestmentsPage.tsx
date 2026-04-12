@@ -21,6 +21,7 @@ import {
 } from 'react-icons/fi';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { BsBank2 } from 'react-icons/bs';
 import { ImportAngelOnePdfButton } from '../../components/investments/ImportAngelOnePdfButton';
 import { ImportCsvButton } from '../../components/investments/ImportCsvButton';
@@ -149,16 +150,16 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full items-center justify-between cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 outline-none backdrop-blur-md ${
           open
-            ? `border-emerald-500/50 bg-slate-800 ${ringColor} text-slate-100`
-            : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 text-slate-200'
+            ? `border-emerald-500/50 bg-slate-200 dark:bg-slate-800 ${ringColor} text-slate-900 dark:text-slate-100`
+            : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-800 dark:text-slate-200'
         }`}
       >
         <div className='flex items-center gap-3'>
-          <Icon className={`h-4 w-4 ${open ? iconActive : 'text-slate-500'}`} />
+          <Icon className={`h-4 w-4 ${open ? iconActive : 'text-slate-900 dark:text-slate-500'}`} />
           <span>{selected.label}</span>
         </div>
         <FiChevronDown
-          className={`h-4 w-4 transition-transform duration-300 text-slate-500 ${open ? `rotate-180 ${iconActive}` : ''}`}
+          className={`h-4 w-4 transition-transform duration-300 text-slate-900 dark:text-slate-500 ${open ? `rotate-180 ${iconActive}` : ''}`}
         />
       </button>
 
@@ -173,7 +174,7 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
               width: pos.width,
               zIndex: 99999,
             }}
-            className='max-h-[350px] overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 shadow-2xl custom-scrollbar py-1.5 animate-in fade-in zoom-in-95 duration-200'
+            className='max-h-[350px] overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 shadow-2xl custom-scrollbar py-1.5 animate-in fade-in zoom-in-95 duration-200'
           >
             {options.map((opt) => {
               const OptIcon = opt.icon;
@@ -189,12 +190,12 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
                   className={`w-full flex items-center cursor-pointer justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
                     isSelected
                       ? selectedBg
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                      : 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-300 dark:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <div className='flex items-center gap-3'>
                     <OptIcon
-                      className={`h-4 w-4 ${isSelected ? iconActive : 'text-slate-400'}`}
+                      className={`h-4 w-4 ${isSelected ? iconActive : 'text-slate-500 dark:text-slate-400'}`}
                     />
                     <span>{opt.label}</span>
                   </div>
@@ -223,7 +224,7 @@ function getBrokerBadgeStyle(brokerId: string) {
     case 'upstox':
       return 'bg-amber-500/10 border-amber-500/30 text-amber-400';
     default:
-      return 'bg-slate-700/40 border-slate-600/40 text-slate-400';
+      return 'bg-slate-300 dark:bg-slate-700/40 border-slate-300 dark:border-slate-600/40 text-slate-500 dark:text-slate-400';
   }
 }
 
@@ -254,6 +255,7 @@ export function InvestmentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [brokerFilter, setBrokerFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // ✅ Market cap filter — reads from sessionStorage (set by MarketCapAllocationChart)
   const [marketCapFilter, setMarketCapFilter] = useState<string>('all');
   const { metadata } = useStockMetadata(investments);
@@ -264,6 +266,13 @@ export function InvestmentsPage() {
       setMarketCapFilter(saved);
       sessionStorage.removeItem('inv_marketcap_filter');
     }
+  }, []);
+
+  useEffect(() => {
+    const onFocus = () => searchInputRef.current?.focus();
+    window.addEventListener('fintrackly:focus-investments-search', onFocus);
+    return () =>
+      window.removeEventListener('fintrackly:focus-investments-search', onFocus);
   }, []);
 
   // Derive active brokers from actual data so the dropdown only shows relevant options
@@ -324,17 +333,17 @@ export function InvestmentsPage() {
   return (
     <div className='flex flex-col gap-4 md:gap-6 pb-20 md:pb-8'>
       {/* Header */}
-      <header className='flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-slate-900/50 p-4 md:p-6 border border-emerald-500/20 shadow-xl'>
+      <header className='flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-slate-100/80 dark:to-slate-900/50 p-4 md:p-6 border border-emerald-500/20 shadow-xl'>
         <div className='flex items-center justify-between w-full'>
           <div className='flex items-center gap-3'>
             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'>
               <FiTrendingUp className='h-5 w-5' />
             </div>
             <div>
-              <h1 className='text-xl md:text-2xl font-semibold text-white leading-tight'>
+              <h1 className='text-xl font-semibold leading-tight text-slate-900 md:text-2xl dark:text-white'>
                 Investments
               </h1>
-              <p className='text-[11px] md:text-sm text-slate-400 font-medium'>
+              <p className='text-[11px] md:text-sm text-slate-500 dark:text-slate-400 font-medium'>
                 Manage your asset portfolio
               </p>
             </div>
@@ -358,8 +367,8 @@ export function InvestmentsPage() {
             onClick={() => setActiveTab('investments')}
             className={`px-4 py-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 ${
               activeTab === 'investments'
-                ? 'bg-slate-700 text-slate-100 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:bg-slate-800/60'
             }`}
           >
             Investments
@@ -369,7 +378,7 @@ export function InvestmentsPage() {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 ${
               activeTab === 'sip'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:bg-slate-800/60'
             }`}
           >
             <FiPercent className='h-3.5 w-3.5' />
@@ -380,7 +389,7 @@ export function InvestmentsPage() {
         {/* Import buttons — only on investments tab */}
         {activeTab === 'investments' && (
           <div className='flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar'>
-            <div className='flex items-center gap-2 rounded-xl bg-slate-800/50 p-1 border border-slate-700/50'>
+            <div className='flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/50 p-1 border border-slate-300/60 dark:border-slate-700/50'>
               <ImportAngelOnePdfButton />
               <ImportCsvButton />
               <ImportIndmoneyButton />
@@ -398,23 +407,47 @@ export function InvestmentsPage() {
       ) : (
         /* ── Investments tab (original content) ── */
         <>
+          <div className='flex flex-wrap items-center justify-end gap-2'>
+            <SavedViewsMenu
+              pageId='investments'
+              getState={() => ({
+                activeTab,
+                query,
+                typeFilter,
+                brokerFilter,
+                marketCapFilter,
+              })}
+              applyState={(s) => {
+                if (s.activeTab === 'investments' || s.activeTab === 'sip')
+                  setActiveTab(s.activeTab);
+                if (typeof s.query === 'string') setQuery(s.query);
+                if (typeof s.typeFilter === 'string') setTypeFilter(s.typeFilter);
+                if (typeof s.brokerFilter === 'string')
+                  setBrokerFilter(s.brokerFilter);
+                if (typeof s.marketCapFilter === 'string')
+                  setMarketCapFilter(s.marketCapFilter);
+              }}
+            />
+          </div>
+
           {/* Filters Row */}
           <div className='flex flex-col gap-3'>
             {/* Search */}
             <div className='relative group'>
-              <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors' />
+              <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors' />
               <input
+                ref={searchInputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className='w-full rounded-xl border border-slate-800 bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all'
-                placeholder='Search by name, symbol, or broker…'
+                className='w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 transition-all'
+                placeholder='Search by name, symbol, or broker… (/ to focus)'
               />
             </div>
 
             {/* Asset Type + Broker dropdowns side by side */}
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
               <div className='relative'>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-1.5 ml-1'>
                   Asset Type
                 </p>
                 <FilterDropdown
@@ -426,7 +459,7 @@ export function InvestmentsPage() {
               </div>
 
               <div className='relative'>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-1.5 ml-1'>
                   Broker / Platform
                 </p>
                 <FilterDropdown
@@ -443,7 +476,7 @@ export function InvestmentsPage() {
               typeFilter !== 'all' ||
               marketCapFilter !== 'all') && (
               <div className='flex items-center gap-2 flex-wrap'>
-                <span className='text-[10px] text-slate-500 font-semibold uppercase tracking-widest'>
+                <span className='text-[10px] text-slate-900 dark:text-slate-500 font-semibold uppercase tracking-widest'>
                   Filters:
                 </span>
                 {typeFilter !== 'all' && (
@@ -480,7 +513,7 @@ export function InvestmentsPage() {
                     setMarketCapFilter('all');
                     setQuery('');
                   }}
-                  className='text-xs cursor-pointer text-slate-500 hover:text-slate-300 font-semibold transition-colors ml-1'
+                  className='text-xs cursor-pointer text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 font-semibold transition-colors ml-1'
                 >
                   Clear all
                 </button>

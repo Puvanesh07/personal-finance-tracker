@@ -42,29 +42,29 @@ export function EssentialsSettings() {
   };
 
   const inputCls =
-    'mt-1 w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20';
+    'mt-1 w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20';
   const labelCls =
-    'block text-xs font-bold uppercase tracking-wider text-slate-400';
+    'block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400';
 
   return (
     <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
       <div className='mb-6'>
-        <h2 className='flex items-center gap-2 text-xl font-bold text-slate-100'>
+        <h2 className='flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-slate-100'>
           <FiShield className='text-emerald-400' />
           Financial Essentials
         </h2>
-        <p className='mt-1 text-sm text-slate-400'>
+        <p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
           Configure your emergency fund targets to track your financial safety
           net.
         </p>
       </div>
 
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/30 p-5 sm:p-6'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 p-5 sm:p-6'>
         <div className='grid gap-6 sm:grid-cols-2'>
           {/* Emergency Fund Inputs */}
           <div>
             <label className={labelCls}>Emergency Fund Target (₹)</label>
-            <p className='mb-2 text-xs text-slate-500'>
+            <p className='mb-2 text-xs text-slate-900 dark:text-slate-500'>
               Recommended: 6x Monthly Expenses
             </p>
             <NumericInput
@@ -78,7 +78,7 @@ export function EssentialsSettings() {
 
           <div>
             <label className={labelCls}>Current Emergency Fund (₹)</label>
-            <p className='mb-2 text-xs text-slate-500'>
+            <p className='mb-2 text-xs text-slate-900 dark:text-slate-500'>
               How much you currently have saved
             </p>
             <NumericInput
@@ -91,7 +91,7 @@ export function EssentialsSettings() {
           </div>
         </div>
 
-        <div className='mt-8 flex items-center justify-between border-t border-slate-800/60 pt-6'>
+        <div className='mt-8 flex items-center justify-between border-t border-slate-200/70 dark:border-slate-800/60 pt-6'>
           {success ? (
             <span className='text-sm font-medium text-emerald-400 animate-pulse'>
               Saved successfully!

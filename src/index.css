@@ -1,8 +1,30 @@
 /* src/index.css */
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  color-scheme: light;
+  --app-bg: #f8fafc;
+  --app-fg: #0f172a;
+  --chart-tick: #64748b;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --sk-bg: #f1f5f9;
+  --sk-bone: #e2e8f0;
+  --sk-shimmer: #cbd5e1;
+}
+
+html.dark {
   color-scheme: dark;
+  --app-bg: #020617;
+  --app-fg: #f8fafc;
+  --chart-tick: #94a3b8;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+  --sk-bg: #0f172a;
+  --sk-bone: #1e293b;
+  --sk-shimmer: #334155;
 }
 
 html,
@@ -16,8 +38,8 @@ body,
     BlinkMacSystemFont,
     sans-serif;
   margin: 0;
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: var(--app-bg);
+  color: var(--app-fg);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
   font-size: 14px;
@@ -52,18 +74,13 @@ h4 {
   }
 }
 
-/* ── FIX: Low contrast chart labels (Lighthouse accessibility flag) ── */
-/* Chart axis labels, tick text must meet 4.5:1 contrast ratio */
+/* ── Chart labels (theme-aware) ── */
 .recharts-cartesian-axis-tick-value,
 .recharts-text,
 .recharts-legend-item-text,
 .recharts-label {
-  fill: #94a3b8 !important; /* slate-400 — passes WCAG AA on dark bg */
+  fill: var(--chart-tick) !important;
 }
-
-/* ── FIX: Low contrast ghost/muted text — raise opacity ── */
-/* The flagged rgba(226,232,240,0.2) is far too low contrast */
-/* In your components, replace text-slate-200/20 → text-slate-400 */
 
 /* ── Scrollbar styling ── */
 ::-webkit-scrollbar {
@@ -74,11 +91,11 @@ h4 {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* ── Smooth scrolling ── */

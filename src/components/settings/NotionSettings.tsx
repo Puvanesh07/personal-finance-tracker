@@ -12,7 +12,7 @@ export function NotionSettings() {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
-  const inputCls = 'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500'
+  const inputCls = 'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500'
   const labelCls = 'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block'
 
   async function onSync() {
@@ -64,7 +64,7 @@ export function NotionSettings() {
             placeholder="secret_..."
             disabled={!notion.enabled}
           />
-          <div className="mt-1 text-[11px] font-medium text-slate-400">Stored securely in your local IndexedDB. Do not use your Notion account password.</div>
+          <div className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">Stored securely in your local IndexedDB. Do not use your Notion account password.</div>
         </label>
 
         <label className="block">
@@ -76,7 +76,7 @@ export function NotionSettings() {
             placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
             disabled={!notion.enabled}
           />
-          <div className="mt-1.5 text-[11px] font-medium leading-relaxed text-slate-400">
+          <div className="mt-1.5 text-[11px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">
             Expected properties: <span className="text-slate-500 dark:text-slate-300">Name</span> (title), <span className="text-slate-500 dark:text-slate-300">Investment type</span> (select),{' '}
             <span className="text-slate-500 dark:text-slate-300">Amount invested</span> (number), <span className="text-slate-500 dark:text-slate-300">Expected gain</span> (number),{' '}
             <span className="text-slate-500 dark:text-slate-300">Date added</span> (date).
@@ -86,7 +86,7 @@ export function NotionSettings() {
         <div className="mt-2 flex flex-col items-start gap-3 border-t border-slate-200/60 pt-4 dark:border-slate-800/60">
           <button
             type="button"
-            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 dark:from-slate-600 dark:to-slate-800"
+            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-slate-700 to-slate-50 dark:to-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 dark:from-slate-600 dark:to-slate-800"
             onClick={() => void onSync()}
             disabled={busy || !notion.enabled}
           >
@@ -95,7 +95,7 @@ export function NotionSettings() {
             <span className="relative">{busy ? 'Syncing to Notion…' : 'Sync Now'}</span>
           </button>
           
-          <div className="flex w-full justify-between items-center text-xs font-medium text-slate-500">
+          <div className="flex w-full justify-between items-center text-xs font-medium text-slate-900 dark:text-slate-500">
             <span>{notion.lastSyncAt ? `Last sync: ${new Date(notion.lastSyncAt).toLocaleString()}` : 'Never synced'}</span>
           </div>
         </div>

@@ -22,6 +22,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { InsurancePage } from './pages/Insurance/InsurancePage';
 import { Loader } from './components/loader/Loader';
 import { Toaster } from 'react-hot-toast';
+import { useThemeStore } from './store/themeStore';
 
 const DashboardPage = lazy(() =>
   import('./pages/Dashboard/DashboardPage').then((m) => ({
@@ -86,19 +87,30 @@ const ProfitsPage = lazy(() =>
   })),
 );
 
+function AppToaster() {
+  const mode = useThemeStore((s) => s.mode);
+  const isDark = mode === 'dark';
+  return (
+    <Toaster
+      position='bottom-right'
+      toastOptions={{
+        style: {
+          background: isDark ? '#1e293b' : '#ffffff',
+          color: isDark ? '#f8fafc' : '#0f172a',
+          border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+          boxShadow: isDark
+            ? '0 10px 40px rgba(0,0,0,0.35)'
+            : '0 10px 40px rgba(15,23,42,0.08)',
+        },
+      }}
+    />
+  );
+}
+
 export default function App() {
   return (
     <>
-      <Toaster
-        position='bottom-right'
-        toastOptions={{
-          style: {
-            background: '#1e293b',
-            color: '#f8fafc',
-            border: '1px solid #334155',
-          },
-        }}
-      />
+      <AppToaster />
       <Suspense fallback={<Loader />}>
         <Routes>
           <Route element={<AppLayout />}>

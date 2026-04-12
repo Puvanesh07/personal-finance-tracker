@@ -62,8 +62,8 @@ const TYPE_META: Record<
   },
   other: {
     label: 'Other',
-    color: 'text-slate-400',
-    bg: 'bg-slate-500/10 border-slate-500/20',
+    color: 'text-slate-500 dark:text-slate-400',
+    bg: 'bg-slate-500/5 dark:bg-slate-500/10 border-slate-400/30 dark:border-slate-500/20',
     icon: '📋',
   },
 };
@@ -232,15 +232,15 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
         ].map((card) => (
           <div
             key={card.label}
-            className='bg-slate-900/50 border border-slate-800 rounded-2xl p-4 md:p-5'
+            className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5'
           >
-            <p className='text-xs font-bold uppercase tracking-wider text-slate-500'>
+            <p className='text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
               {card.label}
             </p>
             <p className={`text-xl md:text-2xl font-bold mt-1.5 ${card.color}`}>
               {card.value}
             </p>
-            <p className='text-xs text-slate-500 mt-0.5'>{card.sub}</p>
+            <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>{card.sub}</p>
           </div>
         ))}
       </div>
@@ -288,8 +288,8 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
       )}
 
       {byType.length > 0 && (
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-5'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-4'>
+        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-4'>
             Coverage by Type
           </p>
           <div className='space-y-4'>
@@ -304,15 +304,15 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
                       <span className={`text-sm font-bold ${t.color}`}>
                         {t.label}
                       </span>
-                      <span className='text-xs text-slate-500 ml-1 hidden sm:inline'>
+                      <span className='text-xs text-slate-900 dark:text-slate-500 ml-1 hidden sm:inline'>
                         ({t.count} {t.count === 1 ? 'policy' : 'policies'})
                       </span>
                     </div>
-                    <span className='text-sm font-bold text-slate-200'>
+                    <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                       {formatCurrency(t.coverage)}
                     </span>
                   </div>
-                  <div className='h-2 bg-slate-800 rounded-full overflow-hidden'>
+                  <div className='h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden'>
                     <div
                       className='h-full rounded-full bg-emerald-500 transition-all duration-500'
                       style={{ width: `${pct}%` }}
@@ -326,7 +326,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
       )}
 
       {policies.length === 0 && (
-        <div className='text-center py-16 text-slate-500'>
+        <div className='text-center py-16 text-slate-900 dark:text-slate-500'>
           <FiShield className='h-12 w-12 mx-auto mb-3 opacity-30' />
           <p className='font-bold'>No policies yet</p>
           <p className='text-sm mt-1'>
@@ -376,13 +376,13 @@ function PoliciesTab({
           placeholder='Search policies…'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className='flex-1 rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-colors'
+          className='flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-900 dark:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-colors'
         />
         <div className='flex gap-3'>
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className='flex-1 md:flex-none rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-3 text-sm text-slate-300 focus:outline-none transition-colors'
+            className='flex-1 md:flex-none rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-3 py-3 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 focus:outline-none transition-colors'
           >
             <option value='all'>All Types</option>
             {Object.entries(TYPE_META).map(([k, v]) => (
@@ -402,7 +402,7 @@ function PoliciesTab({
       </div>
 
       {filtered.length === 0 ? (
-        <div className='text-center py-12 text-slate-500 bg-slate-900/30 rounded-2xl border border-slate-800 border-dashed'>
+        <div className='text-center py-12 text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed'>
           <FiShield className='h-8 w-8 mx-auto mb-2 opacity-30' />
           <p className='text-sm'>No policies found</p>
         </div>
@@ -417,12 +417,12 @@ function PoliciesTab({
             return (
               <div
                 key={policy.id}
-                className={`bg-slate-900/60 border rounded-2xl p-5 transition-all hover:bg-slate-800/40 ${
+                className={`bg-slate-100 dark:bg-slate-900/60 border rounded-2xl p-5 transition-all hover:bg-slate-100/90 dark:bg-slate-800/40 ${
                   isExpired
                     ? 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.05)]'
                     : isExpiring
                       ? 'border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.05)]'
-                      : 'border-slate-700/60 hover:border-slate-500'
+                      : 'border-slate-300/70 dark:border-slate-700/60 hover:border-slate-500'
                 }`}
               >
                 <div className='flex flex-col sm:flex-row sm:items-start justify-between gap-4'>
@@ -434,7 +434,7 @@ function PoliciesTab({
                     </div>
                     <div className='min-w-0 flex-1'>
                       <div className='flex items-center gap-2 flex-wrap'>
-                        <h3 className='text-base font-bold text-slate-100'>
+                        <h3 className='text-base font-bold text-slate-900 dark:text-slate-100'>
                           {policy.policyName}
                         </h3>
                         <span
@@ -453,7 +453,7 @@ function PoliciesTab({
                           </span>
                         )}
                       </div>
-                      <p className='text-xs text-slate-400 mt-1'>
+                      <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
                         {policy.provider}
                         {policy.policyNumber
                           ? ` • #${policy.policyNumber}`
@@ -461,24 +461,24 @@ function PoliciesTab({
                       </p>
 
                       <div className='grid grid-cols-2 gap-y-3 gap-x-4 mt-4'>
-                        <div className='bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                        <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Coverage
                           </p>
-                          <p className='text-sm font-bold text-slate-200'>
+                          <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                             {formatCurrency(policy.coverageAmount)}
                           </p>
                         </div>
-                        <div className='bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                        <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Premium ({policy.premiumFrequency})
                           </p>
-                          <p className='text-sm font-bold text-slate-200'>
+                          <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                             {formatCurrency(policy.premiumAmount)}
                           </p>
                         </div>
-                        <div className='bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                        <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Next Due
                           </p>
                           <p
@@ -487,11 +487,11 @@ function PoliciesTab({
                             {safeFormat(policy.renewalDate)}
                           </p>
                         </div>
-                        <div className='bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                        <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Last Paid
                           </p>
-                          <p className='text-sm font-bold text-slate-300'>
+                          <p className='text-sm font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                             {safeFormat(policy.lastPaymentDate)}
                           </p>
                         </div>
@@ -500,10 +500,10 @@ function PoliciesTab({
                   </div>
 
                   {/* Actions - Bottom right on Mobile, Top right on Desktop */}
-                  <div className='flex sm:flex-col gap-2 shrink-0 border-t sm:border-t-0 border-slate-700/50 pt-3 sm:pt-0'>
+                  <div className='flex sm:flex-col gap-2 shrink-0 border-t sm:border-t-0 border-slate-300/60 dark:border-slate-700/50 pt-3 sm:pt-0'>
                     <button
                       onClick={() => onEdit(policy)}
-                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors'
+                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg cursor-pointer bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors'
                     >
                       <FiEdit2 className='h-4 w-4' />{' '}
                       <span className='sm:hidden ml-2 text-xs font-bold'>
@@ -512,7 +512,7 @@ function PoliciesTab({
                     </button>
                     <button
                       onClick={() => onDelete(policy)}
-                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg cursor-pointer bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 flex items-center justify-center transition-colors'
+                      className='flex-1 sm:flex-none h-9 sm:w-9 rounded-lg cursor-pointer bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:text-rose-400 flex items-center justify-center transition-colors'
                     >
                       <FiTrash2 className='h-4 w-4' />{' '}
                       <span className='sm:hidden ml-2 text-xs font-bold'>
@@ -570,9 +570,9 @@ function RecordPaymentModal({
   };
 
   const inputCls =
-    'w-full rounded-xl cursor-pointer border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
+    'w-full rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-900 dark:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
   const labelCls =
-    'block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2';
+    'block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2';
 
   const handleSave = async () => {
     if (!policyId || !amount || !paidAt) return;
@@ -642,9 +642,9 @@ function RecordPaymentModal({
             <p className='text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2'>
               <FiClock /> Next Renewal Automation
             </p>
-            <p className='text-sm text-indigo-300 mt-2'>
+            <p className='mt-2 text-sm text-indigo-800 dark:text-indigo-300'>
               After saving, the next due date will automatically advance to{' '}
-              <strong className='text-white'>
+              <strong className='text-slate-900 dark:text-white'>
                 {safeFormat(
                   computeNextRenewalDate(
                     selectedPolicy.renewalDate,
@@ -656,10 +656,10 @@ function RecordPaymentModal({
           </div>
         )}
 
-        <div className='flex justify-end gap-3 border-t border-slate-800 pt-5 mt-2'>
+        <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5 mt-2'>
           <button
             onClick={onClose}
-            className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+            className='px-5 py-2.5 rounded-xl cursor-pointer text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
           >
             Cancel
           </button>
@@ -717,12 +717,12 @@ function PaymentsTab({
   return (
     <div className='space-y-5'>
       {/* Action Bar */}
-      <div className='flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-900/50 border border-slate-800 p-4 rounded-2xl'>
+      <div className='flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl'>
         <div className='flex-1 max-w-md'>
           <select
             value={selectedPolicyId}
             onChange={(e) => setSelectedPolicyId(e.target.value)}
-            className='w-full rounded-xl cursor-pointer border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-200 focus:outline-none focus:border-emerald-500/50'
+            className='w-full rounded-xl cursor-pointer border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
           >
             <option value='all'>All Payment History</option>
             {policies.map((p) => (
@@ -742,20 +742,23 @@ function PaymentsTab({
 
       {/* Progress bar for selected policy (if term known) */}
       {selectedPolicy && totalExpected > 0 && (
-        <div className='bg-slate-900/60 border border-slate-700/50 rounded-2xl p-5 space-y-3'>
-          <p className='text-xs font-black uppercase tracking-wider text-slate-400'>
+        <div className='bg-slate-100 dark:bg-slate-900/60 border border-slate-300/60 dark:border-slate-700/50 rounded-2xl p-5 space-y-3'>
+          <p className='text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400'>
             Premium Payment Progress
           </p>
           <div className='flex justify-between items-end text-sm'>
-            <span className='font-medium text-slate-300'>
-              <strong className='text-white text-lg'>{paidCount}</strong> of{' '}
+            <span className='font-medium text-slate-600 dark:text-slate-700 dark:text-slate-300'>
+              <strong className='text-lg text-slate-900 dark:text-slate-100'>
+                {paidCount}
+              </strong>{' '}
+              of{' '}
               {totalExpected} payments complete
             </span>
             <span className='font-black text-emerald-400 text-lg'>
               {Math.min(100, Math.round((paidCount / totalExpected) * 100))}%
             </span>
           </div>
-          <div className='h-3 bg-slate-800 rounded-full overflow-hidden'>
+          <div className='h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden'>
             <div
               className='h-full bg-emerald-500 transition-all duration-700'
               style={{
@@ -764,7 +767,7 @@ function PaymentsTab({
             />
           </div>
           {(selectedPolicy.paymentsAlreadyMade ?? 0) > 0 && (
-            <p className='text-[10px] text-slate-500 italic'>
+            <p className='text-[10px] text-slate-900 dark:text-slate-500 italic'>
               * Includes {selectedPolicy.paymentsAlreadyMade} legacy payments
               made before using this tracker.
             </p>
@@ -774,7 +777,7 @@ function PaymentsTab({
 
       {/* Mobile-Friendly Payment Cards */}
       {sorted.length === 0 ? (
-        <div className='text-center py-16 text-slate-500 bg-slate-900/30 rounded-2xl border border-slate-800 border-dashed'>
+        <div className='text-center py-16 text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed'>
           <p className='text-sm font-medium'>No payments recorded yet.</p>
           <p className='text-xs mt-1'>
             Click "Record Payment" to add your first transaction.
@@ -787,34 +790,34 @@ function PaymentsTab({
             return (
               <div
                 key={p.id}
-                className='flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-slate-900/60 border border-slate-700/50 rounded-2xl group transition-all hover:border-emerald-500/30'
+                className='flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-slate-100 dark:bg-slate-900/60 border border-slate-300/60 dark:border-slate-700/50 rounded-2xl group transition-all hover:border-emerald-500/30'
               >
                 <div className='flex items-center gap-4 flex-1 min-w-0'>
                   <div className='h-12 w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0'>
                     <FiCheck className='h-5 w-5 text-emerald-400' />
                   </div>
                   <div className='min-w-0'>
-                    <p className='text-sm font-bold text-slate-100 truncate'>
+                    <p className='text-sm font-bold text-slate-900 dark:text-slate-100 truncate'>
                       {policy?.policyName || 'Unknown Policy (Deleted)'}
                     </p>
-                    <p className='text-xs text-slate-400 truncate mt-0.5'>
+                    <p className='text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5'>
                       {p.note || 'Premium Payment'}
                     </p>
                   </div>
                 </div>
 
-                <div className='flex items-center justify-between sm:justify-end gap-5 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800'>
+                <div className='flex items-center justify-between sm:justify-end gap-5 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-800'>
                   <div className='text-left sm:text-right'>
                     <p className='text-lg font-bold text-emerald-400 tabular-nums'>
                       {formatCurrency(p.amount)}
                     </p>
-                    <p className='text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5'>
+                    <p className='text-[10px] font-bold text-slate-900 dark:text-slate-500 uppercase tracking-wider mt-0.5'>
                       {safeFormat(p.paidAt)}
                     </p>
                   </div>
                   <button
                     onClick={() => onDeletePayment(p.id)}
-                    className='h-10 w-10 sm:opacity-0 group-hover:opacity-100 cursor-pointer rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all'
+                    className='h-10 w-10 sm:opacity-0 group-hover:opacity-100 cursor-pointer rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 dark:text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all'
                   >
                     <FiTrash2 className='h-4 w-4' />
                   </button>
@@ -827,11 +830,11 @@ function PaymentsTab({
 
       {/* Summary Footer */}
       {sorted.length > 0 && (
-        <div className='flex items-center justify-between bg-slate-900/80 p-5 rounded-2xl border border-slate-700 mt-4'>
-          <p className='text-sm font-bold text-slate-400'>
+        <div className='flex items-center justify-between bg-white/95 dark:bg-slate-900/80 p-5 rounded-2xl border border-slate-300 dark:border-slate-700 mt-4'>
+          <p className='text-sm font-bold text-slate-500 dark:text-slate-400'>
             Total Paid ({sorted.length} records)
           </p>
-          <p className='text-xl font-black text-white'>
+          <p className='text-xl font-black text-slate-900 dark:text-slate-100'>
             {formatCurrency(totalPaid)}
           </p>
         </div>
@@ -918,27 +921,27 @@ function ReportsTab({
         ].map((card) => (
           <div
             key={card.label}
-            className='bg-slate-900/50 border border-slate-800 rounded-2xl p-5'
+            className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5'
           >
             <div className='flex items-center gap-2 mb-3'>
               <span className='text-xl'>{card.icon}</span>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                 {card.label}
               </p>
             </div>
-            <p className='text-2xl font-bold text-slate-100'>{card.value}</p>
+            <p className='text-2xl font-bold text-slate-900 dark:text-slate-100'>{card.value}</p>
           </div>
         ))}
       </div>
 
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-6'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-5'>
+        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-5'>
             Coverage by Type
           </p>
           <div className='space-y-4'>
             {byType.length === 0 ? (
-              <p className='text-sm text-slate-500'>No data available</p>
+              <p className='text-sm text-slate-900 dark:text-slate-500'>No data available</p>
             ) : (
               byType.map((t) => {
                 const pct =
@@ -949,11 +952,11 @@ function ReportsTab({
                       <span className={`text-sm font-bold ${t.color}`}>
                         {t.icon} {t.label}
                       </span>
-                      <span className='text-xs font-bold text-slate-300'>
+                      <span className='text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                         {pct.toFixed(0)}% • {formatCurrency(t.coverage)}
                       </span>
                     </div>
-                    <div className='h-2.5 bg-slate-800 rounded-full overflow-hidden'>
+                    <div className='h-2.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden'>
                       <div
                         className='h-full rounded-full bg-emerald-500'
                         style={{ width: `${pct}%` }}
@@ -966,8 +969,8 @@ function ReportsTab({
           </div>
         </div>
 
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-6'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-5'>
+        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-5'>
             Renewal Urgency
           </p>
           <div className='space-y-4'>
@@ -999,13 +1002,13 @@ function ReportsTab({
             ].map((row) => (
               <div
                 key={row.label}
-                className='flex items-center justify-between p-3 bg-slate-800/30 rounded-xl border border-slate-700/50'
+                className='flex items-center justify-between p-3 bg-slate-100/80 dark:bg-slate-800/30 rounded-xl border border-slate-300/60 dark:border-slate-700/50'
               >
                 <div className='flex items-center gap-3'>
                   <div
                     className={`h-3.5 w-3.5 rounded-full ${row.color} shrink-0 shadow-[0_0_10px_currentColor]`}
                   />
-                  <span className='text-sm font-medium text-slate-300'>
+                  <span className='text-sm font-medium text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                     {row.label}
                   </span>
                 </div>
@@ -1017,8 +1020,8 @@ function ReportsTab({
           </div>
         </div>
 
-        <div className='bg-slate-900/50 border border-slate-800 rounded-2xl p-6 lg:col-span-2'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-500 mb-5'>
+        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 lg:col-span-2'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-5'>
             Detailed Summary by Category
           </p>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
@@ -1031,25 +1034,25 @@ function ReportsTab({
                   <span className='text-2xl'>{t.icon}</span>
                   <div>
                     <p className={`text-sm font-bold ${t.color}`}>{t.label}</p>
-                    <p className='text-[10px] text-slate-400 uppercase tracking-wider mt-0.5'>
+                    <p className='text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5'>
                       {t.count} {t.count === 1 ? 'policy' : 'policies'}
                     </p>
                   </div>
                 </div>
-                <div className='flex justify-between items-end mt-auto pt-3 border-t border-slate-700/50'>
+                <div className='flex justify-between items-end mt-auto pt-3 border-t border-slate-300/60 dark:border-slate-700/50'>
                   <div>
-                    <p className='text-[10px] text-slate-500 uppercase'>
+                    <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
                       Annual Premium
                     </p>
-                    <p className='text-sm font-bold text-slate-300'>
+                    <p className='text-sm font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                       {formatCurrency(t.premium)}
                     </p>
                   </div>
                   <div className='text-right'>
-                    <p className='text-[10px] text-slate-500 uppercase'>
+                    <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
                       Total Coverage
                     </p>
-                    <p className='text-lg font-black text-white'>
+                    <p className='text-lg font-black text-slate-900 dark:text-slate-100'>
                       {formatCurrency(t.coverage)}
                     </p>
                   </div>
@@ -1179,13 +1182,13 @@ export function InsurancePage() {
       {/* Page header */}
       <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-6 border border-blue-500/20 shadow-sm'>
         <div>
-          <h1 className='text-2xl font-bold text-white flex items-center gap-3'>
+          <h1 className='flex items-center gap-3 text-2xl font-bold text-slate-900 dark:text-white'>
             <div className='p-2 bg-blue-500/20 rounded-xl'>
               <FiShield className='text-blue-400' />
             </div>
             Insurance & Protection
           </h1>
-          <p className='text-slate-400 text-sm mt-2'>
+          <p className='text-slate-500 dark:text-slate-400 text-sm mt-2'>
             Track life, health, vehicle, and property coverage.
           </p>
         </div>
@@ -1198,7 +1201,7 @@ export function InsurancePage() {
       </div>
 
       {/* Tabs */}
-      <div className='flex gap-1 bg-slate-900/60 border border-slate-800 rounded-xl p-1.5 w-full overflow-x-auto no-scrollbar'>
+      <div className='flex gap-1 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl p-1.5 w-full overflow-x-auto no-scrollbar'>
         {TABS.map((tab) => (
           <button
             key={tab}
@@ -1206,7 +1209,7 @@ export function InsurancePage() {
             className={`px-5 py-2.5 rounded-lg cursor-pointer text-sm font-bold transition-all whitespace-nowrap flex-1 sm:flex-none ${
               activeTab === tab
                 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:bg-slate-800/80'
             }`}
           >
             {tab}
@@ -1266,7 +1269,7 @@ export function InsurancePage() {
       >
         <div className='space-y-6'>
           <div className='bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl'>
-            <p className='text-sm text-slate-200'>
+            <p className='text-sm text-slate-900 dark:text-slate-800 dark:text-slate-200'>
               Are you sure you want to permanently delete{' '}
               <strong>{deletingPolicy?.policyName}</strong>?
             </p>
@@ -1275,11 +1278,11 @@ export function InsurancePage() {
               permanently deleted. This action cannot be undone.
             </p>
           </div>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteModalOpen(false)}
               disabled={deleteLoading}
-              className='px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer text-slate-400 hover:bg-slate-800 transition-colors'
+              className='px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>

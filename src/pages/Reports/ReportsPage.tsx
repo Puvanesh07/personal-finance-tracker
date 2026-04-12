@@ -23,6 +23,7 @@ import { useAgriStore } from '../../store/agricultureStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useThemeStore } from '../../store/themeStore';
 
 // ─── Reusable UI Components ──────────────────────────────────────────────────
 
@@ -37,15 +38,15 @@ function StatRow({
   accent?: boolean;
   positive?: boolean;
 }) {
-  let cls = 'text-sm font-bold tabular-nums text-slate-100';
+  let cls = 'text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100';
   if (positive === true)
     cls = 'text-sm font-bold tabular-nums text-emerald-400';
   if (positive === false) cls = 'text-sm font-bold tabular-nums text-rose-400';
   return (
     <div
-      className={`flex items-center justify-between rounded-xl px-4 py-3 ${accent ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-slate-800/40 hover:bg-slate-800/70'} transition-colors`}
+      className={`flex items-center justify-between rounded-xl px-4 py-3 ${accent ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-slate-100/90 dark:bg-slate-800/40 hover:bg-slate-200 dark:bg-slate-800/70'} transition-colors`}
     >
-      <span className='text-sm text-slate-400'>{label}</span>
+      <span className='text-sm text-slate-500 dark:text-slate-400'>{label}</span>
       <span className={cls}>{value}</span>
     </div>
   );
@@ -69,7 +70,7 @@ function SectionCard({
   const navigate = useNavigate();
   return (
     <div
-      className={`rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-4 ${fullWidth ? 'md:col-span-2' : ''}`}
+      className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5 flex flex-col gap-4 ${fullWidth ? 'md:col-span-2' : ''}`}
     >
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-2.5'>
@@ -78,12 +79,12 @@ function SectionCard({
           >
             {icon}
           </div>
-          <h2 className='text-base font-bold text-slate-100'>{title}</h2>
+          <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>{title}</h2>
         </div>
         {to && (
           <button
             onClick={() => navigate(to)}
-            className='flex items-center cursor-pointer gap-1 text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-800'
+            className='flex items-center cursor-pointer gap-1 text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
           >
             View <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
@@ -104,8 +105,29 @@ export function ReportsPage() {
   const portStore = usePortfolioStore();
   const agriStore = useAgriStore();
   const attStore = useAttendanceStore();
+  const themeMode = useThemeStore((s) => s.mode);
 
   const [timeframe, setTimeframe] = useState<'all' | 'ytd' | 'month'>('all');
+
+  const chartTooltipStyle = useMemo(
+    () =>
+      themeMode === 'dark'
+        ? {
+            background: '#0f172a',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 12,
+            color: '#f1f5f9',
+          }
+        : {
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            fontSize: 12,
+            color: '#0f172a',
+          },
+    [themeMode],
+  );
 
   // ── Timeframe Filter Logic
   const now = new Date();
@@ -296,14 +318,16 @@ export function ReportsPage() {
             <FiBarChart2 className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-white'>Advanced Reports</h1>
-            <p className='text-sm text-slate-400 mt-0.5'>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>
+              Advanced Reports
+            </h1>
+            <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               Comprehensive snapshot of all your financial & operational data.
             </p>
           </div>
         </div>
         <div className='flex items-center gap-3 flex-wrap'>
-          <div className='flex bg-slate-800 p-1 rounded-xl border border-slate-700'>
+          <div className='flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl border border-slate-300 dark:border-slate-700'>
             {[
               { id: 'month', label: 'This Month' },
               { id: 'ytd', label: 'YTD' },
@@ -312,7 +336,7 @@ export function ReportsPage() {
               <button
                 key={t.id}
                 onClick={() => setTimeframe(t.id as any)}
-                className={`px-4 py-2 text-xs cursor-pointer font-bold rounded-lg transition-colors ${timeframe === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`px-4 py-2 text-xs cursor-pointer font-bold rounded-lg transition-colors ${timeframe === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
               >
                 {t.label}
               </button>
@@ -333,8 +357,8 @@ export function ReportsPage() {
           {
             label: 'Total Assets (Incl. Lending)',
             value: formatINR(totalAssets),
-            color: 'text-slate-100',
-            bg: 'bg-slate-800/50 border border-slate-700/50',
+            color: 'text-slate-900 dark:text-slate-100',
+            bg: 'bg-slate-100 dark:bg-slate-800/50 border border-slate-300/60 dark:border-slate-700/50',
           },
           {
             label: 'Total Liabilities',
@@ -350,7 +374,7 @@ export function ReportsPage() {
           },
         ].map((item) => (
           <div key={item.label} className={`rounded-2xl p-5 ${item.bg}`}>
-            <p className='text-xs font-bold uppercase tracking-wider text-slate-400'>
+            <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
               {item.label}
             </p>
             <p
@@ -390,8 +414,8 @@ export function ReportsPage() {
             />
           </div>
           {incomeByCategory.length > 0 && (
-            <div className='flex-1 w-full h-[200px] bg-slate-900/50 rounded-xl border border-slate-800 p-2'>
-              <p className='text-xs text-center font-bold text-slate-400 mb-1'>
+            <div className='flex-1 w-full h-[200px] bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2'>
+              <p className='text-xs text-center font-bold text-slate-500 dark:text-slate-400 mb-1'>
                 Income Sources
               </p>
               <ResponsiveContainer width='100%' height='100%'>
@@ -414,12 +438,7 @@ export function ReportsPage() {
                   </Pie>
                   <Tooltip
                     formatter={(v: any) => formatINR(Number(v) || 0)}
-                    contentStyle={{
-                      background: '#0f172a',
-                      border: 'none',
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
+                    contentStyle={chartTooltipStyle}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -457,20 +476,20 @@ export function ReportsPage() {
               positive={agriStats.produceInc > 0}
             />
           </div>
-          <div className='flex-1 w-full bg-slate-900/50 rounded-xl border border-slate-800 p-4 flex flex-col justify-center'>
-            <div className='flex items-center gap-3 mb-2 text-sm text-slate-300'>
+          <div className='flex-1 w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-center'>
+            <div className='flex items-center gap-3 mb-2 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
               <span className='w-3 h-3 rounded-full bg-emerald-500'></span>{' '}
               Crops & Produce
             </div>
-            <div className='flex items-center gap-3 mb-2 text-sm text-slate-300'>
+            <div className='flex items-center gap-3 mb-2 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
               <span className='w-3 h-3 rounded-full bg-blue-500'></span> Dairy &
               Milk
             </div>
-            <div className='flex items-center gap-3 text-sm text-slate-300'>
+            <div className='flex items-center gap-3 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
               <span className='w-3 h-3 rounded-full bg-amber-500'></span>{' '}
               Coconut & Livestock
             </div>
-            <p className='text-xs text-slate-500 mt-4 italic'>
+            <p className='text-xs text-slate-900 dark:text-slate-500 mt-4 italic'>
               Revenue from these streams auto-factors into your Net Worth.
             </p>
           </div>
@@ -592,17 +611,12 @@ export function ReportsPage() {
                 </Pie>
                 <Tooltip
                   formatter={(v: any) => formatINR(Number(v) || 0)}
-                  contentStyle={{
-                    background: '#0f172a',
-                    border: 'none',
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
+                  contentStyle={chartTooltipStyle}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <p className='text-xs text-center text-slate-500 mt-2'>
+          <p className='text-xs text-center text-slate-900 dark:text-slate-500 mt-2'>
             Distribution of your invested capital.
           </p>
         </SectionCard>

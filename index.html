@@ -1,10 +1,29 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#020617" />
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('fintrackly-theme');
+        var mode = 'dark';
+        if (raw) {
+          var j = JSON.parse(raw);
+          if (j && j.state && (j.state.mode === 'light' || j.state.mode === 'dark'))
+            mode = j.state.mode;
+        }
+        document.documentElement.classList.toggle('dark', mode === 'dark');
+        document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', mode === 'dark' ? '#020617' : '#f8fafc');
+      } catch (e) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
 
   <!-- ── Favicon ── -->
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
@@ -128,19 +147,35 @@
       margin: 0;
       padding: 0;
       height: 100%;
+      font-family: 'Geist', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html:not(.dark) body,
+    html:not(.dark) #root {
+      background-color: #f8fafc;
+      color: #0f172a;
+      color-scheme: light;
+    }
+
+    html.dark body,
+    html.dark #root {
       background-color: #020617;
       color: #f8fafc;
       color-scheme: dark;
-      font-family: 'Geist', system-ui, -apple-system, sans-serif;
-      -webkit-font-smoothing: antialiased;
     }
 
     #root {
       min-height: 100vh;
     }
 
-    .recharts-text,
-    .recharts-label {
+    html:not(.dark) .recharts-text,
+    html:not(.dark) .recharts-label {
+      fill: #64748b !important;
+    }
+
+    html.dark .recharts-text,
+    html.dark .recharts-label {
       fill: #94a3b8 !important;
     }
   </style>

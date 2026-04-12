@@ -231,7 +231,7 @@ export function PWAInstallBanner() {
       <div className='fixed bottom-24 left-0 right-0 z-[90] px-3 md:bottom-6'>
         <div className='max-w-sm mx-auto'>
           <div className='relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950' />
+            <div className='absolute inset-0 bg-gradient-to-br from-slate-50 dark:from-slate-900 via-slate-100 dark:via-slate-900 to-emerald-950' />
             <div className='absolute inset-0 bg-gradient-to-t from-emerald-500/10 to-transparent' />
             <Stars />
             <div className='absolute inset-0 rounded-2xl border border-emerald-500/40 shadow-[inset_0_0_30px_rgba(16,185,129,0.05)]' />
@@ -239,7 +239,7 @@ export function PWAInstallBanner() {
             <div className='relative p-4'>
               <button
                 onClick={dismiss}
-                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-800/80 text-slate-400 text-xs font-bold hover:bg-slate-700'
+                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-bold hover:bg-slate-300 dark:bg-slate-700'
                 aria-label='Dismiss'
               >
                 ×
@@ -272,10 +272,10 @@ export function PWAInstallBanner() {
                 ].map((f) => (
                   <div
                     key={f.text}
-                    className='flex flex-col items-center gap-1 rounded-xl bg-slate-800/60 border border-slate-700/50 py-2.5 px-1'
+                    className='flex flex-col items-center gap-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700/50 py-2.5 px-1'
                   >
                     <span className='text-lg'>{f.emoji}</span>
-                    <span className='text-[9px] text-slate-400 font-semibold text-center leading-tight whitespace-pre'>
+                    <span className='text-[9px] text-slate-500 dark:text-slate-400 font-semibold text-center leading-tight whitespace-pre'>
                       {f.text}
                     </span>
                   </div>
@@ -292,7 +292,7 @@ export function PWAInstallBanner() {
               <div className='flex gap-2'>
                 <button
                   onClick={dismiss}
-                  className='flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold border border-slate-700 hover:bg-slate-700 transition-colors'
+                  className='flex-1 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold border border-slate-300 dark:border-slate-700 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
                 >
                   Maybe Later
                 </button>
@@ -318,14 +318,14 @@ export function PWAInstallBanner() {
       <div className='fixed bottom-0 left-0 right-0 z-[90]'>
         <div className='mx-3 mb-2'>
           <div className='relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950' />
+            <div className='absolute inset-0 bg-gradient-to-br from-slate-50 dark:from-slate-900 via-slate-100 dark:via-slate-900 to-blue-950' />
             <div className='absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent' />
             <div className='absolute inset-0 rounded-2xl border border-blue-500/30' />
 
             <div className='relative p-4'>
               <button
                 onClick={dismiss}
-                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-800/80 text-slate-400 text-xs font-bold'
+                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-bold'
                 aria-label='Dismiss'
               >
                 ×
@@ -374,7 +374,7 @@ export function PWAInstallBanner() {
                 ].map((s) => (
                   <div
                     key={s.title}
-                    className='flex flex-col items-center gap-1.5 rounded-xl bg-slate-800/60 border border-slate-700/50 py-3 px-1'
+                    className='flex flex-col items-center gap-1.5 rounded-xl bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700/50 py-3 px-1'
                   >
                     <div
                       className={`h-8 w-8 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center text-base shadow-sm`}
@@ -384,7 +384,7 @@ export function PWAInstallBanner() {
                     <div className='text-[10px] font-bold text-white text-center'>
                       {s.title}
                     </div>
-                    <div className='text-[9px] text-slate-500 text-center'>
+                    <div className='text-[9px] text-slate-900 dark:text-slate-500 text-center'>
                       {s.desc}
                     </div>
                   </div>
@@ -392,12 +392,12 @@ export function PWAInstallBanner() {
               </div>
 
               <div className='flex items-center justify-between'>
-                <p className='text-[10px] text-slate-500'>
+                <p className='text-[10px] text-slate-900 dark:text-slate-500'>
                   ⓘ Tap the □↑ Share icon at the bottom of Safari
                 </p>
                 <button
                   onClick={dismiss}
-                  className='text-[10px] text-slate-500 underline'
+                  className='text-[10px] text-slate-900 dark:text-slate-500 underline'
                 >
                   Dismiss
                 </button>
@@ -427,14 +427,14 @@ export function PWAInstallBanner() {
       <div className='fixed bottom-0 left-0 right-0 z-[90]'>
         <div className='mx-3 mb-3'>
           <div className='relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950' />
+            <div className='absolute inset-0 bg-gradient-to-br from-slate-50 dark:from-slate-900 via-slate-100 dark:via-slate-900 to-indigo-950' />
             <div className='absolute inset-0 bg-gradient-to-t from-indigo-500/10 to-transparent' />
             <div className='absolute inset-0 rounded-2xl border border-indigo-500/30' />
 
             <div className='relative p-4'>
               <button
                 onClick={dismiss}
-                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-800/80 text-slate-400 text-xs font-bold'
+                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-bold'
                 aria-label='Dismiss'
               >
                 ×
@@ -483,7 +483,7 @@ export function PWAInstallBanner() {
                 ].map((s) => (
                   <div
                     key={s.title}
-                    className='flex flex-col items-center gap-1.5 rounded-xl bg-slate-800/60 border border-slate-700/50 py-3 px-1'
+                    className='flex flex-col items-center gap-1.5 rounded-xl bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700/50 py-3 px-1'
                   >
                     <div
                       className={`h-8 w-8 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center text-base shadow-sm font-bold text-white`}
@@ -493,7 +493,7 @@ export function PWAInstallBanner() {
                     <div className='text-[10px] font-bold text-white text-center'>
                       {s.title}
                     </div>
-                    <div className='text-[9px] text-slate-500 text-center'>
+                    <div className='text-[9px] text-slate-900 dark:text-slate-500 text-center'>
                       {s.desc}
                     </div>
                   </div>
@@ -501,13 +501,13 @@ export function PWAInstallBanner() {
               </div>
 
               <div className='flex items-center justify-between'>
-                <p className='text-[10px] text-slate-500'>
-                  ⓘ Tap the <span className='font-bold text-slate-400'>⋮</span>{' '}
+                <p className='text-[10px] text-slate-900 dark:text-slate-500'>
+                  ⓘ Tap the <span className='font-bold text-slate-500 dark:text-slate-400'>⋮</span>{' '}
                   icon at the top-right of Chrome
                 </p>
                 <button
                   onClick={dismiss}
-                  className='text-[10px] text-slate-500 underline'
+                  className='text-[10px] text-slate-900 dark:text-slate-500 underline'
                 >
                   Dismiss
                 </button>
@@ -539,14 +539,14 @@ export function PWAInstallBanner() {
       <div className='fixed bottom-0 left-0 right-0 z-[90]'>
         <div className='mx-3 mb-3'>
           <div className='relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='absolute inset-0 bg-gradient-to-br from-slate-900 to-amber-950' />
+            <div className='absolute inset-0 bg-gradient-to-br from-slate-50 dark:from-slate-900 to-amber-950' />
             <div className='absolute inset-0 bg-gradient-to-t from-amber-500/10 to-transparent' />
             <div className='absolute inset-0 rounded-2xl border border-amber-500/30' />
 
             <div className='relative p-4'>
               <button
                 onClick={dismiss}
-                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-800/80 text-slate-400 text-xs font-bold'
+                className='absolute top-3 right-3 h-6 w-6 flex items-center justify-center rounded-full bg-slate-200/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-bold'
                 aria-label='Dismiss'
               >
                 ×
@@ -576,7 +576,7 @@ export function PWAInstallBanner() {
               </div>
 
               <div className='flex items-center gap-2'>
-                <div className='flex-1 px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-emerald-400 font-mono'>
+                <div className='flex-1 px-3 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs text-emerald-400 font-mono'>
                   fintrackly.web.app
                 </div>
                 <button

@@ -63,7 +63,7 @@ export function AllocationCharts() {
 
         <div className="flex flex-col gap-2 rounded-xl bg-slate-50/50 p-3 dark:bg-slate-800/30">
           {data.length === 0 ? (
-            <div className="grid h-full place-items-center text-sm font-medium text-slate-500">No assets to display.</div>
+            <div className="grid h-full place-items-center text-sm font-medium text-slate-900 dark:text-slate-500">No assets to display.</div>
           ) : (
             data.map((d) => (
               <div key={d.type} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white dark:hover:bg-slate-800/80">

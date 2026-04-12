@@ -21,10 +21,10 @@ const PREMIUM_ANIMATIONS = `
 }
 `;
 
-// Base colors for the premium dark theme
-const C_BG = '#0f172a'; // Card Background
-const C_BONE = '#1e293b'; // Bone base
-const C_SHIMMER = '#334155'; // Bone highlight
+// Theme-aware via CSS variables (see index.css --sk-*)
+const C_BG = 'var(--sk-bg)';
+const C_BONE = 'var(--sk-bone)';
+const C_SHIMMER = 'var(--sk-shimmer)';
 
 function Bone({
   w = '100%',

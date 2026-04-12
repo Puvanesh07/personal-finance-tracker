@@ -112,7 +112,7 @@ function ProfileTab() {
   return (
     <div className='flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500'>
       {/* Avatar + Name Block */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6'>
         {/* Avatar */}
         <div className='relative shrink-0'>
           {showInitials ? (
@@ -129,7 +129,7 @@ function ProfileTab() {
               onError={() => setImgError(true)}
             />
           )}
-          <span className='absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-slate-900 bg-emerald-500 shadow' />
+          <span className='absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-slate-100 dark:border-slate-900 bg-emerald-500 shadow' />
         </div>
 
         {/* Info */}
@@ -138,7 +138,7 @@ function ProfileTab() {
           {editingName ? (
             <div className='flex items-center gap-2'>
               <input
-                className='flex-1 rounded-xl border border-emerald-500/40 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-emerald-500/30 transition'
+                className='flex-1 rounded-xl border border-emerald-500/40 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 outline-none transition focus:ring-2 focus:ring-emerald-500/30 dark:bg-slate-800 dark:text-slate-100'
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
@@ -158,19 +158,19 @@ function ProfileTab() {
                   setEditingName(false);
                   setName(user?.displayName || '');
                 }}
-                className='rounded-xl cursor-pointer border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+                className='rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
               >
                 Cancel
               </button>
             </div>
           ) : (
             <div className='flex items-center justify-center sm:justify-start gap-3'>
-              <h2 className='text-xl font-black text-white truncate'>
+              <h2 className='truncate text-xl font-black text-slate-900 dark:text-slate-100'>
                 {user?.displayName || 'FinTrackly User'}
               </h2>
               <button
                 onClick={() => setEditingName(true)}
-                className='flex cursor-pointer items-center gap-1 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors'
+                className='flex cursor-pointer items-center gap-1 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors'
               >
                 <FiEdit2 className='h-3 w-3' /> Edit
               </button>
@@ -184,7 +184,7 @@ function ProfileTab() {
           )}
 
           {/* Email */}
-          <p className='mt-2 flex items-center justify-center sm:justify-start gap-1.5 text-sm text-slate-400'>
+          <p className='mt-2 flex items-center justify-center sm:justify-start gap-1.5 text-sm text-slate-500 dark:text-slate-400'>
             <FiMail className='h-3.5 w-3.5' />
             {user?.email || 'No email linked'}
           </p>
@@ -202,23 +202,25 @@ function ProfileTab() {
       </div>
 
       {/* UID card */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/40 p-5'>
-        <p className='text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 p-5'>
+        <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
           Account ID
         </p>
         <p className='font-mono text-xs text-emerald-400 break-all'>
           {user?.uid}
         </p>
-        <p className='mt-2 text-[11px] text-slate-500'>
+        <p className='mt-2 text-[11px] text-slate-900 dark:text-slate-500'>
           Your data is stored securely on Firebase, tied to this unique ID.
         </p>
       </div>
 
       {/* Sign out */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/40 p-5 flex items-center justify-between gap-4'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 p-5 flex items-center justify-between gap-4'>
         <div>
-          <p className='text-sm font-bold text-slate-200'>Sign Out</p>
-          <p className='text-xs text-slate-500 mt-0.5'>
+          <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
+            Sign Out
+          </p>
+          <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>
             You will need to log in again to access your data.
           </p>
         </div>
@@ -237,13 +239,13 @@ function ProfileTab() {
         title='Confirm Sign Out'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             Are you sure you want to sign out?
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setLogoutOpen(false)}
-              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
+              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
             >
               Cancel
             </button>
@@ -299,14 +301,14 @@ function AppSecurityTab() {
   return (
     <div className='flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500'>
       {/* Install App */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-6'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-6'>
         <div className='flex items-center gap-3 mb-4'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800'>
-            <FiSmartphone className='h-4 w-4 text-slate-300' />
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800'>
+            <FiSmartphone className='h-4 w-4 text-slate-600 dark:text-slate-700 dark:text-slate-300' />
           </div>
           <div>
-            <h2 className='text-base font-bold text-slate-100'>Install App</h2>
-            <p className='text-xs text-slate-500'>
+            <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>Install App</h2>
+            <p className='text-xs text-slate-900 dark:text-slate-500'>
               Add to home screen for native-like experience
             </p>
           </div>
@@ -316,7 +318,7 @@ function AppSecurityTab() {
           <div className='flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3'>
             <FiCheckCircle className='h-5 w-5 shrink-0 text-emerald-400' />
             <div>
-              <p className='text-sm font-bold text-emerald-300'>
+              <p className='text-sm font-bold text-emerald-700 dark:text-emerald-300'>
                 App Installed ✓
               </p>
               <p className='text-xs text-emerald-400/70 mt-0.5'>
@@ -334,15 +336,15 @@ function AppSecurityTab() {
           </button>
         ) : (
           <div className='flex flex-col gap-3'>
-            <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
+            <div className='flex items-start gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 py-3'>
               <span className='text-lg shrink-0'>🤖</span>
               <div>
-                <p className='text-xs font-bold text-slate-200'>
+                <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                   Android / Chrome
                 </p>
-                <p className='text-xs text-slate-400 mt-0.5'>
-                  Tap the <strong className='text-slate-200'>⋮ menu</strong> →{' '}
-                  <strong className='text-slate-200'>
+                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
+                  Tap the <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>⋮ menu</strong> →{' '}
+                  <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                     "Add to Home screen"
                   </strong>
                 </p>
@@ -356,15 +358,15 @@ function AppSecurityTab() {
                 )}
               </div>
             </div>
-            <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
+            <div className='flex items-start gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 py-3'>
               <span className='text-lg shrink-0'>🍎</span>
               <div>
-                <p className='text-xs font-bold text-slate-200'>
+                <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                   iPhone / Safari
                 </p>
-                <p className='text-xs text-slate-400 mt-0.5'>
-                  Tap <strong className='text-slate-200'>Share ⬆</strong> →{' '}
-                  <strong className='text-slate-200'>
+                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
+                  Tap <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>Share ⬆</strong> →{' '}
+                  <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                     "Add to Home Screen"
                   </strong>
                 </p>
@@ -378,15 +380,15 @@ function AppSecurityTab() {
                 )}
               </div>
             </div>
-            <div className='flex items-start gap-3 rounded-xl bg-slate-800/50 px-4 py-3'>
+            <div className='flex items-start gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 py-3'>
               <span className='text-lg shrink-0'>💻</span>
               <div>
-                <p className='text-xs font-bold text-slate-200'>
+                <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                   Desktop Chrome / Edge
                 </p>
-                <p className='text-xs text-slate-400 mt-0.5'>
+                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
                   Click{' '}
-                  <strong className='text-slate-200'>⊕ install icon</strong> in
+                  <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>⊕ install icon</strong> in
                   the address bar
                 </p>
               </div>
@@ -394,7 +396,7 @@ function AppSecurityTab() {
           </div>
         )}
         {installPrompted && !isInstalled && (
-          <p className='mt-3 text-xs text-slate-500 text-center'>
+          <p className='mt-3 text-xs text-slate-900 dark:text-slate-500 text-center'>
             Prompt dismissed — refresh the page to try again.
           </p>
         )}
@@ -448,10 +450,10 @@ export function SettingsPage() {
         return (
           <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
             <div className='mb-4'>
-              <h2 className='flex items-center gap-2 text-xl font-bold text-slate-100'>
+              <h2 className='flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-slate-100'>
                 <FiCloud className='text-emerald-400' /> Integrations
               </h2>
-              <p className='mt-1 text-sm text-slate-400'>
+              <p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
                 Connect third-party tools to sync your portfolio data
                 automatically.
               </p>
@@ -467,13 +469,13 @@ export function SettingsPage() {
   return (
     <div className='flex flex-col gap-6 pb-10'>
       {/* ── Page Header ── */}
-      <header className='flex items-center gap-4 rounded-2xl bg-gradient-to-r from-slate-800/80 to-slate-900/40 p-5 border border-slate-700/60 shadow-sm'>
-        <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-lg'>
+      <header className='flex items-center gap-4 rounded-2xl border border-slate-300/70 bg-gradient-to-r from-slate-200/80 to-slate-100/60 p-5 shadow-sm dark:border-slate-700/60 dark:from-slate-800/80 dark:to-slate-900/40'>
+        <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-400 to-slate-300 text-white shadow-lg dark:from-slate-600 dark:to-slate-800'>
           <FiSettings className='h-6 w-6' />
         </div>
         <div>
-          <h1 className='text-2xl font-bold text-white'>Settings</h1>
-          <p className='text-sm text-slate-400 mt-0.5'>
+          <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Settings</h1>
+          <p className='mt-0.5 text-sm text-slate-600 dark:text-slate-400'>
             Manage your profile, data, security, and app preferences.
           </p>
         </div>
@@ -495,7 +497,7 @@ export function SettingsPage() {
                     ? tab.id === 'danger'
                       ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                       : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
-                    : 'bg-slate-800/60 text-slate-400 border border-slate-700/50 hover:bg-slate-800 hover:text-slate-200'
+                    : 'border border-slate-300/60 bg-slate-200/70 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700/50 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
                 }`}
               >
                 <Icon className={`h-3.5 w-3.5 ${tab.color || ''}`} />
@@ -519,7 +521,7 @@ export function SettingsPage() {
                     ? tab.id === 'danger'
                       ? 'bg-rose-500/15 text-rose-400 shadow-[inset_4px_0_0_0_rgba(244,63,94,1)]'
                       : 'bg-emerald-500/10 text-emerald-400 shadow-[inset_4px_0_0_0_rgba(16,185,129,1)]'
-                    : `text-slate-400 hover:bg-slate-800 hover:text-slate-100 ${tab.id === 'danger' ? 'hover:text-rose-400' : ''}`
+                    : `text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 ${tab.id === 'danger' ? 'hover:text-rose-400 dark:hover:text-rose-400' : ''}`
                 }`}
               >
                 <Icon

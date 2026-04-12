@@ -54,9 +54,9 @@ export function DashboardAccountsSummary() {
   );
 
   return (
-    <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
+    <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
       <div className='mb-4 flex items-center justify-between'>
-        <h2 className='flex items-center gap-2 text-lg font-bold text-slate-100'>
+        <h2 className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100'>
           <FiCreditCard className='text-blue-400' />
           Liquid Accounts
         </h2>
@@ -64,14 +64,14 @@ export function DashboardAccountsSummary() {
         <button
           onClick={() => navigate('/accounts')}
           title='Go to Accounts'
-          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-blue-400 transition-colors'
+          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-blue-400 transition-colors'
         >
           <FiArrowUpRight className='h-4 w-4' />
         </button>
       </div>
 
       <div className='mb-4'>
-        <p className='text-xs font-medium text-slate-400 uppercase tracking-wider'>
+        <p className='text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider'>
           Total Live Balance
         </p>
         <p className='text-2xl font-bold text-blue-400'>
@@ -81,7 +81,7 @@ export function DashboardAccountsSummary() {
 
       <div className='flex-1 space-y-3 mt-2 overflow-y-auto custom-scrollbar max-h-32'>
         {accounts.length === 0 ? (
-          <p className='text-sm text-slate-500'>No accounts added.</p>
+          <p className='text-sm text-slate-900 dark:text-slate-500'>No accounts added.</p>
         ) : (
           accounts.map((acc) => {
             const liveBalance =
@@ -89,17 +89,17 @@ export function DashboardAccountsSummary() {
             return (
               <div
                 key={acc.id}
-                className='flex justify-between items-center border-t border-slate-800/60 pt-2'
+                className='flex justify-between items-center border-t border-slate-200/70 dark:border-slate-800/60 pt-2'
               >
                 <div>
-                  <p className='text-sm font-medium text-slate-200'>
+                  <p className='text-sm font-medium text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                     {acc.name}
                   </p>
-                  <p className='text-[10px] text-slate-500 uppercase'>
+                  <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
                     {acc.type}
                   </p>
                 </div>
-                <p className='text-sm font-semibold text-slate-300'>
+                <p className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                   {formatCurrency(liveBalance)}
                 </p>
               </div>

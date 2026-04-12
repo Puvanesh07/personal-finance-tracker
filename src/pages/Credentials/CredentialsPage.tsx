@@ -26,7 +26,7 @@ export function CredentialsPage() {
 
   if (!ready) {
     return (
-      <div className='p-8 text-center text-slate-500'>
+      <div className='p-8 text-center text-slate-900 dark:text-slate-500'>
         Loading credentials...
       </div>
     );
@@ -34,17 +34,17 @@ export function CredentialsPage() {
 
   return (
     <div className='flex flex-col gap-4 md:gap-6 pb-20 md:pb-8'>
-      <header className='flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-fuchsia-500/10 to-slate-900/50 p-4 md:p-6 border border-fuchsia-500/20 shadow-xl'>
+      <header className='flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-fuchsia-500/10 to-slate-100/80 dark:to-slate-900/50 p-4 md:p-6 border border-fuchsia-500/20 shadow-xl'>
         <div className='flex items-center justify-between w-full'>
           <div className='flex items-center gap-3'>
             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20'>
               <FiLock className='h-5 w-5' />
             </div>
             <div>
-              <h1 className='text-xl md:text-2xl font-semibold text-white leading-tight'>
+              <h1 className='text-xl font-semibold leading-tight text-slate-900 md:text-2xl dark:text-white'>
                 Credentials
               </h1>
-              <p className='text-[11px] md:text-sm text-slate-400 font-medium'>
+              <p className='text-[11px] md:text-sm text-slate-500 dark:text-slate-400 font-medium'>
                 Securely store passwords, PAN, UAN, and notes
               </p>
             </div>
@@ -60,17 +60,17 @@ export function CredentialsPage() {
       </header>
 
       <div className='relative group'>
-        <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-fuchsia-500 transition-colors' />
+        <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500 group-focus-within:text-fuchsia-500 transition-colors' />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className='w-full rounded-xl border border-slate-800 bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-100 outline-none focus:border-fuchsia-500/50 focus:ring-4 focus:ring-fuchsia-500/10 transition-all'
+          className='w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-fuchsia-500/50 focus:ring-4 focus:ring-fuchsia-500/10 transition-all'
           placeholder='Search by title, email, or notes...'
         />
       </div>
 
       {filtered.length === 0 ? (
-        <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-slate-500'>
+        <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 text-slate-900 dark:text-slate-500'>
           <FiLock className='h-8 w-8 mb-2 opacity-20' />
           <p className='text-sm font-medium'>No credentials found</p>
         </div>

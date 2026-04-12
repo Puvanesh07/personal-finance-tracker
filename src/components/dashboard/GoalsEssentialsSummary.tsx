@@ -37,9 +37,9 @@ export function GoalsEssentialsSummary() {
   return (
     <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>
       {/* ── Financial Goals (Left) ── */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm'>
         <div className='mb-5 flex items-center justify-between'>
-          <h2 className='flex items-center gap-2 text-lg font-bold text-slate-100'>
+          <h2 className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100'>
             <FiTarget className='text-emerald-400' />
             Financial Goals
           </h2>
@@ -47,7 +47,7 @@ export function GoalsEssentialsSummary() {
           <button
             onClick={() => navigate('/goals')}
             title='Go to Goals'
-            className='flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-emerald-400 transition-colors group'
+            className='flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-emerald-400 transition-colors group'
           >
             <span className='hidden sm:inline group-hover:text-emerald-400 transition-colors'>
               Manage
@@ -57,8 +57,8 @@ export function GoalsEssentialsSummary() {
         </div>
 
         {goals.length === 0 ? (
-          <div className='flex flex-col h-36 items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-900/30 gap-3'>
-            <p className='text-sm text-slate-500'>No goals set yet.</p>
+          <div className='flex flex-col h-36 items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 gap-3'>
+            <p className='text-sm text-slate-900 dark:text-slate-500'>No goals set yet.</p>
             <button
               onClick={() => navigate('/goals')}
               className='text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
@@ -80,11 +80,11 @@ export function GoalsEssentialsSummary() {
               return (
                 <div key={goal.id}>
                   <div className='mb-2 flex justify-between items-center text-sm gap-2'>
-                    <span className='font-medium text-slate-300 truncate flex-1'>
+                    <span className='font-medium text-slate-600 dark:text-slate-700 dark:text-slate-300 truncate flex-1'>
                       {goal.name}
                     </span>
                     <div className='flex items-center gap-2 shrink-0'>
-                      <span className='text-slate-400 text-xs tabular-nums'>
+                      <span className='text-slate-500 dark:text-slate-400 text-xs tabular-nums'>
                         {formatCurrency(goal.currentAmount)} /{' '}
                         {formatCurrency(goal.targetAmount)}
                       </span>
@@ -95,7 +95,7 @@ export function GoalsEssentialsSummary() {
                       )}
                     </div>
                   </div>
-                  <div className='h-2 w-full overflow-hidden rounded-full bg-slate-800'>
+                  <div className='h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800'>
                     <div
                       className={`h-full rounded-full transition-all duration-700 ${isComplete ? 'bg-emerald-400' : 'bg-emerald-500'}`}
                       style={{ width: `${progress}%` }}
@@ -103,7 +103,7 @@ export function GoalsEssentialsSummary() {
                   </div>
                   <div className='mt-1 text-right'>
                     <span
-                      className={`text-[10px] font-bold ${isComplete ? 'text-emerald-400' : 'text-slate-500'}`}
+                      className={`text-[10px] font-bold ${isComplete ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
                     >
                       {progress.toFixed(0)}%
                     </span>
@@ -114,7 +114,7 @@ export function GoalsEssentialsSummary() {
             {goals.length > 4 && (
               <button
                 onClick={() => navigate('/goals')}
-                className='text-xs font-bold text-slate-500 hover:text-emerald-400 transition-colors w-full text-center pt-1'
+                className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors w-full text-center pt-1'
               >
                 +{goals.length - 4} more goals →
               </button>
@@ -124,9 +124,9 @@ export function GoalsEssentialsSummary() {
       </div>
 
       {/* ── Protection & Essentials (Right) ── */}
-      <div className='rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-sm'>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm'>
         <div className='mb-5 flex items-center justify-between'>
-          <h2 className='flex items-center gap-2 text-lg font-bold text-slate-100'>
+          <h2 className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100'>
             <FiShield className='text-emerald-400' />
             Protection & Essentials
           </h2>
@@ -134,7 +134,7 @@ export function GoalsEssentialsSummary() {
           <button
             onClick={() => navigate('/insurance')}
             title='Go to Insurance'
-            className='flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-emerald-400 transition-colors group'
+            className='flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-emerald-400 transition-colors group'
           >
             <span className='hidden sm:inline group-hover:text-emerald-400 transition-colors'>
               Manage
@@ -147,14 +147,14 @@ export function GoalsEssentialsSummary() {
           {/* Emergency Fund */}
           <div>
             <div className='mb-2 flex justify-between text-sm'>
-              <span className='flex items-center gap-2 font-medium text-slate-300'>
+              <span className='flex items-center gap-2 font-medium text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                 <FiActivity className='text-blue-400' /> Emergency Fund
               </span>
-              <span className='text-slate-400 tabular-nums text-xs'>
+              <span className='text-slate-500 dark:text-slate-400 tabular-nums text-xs'>
                 {formatCurrency(efCurrent)} / {formatCurrency(efTarget || 0)}
               </span>
             </div>
-            <div className='h-2 w-full overflow-hidden rounded-full bg-slate-800'>
+            <div className='h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800'>
               <div
                 className='h-full rounded-full bg-blue-500 transition-all duration-700'
                 style={{ width: `${efProgress}%` }}
@@ -163,7 +163,7 @@ export function GoalsEssentialsSummary() {
             {efTarget === 0 && (
               <button
                 onClick={() => navigate('/settings')}
-                className='mt-1 text-[11px] font-bold text-slate-500 hover:text-blue-400 transition-colors'
+                className='mt-1 text-[11px] font-bold text-slate-900 dark:text-slate-500 hover:text-blue-400 transition-colors'
               >
                 Set a target in Settings →
               </button>
@@ -174,25 +174,25 @@ export function GoalsEssentialsSummary() {
           <button
             type='button'
             onClick={() => navigate('/insurance')}
-            className='group w-full flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-800/30 p-4 hover:border-indigo-500/30 hover:bg-slate-800/50 transition-all text-left'
+            className='group w-full flex items-center justify-between rounded-xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-100/80 dark:bg-slate-800/30 p-4 hover:border-indigo-500/30 hover:bg-slate-100 dark:bg-slate-800/50 transition-all text-left'
           >
             <div className='flex items-center gap-3'>
               <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20 transition-colors'>
                 <FiUmbrella size={18} />
               </div>
               <div>
-                <p className='text-sm font-semibold text-slate-300'>
+                <p className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                   Term Insurance
                 </p>
-                <p className='text-xs text-slate-500'>Total life coverage</p>
+                <p className='text-xs text-slate-900 dark:text-slate-500'>Total life coverage</p>
               </div>
             </div>
             <div className='flex items-center gap-2'>
-              <p className='text-lg font-bold text-slate-100'>
+              <p className='text-lg font-bold text-slate-900 dark:text-slate-100'>
                 {totalLifeCover > 0 ? formatCurrency(totalLifeCover) : '₹0'}
               </p>
               {/* ✅ Direction icon */}
-              <FiArrowUpRight className='h-4 w-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
+              <FiArrowUpRight className='h-4 w-4 text-slate-900 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
             </div>
           </button>
 
@@ -200,25 +200,25 @@ export function GoalsEssentialsSummary() {
           <button
             type='button'
             onClick={() => navigate('/insurance')}
-            className='group w-full flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-800/30 p-4 hover:border-rose-500/30 hover:bg-slate-800/50 transition-all text-left'
+            className='group w-full flex items-center justify-between rounded-xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-100/80 dark:bg-slate-800/30 p-4 hover:border-rose-500/30 hover:bg-slate-100 dark:bg-slate-800/50 transition-all text-left'
           >
             <div className='flex items-center gap-3'>
               <div className='flex h-10 w-10 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 group-hover:bg-rose-500/20 transition-colors'>
                 <FiHeart size={18} />
               </div>
               <div>
-                <p className='text-sm font-semibold text-slate-300'>
+                <p className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                   Health Insurance
                 </p>
-                <p className='text-xs text-slate-500'>Total medical coverage</p>
+                <p className='text-xs text-slate-900 dark:text-slate-500'>Total medical coverage</p>
               </div>
             </div>
             <div className='flex items-center gap-2'>
-              <p className='text-lg font-bold text-slate-100'>
+              <p className='text-lg font-bold text-slate-900 dark:text-slate-100'>
                 {totalHealthCover > 0 ? formatCurrency(totalHealthCover) : '₹0'}
               </p>
               {/* ✅ Direction icon */}
-              <FiArrowUpRight className='h-4 w-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
+              <FiArrowUpRight className='h-4 w-4 text-slate-900 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
             </div>
           </button>
         </div>

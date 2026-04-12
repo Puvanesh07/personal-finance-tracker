@@ -4,6 +4,7 @@ import {
   FiCheck,
   FiClock,
   FiCreditCard,
+  FiDownload,
   FiEdit2,
   FiPieChart,
   FiPlus,
@@ -12,9 +13,11 @@ import {
 
 import { LiabilitiesSkeleton } from '../../components/loader/skeletons';
 import type { Liability } from '../../types/investmentTypes';
+import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertLiabilityModal } from '../../components/liabilities/UpsertLiabilityModal';
 import { formatINR } from '../../utils/format';
+import { exportLiabilitiesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useState } from 'react';
 
@@ -97,6 +100,11 @@ export function LiabilitiesPage() {
     setBulkDeleteOpen(false);
   };
 
+  const handleExportSelected = () => {
+    const list = liabilities.filter((l) => selectedIds.has(l.id));
+    exportLiabilitiesCSV(list, 'liabilities-selection.csv');
+  };
+
   // Quick "Mark as Returned" for personal loans
   async function markAsReturned(l: Liability) {
     await updateLiability(l.id, {
@@ -145,7 +153,7 @@ export function LiabilitiesPage() {
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
       filterTab === tab
         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-        : 'text-slate-500 hover:text-slate-300 border border-transparent'
+        : 'text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 border border-transparent'
     }`;
 
   const settledCount = liabilities.filter(
@@ -203,7 +211,7 @@ export function LiabilitiesPage() {
           </div>
 
           {totalOutstanding === 0 ? (
-            <div className='flex h-16 items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-sm font-medium text-slate-400'>
+            <div className='flex h-16 items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-sm font-medium text-slate-500 dark:text-slate-400'>
               No active debt. Great job!
             </div>
           ) : (
@@ -271,7 +279,19 @@ export function LiabilitiesPage() {
 
       {/* Filter Tabs */}
       {liabilities.length > 0 && (
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
+          <SavedViewsMenu
+            pageId='liabilities'
+            getState={() => ({ filterTab })}
+            applyState={(s) => {
+              if (
+                s.filterTab === 'all' ||
+                s.filterTab === 'active' ||
+                s.filterTab === 'settled'
+              )
+                setFilterTab(s.filterTab);
+            }}
+          />
           <button
             className={tabCls('active')}
             onClick={() => setFilterTab('active')}
@@ -291,8 +311,17 @@ export function LiabilitiesPage() {
       )}
 
       {selectedIds.size > 0 && (
-        <div className='flex justify-end'>
+        <div className='flex flex-wrap justify-end gap-2'>
           <button
+            type='button'
+            onClick={handleExportSelected}
+            className='flex items-center cursor-pointer gap-2 rounded-xl border border-slate-200/80 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+          >
+            <FiDownload className='h-4 w-4' /> Export selected ({selectedIds.size}
+            )
+          </button>
+          <button
+            type='button'
             onClick={() => setBulkDeleteOpen(true)}
             className='flex items-center cursor-pointer gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700 shadow-sm'
           >
@@ -386,7 +415,7 @@ export function LiabilitiesPage() {
                       <button
                         type='button'
                         title='Mark as Returned'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-teal-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-teal-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-teal-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-teal-400'
                         onClick={() => void markAsReturned(l)}
                       >
                         <FiCheck className='h-4 w-4' />
@@ -396,7 +425,7 @@ export function LiabilitiesPage() {
                       <button
                         type='button'
                         title='Mark Bill as Paid'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
                         onClick={() => void markAsPaid(l)}
                       >
                         <FiCheck className='h-4 w-4' />
@@ -406,7 +435,7 @@ export function LiabilitiesPage() {
                     <button
                       type='button'
                       title='Edit'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                       onClick={() => setEditId(l.id)}
                     >
                       <FiEdit2 className='h-4 w-4' />
@@ -414,7 +443,7 @@ export function LiabilitiesPage() {
                     <button
                       type='button'
                       title='Delete'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                       onClick={() => openDeleteModal(l.id)}
                     >
                       <FiTrash2 className='h-4 w-4' />
@@ -428,7 +457,7 @@ export function LiabilitiesPage() {
                       {isSettled ? 'Original Amount' : 'Pending Amount'}
                     </p>
                     <p
-                      className={`mt-0.5 text-lg font-black ${isSettled ? 'line-through text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}
+                      className={`mt-0.5 text-lg font-black ${isSettled ? 'line-through text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}
                     >
                       {formatINR(l.principal)}
                     </p>
@@ -454,7 +483,7 @@ export function LiabilitiesPage() {
       <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/50'>
         <div className='overflow-x-auto custom-scrollbar'>
           <table className='min-w-full text-left text-sm whitespace-nowrap'>
-            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
+            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
               <tr>
                 <th className='px-5 py-4 w-12'>
                   <input
@@ -478,12 +507,12 @@ export function LiabilitiesPage() {
               {filteredLiabilities.length === 0 ? (
                 <tr>
                   <td
-                    className='px-5 py-12 text-center text-slate-500'
+                    className='px-5 py-12 text-center text-slate-900 dark:text-slate-500'
                     colSpan={6}
                   >
                     <div className='flex flex-col items-center justify-center gap-3'>
                       <div className='rounded-full bg-slate-100 p-4 dark:bg-slate-800'>
-                        <FiCreditCard className='h-8 w-8 text-slate-400' />
+                        <FiCreditCard className='h-8 w-8 text-slate-500 dark:text-slate-400' />
                       </div>
                       <p className='font-bold'>
                         {filterTab === 'settled'
@@ -558,7 +587,7 @@ export function LiabilitiesPage() {
 
                       <td className='px-5 py-4 text-right text-base font-black tabular-nums text-slate-800 dark:text-slate-200'>
                         {isSettled ? (
-                          <span className='line-through text-slate-400 text-sm'>
+                          <span className='line-through text-slate-500 dark:text-slate-400 text-sm'>
                             {formatINR(l.principal)}
                           </span>
                         ) : (
@@ -579,7 +608,7 @@ export function LiabilitiesPage() {
                             <button
                               type='button'
                               title='Mark as Returned'
-                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-500/20 dark:hover:text-teal-400'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-500/20 dark:hover:text-teal-400'
                               onClick={() => void markAsReturned(l)}
                             >
                               <FiCheck className='h-4 w-4' />
@@ -589,7 +618,7 @@ export function LiabilitiesPage() {
                             <button
                               type='button'
                               title='Mark Bill as Paid'
-                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
                               onClick={() => void markAsPaid(l)}
                             >
                               <FiCheck className='h-4 w-4' />
@@ -599,7 +628,7 @@ export function LiabilitiesPage() {
                           <button
                             type='button'
                             title='Edit'
-                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
+                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-400'
                             onClick={() => setEditId(l.id)}
                           >
                             <FiEdit2 className='h-4 w-4' />
@@ -607,7 +636,7 @@ export function LiabilitiesPage() {
                           <button
                             type='button'
                             title='Delete'
-                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
+                            className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/20 dark:hover:text-rose-400'
                             onClick={() => openDeleteModal(l.id)}
                           >
                             <FiTrash2 className='h-4 w-4' />
@@ -644,13 +673,13 @@ export function LiabilitiesPage() {
         title='⚠ Confirm Deletion'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             This will permanently remove this record from your liabilities.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteOpen(false)}
-              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
@@ -670,14 +699,14 @@ export function LiabilitiesPage() {
         title='⚠ Confirm Bulk Deletion'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             This will permanently delete {selectedIds.size} selected
             liabilities.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setBulkDeleteOpen(false)}
-              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>

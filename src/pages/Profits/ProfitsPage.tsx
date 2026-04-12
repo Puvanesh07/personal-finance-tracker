@@ -5,6 +5,7 @@ import {
   FiArrowUp,
   FiAward,
   FiDollarSign,
+  FiDownload,
   FiEdit2,
   FiFilter,
   FiPercent,
@@ -34,10 +35,12 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useMemo, useState } from 'react';
 
 import { Modal } from '../../components/ui/Modal';
+import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { NumericInput } from '../../components/ui/NumericInput';
 import type { SoldTrade } from '../../types/investmentTypes';
 import { createPortal } from 'react-dom';
 import { formatINR } from '../../utils/format';
+import { exportSoldTradesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Inline Calendar Picker ────────────────────────────────────────────────
@@ -118,7 +121,7 @@ function CalendarPicker({
     onChange(format(d, 'yyyy-MM-dd'));
     setOpen(false);
   };
-  const inputCls = `flex w-full items-center cursor-pointer gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`;
+  const inputCls = `flex w-full items-center cursor-pointer gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 text-emerald-400' : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'}`;
 
   return (
     <>
@@ -129,10 +132,10 @@ function CalendarPicker({
         className={inputCls}
       >
         <FiCalendar
-          className={`h-4 w-4 shrink-0 ${open ? 'text-emerald-400' : 'text-slate-500'}`}
+          className={`h-4 w-4 shrink-0 ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
         />
         <span
-          className={`flex-1 text-left ${!selectedDate ? 'text-slate-500' : ''}`}
+          className={`flex-1 text-left ${!selectedDate ? 'text-slate-900 dark:text-slate-500' : ''}`}
         >
           {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
         </span>
@@ -148,23 +151,23 @@ function CalendarPicker({
               zIndex: 99999,
               width: 280,
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
+            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-400 hover:bg-slate-800'
+                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-400 hover:bg-slate-800'
+                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -173,7 +176,7 @@ function CalendarPicker({
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
                   key={d}
-                  className='text-center text-[10px] font-bold text-slate-500 pb-1'
+                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
                 >
                   {d}
                 </div>
@@ -192,21 +195,21 @@ function CalendarPicker({
                     type='button'
                     onClick={() => selectDay(day)}
                     className={`flex h-8 w-8 mx-auto items-center cursor-pointer justify-center rounded-lg text-xs font-medium transition-all
-                    ${isSelected ? 'bg-emerald-500 text-white font-bold' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600'}`}
+                    ${isSelected ? 'bg-emerald-500 text-white font-bold' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-600'}`}
                   >
                     {format(day, 'd')}
                   </button>
                 );
               })}
             </div>
-            <div className='px-3 pb-3 flex justify-between border-t border-slate-800 pt-2'>
+            <div className='px-3 pb-3 flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2'>
               <button
                 type='button'
                 onClick={() => {
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs cursor-pointer font-bold text-slate-500 hover:text-slate-300 px-2 py-1'
+                className='text-xs cursor-pointer font-bold text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 px-2 py-1'
               >
                 Clear
               </button>
@@ -246,11 +249,11 @@ function SummaryCard({
       ? 'text-emerald-400'
       : trend === 'down'
         ? 'text-rose-400'
-        : 'text-slate-100';
+        : 'text-slate-900 dark:text-slate-100';
   return (
-    <div className='relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-5 hover:-translate-y-0.5 transition-all duration-200 shadow-sm'>
+    <div className='relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-5 hover:-translate-y-0.5 transition-all duration-200 shadow-sm'>
       <div className='flex items-start justify-between mb-3'>
-        <p className='text-xs font-bold uppercase tracking-widest text-slate-500'>
+        <p className='text-xs font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
           {label}
         </p>
         <div
@@ -261,7 +264,7 @@ function SummaryCard({
         </div>
       </div>
       <p className={`text-2xl font-bold tabular-nums ${trendColor}`}>{value}</p>
-      {sub && <p className='mt-1 text-xs font-medium text-slate-500'>{sub}</p>}
+      {sub && <p className='mt-1 text-xs font-medium text-slate-900 dark:text-slate-500'>{sub}</p>}
       <div
         className='absolute bottom-0 left-0 h-[2px] w-full'
         style={{
@@ -309,18 +312,18 @@ function EditTradeModal({
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block ml-1';
+    'text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5 block ml-1';
 
   return (
     <Modal open onClose={onClose} title='Edit Trade Record'>
       <div className='space-y-5'>
-        <div className='rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-3'>
-          <p className='font-bold text-slate-100 text-sm'>
+        <div className='rounded-xl border border-slate-300/70 dark:border-slate-700/60 bg-slate-100/90 dark:bg-slate-800/40 px-4 py-3'>
+          <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
             {trade.investmentName}
           </p>
-          <p className='text-[11px] text-slate-500 mt-0.5 capitalize'>
+          <p className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5 capitalize'>
             {trade.investmentType.replace('_', ' ')}
           </p>
         </div>
@@ -378,11 +381,11 @@ function EditTradeModal({
             placeholder='Add notes...'
           />
         </div>
-        <div className='flex justify-end gap-3 border-t border-slate-800 pt-4'>
+        <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-4'>
           <button
             onClick={onClose}
             disabled={saving}
-            className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors disabled:opacity-50'
+            className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors disabled:opacity-50'
           >
             Cancel
           </button>
@@ -421,7 +424,7 @@ function TypeBadge({ type }: { type: SoldTrade['investmentType'] }) {
     },
     other: {
       label: 'Other',
-      cls: 'border-slate-500/30 bg-slate-500/10 text-slate-400',
+      cls: 'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400',
     },
   };
   const { label, cls } = map[type] ?? map.other;
@@ -445,7 +448,7 @@ function SortIcon({
   sortDir: 'asc' | 'desc';
 }) {
   if (sortCol !== col)
-    return <FiArrowUp size={11} className='text-slate-600' />;
+    return <FiArrowUp size={11} className='text-slate-500 dark:text-slate-600' />;
   if (sortDir === 'asc')
     return <FiArrowUp size={11} className='text-emerald-400' />;
   return <FiArrowDown size={11} className='text-amber-400' />;
@@ -565,6 +568,11 @@ export function ProfitsPage() {
     setBulkDeleteOpen(false);
   };
 
+  const handleExportSelected = () => {
+    const rows = filteredTrades.filter((t) => selectedIds.has(t.id));
+    exportSoldTradesCSV(rows, 'profits-selection.csv');
+  };
+
   const overallReturn =
     stats.totalInvested > 0
       ? (stats.totalProfit / stats.totalInvested) * 100
@@ -580,10 +588,10 @@ export function ProfitsPage() {
               <FiDollarSign className='h-5 w-5 md:h-6 md:w-6' />
             </div>
             <div>
-              <h1 className='text-xl md:text-2xl font-semibold tracking-tight text-white leading-tight'>
+              <h1 className='text-xl font-semibold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white'>
                 Realized Profits
               </h1>
-              <p className='mt-0.5 text-[11px] md:text-sm font-medium text-slate-400'>
+              <p className='mt-0.5 text-[11px] md:text-sm font-medium text-slate-500 dark:text-slate-400'>
                 Track every sale — buy cost vs sell value = actual profit.
               </p>
             </div>
@@ -633,7 +641,35 @@ export function ProfitsPage() {
       {/* ── Filters ── */}
       {soldTrades.length > 0 && (
         <div className='flex flex-wrap items-center gap-3'>
-          <div className='flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest'>
+          <SavedViewsMenu
+            pageId='profits'
+            getState={() => ({
+              typeFilter,
+              resultFilter,
+              sortCol,
+              sortDir,
+            })}
+            applyState={(s) => {
+              if (typeof s.typeFilter === 'string') setTypeFilter(s.typeFilter);
+              if (
+                s.resultFilter === 'all' ||
+                s.resultFilter === 'profit' ||
+                s.resultFilter === 'loss'
+              )
+                setResultFilter(s.resultFilter);
+              if (
+                s.sortCol === 'date' ||
+                s.sortCol === 'profit' ||
+                s.sortCol === 'profitPct' ||
+                s.sortCol === 'name' ||
+                s.sortCol === null
+              )
+                setSortCol(s.sortCol);
+              if (s.sortDir === 'asc' || s.sortDir === 'desc')
+                setSortDir(s.sortDir);
+            }}
+          />
+          <div className='flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-slate-500 uppercase tracking-widest'>
             <FiFilter size={12} /> Filters
           </div>
           {/* Type filter */}
@@ -649,13 +685,13 @@ export function ProfitsPage() {
               <button
                 key={f.id}
                 onClick={() => setTypeFilter(f.id)}
-                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${typeFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'}`}
+                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${typeFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
               >
                 {f.label}
               </button>
             ))}
           </div>
-          <div className='w-px h-5 bg-slate-700' />
+          <div className='w-px h-5 bg-slate-300 dark:bg-slate-700' />
           {/* Result filter */}
           <div className='flex items-center gap-1.5'>
             {[
@@ -666,7 +702,7 @@ export function ProfitsPage() {
               <button
                 key={f.id}
                 onClick={() => setResultFilter(f.id)}
-                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${resultFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200'}`}
+                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${resultFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
               >
                 {f.label}
               </button>
@@ -677,17 +713,17 @@ export function ProfitsPage() {
 
       {/* ── Empty state ── */}
       {soldTrades.length === 0 && (
-        <div className='flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-slate-800 bg-slate-900/20 text-center gap-4'>
+        <div className='flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 text-center gap-4'>
           <div className='flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400'>
             <FiDollarSign className='h-8 w-8' />
           </div>
           <div>
-            <p className='text-lg font-bold text-slate-200'>
+            <p className='text-lg font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
               No sales recorded yet
             </p>
-            <p className='text-sm text-slate-500 mt-1 max-w-sm'>
+            <p className='text-sm text-slate-900 dark:text-slate-500 mt-1 max-w-sm'>
               When you sell a stock, go to{' '}
-              <strong className='text-slate-300'>
+              <strong className='text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                 Investments → Sell button (💰)
               </strong>{' '}
               on any row to record the sale and track your profit here.
@@ -698,8 +734,17 @@ export function ProfitsPage() {
 
       {/* ── Action bar for Bulk Delete ── */}
       {selectedIds.size > 0 && (
-        <div className='flex justify-end'>
+        <div className='flex flex-wrap justify-end gap-2'>
           <button
+            type='button'
+            onClick={handleExportSelected}
+            className='flex items-center cursor-pointer gap-2 rounded-xl border border-slate-200/80 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+          >
+            <FiDownload className='h-4 w-4' /> Export selected ({selectedIds.size}
+            )
+          </button>
+          <button
+            type='button'
             onClick={() => setBulkDeleteOpen(true)}
             className='flex items-center cursor-pointer gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700 shadow-sm'
           >
@@ -719,7 +764,7 @@ export function ProfitsPage() {
               return (
                 <div
                   key={trade.id}
-                  className={`relative rounded-2xl border overflow-hidden ${isProfit ? 'border-slate-800 bg-slate-900/60' : 'border-slate-800 bg-slate-900/60'}`}
+                  className={`relative rounded-2xl border overflow-hidden ${isProfit ? 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60'}`}
                 >
                   <div
                     className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl ${isProfit ? 'bg-emerald-500' : 'bg-rose-500'}`}
@@ -734,17 +779,17 @@ export function ProfitsPage() {
                           className='mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
                         />
                         <div className='flex-1 min-w-0'>
-                          <p className='font-bold text-[14px] text-slate-100 truncate leading-tight'>
+                          <p className='font-bold text-[14px] text-slate-900 dark:text-slate-100 truncate leading-tight'>
                             {trade.investmentName}
                           </p>
                           <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
                             <TypeBadge type={trade.investmentType} />
-                            <span className='text-[10px] text-slate-500'>
+                            <span className='text-[10px] text-slate-900 dark:text-slate-500'>
                               {trade.soldDate}
                             </span>
                           </div>
                           {trade.notes && (
-                            <p className='text-[11px] text-slate-600 mt-1 italic truncate'>
+                            <p className='text-[11px] text-slate-500 dark:text-slate-600 mt-1 italic truncate'>
                               {trade.notes}
                             </p>
                           )}
@@ -753,7 +798,7 @@ export function ProfitsPage() {
                       <div className='flex items-center gap-1 shrink-0'>
                         <button
                           onClick={() => setEditTrade(trade)}
-                          className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white'
+                          className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         >
                           <FiEdit2 size={12} />
                         </button>
@@ -765,25 +810,25 @@ export function ProfitsPage() {
                         </button>
                       </div>
                     </div>
-                    <div className='mt-3 pt-3 border-t border-slate-800/60 grid grid-cols-3 gap-0 ml-7'>
+                    <div className='mt-3 pt-3 border-t border-slate-200/70 dark:border-slate-800/60 grid grid-cols-3 gap-0 ml-7'>
                       <div className='flex flex-col gap-0.5'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Buy Cost
                         </span>
-                        <span className='text-[13px] font-semibold text-slate-400'>
+                        <span className='text-[13px] font-semibold text-slate-500 dark:text-slate-400'>
                           {formatINR(trade.buyPrice)}
                         </span>
                       </div>
                       <div className='flex flex-col gap-0.5 items-center'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Sell Value
                         </span>
-                        <span className='text-[13px] font-bold text-white'>
+                        <span className='text-[13px] font-bold text-slate-900 dark:text-slate-100'>
                           {formatINR(trade.sellPrice)}
                         </span>
                       </div>
                       <div className='flex flex-col gap-0.5 items-end'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Profit / Loss
                         </span>
                         <span
@@ -807,7 +852,7 @@ export function ProfitsPage() {
           </div>
 
           {/* ── DESKTOP TABLE ── */}
-          <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-xl mt-4'>
+          <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 shadow-xl mt-4'>
             <div className='overflow-x-auto'>
               <table className='w-full text-sm border-collapse table-fixed'>
                 <colgroup>
@@ -822,7 +867,7 @@ export function ProfitsPage() {
                   <col style={{ width: '4%' }} /> {/* Actions */}
                 </colgroup>
                 <thead>
-                  <tr className='border-b border-slate-700/60 bg-slate-900'>
+                  <tr className='border-b border-slate-300/70 dark:border-slate-700/60 bg-white dark:bg-slate-900'>
                     <th className='px-4 py-3 text-left'>
                       <input
                         type='checkbox'
@@ -838,7 +883,7 @@ export function ProfitsPage() {
                     <th className='px-4 py-3 text-left'>
                       <button
                         onClick={() => handleSort('name')}
-                        className='flex items-center gap-1 text-[10px] cursor-pointer font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 text-[10px] cursor-pointer font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
                       >
                         Asset{' '}
                         <SortIcon
@@ -850,25 +895,25 @@ export function ProfitsPage() {
                     </th>
                     {/* Type */}
                     <th className='px-3 py-3 text-left'>
-                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                         Type
                       </span>
                     </th>
                     {/* Date */}
                     <th className='px-3 py-3 text-left'>
-                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                         Date
                       </span>
                     </th>
                     {/* Buy Cost */}
                     <th className='px-3 py-3 text-right'>
-                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                         Buy Cost
                       </span>
                     </th>
                     {/* Sell Value */}
                     <th className='px-3 py-3 text-right'>
-                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-500'>
+                      <span className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                         Sell Value
                       </span>
                     </th>
@@ -876,7 +921,7 @@ export function ProfitsPage() {
                     <th className='px-3 py-3 text-right'>
                       <button
                         onClick={() => handleSort('profit')}
-                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
                       >
                         <SortIcon
                           col='profit'
@@ -890,7 +935,7 @@ export function ProfitsPage() {
                     <th className='px-3 py-3 text-right'>
                       <button
                         onClick={() => handleSort('profitPct')}
-                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
                       >
                         <SortIcon
                           col='profitPct'
@@ -904,13 +949,13 @@ export function ProfitsPage() {
                     <th className='px-2 py-3' />
                   </tr>
                 </thead>
-                <tbody className='divide-y divide-slate-800/60'>
+                <tbody className='divide-y divide-slate-200 dark:divide-slate-800/60'>
                   {filteredTrades.map((trade) => {
                     const isProfit = trade.profit >= 0;
                     return (
                       <tr
                         key={trade.id}
-                        className='group hover:bg-slate-800/40 transition-colors'
+                        className='group hover:bg-slate-100/90 dark:bg-slate-800/40 transition-colors'
                       >
                         <td className='px-4 py-3.5 align-middle'>
                           <input
@@ -924,14 +969,14 @@ export function ProfitsPage() {
                         <td className='px-4 py-3.5 align-middle'>
                           <div className='flex flex-col gap-0.5'>
                             <span
-                              className='font-semibold text-[13px] text-slate-100 leading-tight truncate block'
+                              className='font-semibold text-[13px] text-slate-900 dark:text-slate-100 leading-tight truncate block'
                               title={trade.investmentName}
                             >
                               {trade.investmentName}
                             </span>
                             {trade.notes && (
                               <span
-                                className='text-[10px] text-slate-500 italic truncate block'
+                                className='text-[10px] text-slate-900 dark:text-slate-500 italic truncate block'
                                 title={trade.notes}
                               >
                                 {trade.notes}
@@ -945,7 +990,7 @@ export function ProfitsPage() {
                         </td>
                         {/* Date */}
                         <td className='px-3 py-3.5 align-middle whitespace-nowrap'>
-                          <span className='text-[12px] text-slate-400 tabular-nums'>
+                          <span className='text-[12px] text-slate-500 dark:text-slate-400 tabular-nums'>
                             {(() => {
                               try {
                                 return format(
@@ -964,13 +1009,13 @@ export function ProfitsPage() {
                         </td>
                         {/* Buy Cost */}
                         <td className='px-3 py-3.5 text-right align-middle whitespace-nowrap'>
-                          <span className='text-[13px] text-slate-400 tabular-nums'>
+                          <span className='text-[13px] text-slate-500 dark:text-slate-400 tabular-nums'>
                             {formatINR(trade.buyPrice)}
                           </span>
                         </td>
                         {/* Sell Value */}
                         <td className='px-3 py-3.5 text-right align-middle whitespace-nowrap'>
-                          <span className='text-[13px] font-semibold text-white tabular-nums'>
+                          <span className='text-[13px] font-semibold tabular-nums text-slate-900 dark:text-slate-100'>
                             {formatINR(trade.sellPrice)}
                           </span>
                         </td>
@@ -997,13 +1042,13 @@ export function ProfitsPage() {
                           <div className='flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
                             <button
                               onClick={() => setEditTrade(trade)}
-                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/60 transition-all'
+                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300/70 dark:border-slate-700/60 transition-all'
                             >
                               <FiEdit2 size={12} />
                             </button>
                             <button
                               onClick={() => setDeleteId(trade.id)}
-                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-all'
+                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 dark:text-slate-400 hover:text-rose-400 border border-slate-300/70 dark:border-slate-700/60 transition-all'
                             >
                               <FiTrash2 size={12} />
                             </button>
@@ -1015,22 +1060,22 @@ export function ProfitsPage() {
                 </tbody>
                 {/* Footer totals — cols match exactly */}
                 <tfoot>
-                  <tr className='border-t-2 border-slate-700/80 bg-slate-900/80'>
+                  <tr className='border-t-2 border-slate-300/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/80'>
                     <td className='px-4 py-3 align-middle' colSpan={4}>
-                      <span className='text-[11px] font-black uppercase tracking-widest text-slate-500'>
+                      <span className='text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500'>
                         {filteredTrades.length}{' '}
                         {filteredTrades.length === 1 ? 'Trade' : 'Trades'}
                       </span>
                     </td>
                     <td className='px-3 py-3 text-right align-middle whitespace-nowrap'>
-                      <span className='text-[13px] font-bold text-slate-400 tabular-nums'>
+                      <span className='text-[13px] font-bold text-slate-500 dark:text-slate-400 tabular-nums'>
                         {formatINR(
                           filteredTrades.reduce((s, t) => s + t.buyPrice, 0),
                         )}
                       </span>
                     </td>
                     <td className='px-3 py-3 text-right align-middle whitespace-nowrap'>
-                      <span className='text-[13px] font-bold text-white tabular-nums'>
+                      <span className='text-[13px] font-bold tabular-nums text-slate-900 dark:text-slate-100'>
                         {formatINR(
                           filteredTrades.reduce((s, t) => s + t.sellPrice, 0),
                         )}
@@ -1064,7 +1109,7 @@ export function ProfitsPage() {
 
       {/* No filter results */}
       {soldTrades.length > 0 && filteredTrades.length === 0 && (
-        <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-800 text-slate-500 gap-2'>
+        <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-500 gap-2'>
           <FiFilter size={24} className='opacity-30' />
           <p className='text-sm font-medium'>
             No trades match the current filters
@@ -1092,14 +1137,14 @@ export function ProfitsPage() {
         title='⚠ Delete Trade Record'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             Are you sure you want to permanently delete this trade record? This
             cannot be undone.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteId(null)}
-              className='rounded-xl px-5 py-2.5 cursor-pointer text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 cursor-pointer text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
@@ -1124,14 +1169,14 @@ export function ProfitsPage() {
         title='⚠ Confirm Bulk Deletion'
       >
         <div className='space-y-6'>
-          <p className='text-sm text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             This will permanently delete {selectedIds.size} selected trade
             records.
           </p>
-          <div className='flex justify-end gap-3 border-t border-slate-800 pt-5'>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setBulkDeleteOpen(false)}
-              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800 transition-colors'
+              className='rounded-xl cursor-pointer px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
             >
               Cancel
             </button>

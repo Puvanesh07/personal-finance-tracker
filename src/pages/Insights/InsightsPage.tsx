@@ -417,7 +417,7 @@ function ScoreRing({ score }: { score: number }) {
         >
           {score}
         </span>
-        <span className='text-[10px] text-slate-500'>/100</span>
+        <span className='text-[10px] text-slate-900 dark:text-slate-500'>/100</span>
       </div>
     </div>
   );
@@ -436,13 +436,13 @@ function MiniBar({
 }) {
   return (
     <div className='mb-2.5'>
-      <div className='flex justify-between text-[11px] text-slate-400 mb-1'>
+      <div className='flex justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1'>
         <span>{label}</span>
         <span style={{ color, fontFamily: 'monospace' }}>
           {value}/{max}
         </span>
       </div>
-      <div className='h-1.5 bg-slate-800 rounded-full overflow-hidden'>
+      <div className='h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden'>
         <div
           className='h-full rounded-full transition-all duration-700'
           style={{ width: `${(value / max) * 100}%`, background: color }}
@@ -479,7 +479,7 @@ function MetricCard({
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-1.5'>
           <span className='text-base'>{icon}</span>
-          <span className='text-[10px] text-slate-500 uppercase tracking-wider font-semibold'>
+          <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-semibold'>
             {label}
           </span>
         </div>
@@ -487,7 +487,7 @@ function MetricCard({
         {onInfoClick && (
           <button
             onClick={onInfoClick}
-            className='text-slate-500 hover:text-slate-300 transition-colors p-1 -mr-1 -mt-1 rounded-full hover:bg-slate-800/80 cursor-pointer'
+            className='text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors p-1 -mr-1 -mt-1 rounded-full hover:bg-slate-200/80 dark:bg-slate-800/80 cursor-pointer'
             title='More information'
           >
             <FiInfo className='h-3.5 w-3.5' />
@@ -495,12 +495,12 @@ function MetricCard({
         )}
       </div>
       <div
-        className='text-base font-bold text-slate-100'
+        className='text-base font-bold text-slate-900 dark:text-slate-100'
         style={{ fontFamily: 'monospace' }}
       >
         {value}
       </div>
-      {sub && <div className='text-[11px] text-slate-500'>{sub}</div>}
+      {sub && <div className='text-[11px] text-slate-900 dark:text-slate-500'>{sub}</div>}
     </div>
   );
 }
@@ -517,8 +517,8 @@ function FireCard({
   color: string;
 }) {
   return (
-    <div className='rounded-xl p-3.5 bg-slate-950'>
-      <div className='text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1.5'>
+    <div className='rounded-xl p-3.5 bg-slate-50 dark:bg-slate-950'>
+      <div className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-semibold mb-1.5'>
         {label}
       </div>
       <div
@@ -527,7 +527,7 @@ function FireCard({
       >
         {value}
       </div>
-      <div className='text-[11px] text-slate-500 mt-0.5'>{sub}</div>
+      <div className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5'>{sub}</div>
     </div>
   );
 }
@@ -683,10 +683,10 @@ export default function InsightsPage() {
             <FiZap className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-white'>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>
               Financial Insights
             </h1>
-            <p className='text-sm text-slate-400 mt-0.5'>
+            <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               {latestInsight
                 ? `Last snapshot saved ${new Date(latestInsight.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
                 : 'Track your financial health, emergency fund, and FIRE progress.'}
@@ -705,12 +705,12 @@ export default function InsightsPage() {
       </header>
 
       {noData ? (
-        <div className='rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-14 text-center'>
+        <div className='rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/40 p-14 text-center'>
           <div className='text-5xl mb-4'>📊</div>
-          <p className='text-base font-semibold text-slate-300 mb-1'>
+          <p className='text-base font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300 mb-1'>
             No data yet
           </p>
-          <p className='text-sm text-slate-500 max-w-xs mx-auto'>
+          <p className='text-sm text-slate-900 dark:text-slate-500 max-w-xs mx-auto'>
             Add investments, cashflow entries, or set your emergency fund in{' '}
             <span className='text-emerald-400 font-semibold'>
               Settings → Essentials
@@ -721,8 +721,8 @@ export default function InsightsPage() {
       ) : (
         <div className='flex flex-col gap-6'>
           {/* ── Health Score + Breakdown ── */}
-          <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
-            <h2 className='text-sm font-bold uppercase tracking-wider text-slate-400 mb-4'>
+          <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5'>
+            <h2 className='text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4'>
               Financial Health Score
             </h2>
             <div className='flex flex-col sm:flex-row gap-6 items-start'>
@@ -796,12 +796,12 @@ export default function InsightsPage() {
                 ].map(({ label, hint, color }) => (
                   <div
                     key={label}
-                    className='rounded-lg p-2.5 bg-slate-800/60 flex flex-col gap-0.5'
+                    className='rounded-lg p-2.5 bg-slate-200/70 dark:bg-slate-800/60 flex flex-col gap-0.5'
                   >
                     <p className='text-[10px] font-bold' style={{ color }}>
                       {label}
                     </p>
-                    <p className='text-[10px] text-slate-400 leading-tight'>
+                    <p className='text-[10px] text-slate-500 dark:text-slate-400 leading-tight'>
                       {hint}
                     </p>
                   </div>
@@ -812,7 +812,7 @@ export default function InsightsPage() {
 
           {/* ── Key Metrics ── */}
           <div>
-            <h2 className='text-sm font-bold uppercase tracking-wider text-slate-400 mb-3'>
+            <h2 className='text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3'>
               Key Metrics
             </h2>
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
@@ -937,19 +937,19 @@ export default function InsightsPage() {
           </div>
 
           {/* ── FIRE Projection ── */}
-          <div className='rounded-2xl border border-slate-800 bg-slate-900/60 p-5'>
+          <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5'>
             <div className='flex items-center gap-2 mb-4'>
               <span className='text-xl'>🔥</span>
-              <h2 className='text-base font-bold text-slate-100'>
+              <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>
                 FIRE Projection
               </h2>
-              <span className='text-xs text-slate-500 hidden sm:block'>
+              <span className='text-xs text-slate-900 dark:text-slate-500 hidden sm:block'>
                 Financial Independence, Retire Early
               </span>
             </div>
             {fire.uncalculable ? (
-              <div className='rounded-xl bg-slate-800/60 p-4 text-center'>
-                <p className='text-sm text-slate-400'>
+              <div className='rounded-xl bg-slate-200/70 dark:bg-slate-800/60 p-4 text-center'>
+                <p className='text-sm text-slate-500 dark:text-slate-400'>
                   Add cashflow entries or set an Emergency Fund Target in{' '}
                   <span className='text-emerald-400 font-semibold'>
                     Settings → Essentials
@@ -1017,13 +1017,13 @@ export default function InsightsPage() {
               (metrics.equityPct > 80 || metrics.equityPct < 20)) ||
             (health.totalLiquid === 0 && health.emergencyTarget === 0)) && (
             <div>
-              <h2 className='text-sm font-bold uppercase tracking-wider text-slate-400 mb-3'>
+              <h2 className='text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3'>
                 Action Items
               </h2>
               <div className='flex flex-col gap-3'>
                 {metrics.topDebt && (
                   <div
-                    className='flex gap-3 items-start rounded-2xl p-4 bg-slate-900/60'
+                    className='flex gap-3 items-start rounded-2xl p-4 bg-slate-100 dark:bg-slate-900/60'
                     style={{
                       border: '1px solid #ef444422',
                       borderLeft: '3px solid #ef4444',
@@ -1031,10 +1031,10 @@ export default function InsightsPage() {
                   >
                     <span className='text-xl shrink-0'>⚠️</span>
                     <div>
-                      <p className='text-sm font-semibold text-slate-100'>
+                      <p className='text-sm font-semibold text-slate-900 dark:text-slate-100'>
                         Priority Debt: {metrics.topDebt.name}
                       </p>
-                      <p className='text-xs text-slate-400 mt-1'>
+                      <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
                         {formatINR(metrics.topDebt.outstanding)} outstanding{' '}
                         {metrics.topDebt.interestRate
                           ? ` at ${metrics.topDebt.interestRate}% p.a.`
@@ -1047,7 +1047,7 @@ export default function InsightsPage() {
                 {investments.length > 0 &&
                   (metrics.equityPct > 80 || metrics.equityPct < 20) && (
                     <div
-                      className='flex gap-3 items-start rounded-2xl p-4 bg-slate-900/60'
+                      className='flex gap-3 items-start rounded-2xl p-4 bg-slate-100 dark:bg-slate-900/60'
                       style={{
                         border: '1px solid #f59e0b22',
                         borderLeft: '3px solid #f59e0b',
@@ -1055,10 +1055,10 @@ export default function InsightsPage() {
                     >
                       <span className='text-xl shrink-0'>⚖️</span>
                       <div>
-                        <p className='text-sm font-semibold text-slate-100'>
+                        <p className='text-sm font-semibold text-slate-900 dark:text-slate-100'>
                           Rebalancing Recommended
                         </p>
-                        <p className='text-xs text-slate-400 mt-1'>
+                        <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
                           Equity is at {formatNumber(metrics.equityPct, 1)}% of
                           total assets.{' '}
                           {metrics.equityPct > 80
@@ -1070,7 +1070,7 @@ export default function InsightsPage() {
                   )}
                 {health.totalLiquid === 0 && health.emergencyTarget === 0 && (
                   <div
-                    className='flex gap-3 items-start rounded-2xl p-4 bg-slate-900/60'
+                    className='flex gap-3 items-start rounded-2xl p-4 bg-slate-100 dark:bg-slate-900/60'
                     style={{
                       border: '1px solid #a78bfa22',
                       borderLeft: '3px solid #a78bfa',
@@ -1078,10 +1078,10 @@ export default function InsightsPage() {
                   >
                     <span className='text-xl shrink-0'>🛡️</span>
                     <div>
-                      <p className='text-sm font-semibold text-slate-100'>
+                      <p className='text-sm font-semibold text-slate-900 dark:text-slate-100'>
                         Set Up Your Emergency Fund
                       </p>
-                      <p className='text-xs text-slate-400 mt-1'>
+                      <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
                         A 6-month emergency fund is the foundation of financial
                         health. Go to{' '}
                         <span className='text-violet-400 font-semibold'>
@@ -1105,13 +1105,13 @@ export default function InsightsPage() {
         title={activeModalData ? `💡 ${activeModalData.title} Explained` : ''}
       >
         {activeModalData && (
-          <div className='space-y-5 text-sm text-slate-300'>
+          <div className='space-y-5 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
             <p>
               <strong>What it is:</strong> {activeModalData.what}
             </p>
 
             <div>
-              <h4 className='font-bold text-slate-100 mb-2 border-b border-slate-800 pb-1'>
+              <h4 className='font-bold text-slate-900 dark:text-slate-100 mb-2 border-b border-slate-200 dark:border-slate-800 pb-1'>
                 How to improve it:
               </h4>
               {activeModalData.how}
@@ -1129,7 +1129,7 @@ export default function InsightsPage() {
             <div className='pt-2 flex justify-end'>
               <button
                 onClick={() => setInfoModalKey(null)}
-                className='px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer'
+                className='cursor-pointer rounded-xl bg-slate-200 px-5 py-2.5 text-sm font-bold text-slate-900 transition-colors hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
               >
                 Got it
               </button>

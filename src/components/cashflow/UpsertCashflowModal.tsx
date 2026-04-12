@@ -158,16 +158,16 @@ function ManageCategoriesModal({
   };
 
   return (
-    <div className='fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4'>
-      <div className='w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl flex flex-col max-h-[85vh]'>
+    <div className='fixed inset-0 z-[200] flex items-center justify-center bg-white/95 dark:bg-slate-900/80 backdrop-blur-md p-4'>
+      <div className='w-full max-w-md rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl flex flex-col max-h-[85vh]'>
         {/* Header */}
-        <div className='flex items-center justify-between px-5 py-4 border-b border-slate-800'>
-          <h3 className='text-base font-bold text-slate-100'>
+        <div className='flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800'>
+          <h3 className='text-base font-bold text-slate-900 dark:text-slate-100'>
             Manage {type === 'expense' ? 'Expense' : 'Income'} Categories
           </h3>
           <button
             onClick={onClose}
-            className='text-slate-500 hover:text-slate-200 transition-colors'
+            className='text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
           >
             <FiX className='h-5 w-5' />
           </button>
@@ -175,7 +175,7 @@ function ManageCategoriesModal({
 
         {/* Category list */}
         <div className='flex-1 overflow-y-auto custom-scrollbar px-4 py-3 flex flex-col gap-1'>
-          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 px-1'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-2 px-1'>
             Default Categories
           </p>
           {defaults.map((cat) => {
@@ -183,19 +183,19 @@ function ManageCategoriesModal({
             return (
               <div
                 key={cat.key}
-                className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${isHidden ? 'opacity-40' : 'hover:bg-slate-800/60'}`}
+                className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${isHidden ? 'opacity-40' : 'hover:bg-slate-200/70 dark:bg-slate-800/60'}`}
               >
                 <div className='flex items-center gap-3'>
                   <span className='text-base'>{cat.icon}</span>
                   <span
-                    className={`text-sm font-medium ${isHidden ? 'text-slate-500 line-through' : 'text-slate-200'}`}
+                    className={`text-sm font-medium ${isHidden ? 'text-slate-900 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
                   >
                     {cat.key}
                   </span>
                 </div>
                 <button
                   onClick={() => onToggleHidden(cat.key)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${isHidden ? 'bg-slate-800 text-slate-500 hover:text-slate-200' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${isHidden ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
                   title={isHidden ? 'Show category' : 'Hide category'}
                 >
                   {isHidden ? (
@@ -210,7 +210,7 @@ function ManageCategoriesModal({
 
           {customs.length > 0 && (
             <>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-3 mb-2 px-1'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mt-3 mb-2 px-1'>
                 Custom Categories
               </p>
               {customs.map((cat) => {
@@ -218,12 +218,12 @@ function ManageCategoriesModal({
                 return (
                   <div
                     key={cat}
-                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${isHidden ? 'opacity-40' : 'hover:bg-slate-800/60'}`}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${isHidden ? 'opacity-40' : 'hover:bg-slate-200/70 dark:bg-slate-800/60'}`}
                   >
                     <div className='flex items-center gap-3'>
                       <span className='text-base'>🏷️</span>
                       <span
-                        className={`text-sm font-medium ${isHidden ? 'text-slate-500' : 'text-slate-200'}`}
+                        className={`text-sm font-medium ${isHidden ? 'text-slate-900 dark:text-slate-500' : 'text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
                       >
                         {cat}
                       </span>
@@ -231,7 +231,7 @@ function ManageCategoriesModal({
                     <div className='flex items-center gap-1'>
                       <button
                         onClick={() => onToggleHidden(cat)}
-                        className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors'
+                        className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
                         title={isHidden ? 'Show' : 'Hide'}
                       >
                         {isHidden ? (
@@ -256,8 +256,8 @@ function ManageCategoriesModal({
         </div>
 
         {/* Add new category */}
-        <div className='px-4 py-4 border-t border-slate-800'>
-          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2'>
+        <div className='px-4 py-4 border-t border-slate-200 dark:border-slate-800'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-2'>
             Add New Category
           </p>
           <div className='flex gap-2'>
@@ -266,7 +266,7 @@ function ManageCategoriesModal({
               onChange={(e) => setNewCat(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
               placeholder='e.g. Dog Food, Gym…'
-              className='flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none focus:border-emerald-500/60 placeholder:text-slate-600'
+              className='flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 placeholder:text-slate-500 dark:text-slate-600'
               autoFocus
             />
             <button
@@ -282,7 +282,7 @@ function ManageCategoriesModal({
         <div className='px-4 pb-4'>
           <button
             onClick={onClose}
-            className='w-full rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-sm font-bold text-slate-200 transition-colors'
+            className='w-full rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 px-4 py-2.5 text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
           >
             Done
           </button>
@@ -404,24 +404,24 @@ function CategoryDropdown({
         }}
         className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition-all duration-200 ${
           open
-            ? 'border-emerald-500/50 bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-            : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60'
+            ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+            : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60'
         }`}
       >
         <div className='flex items-center gap-2.5'>
           {selectedCat ? (
             <>
               <span className='text-base leading-none'>{selectedCat.icon}</span>
-              <span className='font-medium text-slate-100'>
+              <span className='font-medium text-slate-900 dark:text-slate-100'>
                 {selectedCat.key}
               </span>
             </>
           ) : (
-            <span className='text-slate-500'>Select a category</span>
+            <span className='text-slate-900 dark:text-slate-500'>Select a category</span>
           )}
         </div>
         <FiChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -437,22 +437,22 @@ function CategoryDropdown({
               zIndex: 9999,
               maxHeight: 380,
             }}
-            className='flex flex-col rounded-xl border border-slate-800 bg-slate-900/98 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/98 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
             {/* Search bar */}
-            <div className='flex items-center gap-2 px-3 py-2.5 border-b border-slate-800'>
-              <FiSearch className='h-3.5 w-3.5 text-slate-500 shrink-0' />
+            <div className='flex items-center gap-2 px-3 py-2.5 border-b border-slate-200 dark:border-slate-800'>
+              <FiSearch className='h-3.5 w-3.5 text-slate-900 dark:text-slate-500 shrink-0' />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder='Search categories…'
-                className='flex-1 bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-600'
+                className='flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-500 dark:text-slate-600'
                 autoFocus
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className='text-slate-500 hover:text-slate-300'
+                  className='text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'
                 >
                   <FiX className='h-3.5 w-3.5' />
                 </button>
@@ -462,7 +462,7 @@ function CategoryDropdown({
             {/* Categories list */}
             <div className='flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col'>
               {filtered.length === 0 ? (
-                <div className='px-3 py-4 text-center text-xs text-slate-500'>
+                <div className='px-3 py-4 text-center text-xs text-slate-900 dark:text-slate-500'>
                   No categories found
                 </div>
               ) : (
@@ -477,7 +477,7 @@ function CategoryDropdown({
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all text-left ${
                       value === cat.key
                         ? 'bg-emerald-500/10 text-emerald-400 font-semibold'
-                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-slate-100'
+                        : 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
                     }`}
                   >
                     <span className='text-base leading-none w-5 text-center'>
@@ -493,7 +493,7 @@ function CategoryDropdown({
             </div>
 
             {/* Footer actions */}
-            <div className='border-t border-slate-800 p-1.5 flex flex-col gap-0.5'>
+            <div className='border-t border-slate-200 dark:border-slate-800 p-1.5 flex flex-col gap-0.5'>
               {/* Add new category inline */}
               {newCatMode ? (
                 <div className='flex items-center gap-2 px-2 py-1.5'>
@@ -508,7 +508,7 @@ function CategoryDropdown({
                       }
                     }}
                     placeholder='New category name…'
-                    className='flex-1 rounded-lg border border-emerald-500/40 bg-slate-800 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-emerald-500 placeholder:text-slate-600'
+                    className='flex-1 rounded-lg border border-emerald-500/40 bg-slate-200 dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500 placeholder:text-slate-500 dark:text-slate-600'
                     autoFocus
                   />
                   <button
@@ -523,7 +523,7 @@ function CategoryDropdown({
                       setNewCatMode(false);
                       setNewCatVal('');
                     }}
-                    className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-700 text-slate-300'
+                    className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-700 dark:text-slate-300'
                   >
                     <FiX className='h-3.5 w-3.5' />
                   </button>
@@ -547,7 +547,7 @@ function CategoryDropdown({
                   setOpen(false);
                   onOpenManage();
                 }}
-                className='flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-400 hover:bg-slate-800 transition-colors'
+                className='flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
               >
                 <FiSettings className='h-4 w-4' />
                 Manage categories
@@ -642,14 +642,14 @@ function CalendarPicker({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-800 text-emerald-400' : 'border-slate-700/80 bg-slate-900/50 hover:bg-slate-800/60 text-slate-100'}`}
+        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 text-emerald-400' : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'}`}
       >
         <FiCalendar
-          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500'}`}
+          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
         />
         <span className='flex-1 text-left'>{displayLabel}</span>
         <FiChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -664,23 +664,23 @@ function CalendarPicker({
               zIndex: 9999,
               width: 280,
             }}
-            className='rounded-xl border border-slate-700 bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
+            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
           >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-800'>
+            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
                 type='button'
                 onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
               >
                 <FiChevronRight className='h-4 w-4' />
               </button>
@@ -689,7 +689,7 @@ function CalendarPicker({
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
                   key={d}
-                  className='text-center text-[10px] font-bold text-slate-500 pb-1'
+                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
                 >
                   {d}
                 </div>
@@ -713,8 +713,8 @@ function CalendarPicker({
                         : isTodayDay
                           ? 'border border-emerald-500/40 text-emerald-400'
                           : isCurMonth
-                            ? 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
-                            : 'text-slate-600 hover:bg-slate-800/50'
+                            ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
+                            : 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50'
                     }`}
                   >
                     {format(day, 'd')}
@@ -722,14 +722,14 @@ function CalendarPicker({
                 );
               })}
             </div>
-            <div className='px-3 pb-3 flex justify-between border-t border-slate-800 pt-2'>
+            <div className='px-3 pb-3 flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2'>
               <button
                 type='button'
                 onClick={() => {
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs font-bold text-slate-500 hover:text-slate-300 px-2 py-1'
+                className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 px-2 py-1'
               >
                 Clear
               </button>
@@ -865,9 +865,9 @@ export function UpsertCashflowModal(props: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-700/80 bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 block';
+    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-1.5 block';
 
   return (
     <>
@@ -899,7 +899,7 @@ export function UpsertCashflowModal(props: Props) {
                         ? opt.key === 'expense'
                           ? 'bg-rose-500/15 border-rose-500/40 text-rose-400'
                           : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-                        : 'border-slate-700/80 bg-slate-900/50 text-slate-400 hover:bg-slate-800/60'
+                        : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 hover:bg-slate-200/70 dark:bg-slate-800/60'
                     }`}
                   >
                     {opt.label}
@@ -976,10 +976,10 @@ export function UpsertCashflowModal(props: Props) {
           </div>
 
           {/* Footer */}
-          <div className='flex items-center justify-end gap-3 border-t border-slate-800/60 pt-5'>
+          <div className='flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-5'>
             <button
               type='button'
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 hover:bg-slate-800'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
               onClick={props.onClose}
               disabled={saving}
             >
