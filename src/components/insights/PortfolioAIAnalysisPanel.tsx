@@ -1,10 +1,10 @@
 import { FiCpu, FiRefreshCw, FiZap } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
-import toast from 'react-hot-toast';
 
-import { requestPortfolioAIAnalysis } from '../../services/portfolioAnalysisAI';
+import { Link } from 'react-router-dom';
 import type { PortfolioAIContext } from '../../utils/portfolioAIContext';
+import { requestPortfolioAIAnalysis } from '../../services/portfolioAnalysisAI';
+import toast from 'react-hot-toast';
 
 function renderAnalysisText(text: string) {
   const lines = text.split('\n');
@@ -79,9 +79,12 @@ export function PortfolioAIAnalysisPanel({
       );
       setSource(res.source);
       if (res.source === 'local') {
-        toast.success('Using on-device analysis (add OpenAI key on Netlify for AI).', {
-          duration: 4500,
-        });
+        toast.success(
+          'Using on-device analysis (add OpenAI key on Netlify for AI).',
+          {
+            duration: 4500,
+          },
+        );
       }
     } catch {
       toast.error('Could not generate analysis.');
@@ -145,16 +148,16 @@ export function PortfolioAIAnalysisPanel({
             ))}
           </div>
           <label className='block'>
-          <span className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-            Optional focus (sent to AI when configured)
-          </span>
-          <textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            rows={2}
-            placeholder='e.g. Should I reduce equity given my emergency runway?'
-            className='mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-violet-500/30 resize-y min-h-[72px]'
-          />
+            <span className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+              Optional focus (sent to AI when configured)
+            </span>
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              rows={2}
+              placeholder='e.g. Should I reduce equity given my emergency runway?'
+              className='mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-violet-500/30 resize-y min-h-[72px]'
+            />
           </label>
         </div>
       )}
@@ -190,7 +193,10 @@ export function PortfolioAIAnalysisPanel({
         </div>
       ) : (
         <div className='rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/30 px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400'>
-          Tap <strong className='text-slate-700 dark:text-slate-200'>Generate</strong>{' '}
+          Tap{' '}
+          <strong className='text-slate-700 dark:text-slate-200'>
+            Generate
+          </strong>{' '}
           to build your briefing from current portfolio data.
         </div>
       )}
