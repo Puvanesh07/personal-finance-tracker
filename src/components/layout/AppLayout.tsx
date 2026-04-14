@@ -16,6 +16,7 @@ import { CommandPalette } from './CommandPalette';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { PrivacyToggle } from './PrivacyToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
@@ -244,6 +245,7 @@ export function AppLayout() {
             ?
           </button>
           <ThemeToggle />
+          <PrivacyToggle />
           <NotificationBell />
         </div>
         <div className='p-4 pb-28 md:p-6 md:pb-8 max-w-7xl mx-auto min-h-full w-full'>

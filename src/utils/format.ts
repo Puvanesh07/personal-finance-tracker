@@ -1,10 +1,19 @@
 // src/utils/format.ts
 
+import { usePrivacyStore } from '../store/privacyStore';
+
+const MASK = '*****';
+
+function shouldMask() {
+  return usePrivacyStore.getState().hideAmounts;
+}
+
 /**
  * Formats a number as Indian Rupee (INR) with no decimal places.
  * Example: 1234567 -> ₹12,34,567
  */
 export function formatINR(value: number) {
+  if (shouldMask()) return MASK;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -17,6 +26,7 @@ export function formatINR(value: number) {
  * Currently defaults to INR formatting.
  */
 export function formatCurrency(value: number) {
+  if (shouldMask()) return MASK;
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -30,6 +40,7 @@ export function formatCurrency(value: number) {
  * Example: 1234567 -> 12,34,567
  */
 export function formatNumber(value: number, digits = 2) {
+  if (shouldMask()) return MASK;
   return new Intl.NumberFormat('en-IN', { 
     maximumFractionDigits: digits 
   }).format(value)

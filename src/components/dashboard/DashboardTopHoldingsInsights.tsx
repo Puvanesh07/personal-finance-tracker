@@ -73,7 +73,7 @@ function HoldingCard({ inv }: { inv: Investment }) {
   const tag = typeLabel(inv);
 
   return (
-    <div className='rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-100/80 dark:bg-slate-800/30 p-4 flex flex-col gap-2 hover:border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-800/50 transition-all duration-200'>
+    <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800/30 p-4 flex flex-col gap-2 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all duration-200'>
       {/* Name + tag */}
       <div className='flex items-start justify-between gap-2'>
         <p className='text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex-1'>
@@ -307,7 +307,7 @@ export function DashboardTopHoldingsInsights() {
           </h2>
           <button
             onClick={() => navigate('/investments')}
-            className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
+            className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-800'
           >
             View all <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
@@ -342,7 +342,7 @@ export function DashboardTopHoldingsInsights() {
           </h2>
           <button
             onClick={() => navigate('/insights')}
-            className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-amber-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
+            className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-amber-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-800'
           >
             Full analysis <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
