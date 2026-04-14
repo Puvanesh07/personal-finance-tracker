@@ -9,8 +9,9 @@ const CORS = {
 
 const JSON_H = { ...CORS, 'Content-Type': 'application/json' };
 const RL_WINDOW_MS = 60_000;
-const RL_MAX = 12;
+const RL_MAX = 4;
 const rlMap = new Map<string, { count: number; resetAt: number }>();
+const providerCooldown = new Map<'openai' | 'gemini', number>();
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -22,6 +23,38 @@ function isRateLimited(ip: string): boolean {
   entry.count += 1;
   rlMap.set(ip, entry);
   return entry.count > RL_MAX;
+}
+
+function isProviderCoolingDown(provider: 'openai' | 'gemini') {
+  const until = providerCooldown.get(provider) ?? 0;
+  return Date.now() < until;
+}
+
+function setProviderCooldown(
+  provider: 'openai' | 'gemini',
+  retryAfterSeconds = 12,
+) {
+  providerCooldown.set(provider, Date.now() + retryAfterSeconds * 1000);
+}
+
+function compactContext(context: Record<string, unknown>) {
+  const allow = [
+    'netWorth',
+    'totalAssets',
+    'totalLiabilities',
+    'equityPct',
+    'monthlyIncome',
+    'monthlyExpense',
+    'monthlySurplus',
+    'emergencyTarget',
+    'emergencyCurrent',
+    'goalsActive',
+    'goalsCompleted',
+    'healthScore',
+  ];
+  const out: Record<string, unknown> = {};
+  for (const k of allow) if (k in context) out[k] = context[k];
+  return out;
 }
 
 export const handler: Handler = async (event) => {
@@ -87,12 +120,13 @@ Rules:
     };
   }
 
-  const userContent = `Portfolio context (JSON):\n${JSON.stringify(body.context, null, 2)}\n\nUser request: ${userQ}`;
+  const safeContext = compactContext(body.context as Record<string, unknown>);
+  const userContent = `Portfolio context (JSON):\n${JSON.stringify(safeContext, null, 2)}\n\nUser request: ${userQ}`;
 
   const openaiKey = process.env.OPENAI_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
   if (!openaiKey && !geminiKey) {
     return {
@@ -107,6 +141,8 @@ Rules:
 
   async function tryOpenAI() {
     if (!openaiKey) return { ok: false as const, reason: 'no_openai_key' };
+    if (isProviderCoolingDown('openai'))
+      return { ok: false as const, reason: 'openai_cooldown' };
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -120,10 +156,11 @@ Rules:
           { role: 'user', content: userContent },
         ],
         temperature: 0.45,
-        max_tokens: 1400,
+        max_tokens: 600,
       }),
     });
     if (!res.ok) {
+      if (res.status === 429) setProviderCooldown('openai', 20);
       return {
         ok: false as const,
         reason: 'openai_failed',
@@ -142,6 +179,8 @@ Rules:
 
   async function tryGemini() {
     if (!geminiKey) return { ok: false as const, reason: 'no_gemini_key' };
+    if (isProviderCoolingDown('gemini'))
+      return { ok: false as const, reason: 'gemini_cooldown' };
     const prompt = `${system}\n\n${userContent}`;
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`,
@@ -154,12 +193,13 @@ Rules:
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.45,
-            maxOutputTokens: 1400,
+            maxOutputTokens: 600,
           },
         }),
       },
     );
     if (!res.ok) {
+      if (res.status === 429) setProviderCooldown('gemini', 20);
       return {
         ok: false as const,
         reason: 'gemini_failed',
@@ -208,7 +248,7 @@ Rules:
     return {
       statusCode: 200,
       headers: JSON_H,
-      body: JSON.stringify({ text: null, error: 'all_providers_failed' }),
+      body: JSON.stringify({ text: null, error: 'all_providers_failed_or_quota' }),
     };
   } catch (e: unknown) {
     console.error('[portfolio-ai]', e);
