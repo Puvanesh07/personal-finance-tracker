@@ -417,7 +417,9 @@ function ScoreRing({ score }: { score: number }) {
         >
           {score}
         </span>
-        <span className='text-[10px] text-slate-900 dark:text-slate-500'>/100</span>
+        <span className='text-[10px] text-slate-900 dark:text-slate-500'>
+          /100
+        </span>
       </div>
     </div>
   );
@@ -469,9 +471,8 @@ function MetricCard({
 }) {
   return (
     <div
-      className='rounded-xl p-3.5 flex flex-col gap-1 relative'
+      className='rounded-xl p-3.5 flex flex-col gap-1 relative bg-white dark:bg-slate-900 shadow-sm'
       style={{
-        background: '#0f172a',
         border: `1px solid ${color}22`,
         borderTop: `2px solid ${color}`,
       }}
@@ -500,7 +501,11 @@ function MetricCard({
       >
         {value}
       </div>
-      {sub && <div className='text-[11px] text-slate-900 dark:text-slate-500'>{sub}</div>}
+      {sub && (
+        <div className='text-[11px] text-slate-900 dark:text-slate-500'>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
@@ -527,7 +532,9 @@ function FireCard({
       >
         {value}
       </div>
-      <div className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5'>{sub}</div>
+      <div className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5'>
+        {sub}
+      </div>
     </div>
   );
 }

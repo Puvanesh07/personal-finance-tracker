@@ -28,13 +28,15 @@ import {
   FiX,
   FiZap,
 } from 'react-icons/fi';
-import { expandExportFilenamePattern, ensureCsvExtension } from '../../utils/exportFilename';
-import { exportInvestmentsCSV } from '../../utils/exportUtils';
 import type {
   FolioSyncResult,
   FundamentalData,
 } from '../../utils/folioSyncEngine';
 import { currentValue, investedValue } from '../../utils/calculations';
+import {
+  ensureCsvExtension,
+  expandExportFilenamePattern,
+} from '../../utils/exportFilename';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { FolioSyncCell } from './FolioSyncScore';
@@ -42,6 +44,7 @@ import { Modal } from '../ui/Modal';
 import { SellInvestmentModal } from './SellInvestmentModal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
+import { exportInvestmentsCSV } from '../../utils/exportUtils';
 import { fetchLivePrices } from '../../services/livePriceService';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { formatINR } from '../../utils/format';
@@ -185,7 +188,7 @@ function BulkCategoryDropdown({
         className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-sm font-semibold transition-all outline-none ${
           open
             ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20 text-slate-900 dark:text-slate-100'
-            : 'border-slate-300/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/80 hover:border-slate-300 dark:border-slate-600 hover:bg-slate-200/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-800 dark:text-slate-200'
+            : 'border-slate-300/80 dark:border-slate-700/80 bg-white/95 dark:bg-slate-900/80 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-200/80 dark:hover:bg-slate-800/80 text-slate-900 dark:text-slate-200'
         }`}
       >
         <div className='flex items-center gap-3'>
@@ -226,7 +229,7 @@ function BulkCategoryDropdown({
                   className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
                     isSelected
                       ? 'bg-emerald-500/10 text-emerald-400'
-                      : 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-300 dark:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <div className='flex items-center gap-3'>
@@ -309,7 +312,9 @@ function SectorCapCell({
   }, [open, updatePos]);
 
   if (inv.type !== 'stock') {
-    return <span className='text-[11px] text-slate-500 dark:text-slate-600'>—</span>;
+    return (
+      <span className='text-[11px] text-slate-500 dark:text-slate-600'>—</span>
+    );
   }
 
   const hasTags = inv.sector || marketCap;
@@ -329,12 +334,16 @@ function SectorCapCell({
             {inv.sector ? (
               <SectorChip sector={inv.sector} />
             ) : (
-              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>—</span>
+              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>
+                —
+              </span>
             )}
             {marketCap ? (
               <MarketCapChip cap={marketCap} />
             ) : (
-              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>—</span>
+              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>
+                —
+              </span>
             )}
           </>
         ) : (
@@ -443,7 +452,8 @@ function TypeChip({ inv }: { inv: any }) {
   const type = inv.type;
   const assetType = inv.assetType;
   let label = type.replace('_', ' ');
-  let color = 'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-600 dark:text-slate-700 dark:text-slate-300';
+  let color =
+    'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-600 dark:text-slate-300';
   let Icon = FiBox;
 
   if (type === 'stock') {
@@ -505,7 +515,8 @@ function SectorChip({ sector }: { sector?: string }) {
 
 function MarketCapChip({ cap }: { cap?: string }) {
   if (!cap) return null;
-  let color = 'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-600 dark:text-slate-700 dark:text-slate-300';
+  let color =
+    'border-slate-400/40 dark:border-slate-500/30 bg-slate-500/5 dark:bg-slate-500/10 text-slate-600 dark:text-slate-300';
   const c = cap.toLowerCase();
   if (c.includes('large'))
     color = 'border-blue-500/30 bg-blue-500/10 text-blue-300';
@@ -571,7 +582,11 @@ function PriceCell({
   }
 
   if (price === null || price === undefined) {
-    return <span className='text-slate-500 dark:text-slate-600 text-xs font-medium'>—</span>;
+    return (
+      <span className='text-slate-500 dark:text-slate-600 text-xs font-medium'>
+        —
+      </span>
+    );
   }
 
   const flashClass =
@@ -594,7 +609,9 @@ function PriceCell({
       {isUS ? '$' : '₹'}
       {Number(price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
       {label && (
-        <span className='text-[9px] text-slate-500 dark:text-slate-400 ml-0.5'>{label}</span>
+        <span className='text-[9px] text-slate-500 dark:text-slate-400 ml-0.5'>
+          {label}
+        </span>
       )}
     </span>
   );
@@ -647,7 +664,9 @@ function FixedIncomeDetails({ inv }: { inv: any }) {
   }
 
   if (rows.length === 0)
-    return <span className='text-[12px] text-slate-500 dark:text-slate-600'>—</span>;
+    return (
+      <span className='text-[12px] text-slate-500 dark:text-slate-600'>—</span>
+    );
 
   return (
     <div className='flex flex-col gap-0.5'>
@@ -657,7 +676,7 @@ function FixedIncomeDetails({ inv }: { inv: any }) {
             {r.label}
           </span>
           <span
-            className={`text-[11px] font-semibold ${r.highlight ? 'text-amber-400' : 'text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
+            className={`text-[11px] font-semibold ${r.highlight ? 'text-amber-400' : 'text-slate-600 dark:text-slate-300'}`}
           >
             {r.value}
           </span>
@@ -741,7 +760,7 @@ function SortIcon({
     return (
       <FiArrowUp
         size={11}
-        className='text-slate-500 dark:text-slate-600 group-hover/th:text-slate-500 dark:text-slate-400 transition-colors'
+        className='text-slate-500 dark:text-slate-600 group-hover/th:text-slate-500 dark:group-hover/th:text-slate-400 transition-colors'
       />
     );
   if (sortDir === 'asc')
@@ -1421,11 +1440,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const handleExportSelected = useCallback(() => {
     const invs = investments.filter((i) => selectedIds.includes(i.id));
     const pattern =
-      useExportPresetsStore.getState().getLastFilename('investments-bulk-csv') ??
+      useExportPresetsStore
+        .getState()
+        .getLastFilename('investments-bulk-csv') ??
       'investments-selection-{date}';
     const fn = ensureCsvExtension(expandExportFilenamePattern(pattern));
     exportInvestmentsCSV(invs, fn);
-    useExportPresetsStore.getState().rememberFilename('investments-bulk-csv', pattern);
+    useExportPresetsStore
+      .getState()
+      .rememberFilename('investments-bulk-csv', pattern);
   }, [investments, selectedIds]);
 
   const handleSingleDelete = async () => {
@@ -1730,7 +1753,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
             {/* Avg score */}
             <div className='flex items-center gap-1 shrink-0'>
-              <span className='text-[10px] text-slate-900 dark:text-slate-500'>Avg</span>
+              <span className='text-[10px] text-slate-900 dark:text-slate-500'>
+                Avg
+              </span>
               <span
                 className='text-[13px] font-black tabular-nums'
                 style={{
@@ -1744,7 +1769,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               >
                 {avgScore.toFixed(1)}
               </span>
-              <span className='text-[9px] text-slate-500 dark:text-slate-600'>/10</span>
+              <span className='text-[9px] text-slate-500 dark:text-slate-600'>
+                /10
+              </span>
             </div>
 
             <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
@@ -2013,7 +2040,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           ) : dividendCurrentFY !== null &&
                             dividendCurrentFY > 0 ? (
                             <div
-                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 transition-colors'
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded px-1 transition-colors'
                               title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
@@ -2027,7 +2054,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           ) : dividendCurrentFY !== null &&
                             dividendCurrentFY === 0 ? (
                             <div
-                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 transition-colors'
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded px-1 transition-colors'
                               title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
@@ -2044,7 +2071,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 e.stopPropagation();
                                 handleRefreshRowDiv(inv);
                               }}
-                              className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
+                              className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors'
                             >
                               <FiRefreshCw size={8} /> Fetch
                             </button>
@@ -2114,7 +2141,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 pl-2 pr-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('name')}
-                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     Asset
                     <SortIcon col='name' sortCol={sortCol} sortDir={sortDir} />
@@ -2125,7 +2152,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('broker')}
-                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     Broker
                     <SortIcon
@@ -2140,7 +2167,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('sector')}
-                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     Sector · Cap
                     <SortIcon
@@ -2155,7 +2182,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('qty')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     <SortIcon col='qty' sortCol={sortCol} sortDir={sortDir} />
                     Qty
@@ -2166,7 +2193,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('invested')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     <SortIcon
                       col='invested'
@@ -2181,7 +2208,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('current')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     <SortIcon
                       col='current'
@@ -2196,7 +2223,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('dividend')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     <SortIcon
                       col='dividend'
@@ -2211,7 +2238,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-4 py-2.5 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={() => handleSort('livePrice')}
-                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors group/th'
+                    className='flex items-center justify-end gap-1 w-full text-[10px] font-semibold uppercase tracking-widest text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group/th'
                   >
                     <SortIcon
                       col='livePrice'
@@ -2251,7 +2278,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   <div className='flex items-center justify-end gap-2'>
                     <button
                       onClick={() => handleSort('pl')}
-                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
                     >
                       <span className='flex items-center gap-1'>
                         <SortIcon
@@ -2262,10 +2289,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         P&amp;L
                       </span>
                     </button>
-                    <span className='text-slate-600 dark:text-slate-700 text-[10px]'>/</span>
+                    <span className='text-slate-600 dark:text-slate-700 text-[10px]'>
+                      /
+                    </span>
                     <button
                       onClick={() => handleSort('plPct')}
-                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
                     >
                       <span className='flex items-center gap-1'>
                         %{' '}
@@ -2307,12 +2336,14 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
                   const isRowPinned = pinnedIds.includes(inv.id);
                   const isLast = rowIdx === displayRows.length - 1;
-                  const bdClass = !isLast ? 'border-b border-slate-200 dark:border-slate-800/70' : '';
+                  const bdClass = !isLast
+                    ? 'border-b border-slate-200 dark:border-slate-800/70'
+                    : '';
 
                   return (
                     <tr
                       key={inv.id}
-                      className={`group transition-colors duration-100 ${isSelected ? 'bg-emerald-500/[0.07]' : isRowPinned ? 'bg-amber-500/[0.06] hover:bg-amber-500/[0.09] dark:bg-amber-500/[0.08]' : 'hover:bg-slate-100 dark:bg-slate-800/50'}`}
+                      className={`group transition-colors duration-100 ${isSelected ? 'bg-emerald-500/[0.07]' : isRowPinned ? 'bg-amber-500/[0.06] hover:bg-amber-500/[0.09] dark:bg-amber-500/[0.08]' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
                     >
                       {/* ── Checkbox ── */}
                       <td className={`px-3 py-3.5 ${bdClass}`}>
@@ -2353,7 +2384,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                       {/* ── Broker ── */}
                       <td className={`px-4 py-3.5 ${bdClass}`}>
-                        <span className='inline-flex items-center rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 uppercase tracking-wider whitespace-nowrap'>
+                        <span className='inline-flex items-center rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider whitespace-nowrap'>
                           {formatPlatformName(inv.platform)}
                         </span>
                       </td>
@@ -2382,17 +2413,21 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         className={`px-4 py-3.5 text-right tabular-nums ${bdClass}`}
                       >
                         {isEquityLike(inv) ? (
-                          <span className='text-[13px] font-medium text-slate-600 dark:text-slate-700 dark:text-slate-300'>
+                          <span className='text-[13px] font-medium text-slate-600 dark:text-slate-300'>
                             {qty !== null && qty !== undefined ? (
                               Number(qty).toLocaleString('en-IN', {
                                 maximumFractionDigits: 4,
                               })
                             ) : (
-                              <span className='text-slate-500 dark:text-slate-600'>—</span>
+                              <span className='text-slate-500 dark:text-slate-600'>
+                                —
+                              </span>
                             )}
                           </span>
                         ) : (
-                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>
+                            —
+                          </span>
                         )}
                       </td>
 
@@ -2430,7 +2465,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             ) : dividendCurrentFY !== null &&
                               dividendCurrentFY > 0 ? (
                               <div
-                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
                                 title='Click to view full history'
                                 onClick={() => setDivDetailsTarget(inv)}
                               >
@@ -2444,7 +2479,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             ) : dividendCurrentFY !== null &&
                               dividendCurrentFY === 0 ? (
                               <div
-                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-200 dark:bg-slate-800 rounded px-1 -mr-1 transition-colors'
+                                className='flex flex-col items-end gap-0.5 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded px-1 -mr-1 transition-colors'
                                 title='Click to view full history'
                                 onClick={() => setDivDetailsTarget(inv)}
                               >
@@ -2462,7 +2497,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                     e.stopPropagation();
                                     handleRefreshRowDiv(inv);
                                   }}
-                                  className='inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
+                                  className='inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors'
                                 >
                                   <FiRefreshCw size={10} /> Get Div
                                 </button>
@@ -2474,7 +2509,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             </span>
                           )
                         ) : (
-                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>
+                            —
+                          </span>
                         )}
                       </td>
 
@@ -2489,7 +2526,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             isRefreshing={isRowRefreshing}
                           />
                         ) : (
-                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>
+                            —
+                          </span>
                         )}
                       </td>
 
@@ -2503,7 +2542,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             />
                           </span>
                         ) : (
-                          <span className='text-slate-600 dark:text-slate-700 text-[10px]'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-[10px]'>
+                            —
+                          </span>
                         )}
                       </td>
 
@@ -2519,7 +2560,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             onSave={handleFolioSyncSave}
                           />
                         ) : (
-                          <span className='text-slate-600 dark:text-slate-700 text-xs'>—</span>
+                          <span className='text-slate-600 dark:text-slate-700 text-xs'>
+                            —
+                          </span>
                         )}
                       </td>
 
@@ -2574,7 +2617,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             )}
                             <button
                               onClick={() => setEdit(inv)}
-                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300/70 dark:border-slate-700/60 transition-all'
+                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300/70 dark:border-slate-700/60 transition-all'
                             >
                               <FiEdit2 size={12} />
                             </button>
@@ -2602,7 +2645,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <span className='flex items-center justify-center bg-emerald-500 text-white text-xs font-bold h-6 w-6 rounded-full'>
               {selectedIds.length}
             </span>
-            <span className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300 hidden sm:block'>
+            <span className='text-sm font-semibold text-slate-600 dark:text-slate-300 hidden sm:block'>
               selected
             </span>
           </div>
@@ -2642,7 +2685,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
           <button
             onClick={() => setBulkEditOpen(true)}
-            className='flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:text-emerald-400 transition-colors'
+            className='flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-slate-200 hover:text-emerald-400 transition-colors'
           >
             <FiFolder size={16} />
             <span className='hidden sm:block'>Edit Category</span>
@@ -2710,7 +2753,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest'>
                       Current Holdings
                     </span>
-                    <span className='text-base font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 mt-1'>
+                    <span className='text-base font-bold text-slate-900 dark:text-slate-100 mt-1'>
                       {qty} Shares
                     </span>
                   </div>
@@ -2726,7 +2769,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   </div>
                 </div>
 
-                <div className='text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 pt-2'>
+                <div className='text-sm text-slate-600 dark:text-slate-300 pt-2'>
                   <div className='flex items-center justify-between mb-3'>
                     <h4 className='font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider'>
                       Payout Timeline
@@ -2737,7 +2780,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <select
                         value={divFilterFY}
                         onChange={(e) => setDivFilterFY(e.target.value)}
-                        className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
+                        className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
                       >
                         <option value='All'>All FYs</option>
                         {availableFYs.map((fy) => (
@@ -2750,7 +2793,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <select
                         value={divFilterMonth}
                         onChange={(e) => setDivFilterMonth(e.target.value)}
-                        className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
+                        className='bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] font-medium rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none focus:border-emerald-500/50 transition-colors'
                       >
                         <option value='All'>All Months</option>
                         {MONTHS.map((m) => (
@@ -2775,10 +2818,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         return (
                           <div
                             key={i}
-                            className='flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-300/60 dark:border-slate-700/50 gap-2 hover:bg-slate-100/90 dark:bg-slate-800/40 transition-colors'
+                            className='flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-300/60 dark:border-slate-700/50 gap-2 hover:bg-slate-100/90 dark:hover:bg-slate-800/40 transition-colors'
                           >
                             <div className='flex flex-col'>
-                              <span className='font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+                              <span className='font-semibold text-slate-900 dark:text-slate-200'>
                                 {formattedDate}
                               </span>
                               <span className='text-[9px] font-bold text-slate-900 dark:text-slate-500 mt-0.5'>
@@ -2786,7 +2829,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               </span>
                             </div>
                             <div className='flex items-center flex-1 justify-between text-xs bg-slate-100 dark:bg-slate-800/50 rounded px-2 py-1.5 sm:ml-4'>
-                              <span className='text-slate-500 dark:text-slate-400'>Qty: {qty}</span>
+                              <span className='text-slate-500 dark:text-slate-400'>
+                                Qty: {qty}
+                              </span>
                               <span className='text-slate-500 dark:text-slate-400'>
                                 ₹{h.amount.toFixed(2)}/sh
                               </span>
@@ -2839,7 +2884,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
             <button
               onClick={() => setDeleteId(null)}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors'
             >
               Cancel
             </button>
@@ -2870,7 +2915,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <button
               onClick={() => setBulkDeleteOpen(false)}
               disabled={bulkLoading}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors disabled:opacity-50'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors disabled:opacity-50'
             >
               Cancel
             </button>
@@ -2911,7 +2956,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             <button
               onClick={() => setBulkEditOpen(false)}
               disabled={bulkLoading}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 transition-colors disabled:opacity-50'
+              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors disabled:opacity-50'
             >
               Cancel
             </button>
