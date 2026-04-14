@@ -8,33 +8,30 @@ export function ThemeToggle() {
   const isDark = mode === 'dark';
 
   return (
-    <div
-      className='flex items-center gap-2 rounded-full border border-slate-300/80 bg-slate-100/90 py-1 pl-2 pr-1 shadow-sm backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90'
+    <button
+      type='button'
+      role='switch'
+      aria-checked={isDark}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      onClick={() => toggleMode()}
       title={isDark ? 'Dark mode' : 'Light mode'}
+      className='group relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300/80 bg-white/90 text-amber-500 shadow-sm transition-all hover:scale-[1.04] hover:border-amber-400/60 hover:bg-amber-50 active:scale-95 dark:border-slate-700/80 dark:bg-slate-900/90 dark:text-sky-300 dark:hover:border-sky-400/60 dark:hover:bg-slate-800'
     >
-      <span className='hidden text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline dark:text-slate-400'>
-        {isDark ? 'Dark' : 'Light'}
-      </span>
-      <button
-        type='button'
-        role='switch'
-        aria-checked={isDark}
-        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        onClick={() => toggleMode()}
-        className='relative flex h-8 w-[52px] shrink-0 cursor-pointer items-center rounded-full bg-slate-200/90 p-0.5 transition-colors dark:bg-slate-900/80'
-      >
-        <span
-          className={`absolute left-0.5 top-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-white text-amber-500 shadow-md transition-transform duration-200 ease-out dark:bg-slate-700 dark:text-sky-300 ${
-            isDark ? 'translate-x-[22px]' : 'translate-x-0'
-          }`}
-        >
-          {isDark ? (
-            <FiMoon className='h-3.5 w-3.5' aria-hidden />
-          ) : (
-            <FiSun className='h-3.5 w-3.5' aria-hidden />
-          )}
-        </span>
-      </button>
-    </div>
+      <FiSun
+        className={`absolute h-4 w-4 transition-all duration-300 ${
+          isDark ? 'scale-0 rotate-90 opacity-0' : 'scale-100 rotate-0 opacity-100'
+        }`}
+        aria-hidden
+      />
+      <FiMoon
+        className={`absolute h-4 w-4 transition-all duration-300 ${
+          isDark
+            ? 'scale-100 rotate-0 opacity-100'
+            : 'scale-0 -rotate-90 opacity-0'
+        }`}
+        aria-hidden
+      />
+      <span className='sr-only'>{isDark ? 'Dark' : 'Light'}</span>
+    </button>
   );
 }

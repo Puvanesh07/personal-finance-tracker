@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { CredentialCard } from './CredentialCard';
 import { UpsertCredentialModal } from './UpsertCredentialModal';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { buildCredentialSecurityInsights } from '../../utils/advancedInsights';
 
 export function CredentialsPage() {
   const ready = usePortfolioStore((s) => s.ready);
@@ -23,6 +24,10 @@ export function CredentialsPage() {
         (c.notes && c.notes.toLowerCase().includes(q)),
     );
   }, [credentials, query]);
+  const sec = useMemo(
+    () => buildCredentialSecurityInsights(credentials),
+    [credentials],
+  );
 
   if (!ready) {
     return (
@@ -67,6 +72,27 @@ export function CredentialsPage() {
           className='w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 py-3 pl-11 pr-4 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-fuchsia-500/50 focus:ring-4 focus:ring-fuchsia-500/10 transition-all'
           placeholder='Search by title, email, or notes...'
         />
+      </div>
+
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Security score</p>
+          <p className={`mt-1 text-lg font-black ${sec.score >= 75 ? 'text-emerald-600 dark:text-emerald-400' : sec.score >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            {sec.score}/100
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Weak/missing secrets</p>
+          <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>{sec.weak}</p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Reused identifiers</p>
+          <p className='mt-1 text-lg font-black text-amber-600 dark:text-amber-400'>{sec.reused}</p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Older than 180 days</p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>{sec.stale}</p>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

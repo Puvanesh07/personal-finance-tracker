@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AgricultureLoader } from '../../components/ui/SectionLoader';
 import { AttendancePage } from './AttendancePage';
+import { buildAgriYieldInsights } from '../../utils/advancedInsights';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { ProduceSalesTab } from './ProduceSalesTab';
@@ -497,6 +498,10 @@ function OverviewTab() {
     .sort()
     .slice(-6)
     .map(([month, income]) => ({ month, income }));
+  const agriYield = buildAgriYieldInsights(
+    cropCycles,
+    agriExpenses.reduce((s, e) => s + e.amount, 0),
+  );
 
   return (
     <div className='flex flex-col gap-6'>
@@ -565,6 +570,38 @@ function OverviewTab() {
           value={formatINR(produceIncome)}
           color='#8b5cf6'
           sub={`${produceSales.length} sales`}
+        />
+      </div>
+
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+        <SummaryCard
+          icon='⚖️'
+          label='Yield margin / kg'
+          value={formatINR(agriYield.marginPerKg)}
+          color={agriYield.marginPerKg >= 0 ? '#22c55e' : '#ef4444'}
+        />
+        <SummaryCard
+          icon='🧮'
+          label='Harvested qty (kg)'
+          value={formatNumber(agriYield.totalKg, 0)}
+          color='#06b6d4'
+        />
+        <SummaryCard
+          icon='📊'
+          label='Farm margin'
+          value={formatINR(agriYield.margin)}
+          color={agriYield.margin >= 0 ? '#22c55e' : '#ef4444'}
+        />
+        <SummaryCard
+          icon='🏅'
+          label='Best crop'
+          value={agriYield.bestCrop?.name ?? '—'}
+          sub={
+            agriYield.bestCrop
+              ? `Profit ${formatINR(agriYield.bestCrop.profit)}`
+              : undefined
+          }
+          color='#a78bfa'
         />
       </div>
 

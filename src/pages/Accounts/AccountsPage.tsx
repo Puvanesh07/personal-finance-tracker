@@ -30,6 +30,7 @@ import { AccountsSkeleton } from '../../components/loader/skeletons';
 import { BsBank2 } from 'react-icons/bs';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
+import { buildAccountsForecast } from '../../utils/advancedInsights';
 import { format } from 'date-fns';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -416,6 +417,17 @@ export function AccountsPage() {
   const totalCredit = accounts
     .filter((a) => a.type === 'credit')
     .reduce((s, a) => s + (accountStats[a.id]?.liveBalance ?? a.balance), 0);
+  const forecast = useMemo(
+    () =>
+      buildAccountsForecast(
+        accounts.map((a) => ({
+          ...a,
+          balance: accountStats[a.id]?.liveBalance ?? a.balance,
+        })),
+        cashflows,
+      ),
+    [accounts, cashflows, accountStats],
+  );
 
   if (!ready) return <AccountsSkeleton />;
 
@@ -504,6 +516,41 @@ export function AccountsPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Daily run-rate
+          </p>
+          <p className={`mt-1 text-lg font-black ${forecast.dailyRunRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            {formatINR(forecast.dailyRunRate)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            30-day forecast
+          </p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {formatINR(forecast.projected30)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            60-day forecast
+          </p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {formatINR(forecast.projected60)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Low-balance risk
+          </p>
+          <p className={`mt-1 text-lg font-black ${forecast.lowBalanceRisk ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+            {forecast.lowBalanceRisk ? 'High' : 'Low'}
+          </p>
+        </div>
       </div>
 
       {/* Account Cards */}

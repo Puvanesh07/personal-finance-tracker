@@ -16,10 +16,11 @@ import type { Liability } from '../../types/investmentTypes';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertLiabilityModal } from '../../components/liabilities/UpsertLiabilityModal';
+import { buildLiabilityInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { exportLiabilitiesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 // NEW: 'settled' tab groups both "paid" credit cards and "returned" personal loans
 type FilterTab = 'all' | 'active' | 'settled';
@@ -159,6 +160,10 @@ export function LiabilitiesPage() {
   const settledCount = liabilities.filter(
     (l) => l.status === 'returned' || l.status === 'paid',
   ).length;
+  const liabilityInsights = useMemo(
+    () => buildLiabilityInsights(liabilities),
+    [liabilities],
+  );
 
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
@@ -274,6 +279,41 @@ export function LiabilitiesPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-4 gap-3'>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Interest leak / month
+          </p>
+          <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
+            {formatINR(liabilityInsights.monthlyInterestLeak)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Weighted interest
+          </p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {liabilityInsights.weightedRate.toFixed(2)}%
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Avalanche target
+          </p>
+          <p className='mt-1 text-sm font-bold text-slate-900 dark:text-slate-100'>
+            {liabilityInsights.avalancheTarget?.name ?? '—'}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Snowball target
+          </p>
+          <p className='mt-1 text-sm font-bold text-slate-900 dark:text-slate-100'>
+            {liabilityInsights.snowballTarget?.name ?? '—'}
+          </p>
         </div>
       </div>
 

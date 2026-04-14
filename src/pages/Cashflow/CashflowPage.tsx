@@ -49,6 +49,7 @@ import { ImportDividendCsvButton } from '../../components/cashflow/ImportDividen
 import { Modal } from '../../components/ui/Modal';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
+import { buildCashflowAdvancedInsights } from '../../utils/advancedInsights';
 import { createPortal } from 'react-dom';
 import { formatINR } from '../../utils/format';
 import { expandExportFilenamePattern, ensureCsvExtension } from '../../utils/exportFilename';
@@ -499,7 +500,7 @@ function InvDropdown({
           <FiFilter
             className={`transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
           />
-          <span className='text-slate-900 dark:text-slate-800 dark:text-slate-200 font-medium'>
+          <span className='text-slate-900 dark:text-slate-200 font-medium'>
             {selected?.label ?? label}
           </span>
         </div>
@@ -638,7 +639,7 @@ function CalendarPicker({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-300 min-w-[160px] ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
+        className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-300 min-w-[160px] ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 text-slate-900 dark:text-slate-200'}`}
       >
         <FiCalendar
           className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
@@ -670,7 +671,7 @@ function CalendarPicker({
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
@@ -995,6 +996,10 @@ export function CashflowPage() {
       monthsCount: months,
     };
   }, [periodFilteredRows, filterMode, customStart, customEnd]);
+  const advanced = useMemo(
+    () => buildCashflowAdvancedInsights(periodFilteredRows),
+    [periodFilteredRows],
+  );
 
   const incomeByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
@@ -1109,6 +1114,36 @@ export function CashflowPage() {
             </button>
           </div>
         </header>
+
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Savings rate</p>
+            <p className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {advanced.savingsRate.toFixed(1)}%
+            </p>
+          <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+            {advanced.savingsRate >= 25 ? 'Strong' : advanced.savingsRate >= 10 ? 'Watch' : 'Risk'}
+          </p>
+          </div>
+          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Burn rate / month</p>
+            <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+              {formatINR(advanced.burnRateMonthly)}
+            </p>
+          </div>
+          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Top expense category</p>
+            <p className='mt-1 text-sm font-black text-slate-900 dark:text-slate-100'>
+              {advanced.topExpenseCategory}
+            </p>
+          </div>
+          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Top expense amount</p>
+            <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
+              {formatINR(advanced.topExpenseAmount)}
+            </p>
+          </div>
+        </div>
 
         {/* ── Period Filter Bar ────────────────────────────────────────── */}
         <div className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md shadow-sm'>

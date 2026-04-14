@@ -17,6 +17,7 @@ import {
 import React, { useMemo, useState } from 'react';
 
 import { exportAllSectionsAsCSV } from '../../utils/exportUtils';
+import { buildReportHealthInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { summarizePortfolio } from '../../utils/calculations';
 import { useAgriStore } from '../../store/agricultureStore';
@@ -308,6 +309,12 @@ export function ReportsPage() {
     '#f97316',
     '#64748b',
   ];
+  const health = buildReportHealthInsights({
+    netWorth,
+    liabilities: liabilitiesTotal,
+    cashflowIncome: tfIncome,
+    cashflowExpense: tfExpense,
+  });
 
   return (
     <div className='flex flex-col gap-6 pb-10 animate-in fade-in duration-300'>
@@ -336,7 +343,7 @@ export function ReportsPage() {
               <button
                 key={t.id}
                 onClick={() => setTimeframe(t.id as any)}
-                className={`px-4 py-2 text-xs cursor-pointer font-bold rounded-lg transition-colors ${timeframe === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
+                className={`px-4 py-2 text-xs cursor-pointer font-bold rounded-lg transition-colors ${timeframe === t.id ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'}`}
               >
                 {t.label}
               </button>
@@ -384,6 +391,40 @@ export function ReportsPage() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className='grid grid-cols-2 md:grid-cols-3 gap-3'>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Portfolio health index
+          </p>
+          <p className={`mt-1 text-lg font-black ${health.healthIndex >= 70 ? 'text-emerald-600 dark:text-emerald-400' : health.healthIndex >= 45 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            {health.healthIndex.toFixed(0)}/100
+          </p>
+          <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+            {health.healthIndex >= 70
+              ? 'Low Risk'
+              : health.healthIndex >= 45
+                ? 'Medium Risk'
+                : 'High Risk'}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Debt / Net worth
+          </p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {health.debtToNetWorth.toFixed(1)}%
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Cashflow coverage
+          </p>
+          <p className='mt-1 text-lg font-black text-indigo-600 dark:text-indigo-400'>
+            {health.cashflowCoverage.toFixed(1)}%
+          </p>
+        </div>
       </div>
 
       <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>

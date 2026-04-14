@@ -37,6 +37,7 @@ import { useMemo, useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { NumericInput } from '../../components/ui/NumericInput';
+import { buildProfitInsights } from '../../utils/advancedInsights';
 import type { SoldTrade } from '../../types/investmentTypes';
 import { createPortal } from 'react-dom';
 import { formatINR } from '../../utils/format';
@@ -161,7 +162,7 @@ function CalendarPicker({
               >
                 <FiChevronLeft className='h-4 w-4' />
               </button>
-              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-200'>
                 {format(viewDate, 'MMMM yyyy')}
               </span>
               <button
@@ -577,6 +578,7 @@ export function ProfitsPage() {
     stats.totalInvested > 0
       ? (stats.totalProfit / stats.totalInvested) * 100
       : 0;
+  const advanced = useMemo(() => buildProfitInsights(soldTrades), [soldTrades]);
 
   return (
     <div className='flex flex-col gap-6 pb-10'>
@@ -635,6 +637,46 @@ export function ProfitsPage() {
           trend={
             stats.bestTrade && stats.bestTrade.profit > 0 ? 'up' : 'neutral'
           }
+        />
+      </div>
+
+      <div className='grid grid-cols-2 md:grid-cols-5 gap-3'>
+        <SummaryCard
+          label='Expectancy / trade'
+          value={`${advanced.expectancy >= 0 ? '+' : ''}${formatINR(advanced.expectancy)}`}
+          sub={advanced.expectancy >= 0 ? 'Edge positive' : 'Edge negative'}
+          icon={FiTrendingUp}
+          accent='#22c55e'
+          trend={advanced.expectancy >= 0 ? 'up' : 'down'}
+        />
+        <SummaryCard
+          label='Average Win'
+          value={formatINR(advanced.avgWin)}
+          icon={FiArrowUp}
+          accent='#0ea5e9'
+          trend='up'
+        />
+        <SummaryCard
+          label='Average Loss'
+          value={formatINR(advanced.avgLoss)}
+          icon={FiArrowDown}
+          accent='#ef4444'
+          trend='down'
+        />
+        <SummaryCard
+          label='Profit Factor'
+          value={advanced.profitFactor.toFixed(2)}
+          sub={advanced.profitFactor >= 1.3 ? 'Strong system' : advanced.profitFactor >= 1 ? 'Breakeven zone' : 'Needs improvement'}
+          icon={FiAward}
+          accent='#a855f7'
+          trend={advanced.profitFactor >= 1 ? 'up' : 'down'}
+        />
+        <SummaryCard
+          label='Current Win Streak'
+          value={String(advanced.streak)}
+          icon={FiTarget}
+          accent='#f59e0b'
+          trend={advanced.streak > 0 ? 'up' : 'neutral'}
         />
       </div>
 
@@ -718,7 +760,7 @@ export function ProfitsPage() {
             <FiDollarSign className='h-8 w-8' />
           </div>
           <div>
-            <p className='text-lg font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+            <p className='text-lg font-bold text-slate-900 dark:text-slate-200'>
               No sales recorded yet
             </p>
             <p className='text-sm text-slate-900 dark:text-slate-500 mt-1 max-w-sm'>
@@ -883,7 +925,7 @@ export function ProfitsPage() {
                     <th className='px-4 py-3 text-left'>
                       <button
                         onClick={() => handleSort('name')}
-                        className='flex items-center gap-1 text-[10px] cursor-pointer font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 text-[10px] cursor-pointer font-bold uppercase tracking-widest text-slate-900 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors'
                       >
                         Asset{' '}
                         <SortIcon
@@ -921,7 +963,7 @@ export function ProfitsPage() {
                     <th className='px-3 py-3 text-right'>
                       <button
                         onClick={() => handleSort('profit')}
-                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors'
                       >
                         <SortIcon
                           col='profit'
@@ -935,7 +977,7 @@ export function ProfitsPage() {
                     <th className='px-3 py-3 text-right'>
                       <button
                         onClick={() => handleSort('profitPct')}
-                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 transition-colors'
+                        className='flex items-center gap-1 justify-end w-full cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors'
                       >
                         <SortIcon
                           col='profitPct'

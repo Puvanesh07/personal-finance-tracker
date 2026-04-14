@@ -26,6 +26,7 @@ import { useMemo, useState } from 'react';
 
 import { Modal } from '../../components/ui/Modal';
 import { UpsertInsuranceModal } from '../../components/insurance/UpsertInsuranceModal';
+import { buildInsuranceInsights } from '../../utils/advancedInsights';
 import { formatCurrency } from '../../utils/format';
 import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -181,7 +182,13 @@ function totalPaymentsForPolicy(policy: InsurancePolicy): number {
 
 // ── Overview Tab ───────────────────────────────────────────────────────────
 
-function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
+function OverviewTab({
+  policies,
+  payments,
+}: {
+  policies: InsurancePolicy[];
+  payments: InsurancePayment[];
+}) {
   const totalCoverage = policies.reduce((a, p) => a + p.coverageAmount, 0);
   const totalPremium = policies.reduce((a, p) => a + annualPremium(p), 0);
   const expiringSoon = policies.filter((p) => {
@@ -200,6 +207,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
         .reduce((a, p) => a + p.coverageAmount, 0),
     }))
     .filter((t) => t.count > 0);
+  const insights = buildInsuranceInsights(policies, payments);
 
   return (
     <div className='space-y-5'>
@@ -243,6 +251,29 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
             <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>{card.sub}</p>
           </div>
         ))}
+      </div>
+
+      <div className='grid grid-cols-2 md:grid-cols-5 gap-3'>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Protection health</p>
+          <p className='mt-1 text-lg font-black text-emerald-600 dark:text-emerald-400'>{insights.healthScore}/100</p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Paid this year</p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>{formatCurrency(insights.paidThisYear)}</p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Policy diversity</p>
+          <p className='mt-1 text-lg font-black text-indigo-600 dark:text-indigo-400'>{insights.coveredTypes} types</p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Due in 30 days</p>
+          <p className='mt-1 text-lg font-black text-amber-600 dark:text-amber-400'>{insights.dueSoon}</p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Annual premium</p>
+          <p className='mt-1 text-lg font-black text-violet-600 dark:text-violet-400'>{formatCurrency(insights.annualPremium)}</p>
+        </div>
       </div>
 
       {(expired.length > 0 || expiringSoon.length > 0) && (
@@ -308,7 +339,7 @@ function OverviewTab({ policies }: { policies: InsurancePolicy[] }) {
                         ({t.count} {t.count === 1 ? 'policy' : 'policies'})
                       </span>
                     </div>
-                    <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+                    <span className='text-sm font-bold text-slate-900 dark:text-slate-200'>
                       {formatCurrency(t.coverage)}
                     </span>
                   </div>
@@ -465,7 +496,7 @@ function PoliciesTab({
                           <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Coverage
                           </p>
-                          <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+                          <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
                             {formatCurrency(policy.coverageAmount)}
                           </p>
                         </div>
@@ -473,7 +504,7 @@ function PoliciesTab({
                           <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
                             Premium ({policy.premiumFrequency})
                           </p>
-                          <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+                          <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
                             {formatCurrency(policy.premiumAmount)}
                           </p>
                         </div>
@@ -1219,7 +1250,9 @@ export function InsurancePage() {
 
       {/* Tab content */}
       <div className='animate-in fade-in duration-300 mt-2'>
-        {activeTab === 'Overview' && <OverviewTab policies={policies} />}
+        {activeTab === 'Overview' && (
+          <OverviewTab policies={policies} payments={payments} />
+        )}
         {activeTab === 'Policies' && (
           <PoliciesTab
             policies={policies}
@@ -1269,7 +1302,7 @@ export function InsurancePage() {
       >
         <div className='space-y-6'>
           <div className='bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl'>
-            <p className='text-sm text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+            <p className='text-sm text-slate-900 dark:text-slate-200'>
               Are you sure you want to permanently delete{' '}
               <strong>{deletingPolicy?.policyName}</strong>?
             </p>

@@ -25,10 +25,11 @@ import {
 import { GoalsSkeleton } from '../../components/loader/skeletons';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
+import { buildGoalInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 // ── Status Badge ──────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status?: GoalStatus }) {
@@ -51,6 +52,7 @@ type FilterTab = 'all' | 'active' | 'done';
 export function GoalsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const goals = usePortfolioStore((s) => s.goals);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
   const updateGoal = usePortfolioStore((s) => s.updateGoal);
 
@@ -134,6 +136,10 @@ export function GoalsPage() {
   });
 
   if (!ready) return <GoalsSkeleton />;
+  const goalInsights = useMemo(
+    () => buildGoalInsights(goals, cashflows),
+    [goals, cashflows],
+  );
 
   const tabCls = (tab: FilterTab) =>
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -206,6 +212,33 @@ export function GoalsPage() {
           </button>
         </div>
       )}
+
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Goal probability</p>
+          <p className='mt-1 text-lg font-black text-emerald-600 dark:text-emerald-400'>
+            {goalInsights.goalProbability.toFixed(0)}%
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Funding gap</p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {formatINR(goalInsights.gap)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Recommended / month</p>
+          <p className='mt-1 text-lg font-black text-indigo-600 dark:text-indigo-400'>
+            {formatINR(goalInsights.recommendedMonthly)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Risky timelines</p>
+          <p className='mt-1 text-lg font-black text-amber-600 dark:text-amber-400'>
+            {goalInsights.riskyGoals}
+          </p>
+        </div>
+      </div>
 
       {/* Content Area */}
       {filteredGoals.length === 0 ? (
