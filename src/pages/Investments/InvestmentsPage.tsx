@@ -34,6 +34,14 @@ import { UpsertInvestmentModal } from '../../components/investments/UpsertInvest
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useStockMetadata } from '../../hooks/useStockMetadata';
+import {
+  calculateCAGR,
+  calculateXIRR,
+  currentValue,
+  investedValue,
+  summarizePortfolio,
+} from '../../utils/calculations';
+import { formatINR } from '../../utils/format';
 
 // ── Asset Type Filter Categories ───────────────────────────────────────────
 const FILTER_CATEGORIES = [
@@ -151,7 +159,7 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
         className={`flex w-full items-center justify-between cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium transition-all duration-300 outline-none backdrop-blur-md ${
           open
             ? `border-emerald-500/50 bg-slate-200 dark:bg-slate-800 ${ringColor} text-slate-900 dark:text-slate-100`
-            : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-800 dark:text-slate-200'
+            : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 text-slate-900 dark:text-slate-200'
         }`}
       >
         <div className='flex items-center gap-3'>
@@ -190,7 +198,7 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
                   className={`w-full flex items-center cursor-pointer justify-between px-4 py-2.5 text-sm font-medium transition-colors ${
                     isSelected
                       ? selectedBg
-                      : 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-300 dark:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <div className='flex items-center gap-3'>
@@ -256,6 +264,11 @@ export function InvestmentsPage() {
   const [brokerFilter, setBrokerFilter] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [quickFilter, setQuickFilter] = useState<
+    'all' | 'stocks' | 'mfs' | 'profit' | 'loss'
+  >('all');
+  const [groupBy, setGroupBy] = useState<'none' | 'asset' | 'broker'>('none');
+  const [page, setPage] = useState(1);
   // ✅ Market cap filter — reads from sessionStorage (set by MarketCapAllocationChart)
   const [marketCapFilter, setMarketCapFilter] = useState<string>('all');
   const { metadata } = useStockMetadata(investments);
@@ -311,6 +324,13 @@ export function InvestmentsPage() {
         if (normalisePlatform(inv.platform) !== brokerFilter) return false;
       }
 
+      if (quickFilter === 'stocks' && inv.type !== 'stock') return false;
+      if (quickFilter === 'mfs' && inv.type !== 'mutual_fund') return false;
+      if (quickFilter === 'profit' && currentValue(inv) - investedValue(inv) < 0)
+        return false;
+      if (quickFilter === 'loss' && currentValue(inv) - investedValue(inv) >= 0)
+        return false;
+
       // 3. Search
       if (!q) return true;
       return (
@@ -319,7 +339,99 @@ export function InvestmentsPage() {
         (inv.platform ?? '').toLowerCase().includes(q)
       );
     });
-  }, [investments, query, typeFilter, brokerFilter, marketCapFilter, metadata]);
+  }, [
+    investments,
+    query,
+    typeFilter,
+    brokerFilter,
+    marketCapFilter,
+    metadata,
+    quickFilter,
+  ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, typeFilter, brokerFilter, marketCapFilter, quickFilter]);
+
+  const pageSize = 60;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pagedFiltered = useMemo(
+    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filtered, currentPage],
+  );
+
+  const analytics = useMemo(() => {
+    const summary = summarizePortfolio(filtered);
+    const totalInvested = summary.investedTotal;
+    const totalCurrent = summary.totalValue;
+    const xirr = calculateXIRR([
+      ...filtered.map((inv) => ({
+        amount: -investedValue(inv),
+        date: inv.createdAt,
+      })),
+      { amount: totalCurrent, date: new Date() },
+    ]);
+
+    const oldest = filtered
+      .map((i) => new Date(i.createdAt))
+      .filter((d) => !Number.isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    const years = oldest
+      ? (Date.now() - oldest.getTime()) / (365 * 24 * 60 * 60 * 1000)
+      : 0;
+    const cagr = calculateCAGR(totalInvested, totalCurrent, years);
+
+    const dayChange = filtered.reduce((acc, inv) => {
+      if (inv.type !== 'stock') return acc;
+      const prev = inv.previousClose ?? inv.currentPrice;
+      return acc + (inv.currentPrice - prev) * inv.quantity;
+    }, 0);
+
+    const yoc = filtered.reduce((acc, inv) => {
+      if (inv.type !== 'stock') return acc;
+      const annual = (inv.annualDividendPerShare ?? 0) * inv.quantity;
+      const cost = inv.buyPrice * inv.quantity;
+      if (cost <= 0) return acc;
+      return acc + (annual / cost) * 100;
+    }, 0);
+
+    const alloc = [
+      { label: 'Stocks', value: summary.byType.stock.current },
+      { label: 'Mutual Funds', value: summary.byType.mutual_fund.current },
+      {
+        label: 'Debt',
+        value: summary.byType.bond.current + summary.byType.fixed_deposit.current,
+      },
+      { label: 'Other', value: summary.byType.other.current },
+    ].filter((x) => x.value > 0);
+
+    return { xirr, cagr, dayChange, yoc, alloc, totalCurrent };
+  }, [filtered]);
+
+  const grouped = useMemo(() => {
+    if (groupBy === 'none') return [];
+    const bucket = new Map<string, typeof filtered>();
+    for (const inv of filtered) {
+      const key =
+        groupBy === 'asset'
+          ? FILTER_CATEGORIES.find((c) => {
+              if (inv.type !== c.type) return false;
+              if (c.type === 'other') return (inv as any).assetType === c.id;
+              return true;
+            })?.label ?? inv.type
+          : activeBrokers.find((b) => b.id === normalisePlatform(inv.platform))
+              ?.label ?? 'Manual/Other';
+      const arr = bucket.get(key) ?? [];
+      arr.push(inv);
+      bucket.set(key, arr);
+    }
+    return [...bucket.entries()].map(([k, list]) => ({
+      key: k,
+      count: list.length,
+      current: list.reduce((a, i) => a + currentValue(i), 0),
+    }));
+  }, [filtered, groupBy, activeBrokers]);
 
   // Active broker label for the results bar
   const activeBrokerLabel =
@@ -407,7 +519,29 @@ export function InvestmentsPage() {
       ) : (
         /* ── Investments tab (original content) ── */
         <>
-          <div className='flex flex-wrap items-center justify-end gap-2'>
+          <div className='flex flex-wrap items-center justify-between gap-2'>
+            <div className='flex flex-wrap items-center gap-2'>
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'stocks', label: 'Only Stocks' },
+                { id: 'mfs', label: 'Only Mutual Funds' },
+                { id: 'profit', label: 'In Profit' },
+                { id: 'loss', label: 'In Loss' },
+              ].map((qf) => (
+                <button
+                  key={qf.id}
+                  type='button'
+                  onClick={() => setQuickFilter(qf.id as any)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition-colors border ${
+                    quickFilter === qf.id
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {qf.label}
+                </button>
+              ))}
+            </div>
             <SavedViewsMenu
               pageId='investments'
               getState={() => ({
@@ -416,6 +550,8 @@ export function InvestmentsPage() {
                 typeFilter,
                 brokerFilter,
                 marketCapFilter,
+                quickFilter,
+                groupBy,
               })}
               applyState={(s) => {
                 if (s.activeTab === 'investments' || s.activeTab === 'sip')
@@ -426,8 +562,70 @@ export function InvestmentsPage() {
                   setBrokerFilter(s.brokerFilter);
                 if (typeof s.marketCapFilter === 'string')
                   setMarketCapFilter(s.marketCapFilter);
+                if (
+                  s.quickFilter === 'all' ||
+                  s.quickFilter === 'stocks' ||
+                  s.quickFilter === 'mfs' ||
+                  s.quickFilter === 'profit' ||
+                  s.quickFilter === 'loss'
+                )
+                  setQuickFilter(s.quickFilter);
+                if (
+                  s.groupBy === 'none' ||
+                  s.groupBy === 'asset' ||
+                  s.groupBy === 'broker'
+                )
+                  setGroupBy(s.groupBy);
               }}
             />
+          </div>
+
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>XIRR</p>
+              <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{analytics.xirr == null ? '—' : `${(analytics.xirr * 100).toFixed(2)}%`}</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>CAGR</p>
+              <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{analytics.cagr == null ? '—' : `${(analytics.cagr * 100).toFixed(2)}%`}</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>1D P&amp;L</p>
+              <p className={`text-sm font-black ${analytics.dayChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatINR(analytics.dayChange)}</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Dividend YOC</p>
+              <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{analytics.yoc > 0 ? `${analytics.yoc.toFixed(2)}%` : '—'}</p>
+            </div>
+          </div>
+
+          <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-3'>
+            <div className='flex flex-wrap items-center justify-between gap-2 mb-2'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                Mini Allocation Bar
+              </p>
+              <div className='flex gap-1'>
+                <button type='button' onClick={() => setGroupBy('none')} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${groupBy === 'none' ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-300'}`}>No Group</button>
+                <button type='button' onClick={() => setGroupBy('asset')} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${groupBy === 'asset' ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-300'}`}>By Asset</button>
+                <button type='button' onClick={() => setGroupBy('broker')} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${groupBy === 'broker' ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-300'}`}>By Broker</button>
+              </div>
+            </div>
+            <div className='h-2.5 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 flex'>
+              {analytics.alloc.map((a, idx) => (
+                <div
+                  key={a.label}
+                  className={['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-sky-500'][idx % 4]}
+                  style={{ width: `${(a.value / Math.max(1, analytics.totalCurrent)) * 100}%` }}
+                />
+              ))}
+            </div>
+            <div className='mt-2 flex flex-wrap gap-2 text-[11px]'>
+              {analytics.alloc.map((a) => (
+                <span key={a.label} className='rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 font-semibold text-slate-600 dark:text-slate-300'>
+                  {a.label}: {((a.value / Math.max(1, analytics.totalCurrent)) * 100).toFixed(0)}%
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Filters Row */}
@@ -521,7 +719,37 @@ export function InvestmentsPage() {
             )}
           </div>
 
-          <InvestmentsTable investments={filtered} />
+          {groupBy !== 'none' && grouped.length > 0 && (
+            <div className='grid gap-2 md:grid-cols-2'>
+              {grouped.map((g) => (
+                <details key={g.key} className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 p-3'>
+                  <summary className='cursor-pointer text-sm font-bold text-slate-800 dark:text-slate-100'>
+                    {g.key} ({g.count}) - {formatINR(g.current)}
+                  </summary>
+                </details>
+              ))}
+            </div>
+          )}
+
+          <InvestmentsTable investments={pagedFiltered} />
+          {filtered.length > pageSize && (
+            <div className='flex items-center justify-between'>
+              <span className='text-xs font-medium text-slate-500 dark:text-slate-400'>
+                Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
+              </span>
+              <div className='flex items-center gap-2'>
+                <button type='button' disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className='rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-bold disabled:opacity-40'>
+                  Prev
+                </button>
+                <span className='text-xs font-bold text-slate-600 dark:text-slate-300'>
+                  {currentPage}/{pageCount}
+                </span>
+                <button type='button' disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))} className='rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-bold disabled:opacity-40'>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
 
           <UpsertInvestmentModal
             open={isAddOpen}

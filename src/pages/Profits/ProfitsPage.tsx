@@ -685,7 +685,7 @@ export function ProfitsPage() {
               <button
                 key={f.id}
                 onClick={() => setTypeFilter(f.id)}
-                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${typeFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
+                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${typeFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100'}`}
               >
                 {f.label}
               </button>
@@ -702,7 +702,7 @@ export function ProfitsPage() {
               <button
                 key={f.id}
                 onClick={() => setResultFilter(f.id)}
-                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${resultFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
+                className={`rounded-lg px-3 py-1 cursor-pointer text-xs font-bold transition-all ${resultFilter === f.id ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100'}`}
               >
                 {f.label}
               </button>

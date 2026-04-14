@@ -139,7 +139,7 @@ export function GoalsPage() {
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
       filterTab === tab
         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-        : 'text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 border border-transparent'
+        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 border border-transparent'
     }`;
 
   return (

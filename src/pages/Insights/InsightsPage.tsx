@@ -12,6 +12,8 @@ import { useMemo, useState } from 'react';
 
 import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
+import { PortfolioAIAnalysisPanel } from '../../components/insights/PortfolioAIAnalysisPanel';
+import { buildPortfolioAIContext } from '../../utils/portfolioAIContext';
 import { summarizePortfolio } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -488,7 +490,7 @@ function MetricCard({
         {onInfoClick && (
           <button
             onClick={onInfoClick}
-            className='text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors p-1 -mr-1 -mt-1 rounded-full hover:bg-slate-200/80 dark:bg-slate-800/80 cursor-pointer'
+            className='text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 -mr-1 -mt-1 rounded-full hover:bg-slate-200/80 dark:hover:bg-slate-800/80 cursor-pointer'
             title='More information'
           >
             <FiInfo className='h-3.5 w-3.5' />
@@ -548,6 +550,7 @@ export default function InsightsPage() {
     investments,
     liabilities,
     cashflows,
+    goals,
     latestInsight,
     saveInsightSnapshot,
     ready,
@@ -601,6 +604,18 @@ export default function InsightsPage() {
       fire,
     };
   }, [investments, liabilities, cashflows, essentials]);
+
+  const aiContext = useMemo(
+    () =>
+      buildPortfolioAIContext({
+        investments,
+        liabilities,
+        cashflows,
+        essentials,
+        goals,
+      }),
+    [investments, liabilities, cashflows, essentials, goals],
+  );
 
   const { health, fire } = metrics;
   const healthLabel =
@@ -727,6 +742,7 @@ export default function InsightsPage() {
         </div>
       ) : (
         <div className='flex flex-col gap-6'>
+          {aiContext && <PortfolioAIAnalysisPanel context={aiContext} />}
           {/* ── Health Score + Breakdown ── */}
           <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5'>
             <h2 className='text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4'>

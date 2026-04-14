@@ -584,6 +584,10 @@ type FormState = {
   quantity: string;
   buyPrice: string;
   currentPrice: string;
+  previousClose: string;
+  annualDividendPerShare: string;
+  targetPrice: string;
+  stopLossPrice: string;
   // US stock USD fields
   buyPriceUsd: string;
   currentPriceUsd: string;
@@ -622,6 +626,10 @@ export function UpsertInvestmentModal(props: Props) {
       quantity: '0',
       buyPrice: '0',
       currentPrice: '0',
+      previousClose: '0',
+      annualDividendPerShare: '0',
+      targetPrice: '0',
+      stopLossPrice: '0',
       buyPriceUsd: '0',
       currentPriceUsd: '0',
       usdToInr: '84',
@@ -665,6 +673,12 @@ export function UpsertInvestmentModal(props: Props) {
         base.quantity = String(inv.quantity);
         base.buyPrice = String(inv.buyPrice);
         base.currentPrice = String(inv.currentPrice);
+        base.previousClose = String((inv as any).previousClose ?? inv.currentPrice);
+        base.annualDividendPerShare = String(
+          (inv as any).annualDividendPerShare ?? 0,
+        );
+        base.targetPrice = String((inv as any).targetPrice ?? 0);
+        base.stopLossPrice = String((inv as any).stopLossPrice ?? 0);
       }
       if (inv.type === 'mutual_fund') {
         base.units = String(inv.units);
@@ -770,6 +784,11 @@ export function UpsertInvestmentModal(props: Props) {
           quantity: toNumber(state.quantity),
           buyPrice: toNumber(state.buyPrice),
           currentPrice: toNumber(state.currentPrice),
+          previousClose: toNumber(state.previousClose) || undefined,
+          annualDividendPerShare:
+            toNumber(state.annualDividendPerShare) || undefined,
+          targetPrice: toNumber(state.targetPrice) || undefined,
+          stopLossPrice: toNumber(state.stopLossPrice) || undefined,
           sector: state.sector.trim() || undefined,
           // Save USD fields only for US stocks
           ...(isUsStock && {
@@ -1041,7 +1060,7 @@ export function UpsertInvestmentModal(props: Props) {
 
           {/* ── Indian Stock Fields ── */}
           {state.type === 'stock' && !isUsStock && (
-            <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
+            <div className='grid grid-cols-1 gap-4 md:grid-cols-4'>
               <div>
                 <label className={labelCls}>Quantity</label>
                 <NumericInput
@@ -1064,6 +1083,40 @@ export function UpsertInvestmentModal(props: Props) {
                   className={inputCls}
                   value={state.currentPrice}
                   onChange={(v) => setState((s) => ({ ...s, currentPrice: v }))}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Previous Close (₹)</label>
+                <NumericInput
+                  className={inputCls}
+                  value={state.previousClose}
+                  onChange={(v) => setState((s) => ({ ...s, previousClose: v }))}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Annual Dividend / Share</label>
+                <NumericInput
+                  className={inputCls}
+                  value={state.annualDividendPerShare}
+                  onChange={(v) =>
+                    setState((s) => ({ ...s, annualDividendPerShare: v }))
+                  }
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Target Price (optional)</label>
+                <NumericInput
+                  className={inputCls}
+                  value={state.targetPrice}
+                  onChange={(v) => setState((s) => ({ ...s, targetPrice: v }))}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Stop-Loss Price (optional)</label>
+                <NumericInput
+                  className={inputCls}
+                  value={state.stopLossPrice}
+                  onChange={(v) => setState((s) => ({ ...s, stopLossPrice: v }))}
                 />
               </div>
             </div>

@@ -69,6 +69,13 @@ export type StockInvestment = BaseInvestment & {
   quantity: number;
   buyPrice: number;
   currentPrice: number;
+  /** Optional previous close for 1D P&L calculations. */
+  previousClose?: number;
+  /** Optional trailing annual dividend per share. */
+  annualDividendPerShare?: number;
+  /** Optional target/exit planning helpers. */
+  targetPrice?: number;
+  stopLossPrice?: number;
   sector?: string;
   marketCap?: string;
   usdPrice?: number;

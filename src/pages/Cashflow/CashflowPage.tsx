@@ -173,11 +173,11 @@ function TypeFilterTabs({
           className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs font-bold rounded-lg transition-all duration-200 whitespace-nowrap ${
             value === t.value
               ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-              : 'text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'
           }`}
         >
           <span className={value === t.value ? '' : t.color}>{t.label}</span>
-          <span className='rounded-md bg-slate-300 dark:bg-slate-600/60 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
+          <span className='rounded-md bg-slate-300 dark:bg-slate-600/60 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300'>
             {counts[t.value]}
           </span>
         </button>

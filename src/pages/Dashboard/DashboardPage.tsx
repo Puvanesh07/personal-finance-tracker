@@ -4,6 +4,7 @@ import { AllocationCharts } from '../../components/dashboard/AllocationCharts';
 import { DashboardAccountsSummary } from '../../components/dashboard/DashboardAccountsSummary';
 import { DashboardAgriSummary } from '../../components/dashboard/DashboardAgriSummary';
 import { DashboardCashflowSummary } from '../../components/dashboard/DashboardCashflowSummary';
+import { DashboardPortfolioAI } from '../../components/dashboard/DashboardPortfolioAI';
 import { DashboardSkeleton } from '../../components/loader/skeletons';
 import { DashboardTopHoldingsInsights } from '../../components/dashboard/DashboardTopHoldingsInsights';
 import { GoalsEssentialsSummary } from '../../components/dashboard/GoalsEssentialsSummary';
@@ -39,6 +40,10 @@ export function DashboardPage() {
       {/* Main Portfolio Summary Metrics */}
       <section>
         <SummaryCards />
+      </section>
+
+      <section>
+        <DashboardPortfolioAI />
       </section>
 
       {/* ✅ NEW: Top Holdings + Smart Insights (FinBoom-style) */}

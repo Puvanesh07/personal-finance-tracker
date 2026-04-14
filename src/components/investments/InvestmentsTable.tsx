@@ -1425,6 +1425,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     return [...pinned, ...rest];
   }, [sortedRows, pinnedIds]);
 
+  const totals = useMemo(
+    () =>
+      displayRows.reduce(
+        (acc, r) => {
+          acc.invested += r.invested;
+          acc.current += r.current;
+          acc.pl += r.pl;
+          return acc;
+        },
+        { invested: 0, current: 0, pl: 0 },
+      ),
+    [displayRows],
+  );
+
   const isAllSelected =
     displayRows.length > 0 && selectedIds.length === displayRows.length;
   const toggleSelectAll = () => {
@@ -2335,6 +2349,19 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   const isRowRefreshing = !!rowRefreshingMap[inv.id];
                   const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
                   const isRowPinned = pinnedIds.includes(inv.id);
+                  const holdingDays = Math.max(
+                    0,
+                    Math.floor(
+                      (Date.now() - new Date(inv.createdAt).getTime()) /
+                        (24 * 60 * 60 * 1000),
+                    ),
+                  );
+                  const taxTag =
+                    inv.type === 'stock' || inv.type === 'mutual_fund'
+                      ? holdingDays >= 365
+                        ? 'LTCG'
+                        : 'STCG'
+                      : null;
                   const isLast = rowIdx === displayRows.length - 1;
                   const bdClass = !isLast
                     ? 'border-b border-slate-200 dark:border-slate-800/70'
@@ -2378,7 +2405,35 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 {inv.symbol}
                               </span>
                             )}
+                            {taxTag && (
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold border ${
+                                  taxTag === 'LTCG'
+                                    ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                                    : 'text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10'
+                                }`}
+                                title='Tax holding period classification'
+                              >
+                                {taxTag}
+                              </span>
+                            )}
                           </div>
+                          {inv.type === 'stock' &&
+                            (((inv as any).targetPrice as number | undefined) ||
+                              ((inv as any).stopLossPrice as number | undefined)) && (
+                              <div className='mt-1 flex items-center gap-1.5 text-[9px] font-bold'>
+                                {(inv as any).targetPrice && (
+                                  <span className='px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'>
+                                    TP {(inv as any).targetPrice}
+                                  </span>
+                                )}
+                                {(inv as any).stopLossPrice && (
+                                  <span className='px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'>
+                                    SL {(inv as any).stopLossPrice}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                         </div>
                       </td>
 
@@ -2635,6 +2690,25 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 },
               )}
             </tbody>
+            <tfoot>
+              <tr className='sticky bottom-0 z-10 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-300/70 dark:border-slate-700/70'>
+                <td colSpan={5} className='px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300'>
+                  Totals
+                </td>
+                <td className='px-4 py-2.5 text-right text-xs font-bold text-slate-500 dark:text-slate-300 tabular-nums'>
+                  {formatINR(totals.invested)}
+                </td>
+                <td className='px-4 py-2.5 text-right text-xs font-black text-slate-900 dark:text-slate-100 tabular-nums'>
+                  {formatINR(totals.current)}
+                </td>
+                <td colSpan={4} />
+                <td className={`px-4 py-2.5 text-right text-xs font-black tabular-nums ${totals.pl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {totals.pl >= 0 ? '+' : ''}
+                  {formatINR(totals.pl)}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

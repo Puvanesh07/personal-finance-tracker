@@ -8,8 +8,23 @@ import type { Handler } from '@netlify/functions'
 const CORS   = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Cache-Control': 'public, max-age=86400' }
 const JSON_H = { ...CORS, 'Content-Type': 'application/json' }
 const UA     = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const RL_WINDOW_MS = 60_000
+const RL_MAX = 30
+const rlMap = new Map<string, { count: number; resetAt: number }>()
 
 function ok(body: object) { return { statusCode: 200, headers: JSON_H, body: JSON.stringify(body) } }
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hit = rlMap.get(ip)
+  if (!hit || now > hit.resetAt) {
+    rlMap.set(ip, { count: 1, resetAt: now + RL_WINDOW_MS })
+    return false
+  }
+  hit.count += 1
+  rlMap.set(ip, hit)
+  return hit.count > RL_MAX
+}
 
 // ─── Screener.in scraper ──────────────────────────────────────────────────────
 // Screener.in has a public company page with sector + market cap, no auth needed.
@@ -116,6 +131,10 @@ function capFromMcap(mcap: number | null): string {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
+  const ip = event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'] || 'unknown'
+  if (isRateLimited(String(ip))) {
+    return { statusCode: 429, headers: JSON_H, body: JSON.stringify({ error: 'Rate limit exceeded' }) }
+  }
 
   const p      = event.queryStringParameters ?? {}
   const symbol = (p.symbol ?? '').trim().toUpperCase()
@@ -125,6 +144,12 @@ export const handler: Handler = async (event) => {
 
   if (!symbol && !isin && !name) {
     return { statusCode: 400, headers: JSON_H, body: JSON.stringify({ error: 'Provide symbol, isin, or name' }) }
+  }
+  if (symbol && !/^[A-Z0-9._-]{1,20}$/.test(symbol)) {
+    return { statusCode: 400, headers: JSON_H, body: JSON.stringify({ error: 'Invalid symbol format' }) }
+  }
+  if (isin && !/^[A-Z0-9]{8,20}$/.test(isin)) {
+    return { statusCode: 400, headers: JSON_H, body: JSON.stringify({ error: 'Invalid ISIN format' }) }
   }
 
   let nseSymbol = symbol

@@ -123,6 +123,86 @@ export function summarizePortfolio(investments: Investment[]): PortfolioSummary 
   }
 }
 
+export function calculateCAGR(
+  startValue: number,
+  endValue: number,
+  years: number,
+): number | null {
+  if (startValue <= 0 || endValue <= 0 || years <= 0) return null
+  return Math.pow(endValue / startValue, 1 / years) - 1
+}
+
+type CashflowPoint = { amount: number; date: string | Date }
+
+/**
+ * Basic XIRR implementation via Newton-Raphson with a bisection fallback.
+ * Amount convention: outflows negative, inflows positive.
+ */
+export function calculateXIRR(
+  cashflows: CashflowPoint[],
+  guess = 0.12,
+): number | null {
+  if (cashflows.length < 2) return null
+  const points = cashflows
+    .map((c) => ({
+      amount: Number(c.amount),
+      date: c.date instanceof Date ? c.date : new Date(c.date),
+    }))
+    .filter((c) => Number.isFinite(c.amount) && !Number.isNaN(c.date.getTime()))
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+
+  if (points.length < 2) return null
+  const hasPos = points.some((p) => p.amount > 0)
+  const hasNeg = points.some((p) => p.amount < 0)
+  if (!hasPos || !hasNeg) return null
+
+  const t0 = points[0].date.getTime()
+  const years = (d: Date) => (d.getTime() - t0) / (365 * 24 * 60 * 60 * 1000)
+
+  const npv = (r: number) =>
+    points.reduce((sum, p) => sum + p.amount / Math.pow(1 + r, years(p.date)), 0)
+
+  const dNpv = (r: number) =>
+    points.reduce(
+      (sum, p) =>
+        sum -
+        (years(p.date) * p.amount) / Math.pow(1 + r, years(p.date) + 1),
+      0,
+    )
+
+  let r = guess
+  for (let i = 0; i < 60; i++) {
+    const f = npv(r)
+    const fp = dNpv(r)
+    if (!Number.isFinite(f) || !Number.isFinite(fp) || Math.abs(fp) < 1e-12) break
+    const next = r - f / fp
+    if (!Number.isFinite(next) || next <= -0.999999999) break
+    if (Math.abs(next - r) < 1e-7) return next
+    r = next
+  }
+
+  // fallback: bisection in a wide practical interval
+  let lo = -0.95
+  let hi = 5
+  let fLo = npv(lo)
+  let fHi = npv(hi)
+  if (fLo * fHi > 0) return null
+  for (let i = 0; i < 120; i++) {
+    const mid = (lo + hi) / 2
+    const fMid = npv(mid)
+    if (Math.abs(fMid) < 1e-7) return mid
+    if (fLo * fMid < 0) {
+      hi = mid
+      fHi = fMid
+    } else {
+      lo = mid
+      fLo = fMid
+    }
+    if (Math.abs(hi - lo) < 1e-7) return (hi + lo) / 2
+  }
+  return null
+}
+
 export function toStockLikeRow(inv: Investment) {
   if (inv.type !== 'stock') return null
   return inv satisfies StockInvestment
