@@ -1875,6 +1875,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
             const isProfit = pl >= 0;
             const isRowPinned = pinnedIds.includes(inv.id);
+            const weightPct = totals.current > 0 ? (current / totals.current) * 100 : 0;
 
             return (
               <div
@@ -1926,6 +1927,14 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 {Number(qty).toLocaleString('en-IN', {
                                   maximumFractionDigits: 4,
                                 })}
+                              </span>
+                            )}
+                            <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400'>
+                              {weightPct.toFixed(1)}%
+                            </span>
+                            {(inv as any).convictionTag && (
+                              <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400 uppercase'>
+                                {(inv as any).convictionTag}
                               </span>
                             )}
                           </div>
@@ -2363,6 +2372,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         : 'STCG'
                       : null;
                   const isLast = rowIdx === displayRows.length - 1;
+                  const weightPct = totals.current > 0 ? (current / totals.current) * 100 : 0;
                   const bdClass = !isLast
                     ? 'border-b border-slate-200 dark:border-slate-800/70'
                     : '';
@@ -2417,7 +2427,22 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 {taxTag}
                               </span>
                             )}
+                            <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400'>
+                              {weightPct.toFixed(1)}%
+                            </span>
                           </div>
+                          {(inv as any).convictionTag && (
+                            <div className='mt-1'>
+                              <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400 uppercase'>
+                                {(inv as any).convictionTag}
+                              </span>
+                            </div>
+                          )}
+                          {!!(inv as any).lots?.length && (
+                            <div className='mt-1 text-[10px] text-slate-500 dark:text-slate-400'>
+                              Tranches: {(inv as any).lots.length}
+                            </div>
+                          )}
                           {inv.type === 'stock' &&
                             (((inv as any).targetPrice as number | undefined) ||
                               ((inv as any).stopLossPrice as number | undefined)) && (

@@ -42,6 +42,11 @@ import {
   summarizePortfolio,
 } from '../../utils/calculations';
 import { formatINR } from '../../utils/format';
+import {
+  computeAlpha,
+  computeRebalancePlan,
+  projectFutureValue,
+} from '../../utils/advancedInsights';
 
 // ── Asset Type Filter Categories ───────────────────────────────────────────
 const FILTER_CATEGORIES = [
@@ -406,7 +411,33 @@ export function InvestmentsPage() {
       { label: 'Other', value: summary.byType.other.current },
     ].filter((x) => x.value > 0);
 
-    return { xirr, cagr, dayChange, yoc, alloc, totalCurrent };
+    const portfolioReturnPct =
+      totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
+    const benchmarkReturnPct = 12;
+    const alpha = computeAlpha(portfolioReturnPct, benchmarkReturnPct);
+    const fv5 = projectFutureValue(totalCurrent, cagr ? cagr * 100 : benchmarkReturnPct, 5);
+    const fv10 = projectFutureValue(totalCurrent, cagr ? cagr * 100 : benchmarkReturnPct, 10);
+    const fv20 = projectFutureValue(totalCurrent, cagr ? cagr * 100 : benchmarkReturnPct, 20);
+    const rebalance = computeRebalancePlan(
+      Object.fromEntries(alloc.map((a) => [a.label, a.value])),
+      { Stocks: 60, 'Mutual Funds': 20, Debt: 15, Other: 5 },
+    );
+    const alertHits = filtered.filter((inv) => {
+      if (inv.type !== 'stock') return false;
+      const hitTarget = !!inv.targetPrice && inv.currentPrice >= inv.targetPrice;
+      const hitStop = !!inv.stopLossPrice && inv.currentPrice <= inv.stopLossPrice;
+      return hitTarget || hitStop;
+    }).length;
+    const dividendCalendar = filtered
+      .filter((inv) => inv.type === 'stock' && (inv.annualDividendPerShare ?? 0) > 0)
+      .map((inv) => {
+        const month = new Date(inv.createdAt).toLocaleString('en-IN', { month: 'short' });
+        return `${inv.name} (${month})`;
+      })
+      .slice(0, 3);
+    const earningsSignals = filtered.filter((inv) => inv.type === 'stock' && !!inv.symbol).length;
+
+    return { xirr, cagr, dayChange, yoc, alloc, totalCurrent, alpha, fv5, fv10, fv20, rebalance, alertHits, dividendCalendar, earningsSignals };
   }, [filtered]);
 
   const grouped = useMemo(() => {
@@ -480,7 +511,7 @@ export function InvestmentsPage() {
             className={`px-4 py-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 ${
               activeTab === 'investments'
                 ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:bg-slate-800/60'
+                : 'text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/70 dark:bg-slate-800/60'
             }`}
           >
             Investments
@@ -490,7 +521,7 @@ export function InvestmentsPage() {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 ${
               activeTab === 'sip'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:bg-slate-200/70 dark:bg-slate-800/60'
+                : 'text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/70 dark:bg-slate-800/60'
             }`}
           >
             <FiPercent className='h-3.5 w-3.5' />
@@ -596,6 +627,40 @@ export function InvestmentsPage() {
             <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
               <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Dividend YOC</p>
               <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{analytics.yoc > 0 ? `${analytics.yoc.toFixed(2)}%` : '—'}</p>
+            </div>
+          </div>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Alpha vs Benchmark</p>
+              <p className={`text-sm font-black ${analytics.alpha >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{analytics.alpha.toFixed(2)}%</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Future Value (10Y)</p>
+              <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{formatINR(analytics.fv10.nominal)}</p>
+              <p className='text-[10px] text-slate-500 dark:text-slate-400'>Real: {formatINR(analytics.fv10.real)}</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Rebalance Signal</p>
+              <p className='text-xs font-semibold text-slate-700 dark:text-slate-200'>
+                {analytics.rebalance.actions
+                  .slice(0, 2)
+                  .map((a) => `${a.action.toUpperCase()} ${a.bucket}`)
+                  .join(' • ') || 'On target'}
+              </p>
+            </div>
+          </div>
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Alert Triggers</p>
+              <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{analytics.alertHits}</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Dividend Calendar</p>
+              <p className='text-xs font-semibold text-slate-700 dark:text-slate-200'>{analytics.dividendCalendar.join(' • ') || 'Add dividend data to forecast payouts'}</p>
+            </div>
+            <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 p-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Earnings/News Coverage</p>
+              <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{analytics.earningsSignals} tracked symbols</p>
             </div>
           </div>
 

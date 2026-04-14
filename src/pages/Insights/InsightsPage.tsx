@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
 import { PortfolioAIAnalysisPanel } from '../../components/insights/PortfolioAIAnalysisPanel';
+import { computeAlpha, projectFutureValue } from '../../utils/advancedInsights';
 import { buildPortfolioAIContext } from '../../utils/portfolioAIContext';
 import { summarizePortfolio } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -589,6 +590,24 @@ export default function InsightsPage() {
       avgExpense,
       essentials.emergencyFundTarget ?? 0,
     );
+    const portfolioReturnPct =
+      totalValue > 0
+        ? ((totalValue - (latestInsight?.totalTaxLossPotential || totalValue * 0.85)) / totalValue) * 100
+        : 0;
+    const alpha = computeAlpha(portfolioReturnPct, 12);
+    const fv10 = projectFutureValue(totalValue, 12, 10);
+    const sectorMap = investments
+      .filter((i) => i.type === 'stock')
+      .reduce(
+        (acc, i) => {
+          const key = (i.sector || 'Unknown').toUpperCase();
+          acc[key] = (acc[key] || 0) + i.currentPrice * i.quantity;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+    const topSector = Object.entries(sectorMap).sort((a, b) => b[1] - a[1])[0];
+    const topSectorPct = totalValue > 0 && topSector ? (topSector[1] / totalValue) * 100 : 0;
 
     return {
       totalValue,
@@ -602,8 +621,12 @@ export default function InsightsPage() {
       taxLoss,
       topDebt,
       fire,
+      alpha,
+      fv10,
+      topSector: topSector?.[0] || '—',
+      topSectorPct,
     };
-  }, [investments, liabilities, cashflows, essentials]);
+  }, [investments, liabilities, cashflows, essentials, latestInsight]);
 
   const aiContext = useMemo(
     () =>
@@ -955,6 +978,27 @@ export default function InsightsPage() {
                       : '#22c55e'
                 }
                 onInfoClick={() => setInfoModalKey('tax_loss')}
+              />
+              <MetricCard
+                icon='⚖️'
+                label='Alpha'
+                value={`${formatNumber(metrics.alpha, 2)}%`}
+                sub='vs 12% benchmark'
+                color={metrics.alpha >= 0 ? '#22c55e' : '#ef4444'}
+              />
+              <MetricCard
+                icon='⏳'
+                label='Future Value 10Y'
+                value={formatINR(metrics.fv10.nominal)}
+                sub={`Real ${formatINR(metrics.fv10.real)}`}
+                color='#60a5fa'
+              />
+              <MetricCard
+                icon='🧩'
+                label='Top Sector Risk'
+                value={metrics.topSector}
+                sub={metrics.topSector === '—' ? 'No stock sector data' : `${formatNumber(metrics.topSectorPct, 1)}% of portfolio`}
+                color={metrics.topSectorPct > 35 ? '#ef4444' : '#f59e0b'}
               />
             </div>
           </div>

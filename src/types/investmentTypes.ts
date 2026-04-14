@@ -80,6 +80,15 @@ export type StockInvestment = BaseInvestment & {
   marketCap?: string;
   usdPrice?: number;
   usdToInr?: number;
+  benchmarkSymbol?: 'NIFTY50' | 'SENSEX' | 'SP500' | 'NASDAQ100';
+  convictionTag?: 'core' | 'risky_bet' | 'swing' | 'selling_soon' | 'watchlist';
+  annualDividendReceived?: number;
+  lots?: Array<{
+    id: string;
+    date: ISODateString;
+    quantity: number;
+    buyPrice: number;
+  }>;
 };
 
 export type MutualFundInvestment = BaseInvestment & {
@@ -89,6 +98,15 @@ export type MutualFundInvestment = BaseInvestment & {
   investedAmount: number;
   schemeCode?: string;
   amfiCode?: string;
+  benchmarkSymbol?: 'NIFTY50' | 'SENSEX';
+  convictionTag?: 'core' | 'satellite' | 'selling_soon' | 'watchlist';
+  lots?: Array<{
+    id: string;
+    date: ISODateString;
+    units: number;
+    nav: number;
+    investedAmount?: number;
+  }>;
 };
 
 export type BondInvestment = BaseInvestment & {

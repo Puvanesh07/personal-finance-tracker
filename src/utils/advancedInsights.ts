@@ -4,6 +4,7 @@ import type {
   Credential,
   CropCycle,
   Goal,
+  Investment,
   InsurancePayment,
   InsurancePolicy,
   Liability,
@@ -198,5 +199,69 @@ export function buildReportHealthInsights(args: {
     Math.min(100, 50 + (cashflowCoverage - 100) * 0.3 - debtToNetWorth * 0.2),
   );
   return { debtToNetWorth, cashflowCoverage, healthIndex };
+}
+
+export function buildInvestmentAdvancedInsights(investments: Investment[]) {
+  const totalCurrent = investments.reduce((s, i) => {
+    if (i.type === 'stock') return s + i.currentPrice * i.quantity;
+    if (i.type === 'mutual_fund') return s + i.nav * i.units;
+    if (i.type === 'other') return s + i.currentValue;
+    return s + i.investedAmount;
+  }, 0);
+
+  const weights = new Map<string, number>();
+  for (const i of investments) {
+    const cur =
+      i.type === 'stock'
+        ? i.currentPrice * i.quantity
+        : i.type === 'mutual_fund'
+          ? i.nav * i.units
+          : i.type === 'other'
+            ? i.currentValue
+            : i.investedAmount;
+    weights.set(i.id, totalCurrent > 0 ? (cur / totalCurrent) * 100 : 0);
+  }
+  return { totalCurrent, weights };
+}
+
+export function computeAlpha(portfolioReturnPct: number, benchmarkReturnPct: number) {
+  return portfolioReturnPct - benchmarkReturnPct;
+}
+
+export function computeFxAttribution(stock: {
+  buyPrice: number;
+  currentPrice: number;
+  quantity: number;
+  usdToInr?: number;
+  buyFx?: number;
+}) {
+  const q = stock.quantity || 0;
+  const buyFx = stock.buyFx || stock.usdToInr || 1;
+  const curFx = stock.usdToInr || 1;
+  const stockOnly = (stock.currentPrice - stock.buyPrice) * q * buyFx;
+  const fxOnly = stock.currentPrice * q * (curFx - buyFx);
+  return { stockOnly, fxOnly };
+}
+
+export function projectFutureValue(
+  presentValue: number,
+  cagrPct: number,
+  years: number,
+  inflationPct = 6,
+) {
+  const nominal = presentValue * Math.pow(1 + cagrPct / 100, years);
+  const real = nominal / Math.pow(1 + inflationPct / 100, years);
+  return { nominal, real };
+}
+
+export function computeRebalancePlan(current: Record<string, number>, targetPct: Record<string, number>) {
+  const total = Object.values(current).reduce((a, b) => a + b, 0);
+  const actions = Object.keys(targetPct).map((k) => {
+    const target = (targetPct[k] / 100) * total;
+    const cur = current[k] || 0;
+    const delta = target - cur;
+    return { bucket: k, current: cur, target, delta, action: delta >= 0 ? 'buy' : 'sell' as 'buy' | 'sell' };
+  });
+  return { total, actions };
 }
 

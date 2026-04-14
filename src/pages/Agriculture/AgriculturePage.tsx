@@ -1163,7 +1163,7 @@ function CropsTab() {
                             resetCropForm(c);
                             setShowCropModal(true);
                           }}
-                          className='px-3 py-1.5 rounded-lg bg-slate-300 dark:bg-slate-700 hover:bg-slate-300 dark:bg-slate-600 text-slate-900 dark:text-slate-800 dark:text-slate-200 text-xs font-bold'
+                          className='px-3 py-1.5 rounded-lg bg-slate-300 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-200 text-xs font-bold'
                         >
                           Edit
                         </button>
@@ -1639,7 +1639,7 @@ function ExpensesTab() {
                         <span className='px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase tracking-wider'>
                           {catLabel}
                         </span>
-                        <div className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 mt-2'>
+                        <div className='text-sm font-bold text-slate-900 dark:text-slate-200 mt-2'>
                           {cropName ? (
                             <span className='text-emerald-400'>{cropName}</span>
                           ) : (
@@ -2704,7 +2704,7 @@ function MilkTab() {
                       <div className='text-[10px] uppercase text-slate-900 dark:text-slate-500'>
                         Rate
                       </div>
-                      <div className='font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+                      <div className='font-bold text-slate-900 dark:text-slate-200'>
                         ₹{m.pricePerLiter}/L
                       </div>
                     </div>
@@ -2712,7 +2712,7 @@ function MilkTab() {
                   {m.soldTo && (
                     <div className='text-xs text-slate-500 dark:text-slate-400 mb-2'>
                       👤 Sold to:{' '}
-                      <span className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>{m.soldTo}</span>
+                      <span className='text-slate-900 dark:text-slate-200'>{m.soldTo}</span>
                     </div>
                   )}
                   <div className='flex justify-between items-center border-t border-slate-300/60 dark:border-slate-700/50 pt-3'>
@@ -3291,7 +3291,7 @@ function CoconutTab() {
                         <div className='text-[10px] uppercase text-slate-900 dark:text-slate-500'>
                           Volume
                         </div>
-                        <div className='font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 text-sm'>
+                        <div className='font-bold text-slate-900 dark:text-slate-200 text-sm'>
                           {isByTon
                             ? `${c.totalTons?.toFixed(2)} T`
                             : c.totalCoconuts.toLocaleString('en-IN')}

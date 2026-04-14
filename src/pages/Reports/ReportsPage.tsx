@@ -17,7 +17,11 @@ import {
 import React, { useMemo, useState } from 'react';
 
 import { exportAllSectionsAsCSV } from '../../utils/exportUtils';
-import { buildReportHealthInsights } from '../../utils/advancedInsights';
+import {
+  buildReportHealthInsights,
+  computeAlpha,
+  projectFutureValue,
+} from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { summarizePortfolio } from '../../utils/calculations';
 import { useAgriStore } from '../../store/agricultureStore';
@@ -315,6 +319,28 @@ export function ReportsPage() {
     cashflowIncome: tfIncome,
     cashflowExpense: tfExpense,
   });
+  const benchmarkAlpha = computeAlpha(
+    summary.investedTotal > 0
+      ? ((summary.totalValue - summary.investedTotal) / summary.investedTotal) * 100
+      : 0,
+    12,
+  );
+  const future10 = projectFutureValue(summary.totalValue, 12, 10);
+  const sectorHeatmap = useMemo(() => {
+    const bySector = portStore.investments
+      .filter((i) => i.type === 'stock')
+      .reduce(
+        (acc, i) => {
+          const k = (i.sector || 'Unknown').toUpperCase();
+          acc[k] = (acc[k] || 0) + i.currentPrice * i.quantity;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+    return Object.entries(bySector)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+  }, [portStore.investments]);
 
   return (
     <div className='flex flex-col gap-6 pb-10 animate-in fade-in duration-300'>
@@ -424,6 +450,39 @@ export function ReportsPage() {
           <p className='mt-1 text-lg font-black text-indigo-600 dark:text-indigo-400'>
             {health.cashflowCoverage.toFixed(1)}%
           </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Alpha vs Benchmark
+          </p>
+          <p className={`mt-1 text-lg font-black ${benchmarkAlpha >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            {benchmarkAlpha.toFixed(2)}%
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Future Value 10Y
+          </p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {formatINR(future10.nominal)}
+          </p>
+          <p className='text-[10px] text-slate-500 dark:text-slate-400'>
+            Real {formatINR(future10.real)}
+          </p>
+        </div>
+      </div>
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-4'>
+        <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3'>Sector concentration heatmap</p>
+        <div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+          {sectorHeatmap.length ? sectorHeatmap.map(([name, value], idx) => (
+            <div key={name} className='rounded-lg border border-slate-300/70 dark:border-slate-700/70 px-3 py-2 bg-white/80 dark:bg-slate-800/60'>
+              <p className='text-[11px] font-bold text-slate-700 dark:text-slate-200'>{name}</p>
+              <div className='mt-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden'>
+                <div className='h-full bg-emerald-500' style={{ width: `${Math.max(8, 100 - idx * 12)}%` }} />
+              </div>
+              <p className='mt-1 text-[10px] text-slate-500 dark:text-slate-400'>{formatINR(value)}</p>
+            </div>
+          )) : <p className='text-sm text-slate-500 dark:text-slate-400'>Add stock sectors to view heatmap.</p>}
         </div>
       </div>
 

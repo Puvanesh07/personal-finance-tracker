@@ -93,7 +93,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
                   : 'Identifier'}
               </p>
               <div className='flex items-center justify-between gap-2'>
-                <span className='text-sm font-mono text-slate-900 dark:text-slate-800 dark:text-slate-200 truncate'>
+                <span className='text-sm font-mono text-slate-900 dark:text-slate-200 truncate'>
                   {credential.identifier}
                 </span>
                 <button
@@ -114,7 +114,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
                 Secret / Password
               </p>
               <div className='flex items-center justify-between gap-2'>
-                <span className='text-sm font-mono text-slate-900 dark:text-slate-800 dark:text-slate-200 truncate'>
+                <span className='text-sm font-mono text-slate-900 dark:text-slate-200 truncate'>
                   {showSecret ? credential.secret : '••••••••••••'}
                 </span>
                 <div className='flex items-center gap-2'>

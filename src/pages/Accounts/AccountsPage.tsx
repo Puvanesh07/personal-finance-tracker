@@ -188,7 +188,7 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
             type='button'
             onClick={onClose}
             disabled={saving}
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-300 transition-colors hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
           >
             Cancel
           </button>
