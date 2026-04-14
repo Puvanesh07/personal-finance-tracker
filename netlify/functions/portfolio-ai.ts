@@ -59,18 +59,6 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) {
-    return {
-      statusCode: 200,
-      headers: JSON_H,
-      body: JSON.stringify({
-        text: null,
-        error: 'OPENAI_API_KEY not configured on server',
-      }),
-    };
-  }
-
   if (!body.context || typeof body.context !== 'object') {
     return {
       statusCode: 400,
@@ -101,15 +89,32 @@ Rules:
 
   const userContent = `Portfolio context (JSON):\n${JSON.stringify(body.context, null, 2)}\n\nUser request: ${userQ}`;
 
-  try {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+
+  if (!openaiKey && !geminiKey) {
+    return {
+      statusCode: 200,
+      headers: JSON_H,
+      body: JSON.stringify({
+        text: null,
+        error: 'No AI provider configured (set OPENAI_API_KEY or GEMINI_API_KEY)',
+      }),
+    };
+  }
+
+  async function tryOpenAI() {
+    if (!openaiKey) return { ok: false as const, reason: 'no_openai_key' };
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${key}`,
+        Authorization: `Bearer ${openaiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        model: openaiModel,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: userContent },
@@ -118,26 +123,92 @@ Rules:
         max_tokens: 1400,
       }),
     });
-
     if (!res.ok) {
-      const err = await res.text();
-      console.error('[portfolio-ai] OpenAI error', res.status, err);
       return {
-        statusCode: 200,
-        headers: JSON_H,
-        body: JSON.stringify({ text: null, error: 'openai_failed' }),
+        ok: false as const,
+        reason: 'openai_failed',
+        status: res.status,
+        detail: await res.text(),
       };
     }
-
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
     const text = data.choices?.[0]?.message?.content?.trim() ?? '';
+    return text
+      ? { ok: true as const, text, provider: 'openai' as const }
+      : { ok: false as const, reason: 'openai_empty' };
+  }
+
+  async function tryGemini() {
+    if (!geminiKey) return { ok: false as const, reason: 'no_gemini_key' };
+    const prompt = `${system}\n\n${userContent}`;
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.45,
+            maxOutputTokens: 1400,
+          },
+        }),
+      },
+    );
+    if (!res.ok) {
+      return {
+        ok: false as const,
+        reason: 'gemini_failed',
+        status: res.status,
+        detail: await res.text(),
+      };
+    }
+    const data = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text =
+      data.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text ?? '')
+        .join('\n')
+        .trim() ?? '';
+    return text
+      ? { ok: true as const, text, provider: 'gemini' as const }
+      : { ok: false as const, reason: 'gemini_empty' };
+  }
+
+  try {
+    const openai = await tryOpenAI();
+    if (openai.ok) {
+      return {
+        statusCode: 200,
+        headers: JSON_H,
+        body: JSON.stringify({ text: openai.text, provider: openai.provider }),
+      };
+    }
+    if ('status' in openai) {
+      console.error('[portfolio-ai] OpenAI error', openai.status, openai.detail);
+    }
+
+    const gemini = await tryGemini();
+    if (gemini.ok) {
+      return {
+        statusCode: 200,
+        headers: JSON_H,
+        body: JSON.stringify({ text: gemini.text, provider: gemini.provider }),
+      };
+    }
+    if ('status' in gemini) {
+      console.error('[portfolio-ai] Gemini error', gemini.status, gemini.detail);
+    }
 
     return {
       statusCode: 200,
       headers: JSON_H,
-      body: JSON.stringify({ text: text || null }),
+      body: JSON.stringify({ text: null, error: 'all_providers_failed' }),
     };
   } catch (e: unknown) {
     console.error('[portfolio-ai]', e);
