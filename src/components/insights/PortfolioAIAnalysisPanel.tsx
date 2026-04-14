@@ -64,7 +64,9 @@ export function PortfolioAIAnalysisPanel({
 }) {
   const [question, setQuestion] = useState('');
   const [text, setText] = useState<string | null>(null);
-  const [source, setSource] = useState<'openai' | 'local' | null>(null);
+  const [source, setSource] = useState<'openai' | 'gemini' | 'local' | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
 
   const run = useCallback(async () => {
@@ -167,12 +169,16 @@ export function PortfolioAIAnalysisPanel({
           Source:{' '}
           <span
             className={
-              source === 'openai'
+              source === 'openai' || source === 'gemini'
                 ? 'text-violet-600 dark:text-violet-400'
                 : 'text-slate-600 dark:text-slate-300'
             }
           >
-            {source === 'openai' ? 'OpenAI (server)' : 'On-device briefing'}
+            {source === 'openai'
+              ? 'OpenAI (server)'
+              : source === 'gemini'
+                ? 'Gemini (server)'
+                : 'On-device briefing'}
           </span>
         </p>
       )}
