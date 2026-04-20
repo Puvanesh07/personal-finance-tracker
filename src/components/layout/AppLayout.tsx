@@ -16,7 +16,6 @@ import { CommandPalette } from './CommandPalette';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { PrivacyToggle } from './PrivacyToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
@@ -87,7 +86,7 @@ export function AppLayout() {
   }, [isMobileMenuOpen]);
 
   return (
-    <div className='h-[100dvh] w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 flex relative'>
+    <div className='relative flex h-[100dvh] w-full overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50'>
       <style
         dangerouslySetInnerHTML={{
           __html: `@keyframes smoothFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } } .animate-float { animation: smoothFloat 3s ease-in-out infinite; } .scrollbar-none::-webkit-scrollbar { display: none; } .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }`,
@@ -222,7 +221,7 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main className='flex-1 overflow-y-auto relative flex flex-col'>
+      <main className='relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]'>
         <div className='sticky top-0 z-50 flex items-center justify-end gap-2 px-4 py-2.5 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/60 dark:bg-slate-950/80 dark:border-slate-800/40 md:px-6'>
           <button
             type='button'
@@ -245,10 +244,9 @@ export function AppLayout() {
             ?
           </button>
           <ThemeToggle />
-          <PrivacyToggle />
           <NotificationBell />
         </div>
-        <div className='p-4 pb-28 md:p-6 md:pb-8 max-w-7xl mx-auto min-h-full w-full'>
+        <div className='mx-auto min-h-full w-full max-w-7xl overflow-x-hidden p-4 pb-28 md:p-6 md:pb-8'>
           <Outlet />
         </div>
       </main>

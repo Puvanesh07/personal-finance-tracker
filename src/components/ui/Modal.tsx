@@ -11,7 +11,7 @@ export function Modal({
 
   return (
     <div
-      className='fixed inset-0 z-50 flex items-start justify-center bg-slate-100 dark:bg-slate-900/60 backdrop-blur-md overflow-y-auto'
+      className='fixed inset-0 z-50 flex items-start justify-center overflow-x-hidden overflow-y-auto bg-slate-100 dark:bg-slate-900/60 backdrop-blur-md [scrollbar-gutter:stable]'
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -19,8 +19,8 @@ export function Modal({
       aria-modal='true'
     >
       {/* Outer wrapper — centres vertically when content is short, scrolls when tall */}
-      <div className='flex min-h-full w-full items-start sm:items-center justify-center p-3 sm:p-4'>
-        <div className='w-full max-w-2xl animate-fade-in-up rounded-2xl border border-slate-300/80 dark:border-slate-700/80 bg-white dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl flex flex-col my-2 sm:my-4'>
+      <div className='flex min-h-full w-full items-start justify-center p-3 sm:items-center sm:p-4'>
+        <div className='my-2 flex w-full max-w-2xl flex-col rounded-2xl border border-slate-300/80 bg-white shadow-2xl backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/95 sm:my-4 sm:animate-fade-in-up'>
           {/* ── Fixed header ── */}
           <header className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 dark:border-slate-800/60 bg-slate-100/80 dark:bg-slate-800/30 px-5 py-4 rounded-t-2xl'>
             <div className='text-base font-bold tracking-tight text-slate-900 dark:text-slate-100'>
@@ -37,7 +37,7 @@ export function Modal({
           </header>
 
           {/* ── Scrollable body — max 80vh so it never overflows viewport ── */}
-          <div className='overflow-y-auto overscroll-contain p-5 sm:p-6 max-h-[80vh]'>
+          <div className='max-h-[80dvh] overflow-y-auto overscroll-contain p-5 sm:p-6'>
             {children}
           </div>
         </div>

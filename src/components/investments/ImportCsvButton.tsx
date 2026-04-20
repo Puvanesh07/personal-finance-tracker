@@ -10,7 +10,6 @@ export function ImportCsvButton() {
   const importInvestments = usePortfolioStore((s) => s.importInvestments);
   const [busy, setBusy] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
 
   async function onPickFile(file: File) {
     setBusy(true);
@@ -127,26 +126,6 @@ export function ImportCsvButton() {
             <FiInfo className='h-3.5 w-3.5' />
           )}
         </button>
-      </div>
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) void onPickFile(file);
-        }}
-        className={`mt-2 rounded-lg border px-3 py-2 text-[11px] font-medium transition-colors ${
-          dragOver
-            ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300'
-            : 'border-slate-300/70 dark:border-slate-700/70 text-slate-500 dark:text-slate-400'
-        }`}
-      >
-        Drag & drop Zerodha XLSX here
       </div>
     </>
   );

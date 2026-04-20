@@ -1537,7 +1537,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   }
 
   return (
-    <div className='space-y-3 relative'>
+    <div className='relative w-full max-w-full space-y-3 overflow-x-hidden'>
       {/* ── Single unified header bar ── */}
       <div className='flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 min-w-0'>
         {/* Left: count */}
@@ -1838,7 +1838,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       })()}
 
       {/* ── MOBILE VIEW ── */}
-      <div className='flex flex-col gap-2.5 md:hidden px-1'>
+      <div className='flex w-full max-w-full flex-col gap-2.5 px-1 md:hidden'>
         {/* Select-all bar */}
         <div className='flex items-center justify-between px-1 py-1'>
           <button

@@ -258,6 +258,7 @@ function normalisePlatform(platform?: string): string {
 export function InvestmentsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const investments = usePortfolioStore((s) => s.investments);
+  const [initializingView, setInitializingView] = useState(true);
 
   // ✅ NEW: Tab state — 'investments' | 'sip'
   const [activeTab, setActiveTab] = useState<'investments' | 'sip'>(
@@ -273,7 +274,6 @@ export function InvestmentsPage() {
     'all' | 'stocks' | 'mfs' | 'profit' | 'loss'
   >('all');
   const [groupBy, setGroupBy] = useState<'none' | 'asset' | 'broker'>('none');
-  const [page, setPage] = useState(1);
   // ✅ Market cap filter — reads from sessionStorage (set by MarketCapAllocationChart)
   const [marketCapFilter, setMarketCapFilter] = useState<string>('all');
   const { metadata } = useStockMetadata(investments);
@@ -291,6 +291,11 @@ export function InvestmentsPage() {
     window.addEventListener('fintrackly:focus-investments-search', onFocus);
     return () =>
       window.removeEventListener('fintrackly:focus-investments-search', onFocus);
+  }, []);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setInitializingView(false));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   // Derive active brokers from actual data so the dropdown only shows relevant options
@@ -353,18 +358,6 @@ export function InvestmentsPage() {
     metadata,
     quickFilter,
   ]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, typeFilter, brokerFilter, marketCapFilter, quickFilter]);
-
-  const pageSize = 60;
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  const pagedFiltered = useMemo(
-    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [filtered, currentPage],
-  );
 
   const analytics = useMemo(() => {
     const summary = summarizePortfolio(filtered);
@@ -469,7 +462,7 @@ export function InvestmentsPage() {
     BROKER_FILTERS.find((b) => b.id === brokerFilter)?.label ?? 'All Brokers';
   const showBrokerBadge = brokerFilter !== 'all';
 
-  if (!ready) {
+  if (!ready || initializingView) {
     return <InvestmentsSkeleton />;
   }
 
@@ -496,7 +489,8 @@ export function InvestmentsPage() {
           {activeTab === 'investments' && (
             <button
               onClick={() => setIsAddOpen(true)}
-              className='flex h-10 w-10 md:w-auto md:px-4 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-colors'
+              disabled={isAddOpen}
+              className='flex h-10 w-10 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-4'
             >
               <FiPlus className='h-5 w-5' />
               <span className='hidden md:inline'>Add Asset</span>
@@ -796,25 +790,7 @@ export function InvestmentsPage() {
             </div>
           )}
 
-          <InvestmentsTable investments={pagedFiltered} />
-          {filtered.length > pageSize && (
-            <div className='flex items-center justify-between'>
-              <span className='text-xs font-medium text-slate-500 dark:text-slate-400'>
-                Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
-              </span>
-              <div className='flex items-center gap-2'>
-                <button type='button' disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className='rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-bold disabled:opacity-40'>
-                  Prev
-                </button>
-                <span className='text-xs font-bold text-slate-600 dark:text-slate-300'>
-                  {currentPage}/{pageCount}
-                </span>
-                <button type='button' disabled={currentPage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))} className='rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-bold disabled:opacity-40'>
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          <InvestmentsTable investments={filtered} />
 
           <UpsertInvestmentModal
             open={isAddOpen}

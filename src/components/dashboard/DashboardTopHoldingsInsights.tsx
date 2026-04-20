@@ -18,40 +18,37 @@ import {
 
 import { BsFillLightbulbFill } from 'react-icons/bs';
 import type { Investment } from '../../types/investmentTypes';
+import {
+  classifyInvestmentBucket,
+  includeHoldingByFilter,
+} from '../../utils/assetClassification';
 import { formatINR } from '../../utils/format';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import type { DashboardHoldingFilter } from '../../utils/assetClassification';
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
 function typeLabel(inv: Investment): string {
-  switch (inv.type) {
-    case 'stock':
-      return 'Equity';
-    case 'mutual_fund':
-      return 'MF';
-    case 'bond':
-      return 'Bond';
-    case 'fixed_deposit':
-      return 'FD/RD';
-    case 'other':
-      return inv.assetType === 'gold'
-        ? 'Gold'
-        : inv.assetType === 'real_estate'
-          ? 'RE'
-          : 'Other';
-    default:
-      return 'Other';
-  }
+  const bucket = classifyInvestmentBucket(inv);
+  if (bucket === 'stocks') return 'Equity';
+  if (bucket === 'mutualFunds') return 'MF';
+  if (bucket === 'etfs') return 'ETF';
+  if (bucket === 'gold') return 'Gold';
+  if (bucket === 'silver') return 'Silver';
+  if (bucket === 'bonds') return 'Bond';
+  return 'Other';
 }
 
 const TYPE_PILL: Record<string, string> = {
   Equity: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
   MF: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+  ETF: 'bg-sky-500/10 text-sky-400 border border-sky-500/20',
   Bond: 'bg-violet-500/10 text-violet-400 border border-violet-500/20',
   'FD/RD': 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
   Gold: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+  Silver: 'bg-slate-400/20 text-slate-300 border border-slate-400/40',
   RE: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
   Other: 'bg-slate-500/5 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400 border border-slate-400/30 dark:border-slate-500/20',
 };
@@ -154,13 +151,16 @@ export function DashboardTopHoldingsInsights() {
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const essentials = usePortfolioStore((s) => s.essentials);
   const navigate = useNavigate();
+  const [holdingFilter, setHoldingFilter] = useState<DashboardHoldingFilter>('all');
 
   // Top 5 holdings by current value
   const topHoldings = useMemo(() => {
-    return [...investments]
+    return investments
+      .filter((inv) => includeHoldingByFilter(inv, holdingFilter))
+      .slice()
       .sort((a, b) => currentValue(b) - currentValue(a))
       .slice(0, 5);
-  }, [investments]);
+  }, [investments, holdingFilter]);
 
   // Smart insights (like FinBoom)
   const insights = useMemo(() => {
@@ -312,11 +312,29 @@ export function DashboardTopHoldingsInsights() {
             View all <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
         </div>
+        <div className='mb-3'>
+          <select
+            value={holdingFilter}
+            onChange={(e) => setHoldingFilter(e.target.value as DashboardHoldingFilter)}
+            className='w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition-colors focus:border-emerald-500/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+          >
+            <option value='all'>All</option>
+            <option value='equity'>Equity</option>
+            <option value='stocks'>Stocks</option>
+            <option value='mutual_funds'>Mutual Funds</option>
+            <option value='etfs'>ETFs</option>
+            <option value='gold'>Gold</option>
+            <option value='silver'>Silver</option>
+            <option value='bonds'>Bonds</option>
+          </select>
+        </div>
 
         {topHoldings.length === 0 ? (
           <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
             <FiTrendingUp className='h-8 w-8 text-slate-500 dark:text-slate-600 mb-2' />
-            <p className='text-sm text-slate-900 dark:text-slate-500'>No investments yet.</p>
+            <p className='text-sm text-slate-900 dark:text-slate-500'>
+              No holdings found for this filter.
+            </p>
             <button
               onClick={() => navigate('/investments')}
               className='mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
