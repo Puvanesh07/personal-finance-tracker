@@ -1,8 +1,4 @@
 // src/components/dashboard/MarketCapAllocationChart.tsx
-//
-// FIX: Clickable market cap pills — clicking Large Cap / Mid Cap / Small Cap
-//      navigates to /investments with that market cap pre-filtered via URL state.
-//      All list rows are also clickable to filter.
 
 import {
   Bar,
@@ -97,7 +93,7 @@ export function MarketCapAllocationChart() {
     refresh();
   };
 
-  // ✅ Navigate to investments page with marketCap filter via sessionStorage
+  // Navigate to investments page with marketCap filter via sessionStorage
   const handleCapClick = (cap: string) => {
     sessionStorage.setItem('inv_marketcap_filter', cap);
     navigate('/investments');
@@ -105,17 +101,31 @@ export function MarketCapAllocationChart() {
 
   const { chartData, pills } = useMemo(() => {
     const capMap = new Map<string, { value: number; count: number }>();
+
     for (const inv of investments) {
-      if (inv.type === 'fixed_deposit' || inv.type === 'bond') continue;
+      // Prioritize the user's manual classification from the Investments table
+      const manualCap = (inv as any).marketCap;
       const meta = metadata.get(inv.id);
-      const cat = meta?.marketCapCategory ?? 'Unknown';
+
+      let cat = manualCap || meta?.marketCapCategory;
+
+      if (!cat) {
+        // Skip non-equities (bonds, crypto, gold, FDs) from showing up as "Unknown"
+        // in the market cap chart, UNLESS the user manually tagged them.
+        if (inv.type !== 'stock' && inv.type !== 'mutual_fund') continue;
+
+        cat = 'Unknown';
+      }
+
       const prev = capMap.get(cat) ?? { value: 0, count: 0 };
       capMap.set(cat, {
         value: prev.value + currentValue(inv),
         count: prev.count + 1,
       });
     }
+
     const total = Array.from(capMap.values()).reduce((a, b) => a + b.value, 0);
+
     const allData = Array.from(capMap.entries())
       .filter(([, v]) => v.value > 0)
       .map(([cat, { value, count }]) => ({
@@ -130,14 +140,14 @@ export function MarketCapAllocationChart() {
       const d = allData.find((x) => x.name === cat);
       return { cat, pct: d?.pct ?? '0.0', stocks: d?.stocks ?? 0 };
     });
+
     return { chartData: allData, pills: pillsData };
   }, [investments, metadata]);
 
+  // Only show pending count for stocks that lack both manual & metadata tags
   const pendingCount = investments.filter(
     (inv) =>
-      inv.type !== 'fixed_deposit' &&
-      inv.type !== 'bond' &&
-      !metadata.has(inv.id),
+      inv.type === 'stock' && !metadata.has(inv.id) && !(inv as any).marketCap,
   ).length;
 
   return (
@@ -168,7 +178,7 @@ export function MarketCapAllocationChart() {
         </div>
       ) : (
         <div className='flex flex-col gap-5 pt-2'>
-          {/* ✅ Clickable Pills — Large / Mid / Small Cap */}
+          {/* Clickable Pills — Large / Mid / Small Cap */}
           <div className='grid grid-cols-3 gap-3'>
             {pills.map(({ cat, pct, stocks }) => (
               <button
@@ -189,7 +199,6 @@ export function MarketCapAllocationChart() {
                   >
                     {cat}
                   </span>
-                  {/* ✅ Direction/redirect icon */}
                   <FiArrowUpRight
                     className='h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity'
                     style={{ color: CAP_COLORS[cat] }}
@@ -253,7 +262,7 @@ export function MarketCapAllocationChart() {
             </div>
           )}
 
-          {/* ✅ Clickable list rows */}
+          {/* Clickable list rows */}
           <div className='flex flex-col gap-0.5 border-t border-slate-100 pt-3 dark:border-slate-800/60'>
             {chartData.map((e) => (
               <button

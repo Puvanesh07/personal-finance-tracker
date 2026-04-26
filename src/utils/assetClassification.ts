@@ -1,5 +1,7 @@
-import { currentValue } from './calculations';
+// src/utils/assetClassification.ts
+
 import type { Investment } from '../types/investmentTypes';
+import { currentValue } from './calculations';
 
 export type DashboardHoldingFilter =
   | 'all'
@@ -29,30 +31,42 @@ type ExposureFlags = {
   isMutualFund: boolean;
 };
 
+// Now includes 'sector' and 'marketCap' for better matching
 function normalizedText(inv: Investment): string {
-  return `${inv.name} ${inv.symbol ?? ''} ${inv.platform ?? ''}`.toLowerCase();
+  const anyInv = inv as any;
+  const sector = anyInv.sector || '';
+  const marketCap = anyInv.marketCap || '';
+  return `${inv.name} ${inv.symbol ?? ''} ${inv.platform ?? ''} ${sector} ${marketCap}`.toLowerCase();
 }
 
 function detectExposure(inv: Investment): ExposureFlags {
   const text = normalizedText(inv);
-  const isEtf = /\betf\b/.test(text);
-  const isGold = inv.type === 'other'
-    ? inv.assetType === 'gold'
-    : /\bgold\b|\bsgb\b|\bgoldbees\b|\bgol[d]?\s*etf\b/.test(text);
-  const isSilver = inv.type === 'other'
-    ? inv.assetType === 'silver'
-    : /\bsilver\b|\bsilv(er)?bees\b|\bsilv?\s*etf\b/.test(text);
+
+  // Match "etf", "etfs", or anything with "bees" (common Indian ETFs)
+  const isEtf = /\betfs?\b/.test(text) || text.includes('bees');
+
+  const isGold =
+    inv.type === 'other'
+      ? inv.assetType === 'gold'
+      : /\bgold\b|\bsgb\b|\bgoldbees\b|\bgol[d]?\s*etf\b/.test(text);
+
+  const isSilver =
+    inv.type === 'other'
+      ? inv.assetType === 'silver'
+      : /\bsilver\b|\bsilv(er)?bees\b|\bsilv?\s*etf\b/.test(text);
 
   return {
     isGold,
     isSilver,
-    // Gold/Silver ETFs should never be treated as generic ETFs.
+    // Gold/Silver ETFs should never be treated as generic ETFs in asset allocation.
     isEtf: isEtf && !isGold && !isSilver,
     isBondLike:
       inv.type === 'bond' ||
       inv.type === 'fixed_deposit' ||
       (inv.type === 'other' &&
-        (inv.assetType === 'ppf' || inv.assetType === 'nps' || inv.assetType === 'epf')),
+        (inv.assetType === 'ppf' ||
+          inv.assetType === 'nps' ||
+          inv.assetType === 'epf')),
     isStock: inv.type === 'stock' && !isEtf && !isGold && !isSilver,
     isMutualFund: inv.type === 'mutual_fund' && !isEtf && !isGold && !isSilver,
   };
