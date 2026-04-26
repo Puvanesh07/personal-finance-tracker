@@ -1,11 +1,4 @@
 // src/hooks/useNotificationEngine.ts
-//
-// UPDATED:
-//  • Liability due date bell: fires 3 days before endDate (not just EMI day)
-//  • Skips notifications for returned liabilities
-//  • Skips goal notifications for completed/success goals
-//  • New notification type: 'liability_due_date' for endDate-based alerts
-
 import { differenceInDays, parseISO } from 'date-fns';
 
 import { useEffect } from 'react';
@@ -16,10 +9,69 @@ export function useNotificationEngine() {
   const policies = usePortfolioStore((s) => s.insurancePolicies);
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const goals = usePortfolioStore((s) => s.goals);
+  const investments = usePortfolioStore((s) => s.investments);
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const addSoldTrade = usePortfolioStore((s) => s.addSoldTrade);
+  const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
 
   useEffect(() => {
     const today = new Date();
+
+    // ── Investment Maturity Alerts & Auto-Profit Realization ───────────────
+    investments?.forEach((inv) => {
+      if (inv.type === 'bond' || inv.type === 'fixed_deposit') {
+        if (!inv.maturityDate) return;
+
+        const days = differenceInDays(parseISO(inv.maturityDate), today);
+
+        // 1. Auto-update to profit if matured (0 days or past)
+        if (days <= 0) {
+          const invested = inv.investedAmount || 0;
+          const rate = inv.interestRate || 0;
+          const duration = inv.durationMonths || 0;
+
+          // Simple interest calculation: P * R * T (Years)
+          const profit = invested * (rate / 100) * (duration / 12);
+          const sellPrice = invested + profit;
+
+          // Automatically record the profit in SoldTrades
+          addSoldTrade({
+            investmentName: inv.name,
+            investmentType: inv.type,
+            buyPrice: invested,
+            sellPrice: sellPrice,
+            soldDate: new Date().toISOString(),
+            notes: 'Auto-realized upon reaching maturity date.',
+            platform: inv.platform,
+          });
+
+          // Delete the original active investment
+          deleteInvestment(inv.id);
+
+          // Notify the user of the automatic action
+          addNotification({
+            type: 'investment_matured',
+            title: '🎉 Investment Matured & Profit Booked!',
+            message: `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${inv.name}" has reached maturity. ₹${profit.toLocaleString('en-IN', { maximumFractionDigits: 0 })} profit has been automatically added to your realized profits.`,
+            dueDate: inv.maturityDate,
+            entityId: `matured_auto_${inv.id}_${Date.now()}`,
+            actionLabel: 'View Profits',
+            actionPath: '/profits',
+          });
+        } else if (days <= 7) {
+          // 2. Upcoming maturity notification
+          addNotification({
+            type: 'investment_maturity_upcoming',
+            title: '⏰ Upcoming Maturity',
+            message: `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${inv.name}" is maturing in ${days} day${days === 1 ? '' : 's'}!`,
+            dueDate: inv.maturityDate,
+            entityId: `maturity_upcoming_${inv.id}_${days}`,
+            actionLabel: 'View Investments',
+            actionPath: '/investments',
+          });
+        }
+      }
+    });
 
     // ── Insurance Renewal Alerts ────────────────────────────────────────────
     policies?.forEach((policy) => {
@@ -49,10 +101,8 @@ export function useNotificationEngine() {
 
     // ── Liability EMI Reminders (EMI Day-based) ─────────────────────────────
     liabilities?.forEach((liability) => {
-      // Skip returned liabilities entirely
       if (liability.status === 'returned') return;
 
-      // Guard: emiDay must be a valid number 1-31
       if (
         !liability.emiDay ||
         typeof liability.emiDay !== 'number' ||
@@ -61,10 +111,7 @@ export function useNotificationEngine() {
       )
         return;
 
-      // Guard: skip if explicitly paid or paused
       if (liability.status === 'paid' || liability.status === 'paused') return;
-
-      // Guard: skip if nothing outstanding
       if ((liability.outstanding ?? 0) <= 0) return;
 
       const todayDate = today.getDate();
@@ -106,10 +153,7 @@ export function useNotificationEngine() {
     });
 
     // ── Liability Due Date Alerts (endDate-based, 3-day warning) ───────────
-    // This fires for ALL liability types (including personal loans) when
-    // their endDate (repayment date) is within 3 days.
     liabilities?.forEach((liability) => {
-      // Skip returned, paid, paused
       if (
         liability.status === 'returned' ||
         liability.status === 'paid' ||
@@ -122,7 +166,6 @@ export function useNotificationEngine() {
 
       const days = differenceInDays(parseISO(liability.endDate), today);
 
-      // Fire when 3 days or less (including 0 = today, and -1 = overdue)
       if (days <= 3 && days >= -1) {
         addNotification({
           type: 'liability_due',
@@ -149,8 +192,6 @@ export function useNotificationEngine() {
     // ── Goal Completion & Progress Alerts ───────────────────────────────────
     goals?.forEach((goal) => {
       if (!goal.targetAmount || goal.targetAmount <= 0) return;
-
-      // Skip goals already marked as completed/success
       if (goal.status === 'completed' || goal.status === 'success') return;
 
       const pct = (goal.currentAmount / goal.targetAmount) * 100;
@@ -177,5 +218,10 @@ export function useNotificationEngine() {
     });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [policies?.length, liabilities?.length, goals?.length]);
+  }, [
+    policies?.length,
+    liabilities?.length,
+    goals?.length,
+    investments?.length,
+  ]);
 }

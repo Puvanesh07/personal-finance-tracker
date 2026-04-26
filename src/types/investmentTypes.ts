@@ -15,6 +15,7 @@ export type BaseInvestment = {
   symbol?: string;
   platform?: Platform | string;
   notes?: string;
+  status?: 'active' | 'matured' | 'closed'; // Added status for maturity tracking
   createdAt: string;
   updatedAt: string;
   userId?: string;

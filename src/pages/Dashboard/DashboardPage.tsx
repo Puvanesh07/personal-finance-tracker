@@ -1,3 +1,4 @@
+// src/pages/Dashboard/DashboardPage.tsx
 import { FiHome, FiPieChart } from 'react-icons/fi';
 
 import { AllocationCharts } from '../../components/dashboard/AllocationCharts';
@@ -46,7 +47,7 @@ export function DashboardPage() {
         <DashboardPortfolioAI />
       </section>
 
-      {/* ✅ NEW: Top Holdings + Smart Insights (FinBoom-style) */}
+      {/* Top Holdings + Smart Insights */}
       <section>
         <DashboardTopHoldingsInsights />
       </section>

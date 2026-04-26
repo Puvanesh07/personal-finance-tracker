@@ -11,7 +11,9 @@ export type NotifType =
   | 'goal_progress'
   | 'investment_alert'
   | 'system'
-  | 'strategy_tip';
+  | 'strategy_tip'
+  | 'investment_matured'
+  | 'investment_maturity_upcoming';
 
 export interface AppNotification {
   id: string;
@@ -28,7 +30,9 @@ export interface AppNotification {
 
 interface NotificationState {
   notifications: AppNotification[];
-  addNotification: (n: Omit<AppNotification, 'id' | 'read' | 'createdAt'>) => void;
+  addNotification: (
+    n: Omit<AppNotification, 'id' | 'read' | 'createdAt'>,
+  ) => void;
   markRead: (id: string) => void;
   markAllRead: () => void;
   dismiss: (id: string) => void;
@@ -49,14 +53,21 @@ export const useNotificationStore = create<NotificationState>()(
         // Deduplicate by entityId + type within last 24h
         if (n.entityId) {
           const existing = get().notifications.find(
-            (x) => x.entityId === n.entityId && x.type === n.type &&
-              Date.now() - new Date(x.createdAt).getTime() < 86_400_000
+            (x) =>
+              x.entityId === n.entityId &&
+              x.type === n.type &&
+              Date.now() - new Date(x.createdAt).getTime() < 86_400_000,
           );
           if (existing) return;
         }
         set((s) => ({
           notifications: [
-            { ...n, id: genId(), read: false, createdAt: new Date().toISOString() },
+            {
+              ...n,
+              id: genId(),
+              read: false,
+              createdAt: new Date().toISOString(),
+            },
             ...s.notifications,
           ].slice(0, 100), // keep max 100
         }));
@@ -65,7 +76,7 @@ export const useNotificationStore = create<NotificationState>()(
       markRead: (id) =>
         set((s) => ({
           notifications: s.notifications.map((n) =>
-            n.id === id ? { ...n, read: true } : n
+            n.id === id ? { ...n, read: true } : n,
           ),
         })),
 
@@ -85,6 +96,6 @@ export const useNotificationStore = create<NotificationState>()(
     }),
     {
       name: 'fintrackly-notifications',
-    }
-  )
+    },
+  ),
 );

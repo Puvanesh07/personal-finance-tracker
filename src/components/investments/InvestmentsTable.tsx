@@ -33,6 +33,7 @@ import type {
   FundamentalData,
 } from '../../utils/folioSyncEngine';
 import { currentValue, investedValue } from '../../utils/calculations';
+import { differenceInDays, parseISO } from 'date-fns';
 import {
   ensureCsvExtension,
   expandExportFilenamePattern,
@@ -428,20 +429,11 @@ function SectorCapCell({
 
 // ── Investment Category Helpers ────────────────────────────────────────────
 
-/**
- * Returns true for stocks & mutual funds — assets that have live prices,
- * quantities, dividends, and benefit from FolioSync analysis.
- */
 function isEquityLike(inv: any): boolean {
   if (inv.type === 'stock' || inv.type === 'mutual_fund') return true;
   return false;
 }
 
-/**
- * Returns true for fixed-income / government instruments:
- * bonds, FDs, PPF, NPS, EPF, physical gold/silver, real estate, crypto, other.
- * These show maturity date, interest rate, duration instead of qty/live price/dividend/FolioSync.
- */
 function isFixedIncome(inv: any): boolean {
   return !isEquityLike(inv);
 }
@@ -618,10 +610,6 @@ function PriceCell({
 }
 
 // ── Fixed Income Detail Cell ───────────────────────────────────────────────
-/**
- * Shows relevant details for bonds, FDs, PPF, NPS, EPF, real estate, gold etc.
- * Replaces Qty / Live Price / Dividend / FolioSync for these asset types.
- */
 function FixedIncomeDetails({ inv }: { inv: any }) {
   const rows: { label: string; value: string; highlight?: boolean }[] = [];
 
@@ -633,8 +621,17 @@ function FixedIncomeDetails({ inv }: { inv: any }) {
         value: `${inv.interestRate}% p.a.`,
         highlight: true,
       });
-    if (inv.maturityDate)
-      rows.push({ label: 'Matures', value: inv.maturityDate });
+    if (inv.maturityDate) {
+      const days = differenceInDays(parseISO(inv.maturityDate), new Date());
+      let highlightText = inv.maturityDate;
+      if (days > 0 && days <= 7) highlightText += ` (in ${days} days)`;
+
+      rows.push({
+        label: 'Matures',
+        value: highlightText,
+        highlight: days <= 7,
+      });
+    }
     if (inv.durationMonths)
       rows.push({
         label: 'Duration',
@@ -787,12 +784,11 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     Record<string, boolean>
   >({});
 
-  // Establish the Current Financial Year dynamically based on today
   const currentFYLabel = useMemo(
     () => getFinancialYear(todayISO() || new Date().toISOString()),
     [],
   );
-  const shortFYLabel = currentFYLabel.replace('FY ', ''); // Output: "25-26"
+  const shortFYLabel = currentFYLabel.replace('FY ', '');
 
   const showFailedSymbolsToast = (
     failed: { name: string; symbol: string; reason: string }[],
@@ -1189,10 +1185,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       return;
     }
 
-    // Pull the base URL from your .env file
     const baseUrl = import.meta.env.VITE_LIVE_PRICE_WORKER_URL;
-
-    // Append your specific endpoint
     const WORKER_URL = `${baseUrl}/dividends`;
 
     const fetchedDivs: Record<
@@ -1225,16 +1218,11 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               amount: dps,
               total: eventTotal,
             });
-
-            console.log(
-              `[Dividend] ${inv.symbol} | Date: ${item.date} | Qty: ${qty} | DPS: ₹${dps} | Total: ₹${eventTotal}`,
-            );
           });
         }
 
         fetchedDivs[inv.id] = { history, totalAllTime };
       } catch (e) {
-        console.error(`Failed to fetch dividends for ${inv.symbol}`, e);
         fetchedDivs[inv.id] = { history: [], totalAllTime: 0 };
       }
 
@@ -1290,14 +1278,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         const isDivLoading = !!divRowRefreshingMap[inv.id];
         const canFetchDiv = inv.type === 'stock' && !isUS && !!inv.symbol;
 
-        // Calculate Dividend only for the current Financial Year to display in the main table
         let dividendCurrentFY = null;
         if (divInfo && divInfo.history.length > 0) {
           dividendCurrentFY = divInfo.history
             .filter((h) => getFinancialYear(h.date) === currentFYLabel)
             .reduce((sum, h) => sum + h.total, 0);
         } else if (divInfo) {
-          dividendCurrentFY = 0; // Data fetched but empty history
+          dividendCurrentFY = 0;
         }
 
         return {
@@ -1875,7 +1862,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             const hasLiveSymbol = getLivePriceSymbol(inv) !== null;
             const isProfit = pl >= 0;
             const isRowPinned = pinnedIds.includes(inv.id);
-            const weightPct = totals.current > 0 ? (current / totals.current) * 100 : 0;
+            const weightPct =
+              totals.current > 0 ? (current / totals.current) * 100 : 0;
 
             return (
               <div
@@ -2372,7 +2360,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         : 'STCG'
                       : null;
                   const isLast = rowIdx === displayRows.length - 1;
-                  const weightPct = totals.current > 0 ? (current / totals.current) * 100 : 0;
+                  const weightPct =
+                    totals.current > 0 ? (current / totals.current) * 100 : 0;
                   const bdClass = !isLast
                     ? 'border-b border-slate-200 dark:border-slate-800/70'
                     : '';
@@ -2445,7 +2434,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           )}
                           {inv.type === 'stock' &&
                             (((inv as any).targetPrice as number | undefined) ||
-                              ((inv as any).stopLossPrice as number | undefined)) && (
+                              ((inv as any).stopLossPrice as
+                                | number
+                                | undefined)) && (
                               <div className='mt-1 flex items-center gap-1.5 text-[9px] font-bold'>
                                 {(inv as any).targetPrice && (
                                   <span className='px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'>
@@ -2717,7 +2708,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             </tbody>
             <tfoot>
               <tr className='sticky bottom-0 z-10 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-300/70 dark:border-slate-700/70'>
-                <td colSpan={5} className='px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300'>
+                <td
+                  colSpan={5}
+                  className='px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300'
+                >
                   Totals
                 </td>
                 <td className='px-4 py-2.5 text-right text-xs font-bold text-slate-500 dark:text-slate-300 tabular-nums'>
@@ -2727,7 +2721,9 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   {formatINR(totals.current)}
                 </td>
                 <td colSpan={4} />
-                <td className={`px-4 py-2.5 text-right text-xs font-black tabular-nums ${totals.pl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                <td
+                  className={`px-4 py-2.5 text-right text-xs font-black tabular-nums ${totals.pl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+                >
                   {totals.pl >= 0 ? '+' : ''}
                   {formatINR(totals.pl)}
                 </td>

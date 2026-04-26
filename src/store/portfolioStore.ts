@@ -2,7 +2,7 @@
 import type {
   Account,
   CashflowEntry,
-  Credential, // ← NEW
+  Credential,
   EssentialsConfig,
   Goal,
   GoalContribution,
@@ -91,7 +91,7 @@ type PortfolioState = {
   cashflows: CashflowEntry[];
   goals: Goal[];
   goalContributions: GoalContribution[];
-  credentials: Credential[]; // ← NEW
+  credentials: Credential[];
   networthSnapshots: NetWorthSnapshot[];
   latestInsight: InsightSnapshot | null;
   notion: NotionConfig;
@@ -142,7 +142,6 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteGoalContribution: (id: string) => Promise<void>;
 
-  // Credentials — NEW
   addCredential: (
     credential: Omit<Credential, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
   ) => Promise<void>;
@@ -233,7 +232,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   cashflows: [],
   goals: [],
   goalContributions: [],
-  credentials: [], // ← NEW
+  credentials: [],
   networthSnapshots: [],
   latestInsight: null,
   notion: DEFAULT_NOTION,
@@ -257,7 +256,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         cashflows,
         goals,
         goalContributions,
-        credentials, // ← NEW
+        credentials,
         networthSnapshots,
         insights,
         accounts,
@@ -274,7 +273,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
         fetchSub<GoalContribution>(uid, 'goalContributions'),
-        fetchSub<Credential>(uid, 'credentials'), // ← NEW
+        fetchSub<Credential>(uid, 'credentials'),
         fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
         fetchSub<InsightSnapshot>(uid, 'insights'),
         fetchSub<Account>(uid, 'accounts'),
@@ -317,7 +316,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ),
         credentials: credentials.sort((a, b) =>
           safeCompare(b.updatedAt, a.updatedAt),
-        ), // ← NEW
+        ),
         networthSnapshots: networthSnapshots.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
@@ -605,8 +604,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       goalContributions: s.goalContributions.filter((x) => x.id !== id),
     }));
   },
-
-  // ── CREDENTIALS ────────────────────────────────────────────────────────────
 
   addCredential: async (credential) => {
     const uid = get().uid;
@@ -1083,7 +1080,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'cashflows',
       'goals',
       'goalContributions',
-      'credentials', // ← NEW
+      'credentials',
       'snapshots',
       'networthSnapshots',
       'insights',
@@ -1131,7 +1128,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         cashflows: [],
         goals: [],
         goalContributions: [],
-        credentials: [], // ← NEW
+        credentials: [],
         networthSnapshots: [],
         latestInsight: null,
         notion: { enabled: false },

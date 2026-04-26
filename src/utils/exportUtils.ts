@@ -108,7 +108,10 @@ export function exportCashflowsCSV(
   exportCSV(rows, filename);
 }
 
-export function exportGoalsCSV(goals: Goal[], filename = 'goals-selection.csv') {
+export function exportGoalsCSV(
+  goals: Goal[],
+  filename = 'goals-selection.csv',
+) {
   if (!goals?.length) return;
   exportCSV(
     goals.map((g) => ({
