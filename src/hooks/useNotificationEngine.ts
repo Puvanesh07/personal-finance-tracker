@@ -4,12 +4,18 @@ import { differenceInDays, parseISO } from 'date-fns';
 import { useEffect } from 'react';
 import { useNotificationStore } from '../store/notificationStore';
 import { usePortfolioStore } from '../store/portfolioStore';
+import {
+  buildPaymentReminderMessage,
+  daysUntilDue,
+} from '../utils/paymentTracker';
 
 export function useNotificationEngine() {
   const policies = usePortfolioStore((s) => s.insurancePolicies);
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const goals = usePortfolioStore((s) => s.goals);
   const investments = usePortfolioStore((s) => s.investments);
+  const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
+  const trackedPayments = usePortfolioStore((s) => s.trackedPayments);
   const addNotification = useNotificationStore((s) => s.addNotification);
   const addSoldTrade = usePortfolioStore((s) => s.addSoldTrade);
   const deleteInvestment = usePortfolioStore((s) => s.deleteInvestment);
@@ -189,6 +195,65 @@ export function useNotificationEngine() {
       }
     });
 
+    // ── Pending Payment Reminders (buyer/vendor receivables) ───────────────────
+    pendingPayments?.forEach((payment) => {
+      if (payment.status !== 'pending' || !payment.expectedPaymentDate) return;
+
+      const days = differenceInDays(
+        parseISO(payment.expectedPaymentDate),
+        today,
+      );
+
+      if (days <= 5 && days >= -7) {
+        const amountStr = `₹${payment.amount.toLocaleString('en-IN')}`;
+        addNotification({
+          type: 'pending_payment_due',
+          title:
+            days < 0
+              ? `⚠️ Overdue: ${payment.buyerName}`
+              : days === 0
+                ? `🔴 Payment Due Today: ${payment.buyerName}`
+                : `⏰ Payment Due in ${days} Day${days === 1 ? '' : 's'}: ${payment.buyerName}`,
+          message:
+            days < 0
+              ? `${amountStr} for "${payment.itemDescription}" was due on ${new Date(payment.expectedPaymentDate).toLocaleDateString('en-IN')}.`
+              : days === 0
+                ? `${payment.buyerName} owes ${amountStr} for "${payment.itemDescription}" — due today.`
+                : `${payment.buyerName} owes ${amountStr} for "${payment.itemDescription}" — due ${new Date(payment.expectedPaymentDate).toLocaleDateString('en-IN')}.`,
+          dueDate: payment.expectedPaymentDate,
+          entityId: `pending_payment_${payment.id}_${days}`,
+          actionLabel: 'View Pending Payments',
+          actionPath: '/liabilities?section=pending-payments',
+        });
+      }
+    });
+
+    // ── Payment Tracker Reminders ───────────────────────────────────────────
+    trackedPayments?.forEach((payment) => {
+      if (payment.status !== 'pending') return;
+
+      const days = daysUntilDue(payment.dueDate);
+      const shouldNotify =
+        days < 0 ||
+        payment.reminderDays.some((rd) => days === rd) ||
+        days === 0;
+
+      if (!shouldNotify) return;
+      if (days < 0 && days < -7) return;
+
+      const { title, message } = buildPaymentReminderMessage(payment, days);
+
+      addNotification({
+        type: 'payment_tracker_due',
+        title,
+        message,
+        dueDate: payment.dueDate,
+        entityId: `payment_tracker_${payment.id}_${days}`,
+        actionLabel: 'View Payments',
+        actionPath: '/payments',
+      });
+    });
+
     // ── Goal Completion & Progress Alerts ───────────────────────────────────
     goals?.forEach((goal) => {
       if (!goal.targetAmount || goal.targetAmount <= 0) return;
@@ -219,9 +284,11 @@ export function useNotificationEngine() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    policies?.length,
-    liabilities?.length,
-    goals?.length,
-    investments?.length,
+    policies,
+    liabilities,
+    goals,
+    investments,
+    pendingPayments,
+    trackedPayments,
   ]);
 }

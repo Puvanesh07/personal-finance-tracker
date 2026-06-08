@@ -147,3 +147,89 @@ img {
 button:focus:not(:focus-visible) {
   outline: none;
 }
+
+/* ── Shared icon action buttons (edit / delete / utility) ── */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-icon-edit {
+  height: 2.25rem;
+  width: 2.25rem;
+  background-color: rgb(241 245 249);
+  color: rgb(71 85 105);
+  border: 1px solid rgb(226 232 240 / 0.8);
+}
+
+.btn-icon-edit:hover {
+  background-color: rgb(238 242 255);
+  color: rgb(79 70 229);
+  border-color: rgb(199 210 254 / 0.8);
+}
+
+html.dark .btn-icon-edit {
+  background-color: rgb(30 41 59);
+  color: rgb(148 163 184);
+  border-color: rgb(51 65 85 / 0.8);
+}
+
+html.dark .btn-icon-edit:hover {
+  background-color: rgb(49 46 129 / 0.35);
+  color: rgb(129 140 248);
+  border-color: rgb(99 102 241 / 0.4);
+}
+
+.btn-icon-delete {
+  height: 2.25rem;
+  width: 2.25rem;
+  background-color: rgb(241 245 249);
+  color: rgb(71 85 105);
+  border: 1px solid rgb(226 232 240 / 0.8);
+}
+
+.btn-icon-delete:hover {
+  background-color: rgb(255 241 242);
+  color: rgb(225 29 72);
+  border-color: rgb(254 205 211 / 0.8);
+}
+
+html.dark .btn-icon-delete {
+  background-color: rgb(30 41 59);
+  color: rgb(148 163 184);
+  border-color: rgb(51 65 85 / 0.8);
+}
+
+html.dark .btn-icon-delete:hover {
+  background-color: rgb(136 19 55 / 0.35);
+  color: rgb(251 113 133);
+  border-color: rgb(244 63 94 / 0.4);
+}
+
+/* ── Consistent row / list hover in dark mode ── */
+.row-hover {
+  transition: background-color 0.15s ease;
+}
+
+.row-hover:hover {
+  background-color: rgb(248 250 252);
+}
+
+html.dark .row-hover:hover {
+  background-color: rgb(30 41 59 / 0.65);
+}
+
+/* ── Net worth formula label ── */
+.net-worth-formula {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgb(100 116 139);
+}
+
+html.dark .net-worth-formula {
+  color: rgb(148 163 184);
+}

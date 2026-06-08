@@ -15,7 +15,10 @@ import { Modal } from '../../components/ui/Modal';
 import { PortfolioAIAnalysisPanel } from '../../components/insights/PortfolioAIAnalysisPanel';
 import { computeAlpha, projectFutureValue } from '../../utils/advancedInsights';
 import { buildPortfolioAIContext } from '../../utils/portfolioAIContext';
-import { summarizePortfolio } from '../../utils/calculations';
+import {
+  calculateNetWorth,
+  summarizePortfolio,
+} from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -565,12 +568,11 @@ export default function InsightsPage() {
   const [infoModalKey, setInfoModalKey] = useState<string | null>(null);
 
   const metrics = useMemo(() => {
-    const { totalValue } = summarizePortfolio(investments);
-    const totalLiabilities = liabilities.reduce(
-      (acc, l) => acc + (l.outstanding ?? 0),
-      0,
+    const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
+      investments,
+      liabilities,
     );
-    const netWorth = totalValue - totalLiabilities;
+    const totalValue = totalAssets;
     const health = calcHealthScore(
       investments,
       liabilities,

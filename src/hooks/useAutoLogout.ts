@@ -4,8 +4,10 @@ import { auth } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
-const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
-const WARNING_MS = 9 * 60 * 1000; // warn at 9 minutes
+/** Disabled — user requested no automatic logout on inactivity. */
+const AUTO_LOGOUT_ENABLED = false;
+const INACTIVITY_MS = 10 * 60 * 1000;
+const WARNING_MS = 9 * 60 * 1000;
 const LAST_ACTIVE_KEY = 'ft_last_active';
 
 export function useAutoLogout() {
@@ -14,6 +16,8 @@ export function useAutoLogout() {
   const toastIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!AUTO_LOGOUT_ENABLED) return;
+
     const clearTimers = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (warningRef.current) clearTimeout(warningRef.current);

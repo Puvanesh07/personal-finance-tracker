@@ -5,7 +5,10 @@
 
 import { FiExternalLink } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
-import { summarizePortfolio } from '../../utils/calculations';
+import {
+  calculateNetWorth,
+  summarizePortfolio,
+} from '../../utils/calculations';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -98,11 +101,10 @@ export function SummaryCards() {
   const navigate = useNavigate();
 
   const summary = useMemo(() => summarizePortfolio(investments), [investments]);
-  const liabilitiesTotal = useMemo(
-    () => liabilities.reduce((acc, l) => acc + (l.outstanding || 0), 0),
-    [liabilities],
+  const { totalAssets, totalLiabilities, netWorth } = useMemo(
+    () => calculateNetWorth(investments, liabilities),
+    [investments, liabilities],
   );
-  const netWorth = summary.totalValue - liabilitiesTotal;
   const isProfit = summary.profitLossTotal >= 0;
 
   const realizedProfit = useMemo(
@@ -117,13 +119,13 @@ export function SummaryCards() {
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
         <MetricCard
           label='Total Assets'
-          value={formatINR(summary.totalValue)}
+          value={formatINR(totalAssets)}
           navigateTo='/investments'
         />
         <MetricCard
-          label='Liabilities'
-          value={formatINR(liabilitiesTotal)}
-          variant={liabilitiesTotal > 0 ? 'danger' : 'default'}
+          label='Total Liabilities'
+          value={formatINR(totalLiabilities)}
+          variant={totalLiabilities > 0 ? 'danger' : 'default'}
           navigateTo='/liabilities'
         />
         <MetricCard
@@ -131,6 +133,7 @@ export function SummaryCards() {
           value={formatINR(netWorth)}
           variant='primary'
           navigateTo='/snapshots'
+          badge='Assets − Liabilities'
         />
         <MetricCard
           label='Snapshots Taken'

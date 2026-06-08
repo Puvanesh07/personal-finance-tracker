@@ -23,6 +23,7 @@ import { signOut } from 'firebase/auth';
 import { useAppHotkeys } from '../../hooks/useAppHotkeys';
 import { useLiabilityReminders } from '../../hooks/useLiabilityReminders';
 import { useNotificationEngine } from '../../hooks/useNotificationEngine';
+import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 function desktopLinkClass(isActive: boolean, accent: string, bg: string) {
   const base =
@@ -43,6 +44,7 @@ function iconOnlyLinkClass(isActive: boolean, accent: string, bg: string) {
 export function AppLayout() {
   useLiabilityReminders();
   useNotificationEngine();
+  useOfflineSync();
 
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

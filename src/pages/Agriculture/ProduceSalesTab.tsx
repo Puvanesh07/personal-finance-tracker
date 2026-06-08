@@ -841,7 +841,7 @@ export function ProduceSalesTab() {
                               resetForm(lot);
                               setShowModal(true);
                             }}
-                            className='p-1.5 rounded-lg bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:bg-slate-600 transition-colors'
+                            className='btn-icon btn-icon-edit h-8 w-8'
                             title='Edit'
                           >
                             <FiEdit2 className='w-3.5 h-3.5' />

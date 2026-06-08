@@ -20,7 +20,10 @@ import { useMemo, useState } from 'react';
 import { GiWheat } from 'react-icons/gi';
 import { SnapshotsSkeleton } from '../../components/loader/skeletons';
 import { formatINR } from '../../utils/format';
-import { summarizePortfolio } from '../../utils/calculations';
+import {
+  calculateNetWorth,
+  summarizePortfolio,
+} from '../../utils/calculations';
 import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -103,11 +106,10 @@ export function SnapshotsPage() {
     () => summarizePortfolio(investments),
     [investments],
   );
-  const liabilitiesTotal = useMemo(
-    () => liabilities.reduce((a, l) => a + (l.outstanding || 0), 0),
-    [liabilities],
+  const { totalAssets, totalLiabilities, netWorth } = useMemo(
+    () => calculateNetWorth(investments, liabilities),
+    [investments, liabilities],
   );
-  const netWorth = portfolioSummary.totalValue - liabilitiesTotal;
   const accountBalance = useMemo(
     () => accounts.reduce((a, acc) => a + (acc.balance || 0), 0),
     [accounts],
@@ -143,7 +145,14 @@ export function SnapshotsPage() {
       (agriState.coconutRecords || []).reduce(
         (a, c) => a + (c.harvestIncome || 0),
         0,
-      );
+      ) +
+      (agriState.produceSales || []).reduce(
+        (a, p) => a + (p.totalAmount || 0),
+        0,
+      ) +
+      (agriState.livestockEvents || [])
+        .filter((e) => e.eventType === 'sale')
+        .reduce((a, e) => a + (e.price ?? 0), 0);
     const exp = (agriState.agriExpenses || []).reduce(
       (a, e) => a + e.amount,
       0,
@@ -316,6 +325,10 @@ export function SnapshotsPage() {
             <div>
               <p className='text-xs font-bold uppercase tracking-wider text-emerald-400/70'>
                 Net Worth (will be captured)
+              </p>
+              <p className='net-worth-formula mt-0.5'>
+                Total Assets ({formatINR(totalAssets)}) − Total Liabilities (
+                {formatINR(totalLiabilities)})
               </p>
               <p className='text-2xl font-black text-emerald-400 tabular-nums'>
                 {formatINR(netWorth)}

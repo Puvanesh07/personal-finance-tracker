@@ -5,7 +5,7 @@ import type {
   Investment,
   Liability,
 } from '../types/investmentTypes';
-import { summarizePortfolio } from './calculations';
+import { calculateNetWorth, summarizePortfolio } from './calculations';
 
 export type PortfolioAIContext = {
   netWorth: number;
@@ -47,15 +47,17 @@ export function buildPortfolioAIContext(args: {
   ) {
     return null;
   }
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
+    investments,
+    liabilities,
+  );
   const s = summarizePortfolio(investments);
-  const totalLiabilities = liabilities.reduce((a, l) => a + (l.outstanding || 0), 0);
-  const netWorth = s.totalValue - totalLiabilities;
   const equity = s.byType.stock.current + s.byType.mutual_fund.current;
-  const equityPct = s.totalValue > 0 ? (equity / s.totalValue) * 100 : 0;
+  const equityPct = totalAssets > 0 ? (equity / totalAssets) * 100 : 0;
   const income = monthlyAvg(cashflows, 'income');
   const expense = monthlyAvg(cashflows, 'expense');
   const surplus = income - expense;
-  const debtRatio = s.totalValue > 0 ? totalLiabilities / s.totalValue : 0;
+  const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
   const emergencyCurrent = essentials.emergencyFundCurrent ?? 0;
   const emergencyTarget = essentials.emergencyFundTarget ?? 0;
   const emergencyScore =
@@ -72,7 +74,7 @@ export function buildPortfolioAIContext(args: {
   );
   return {
     netWorth,
-    totalAssets: s.totalValue,
+    totalAssets,
     totalLiabilities,
     equityPct,
     monthlyIncome: income,

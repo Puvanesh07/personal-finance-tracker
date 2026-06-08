@@ -1,9 +1,10 @@
 // src/components/credentials/UpsertCredentialModal.tsx
 
-import { FiChevronDown, FiPlus, FiSave } from 'react-icons/fi';
+import { FiPlus, FiSave } from 'react-icons/fi';
 import { useMemo, useState } from 'react';
 
 import type { Credential } from '../../types/investmentTypes';
+import { Dropdown } from '../../components/ui/Dropdown';
 import { Modal } from '../../components/ui/Modal';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -98,22 +99,11 @@ export function UpsertCredentialModal(props: Props) {
       <div className='flex flex-col gap-4'>
         <div>
           <label className={labelCls}>Category</label>
-          <div className='relative'>
-            <select
-              value={state.category}
-              onChange={(e) =>
-                setState((s) => ({ ...s, category: e.target.value as any }))
-              }
-              className={`${inputCls} appearance-none cursor-pointer`}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <FiChevronDown className='absolute right-4 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500 pointer-events-none' />
-          </div>
+          <Dropdown
+            value={state.category}
+            options={CATEGORIES.map((c) => ({ value: c.id, label: c.label }))}
+            onChange={(category) => setState((s) => ({ ...s, category }))}
+          />
         </div>
 
         <div>
@@ -174,7 +164,7 @@ export function UpsertCredentialModal(props: Props) {
         <div className='mt-4 flex items-center justify-end gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-5'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
             onClick={props.onClose}
             disabled={saving}
           >

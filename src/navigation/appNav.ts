@@ -7,6 +7,7 @@ import {
   FiCreditCard,
   FiDollarSign,
   FiFlag,
+  FiBell,
   FiHome,
   FiLock,
   FiSettings,
@@ -59,6 +60,13 @@ export const NAV_GROUPS: AppNavGroup[] = [
         label: 'Liabilities',
         accent: 'text-rose-400',
         bg: 'bg-rose-500/10',
+      },
+      {
+        to: '/payments',
+        icon: FiBell,
+        label: 'Payments',
+        accent: 'text-sky-400',
+        bg: 'bg-sky-500/10',
       },
       {
         to: '/insurance',

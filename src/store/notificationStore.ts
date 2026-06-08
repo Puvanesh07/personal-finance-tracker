@@ -13,7 +13,9 @@ export type NotifType =
   | 'system'
   | 'strategy_tip'
   | 'investment_matured'
-  | 'investment_maturity_upcoming';
+  | 'investment_maturity_upcoming'
+  | 'pending_payment_due'
+  | 'payment_tracker_due';
 
 export interface AppNotification {
   id: string;

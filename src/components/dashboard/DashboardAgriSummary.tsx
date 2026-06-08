@@ -9,8 +9,14 @@ import { useAgriStore } from '../../store/agricultureStore';
 import { useNavigate } from 'react-router-dom';
 
 export function DashboardAgriSummary() {
-  const { cropCycles, agriExpenses, milkRecords, coconutRecords } =
-    useAgriStore();
+  const {
+    cropCycles,
+    agriExpenses,
+    milkRecords,
+    coconutRecords,
+    produceSales,
+    livestockEvents,
+  } = useAgriStore();
   const navigate = useNavigate();
 
   const activeCrops = cropCycles.filter((c) => !c.actualHarvestDate).length;
@@ -28,7 +34,15 @@ export function DashboardAgriSummary() {
     (sum, c) => sum + (c.harvestIncome || 0),
     0,
   );
-  const totalAgriIncome = harvestIncome + milkIncome + coconutIncome;
+  const produceIncome = produceSales.reduce(
+    (sum, p) => sum + (p.totalAmount || 0),
+    0,
+  );
+  const livestockSaleIncome = livestockEvents
+    .filter((e) => e.eventType === 'sale')
+    .reduce((sum, e) => sum + (e.price ?? 0), 0);
+  const totalAgriIncome =
+    harvestIncome + milkIncome + coconutIncome + produceIncome + livestockSaleIncome;
 
   const netAgriProfit = totalAgriIncome - totalAgriExpenses;
 

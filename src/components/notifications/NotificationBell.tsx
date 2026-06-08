@@ -15,6 +15,10 @@ const TYPE_ICONS: Record<string, string> = {
   investment_alert: '📈',
   system: '🔔',
   strategy_tip: '💡',
+  investment_matured: '🎉',
+  investment_maturity_upcoming: '⏰',
+  pending_payment_due: '💰',
+  payment_tracker_due: '🔔',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -25,6 +29,10 @@ const TYPE_COLORS: Record<string, string> = {
   investment_alert: 'bg-amber-500/10 border-amber-500/20',
   system: 'bg-slate-500/5 dark:bg-slate-500/10 border-slate-400/30 dark:border-slate-500/20',
   strategy_tip: 'bg-violet-500/10 border-violet-500/20',
+  investment_matured: 'bg-emerald-500/10 border-emerald-500/20',
+  investment_maturity_upcoming: 'bg-amber-500/10 border-amber-500/20',
+  pending_payment_due: 'bg-indigo-500/10 border-indigo-500/20',
+  payment_tracker_due: 'bg-sky-500/10 border-sky-500/20',
 };
 
 function NotifCard({ notif, onRead, onDismiss, onAction }: {
@@ -42,7 +50,7 @@ function NotifCard({ notif, onRead, onDismiss, onAction }: {
     >
       <span className="text-lg shrink-0 mt-0.5">{TYPE_ICONS[notif.type] || '🔔'}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 leading-snug">{notif.title}</p>
+        <p className="text-xs font-bold text-slate-900 dark:text-slate-200 leading-snug">{notif.title}</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{notif.message}</p>
         {notif.dueDate && (
           <p className="text-[10px] text-slate-900 dark:text-slate-500 mt-1">

@@ -665,7 +665,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder='e.g. Rahul Sharma'
-            className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+            className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
           />
         </div>
 
@@ -680,7 +680,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               value={initialAmount}
               onChange={(e) => setInitialAmount(e.target.value)}
               placeholder='e.g. 100000'
-              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             />
           </div>
         )}
@@ -692,7 +692,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               type='text'
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             />
           </div>
           <div>
@@ -704,7 +704,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder='For statements'
-              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             />
           </div>
         </div>
@@ -720,7 +720,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               placeholder='e.g. 2'
-              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             />
           </div>
           <div>
@@ -731,7 +731,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
               type='date'
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             />
           </div>
         </div>
@@ -742,7 +742,7 @@ function UpsertBorrowerModal({ open, onClose, onSave, initialData }: any) {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className='w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 text-white mt-1'
+              className='w-full bg-slate-50 dark:bg-slate-900 border border-slate-300/80 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 mt-1 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20'
             >
               <option value='active'>Active</option>
               <option value='closed'>Closed</option>
@@ -990,7 +990,7 @@ function BorrowerDetailModal({
         <div className='flex flex-wrap items-center gap-2'>
           <button
             onClick={onEditBorrower}
-            className='p-2 text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 rounded-lg transition-colors'
+            className='btn-icon btn-icon-edit h-9 w-9'
           >
             <FiEdit2 />
           </button>
@@ -999,7 +999,7 @@ function BorrowerDetailModal({
           <button
             onClick={onExport}
             title='Download Statement'
-            className='p-2 text-slate-500 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-white bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 rounded-lg transition-colors'
+            className='btn-icon btn-icon-edit h-9 w-9'
           >
             <FiDownload />
           </button>
@@ -1182,7 +1182,7 @@ function BorrowerDetailModal({
                       <button
                         onClick={() => onEditTxn(t)}
                         title='Edit Transaction'
-                        className='text-slate-900 dark:text-slate-500 hover:text-indigo-400 cursor-pointer transition-colors p-1'
+                        className='btn-icon btn-icon-edit h-8 w-8'
                       >
                         <FiEdit2 />
                       </button>

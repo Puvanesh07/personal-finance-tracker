@@ -68,18 +68,20 @@ export function CredentialCard({ credential }: { credential: Credential }) {
               </p>
             </div>
           </div>
-          <div className='flex items-center gap-1'>
+          <div className='flex items-center gap-1.5'>
             <button
               onClick={() => setIsEditOpen(true)}
-              className='p-1.5 text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors'
+              title='Edit'
+              className='btn-icon btn-icon-edit h-8 w-8'
             >
-              <FiEdit2 size={14} />
+              <FiEdit2 className='h-4 w-4' />
             </button>
             <button
               onClick={() => setDeleteConfirm(true)}
-              className='p-1.5 text-slate-900 dark:text-slate-500 hover:text-rose-400 transition-colors'
+              title='Delete'
+              className='btn-icon btn-icon-delete h-8 w-8'
             >
-              <FiTrash2 size={14} />
+              <FiTrash2 className='h-4 w-4' />
             </button>
           </div>
         </div>

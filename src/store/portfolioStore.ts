@@ -11,6 +11,8 @@ import type {
   InsurancePayment,
   Investment,
   Liability,
+  PendingPayment,
+  TrackedPayment,
   LendingBorrower,
   LendingTransaction,
   NetWorthSnapshot,
@@ -37,8 +39,12 @@ import {
 import { create } from 'zustand';
 import { createId } from '../utils/id';
 import { db } from '../services/firebase';
-import { summarizePortfolio } from '../utils/calculations';
+import {
+  calculateNetWorth,
+  summarizePortfolio,
+} from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
+import { nextDueDate } from '../utils/paymentTracker';
 
 const userCol = (uid: string, col: string) => collection(db, 'users', uid, col);
 const userDoc = (uid: string, col: string, id: string) =>
@@ -88,6 +94,8 @@ type PortfolioState = {
   investments: Investment[];
   snapshots: PortfolioSnapshot[];
   liabilities: Liability[];
+  pendingPayments: PendingPayment[];
+  trackedPayments: TrackedPayment[];
   cashflows: CashflowEntry[];
   goals: Goal[];
   goalContributions: GoalContribution[];
@@ -121,6 +129,31 @@ type PortfolioState = {
   ) => Promise<void>;
   updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
   deleteLiability: (id: string) => Promise<void>;
+
+  addPendingPayment: (
+    payment: Omit<
+      PendingPayment,
+      'id' | 'createdAt' | 'updatedAt' | 'userId' | 'status' | 'receivedAt'
+    >,
+  ) => Promise<void>;
+  updatePendingPayment: (
+    id: string,
+    patch: Partial<PendingPayment>,
+  ) => Promise<void>;
+  deletePendingPayment: (id: string) => Promise<void>;
+
+  addTrackedPayment: (
+    payment: Omit<
+      TrackedPayment,
+      'id' | 'createdAt' | 'updatedAt' | 'userId' | 'status' | 'paidAt'
+    >,
+  ) => Promise<void>;
+  updateTrackedPayment: (
+    id: string,
+    patch: Partial<TrackedPayment>,
+  ) => Promise<void>;
+  deleteTrackedPayment: (id: string) => Promise<void>;
+  markTrackedPaymentPaid: (id: string) => Promise<void>;
 
   addCashflow: (
     entry: Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>,
@@ -229,6 +262,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   investments: [],
   snapshots: [],
   liabilities: [],
+  pendingPayments: [],
+  trackedPayments: [],
   cashflows: [],
   goals: [],
   goalContributions: [],
@@ -253,6 +288,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         investments,
         snapshots,
         liabilities,
+        pendingPayments,
+        trackedPayments,
         cashflows,
         goals,
         goalContributions,
@@ -270,6 +307,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
         fetchSub<Liability>(uid, 'liabilities'),
+        fetchSub<PendingPayment>(uid, 'pendingPayments'),
+        fetchSub<TrackedPayment>(uid, 'trackedPayments'),
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
         fetchSub<GoalContribution>(uid, 'goalContributions'),
@@ -304,6 +343,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         snapshots: sortedSnapshots,
         liabilities: liabilities.sort((a, b) =>
           safeCompare(b.updatedAt, a.updatedAt),
+        ),
+        pendingPayments: pendingPayments.sort((a, b) =>
+          safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
+        ),
+        trackedPayments: trackedPayments.sort((a, b) =>
+          safeCompare(a.dueDate, b.dueDate),
         ),
         cashflows: cashflows.sort(
           (a, b) =>
@@ -495,6 +540,152 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'liabilities', id));
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }));
+  },
+
+  addPendingPayment: async (payment) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...payment,
+      id: createId('pp'),
+      status: 'pending' as const,
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as PendingPayment;
+    await saveDoc(uid, 'pendingPayments', withMeta);
+    set((s) => ({
+      pendingPayments: [withMeta, ...s.pendingPayments].sort((a, b) =>
+        safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
+      ),
+    }));
+  },
+
+  updatePendingPayment: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().pendingPayments.find((x) => x.id === id);
+    if (!existing) return;
+    const updated = clean({
+      ...existing,
+      ...(patch as Partial<PendingPayment>),
+      id,
+      updatedAt: now(),
+    }) as PendingPayment;
+    await saveDoc(uid, 'pendingPayments', updated);
+    set((s) => ({
+      pendingPayments: s.pendingPayments
+        .map((x) => (x.id === id ? updated : x))
+        .sort((a, b) => safeCompare(a.expectedPaymentDate, b.expectedPaymentDate)),
+    }));
+  },
+
+  deletePendingPayment: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'pendingPayments', id));
+    set((s) => ({
+      pendingPayments: s.pendingPayments.filter((x) => x.id !== id),
+    }));
+  },
+
+  addTrackedPayment: async (payment) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const t = now();
+    const withMeta = clean({
+      ...payment,
+      reminderDays: payment.reminderDays?.length ? payment.reminderDays : [1, 3, 7],
+      recurrence: payment.recurrence ?? 'none',
+      id: createId('tp'),
+      status: 'pending' as const,
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as TrackedPayment;
+    await saveDoc(uid, 'trackedPayments', withMeta);
+    set((s) => ({
+      trackedPayments: [...s.trackedPayments, withMeta].sort((a, b) =>
+        safeCompare(a.dueDate, b.dueDate),
+      ),
+    }));
+  },
+
+  updateTrackedPayment: async (id, patch) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().trackedPayments.find((x) => x.id === id);
+    if (!existing) return;
+    const updated = clean({
+      ...existing,
+      ...(patch as Partial<TrackedPayment>),
+      id,
+      updatedAt: now(),
+    }) as TrackedPayment;
+    await saveDoc(uid, 'trackedPayments', updated);
+    set((s) => ({
+      trackedPayments: s.trackedPayments
+        .map((x) => (x.id === id ? updated : x))
+        .sort((a, b) => safeCompare(a.dueDate, b.dueDate)),
+    }));
+  },
+
+  deleteTrackedPayment: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await deleteDoc(userDoc(uid, 'trackedPayments', id));
+    set((s) => ({
+      trackedPayments: s.trackedPayments.filter((x) => x.id !== id),
+    }));
+  },
+
+  markTrackedPaymentPaid: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().trackedPayments.find((x) => x.id === id);
+    if (!existing) return;
+    const paidAt = new Date().toISOString().split('T')[0];
+    const updated = clean({
+      ...existing,
+      status: 'paid' as const,
+      paidAt,
+      updatedAt: now(),
+    }) as TrackedPayment;
+    await saveDoc(uid, 'trackedPayments', updated);
+
+    const nextDate =
+      existing.recurrence !== 'none'
+        ? nextDueDate(existing.dueDate, existing.recurrence)
+        : null;
+
+    const nextPayments: TrackedPayment[] = [];
+    if (nextDate) {
+      const t = now();
+      const next = clean({
+        title: existing.title,
+        paymentType: existing.paymentType,
+        amount: existing.amount,
+        dueDate: nextDate,
+        reminderDays: existing.reminderDays,
+        recurrence: existing.recurrence,
+        notes: existing.notes,
+        id: createId('tp'),
+        status: 'pending' as const,
+        createdAt: t,
+        updatedAt: t,
+        userId: uid,
+      }) as TrackedPayment;
+      await saveDoc(uid, 'trackedPayments', next);
+      nextPayments.push(next);
+    }
+
+    set((s) => ({
+      trackedPayments: s.trackedPayments
+        .map((x) => (x.id === id ? updated : x))
+        .concat(nextPayments)
+        .sort((a, b) => safeCompare(a.dueDate, b.dueDate)),
+    }));
   },
 
   addCashflow: async (entry) => {
@@ -1038,17 +1229,17 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   takeNetWorthSnapshot: async (label) => {
     const uid = get().uid;
     if (!uid) return;
-    const { totalValue } = summarizePortfolio(get().investments);
-    const totalLiabilities = get()
-      .liabilities.filter((l) => l.status !== 'returned')
-      .reduce((acc, l) => acc + (l.outstanding || 0), 0);
+    const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
+      get().investments,
+      get().liabilities,
+    );
     const t = now();
     const snap: NetWorthSnapshot = {
       id: createId('nws'),
       createdAt: t,
-      totalAssets: totalValue,
+      totalAssets,
       totalLiabilities,
-      netWorth: totalValue - totalLiabilities,
+      netWorth,
       userId: uid,
       ...(label?.trim() ? { label: label.trim() } : {}),
     };
@@ -1077,6 +1268,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const subCollections = [
       'investments',
       'liabilities',
+      'pendingPayments',
+      'trackedPayments',
       'cashflows',
       'goals',
       'goalContributions',
@@ -1125,6 +1318,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         investments: [],
         snapshots: [],
         liabilities: [],
+        pendingPayments: [],
+        trackedPayments: [],
         cashflows: [],
         goals: [],
         goalContributions: [],

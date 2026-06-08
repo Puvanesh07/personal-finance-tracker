@@ -39,6 +39,11 @@ const LiabilitiesPage = lazy(() =>
     default: m.LiabilitiesPage,
   })),
 );
+const PaymentTrackerPage = lazy(() =>
+  import('./pages/Payments/PaymentTrackerPage').then((m) => ({
+    default: m.PaymentTrackerPage,
+  })),
+);
 const CashflowPage = lazy(() =>
   import('./pages/Cashflow/CashflowPage').then((m) => ({
     default: m.CashflowPage,
@@ -144,6 +149,14 @@ export default function App() {
               element={
                 <Suspense fallback={<LiabilitiesSkeleton />}>
                   <LiabilitiesPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/payments'
+              element={
+                <Suspense fallback={<LiabilitiesSkeleton />}>
+                  <PaymentTrackerPage />
                 </Suspense>
               }
             />

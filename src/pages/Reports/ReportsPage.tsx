@@ -23,7 +23,10 @@ import {
   projectFutureValue,
 } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
-import { summarizePortfolio } from '../../utils/calculations';
+import {
+  calculateNetWorth,
+  summarizePortfolio,
+} from '../../utils/calculations';
 import { useAgriStore } from '../../store/agricultureStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { useNavigate } from 'react-router-dom';
@@ -157,10 +160,11 @@ export function ReportsPage() {
     [portStore.investments],
   );
   const realizedProfit = portStore.soldTrades.reduce((a, t) => a + t.profit, 0);
-  const liabilitiesTotal = portStore.liabilities.reduce(
-    (a, l) => a + (l.outstanding || 0),
-    0,
-  );
+  const {
+    totalAssets: netWorthAssets,
+    totalLiabilities: liabilitiesTotal,
+    netWorth,
+  } = calculateNetWorth(portStore.investments, portStore.liabilities);
   const totalAccountBalance = portStore.accounts.reduce(
     (a, acc) => a + (acc.balance || 0),
     0,
@@ -281,10 +285,7 @@ export function ReportsPage() {
     return { wages, advTotal, days };
   }, [attStore, timeframe]);
 
-  // ── Net Worth Calculation (Includes Lending Asset)
-  const totalAssets =
-    summary.totalValue + totalAccountBalance + lendingStats.outstanding;
-  const netWorth = totalAssets - liabilitiesTotal;
+  const totalAssets = netWorthAssets;
 
   // ── Insurance & Goals (Static Snapshots)
   const totalInsuranceCoverage = portStore.insurancePolicies.reduce(

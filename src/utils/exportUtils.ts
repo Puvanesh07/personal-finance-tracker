@@ -126,6 +126,27 @@ export function exportGoalsCSV(
   );
 }
 
+export function exportTrackedPaymentsCSV(
+  rows: import('../types/investmentTypes').TrackedPayment[],
+  filename = 'payment-tracker.csv',
+) {
+  if (!rows?.length) return;
+  exportCSV(
+    rows.map((p) => ({
+      Title: p.title,
+      Type: p.paymentType,
+      Amount: p.amount,
+      'Due Date': p.dueDate,
+      Status: p.status,
+      'Paid At': p.paidAt ?? '',
+      Recurrence: p.recurrence,
+      'Reminder Days': p.reminderDays.join(', '),
+      Notes: p.notes ?? '',
+    })),
+    filename,
+  );
+}
+
 export function exportLiabilitiesCSV(
   rows: Liability[],
   filename = 'liabilities-selection.csv',

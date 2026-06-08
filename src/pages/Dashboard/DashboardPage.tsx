@@ -5,6 +5,7 @@ import { AllocationCharts } from '../../components/dashboard/AllocationCharts';
 import { DashboardAccountsSummary } from '../../components/dashboard/DashboardAccountsSummary';
 import { DashboardAgriSummary } from '../../components/dashboard/DashboardAgriSummary';
 import { DashboardCashflowSummary } from '../../components/dashboard/DashboardCashflowSummary';
+import { DashboardPaymentsSummary } from '../../components/dashboard/DashboardPaymentsSummary';
 import { DashboardPortfolioAI } from '../../components/dashboard/DashboardPortfolioAI';
 import { DashboardSkeleton } from '../../components/loader/skeletons';
 import { DashboardTopHoldingsInsights } from '../../components/dashboard/DashboardTopHoldingsInsights';
@@ -53,12 +54,15 @@ export function DashboardPage() {
       </section>
 
       {/* Quick Overviews (Accounts, Cashflow, Agri) */}
-      <section className='grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3'>
+      <section className='grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-4'>
         <div className='min-w-0'>
           <DashboardAccountsSummary />
         </div>
         <div className='min-w-0'>
           <DashboardCashflowSummary />
+        </div>
+        <div className='min-w-0'>
+          <DashboardPaymentsSummary />
         </div>
         <div className='min-w-0'>
           <DashboardAgriSummary />

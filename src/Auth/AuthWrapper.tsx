@@ -14,7 +14,6 @@ import { auth } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useAgriStore } from '../store/agricultureStore';
 import { useAttendanceStore } from '../store/attendanceStore';
-import { useAutoLogout } from '../hooks/useAutoLogout';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../store/portfolioStore';
 
@@ -42,9 +41,6 @@ export default function AuthWrapper({
 
   // Track if we already navigated on this session to avoid double-navigate
   const hasNavigated = useRef(false);
-
-  // ✅ Mounted above the router outlet — never resets on route changes
-  useAutoLogout();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {

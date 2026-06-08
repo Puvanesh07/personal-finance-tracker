@@ -283,6 +283,57 @@ export type CashflowEntry = {
   userId?: string;
 };
 
+// ── Payment Tracker (upcoming dues & reminders) ─────────────────────────
+export type PaymentTrackerType =
+  | 'chit_fund'
+  | 'fd_maturity'
+  | 'credit_card'
+  | 'personal_loan'
+  | 'vehicle_loan'
+  | 'home_loan'
+  | 'emi'
+  | 'rent'
+  | 'insurance'
+  | 'custom';
+
+export type TrackedPaymentStatus = 'pending' | 'paid';
+export type PaymentRecurrence = 'none' | 'monthly' | 'yearly';
+
+export type TrackedPayment = {
+  id: string;
+  title: string;
+  paymentType: PaymentTrackerType;
+  amount: number;
+  dueDate: ISODateString;
+  status: TrackedPaymentStatus;
+  paidAt?: ISODateString;
+  reminderDays: number[];
+  recurrence: PaymentRecurrence;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
+};
+
+// ── Pending Payments (buyer/vendor receivables) ───────────────────────────
+export type PendingPaymentStatus = 'pending' | 'received';
+
+export type PendingPayment = {
+  id: string;
+  buyerName: string;
+  buyerPhone?: string;
+  itemDescription: string;
+  amount: number;
+  saleDate: ISODateString;
+  expectedPaymentDate: ISODateString;
+  status: PendingPaymentStatus;
+  receivedAt?: ISODateString;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
+};
+
 // ── Financier / Lending ──────────────────────────────────────────────
 export type LendingStatus = 'active' | 'closed';
 export type LendingTransactionType =

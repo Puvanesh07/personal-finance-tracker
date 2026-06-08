@@ -1,14 +1,15 @@
-import type { Investment, Liability, CashflowEntry } from '../../src/types/investmentTypes';
-import { summarizePortfolio } from './calculations';
+import type { Investment, Liability, CashflowEntry } from '../types/investmentTypes';
+import { calculateNetWorth } from './calculations';
 
 export function calculateFinancialHealthScore(
   investments: Investment[],
   liabilities: Liability[],
   cashflows: CashflowEntry[]
 ) {
-  const summary = summarizePortfolio(investments);
-  const totalAssets = summary.totalValue;
-  const totalLiabilities = liabilities.reduce((acc, l) => acc + (l.outstanding || 0), 0);
+  const { totalAssets, totalLiabilities } = calculateNetWorth(
+    investments,
+    liabilities,
+  );
   
   // 1. Debt Score (30 pts)
   const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 0;

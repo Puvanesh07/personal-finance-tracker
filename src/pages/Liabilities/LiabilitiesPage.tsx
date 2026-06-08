@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fi';
 
 import { LiabilitiesSkeleton } from '../../components/loader/skeletons';
+import { PendingPaymentsTab } from '../../components/liabilities/PendingPaymentsTab';
 import type { Liability } from '../../types/investmentTypes';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
@@ -20,10 +21,12 @@ import { buildLiabilityInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { exportLiabilitiesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 // NEW: 'settled' tab groups both "paid" credit cards and "returned" personal loans
 type FilterTab = 'all' | 'active' | 'settled';
+type PageSection = 'debts' | 'pending_payments';
 
 export function LiabilitiesPage() {
   const ready = usePortfolioStore((s) => s.ready);
@@ -68,6 +71,15 @@ export function LiabilitiesPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const [filterTab, setFilterTab] = useState<FilterTab>('active');
+  const [searchParams] = useSearchParams();
+  const [pageSection, setPageSection] = useState<PageSection>('debts');
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section === 'pending-payments' || section === 'pending_payments') {
+      setPageSection('pending_payments');
+    }
+  }, [searchParams]);
 
   const openDeleteModal = (id: string) => {
     setSelectedId(id);
@@ -154,7 +166,14 @@ export function LiabilitiesPage() {
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
       filterTab === tab
         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 border border-transparent'
+        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-100 border border-transparent'
+    }`;
+
+  const sectionCls = (section: PageSection) =>
+    `flex items-center gap-2 px-5 py-2.5 text-sm font-bold cursor-pointer rounded-xl transition-all duration-200 ${
+      pageSection === section
+        ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/60 dark:border-slate-700/60'
+        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
     }`;
 
   const settledCount = liabilities.filter(
@@ -165,8 +184,53 @@ export function LiabilitiesPage() {
     [liabilities],
   );
 
+  if (pageSection === 'pending_payments') {
+    return (
+      <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
+        <div className='flex flex-wrap gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-100/80 dark:bg-slate-900/40 p-2'>
+          <button
+            type='button'
+            className={sectionCls('debts')}
+            onClick={() => setPageSection('debts')}
+          >
+            <FiCreditCard className='h-4 w-4' />
+            What I Owe
+          </button>
+          <button
+            type='button'
+            className={sectionCls('pending_payments')}
+            onClick={() => setPageSection('pending_payments')}
+          >
+            <FiClock className='h-4 w-4' />
+            Pending Payments
+          </button>
+        </div>
+        <PendingPaymentsTab />
+      </div>
+    );
+  }
+
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
+      <div className='flex flex-wrap gap-2 rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-100/80 dark:bg-slate-900/40 p-2'>
+        <button
+          type='button'
+          className={sectionCls('debts')}
+          onClick={() => setPageSection('debts')}
+        >
+          <FiCreditCard className='h-4 w-4' />
+          What I Owe
+        </button>
+        <button
+          type='button'
+          className={sectionCls('pending_payments')}
+          onClick={() => setPageSection('pending_payments')}
+        >
+          <FiClock className='h-4 w-4' />
+          Pending Payments
+        </button>
+      </div>
+
       <header className='flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
