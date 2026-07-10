@@ -66,7 +66,7 @@ export function ToolsPage() {
       </header>
 
       {/* Tabs */}
-      <div className='flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl w-fit gap-1'>
+      <div className='flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl w-full sm:w-fit gap-1 overflow-x-auto no-scrollbar'>
         <TabBtn
           active={activeTab === 'calculators'}
           onClick={() => setActiveTab('calculators')}

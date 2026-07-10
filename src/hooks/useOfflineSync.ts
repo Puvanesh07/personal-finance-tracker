@@ -20,15 +20,21 @@ export function useOfflineSync() {
 
     const syncStores = async () => {
       const user = auth.currentUser;
-      if (!user) return;
+      if (!user) return { ok: true };
       const hydrate = usePortfolioStore.getState().hydrate;
-      const hydrateAgri = useAgriStore.getState().hydrate;
-      const hydrateAttendance = useAttendanceStore.getState().hydrate;
-      await Promise.all([
-        hydrate(user.uid),
-        hydrateAgri(user.uid),
-        hydrateAttendance(user.uid),
-      ]);
+      const promises: Promise<void>[] = [hydrate(user.uid)];
+
+      const agriUid = useAgriStore.getState().uid;
+      const attUid = useAttendanceStore.getState().uid;
+      if (agriUid) {
+        promises.push(useAgriStore.getState().hydrate(user.uid));
+      }
+      if (attUid) {
+        promises.push(useAttendanceStore.getState().hydrate(user.uid));
+      }
+
+      const results = await Promise.allSettled(promises);
+      return { ok: !results.some((r) => r.status === 'rejected') };
     };
 
     const handleOnline = async () => {
@@ -37,8 +43,12 @@ export function useOfflineSync() {
       dismissToast();
       toast.success('Back online — syncing your data…', { duration: 3000 });
       try {
-        await syncStores();
-        toast.success('Data synchronized', { duration: 2500 });
+        const { ok } = await syncStores();
+        if (ok) {
+          toast.success('Data synchronized', { duration: 2500 });
+        } else {
+          toast.error('Some data failed to sync — try refreshing');
+        }
       } catch {
         toast.error('Sync failed — will retry when connection is stable');
       }

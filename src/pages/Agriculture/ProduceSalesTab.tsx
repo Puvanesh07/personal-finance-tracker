@@ -19,7 +19,7 @@ import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import type { ProduceSaleLot } from '../../types/investmentTypes';
 import { createPortal } from 'react-dom';
-import { syncCashflow } from './AgriculturePage'; // Importing the master sync func
+import { syncCashflow } from '../../utils/agriCashflowSync';
 import toast from 'react-hot-toast';
 import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';

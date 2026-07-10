@@ -29,6 +29,10 @@ import {
 } from '../../utils/calculations';
 import { useAgriStore } from '../../store/agricultureStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
+import {
+  useEnsureAgriHydrated,
+  useEnsureAttendanceHydrated,
+} from '../../hooks/useDeferredStoreHydration';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -110,6 +114,8 @@ function SectionCard({
 // ─── Main Reports Page ───────────────────────────────────────────────────────
 
 export function ReportsPage() {
+  useEnsureAgriHydrated();
+  useEnsureAttendanceHydrated();
   const portStore = usePortfolioStore();
   const agriStore = useAgriStore();
   const attStore = useAttendanceStore();

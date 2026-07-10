@@ -19,6 +19,8 @@ import type {
   LendingBorrower,
   LendingTransaction,
   Liability,
+  PendingPayment,
+  TrackedPayment,
   Livestock,
   LivestockEvent,
   MilkRecord,
@@ -36,12 +38,17 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 
+import {
+  decryptDoc,
+  encryptDoc,
+  type FirestoreDoc,
+} from '../services/encryptionService';
 import type { SettingsRecord } from '../store/portfolioStore';
 import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
@@ -72,6 +79,8 @@ export type BackupPayload = {
   lendingTransactions?: LendingTransaction[];
   sipPlans?: any[];
   soldTrades?: any[];
+  pendingPayments?: PendingPayment[];
+  trackedPayments?: TrackedPayment[];
 };
 
 const userSubCol = (uid: string, col: string) =>
@@ -83,17 +92,21 @@ const settingsDocRef = (uid: string) =>
 
 async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   const snap = await getDocs(userSubCol(uid, col));
-  return snap.docs.map((d) => d.data() as T);
+  return Promise.all(
+    snap.docs.map((d) => decryptDoc<T>(uid, d.data() as FirestoreDoc)),
+  );
 }
 
 async function batchSet(uid: string, colName: string, items: any[]) {
   if (!items?.length) return;
   for (let i = 0; i < items.length; i += 499) {
     const batch = writeBatch(db);
-    items.slice(i, i + 499).forEach((item) => {
-      if (!item?.id) return;
-      batch.set(userSubDoc(uid, colName, item.id), { ...item, userId: uid });
-    });
+    for (const item of items.slice(i, i + 499)) {
+      if (!item?.id) continue;
+      const withUser = { ...item, userId: uid };
+      const payload = await encryptDoc(uid, withUser);
+      batch.set(userSubDoc(uid, colName, item.id), payload);
+    }
     await batch.commit();
   }
 }
@@ -129,6 +142,8 @@ export async function exportFullBackup(uid: string) {
     lendingTransactions,
     sipPlans,
     soldTrades,
+    pendingPayments,
+    trackedPayments,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
     fetchSub<Liability>(uid, 'liabilities'),
@@ -157,6 +172,8 @@ export async function exportFullBackup(uid: string) {
     fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
     fetchSub<any>(uid, 'sipPlans'),
     fetchSub<any>(uid, 'soldTrades'),
+    fetchSub<PendingPayment>(uid, 'pendingPayments'),
+    fetchSub<TrackedPayment>(uid, 'trackedPayments'),
   ]);
 
   const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -165,7 +182,7 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 9,
+    version: 10,
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
@@ -196,6 +213,8 @@ export async function exportFullBackup(uid: string) {
     lendingTransactions,
     sipPlans,
     soldTrades,
+    pendingPayments,
+    trackedPayments,
   };
 
   saveAs(
@@ -210,7 +229,7 @@ export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
 
   const parsed = JSON.parse(jsonText) as BackupPayload;
-  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   if (!parsed || !supportedVersions.includes(parsed.version as number)) {
     throw new Error('Unsupported backup format.');
   }
@@ -243,6 +262,8 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'lendingTransactions', parsed.lendingTransactions ?? []),
     batchSet(uid, 'sipPlans', parsed.sipPlans ?? []),
     batchSet(uid, 'soldTrades', parsed.soldTrades ?? []),
+    batchSet(uid, 'pendingPayments', parsed.pendingPayments ?? []),
+    batchSet(uid, 'trackedPayments', parsed.trackedPayments ?? []),
   ]);
 
   const batch = writeBatch(db);

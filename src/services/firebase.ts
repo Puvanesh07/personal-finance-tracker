@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, getAuth } from 'firebase/auth';
+import { GoogleAuthProvider, browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
 import {
   ReCaptchaEnterpriseProvider,
   initializeAppCheck,
@@ -48,8 +48,13 @@ export const db = initializeFirestore(app, {
   }),
 });
 
-// 4. Initialize Auth
+// 4. Initialize Auth (explicit local persistence for session restore)
 export const auth = getAuth(app);
+if (typeof window !== 'undefined') {
+  void setPersistence(auth, browserLocalPersistence).catch((err) =>
+    console.warn('[Firebase] auth persistence:', err),
+  );
+}
 export const googleProvider = new GoogleAuthProvider();
 
 // 5. Initialize Analytics (Only in Production)

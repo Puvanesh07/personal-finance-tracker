@@ -420,16 +420,16 @@ export function MonthlySipPlanPage() {
                     </span>
                     <span className='text-xs text-slate-900 dark:text-slate-500'>%</span>
                   </div>
-                  <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0'>
+                  <div className='flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0'>
                     <button
                       onClick={() => setEditingId(inst.id)}
-                      className='p-1.5 rounded-lg cursor-pointer text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900 dark:text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:bg-slate-700 transition-colors'
+                      className='btn-icon btn-icon-edit h-8 w-8'
                     >
                       <FiEdit2 className='h-3.5 w-3.5' />
                     </button>
                     <button
                       onClick={() => handleDelete(inst.id)}
-                      className='p-1.5 rounded-lg cursor-pointer text-slate-900 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors'
+                      className='btn-icon btn-icon-delete h-8 w-8'
                     >
                       <FiTrash2 className='h-3.5 w-3.5' />
                     </button>

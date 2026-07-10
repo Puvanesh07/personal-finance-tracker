@@ -715,6 +715,7 @@ function PaymentsTab({
   payments,
   onAddPayment,
   onDeletePayment,
+  deletingPaymentId,
 }: {
   policies: InsurancePolicy[];
   payments: InsurancePayment[];
@@ -725,6 +726,7 @@ function PaymentsTab({
     note: string,
   ) => Promise<void>;
   onDeletePayment: (id: string) => void;
+  deletingPaymentId?: string | null;
 }) {
   const [selectedPolicyId, setSelectedPolicyId] = useState<string>('all');
   const [showAdd, setShowAdd] = useState(false);
@@ -848,7 +850,8 @@ function PaymentsTab({
                   </div>
                   <button
                     onClick={() => onDeletePayment(p.id)}
-                    className='h-10 w-10 sm:opacity-0 group-hover:opacity-100 cursor-pointer rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 dark:text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all'
+                    disabled={!!deletingPaymentId}
+                    className='btn-icon btn-icon-delete h-10 w-10 disabled:opacity-50 disabled:pointer-events-none'
                   >
                     <FiTrash2 className='h-4 w-4' />
                   </button>
@@ -1118,6 +1121,7 @@ export function InsurancePage() {
     null,
   );
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
 
   const handleEdit = (policy: InsurancePolicy) => {
     setEditingPolicy(policy);
@@ -1174,38 +1178,40 @@ export function InsurancePage() {
   };
 
   const handleDeletePayment = async (id: string) => {
-    const paymentToDelete = payments.find((p) => p.id === id);
+    if (deletingPaymentId) return;
+    setDeletingPaymentId(id);
+    try {
+      const paymentToDelete = payments.find((p) => p.id === id);
 
-    await deletePaymentStore(id);
+      await deletePaymentStore(id);
 
-    if (paymentToDelete) {
-      const policy = policies.find((p) => p.id === paymentToDelete.policyId);
-      if (policy) {
-        // Step 1: Push the renewal date backwards
-        const previousRenewal = computePreviousRenewalDate(
-          policy.renewalDate,
-          policy.premiumFrequency,
-        );
+      if (paymentToDelete) {
+        const policy = policies.find((p) => p.id === paymentToDelete.policyId);
+        if (policy) {
+          const previousRenewal = computePreviousRenewalDate(
+            policy.renewalDate,
+            policy.premiumFrequency,
+          );
 
-        // Step 2: Recalculate what the "Last Payment Date" should be safely
-        const remainingPayments = payments.filter(
-          (p) => p.policyId === policy.id && p.id !== id,
-        );
-        remainingPayments.sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+          const remainingPayments = payments.filter(
+            (p) => p.policyId === policy.id && p.id !== id,
+          );
+          remainingPayments.sort((a, b) => b.paidAt.localeCompare(a.paidAt));
 
-        // If there are no more payments left, we revert lastPaymentDate to a blank string
-        const newLastPaymentDate =
-          remainingPayments.length > 0 ? remainingPayments[0].paidAt : '';
+          const newLastPaymentDate =
+            remainingPayments.length > 0 ? remainingPayments[0].paidAt : '';
 
-        // Step 3: Update the policy
-        await updatePolicy(policy.id, {
-          renewalDate: previousRenewal,
-          lastPaymentDate: newLastPaymentDate,
-        });
+          await updatePolicy(policy.id, {
+            renewalDate: previousRenewal,
+            lastPaymentDate: newLastPaymentDate,
+          });
+        }
       }
-    }
 
-    toast.success('Payment history removed. Renewal date adjusted.');
+      toast.success('Payment history removed. Renewal date adjusted.');
+    } finally {
+      setDeletingPaymentId(null);
+    }
   };
 
   return (
@@ -1267,6 +1273,7 @@ export function InsurancePage() {
             payments={payments}
             onAddPayment={handleAddPayment}
             onDeletePayment={handleDeletePayment}
+            deletingPaymentId={deletingPaymentId}
           />
         )}
         {activeTab === 'Reports' && (

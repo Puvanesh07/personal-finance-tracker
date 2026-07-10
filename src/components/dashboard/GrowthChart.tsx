@@ -4,10 +4,13 @@ import { usePortfolioStore } from '../../store/portfolioStore'
 import { Card } from '../ui/Card'
 import { formatINR } from '../../utils/format'
 import { FiTrendingUp, FiCamera } from 'react-icons/fi'
+import { useAsyncAction } from '../../hooks/useAsyncAction'
+import { AsyncButton } from '../ui/AsyncButton'
 
 export function GrowthChart() {
   const snapshots = usePortfolioStore((s) => s.snapshots)
   const recordSnapshotNow = usePortfolioStore((s) => s.recordSnapshotNow)
+  const { busy, run } = useAsyncAction()
 
   const data = useMemo(() => snapshots.map((s) => ({ date: s.date, value: s.totalValue })), [snapshots])
 
@@ -15,14 +18,16 @@ export function GrowthChart() {
     <Card
       title={<div className="flex items-center gap-2"><FiTrendingUp className="text-emerald-500"/> Portfolio Growth History</div>}
       right={
-        <button
+        <AsyncButton
           type="button"
+          busy={busy}
+          loadingLabel="Recording…"
           className="group flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50/50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
-          onClick={() => void recordSnapshotNow()}
+          onClick={() => void run(() => recordSnapshotNow())}
         >
           <FiCamera className="h-3.5 w-3.5" />
           <span>Record Snapshot</span>
-        </button>
+        </AsyncButton>
       }
     >
       <div className="h-80 w-full pt-4">

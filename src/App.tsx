@@ -19,7 +19,6 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 
 import { AppLayout } from './components/layout/AppLayout';
-import { InsurancePage } from './pages/Insurance/InsurancePage';
 import { Loader } from './components/loader/Loader';
 import { Toaster } from 'react-hot-toast';
 import { useThemeStore } from './store/themeStore';
@@ -86,9 +85,19 @@ const AgriculturePage = lazy(() =>
     default: m.AgriculturePage,
   })),
 );
+const AttendancePage = lazy(() =>
+  import('./pages/Agriculture/AttendancePage').then((m) => ({
+    default: m.AttendancePage,
+  })),
+);
 const ProfitsPage = lazy(() =>
   import('./pages/Profits/ProfitsPage').then((m) => ({
     default: m.ProfitsPage,
+  })),
+);
+const InsurancePage = lazy(() =>
+  import('./pages/Insurance/InsurancePage').then((m) => ({
+    default: m.InsurancePage,
   })),
 );
 
@@ -176,7 +185,14 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route path='/insurance' element={<InsurancePage />} />
+            <Route
+              path='/insurance'
+              element={
+                <Suspense fallback={<LiabilitiesSkeleton />}>
+                  <InsurancePage />
+                </Suspense>
+              }
+            />
             <Route
               path='/goals'
               element={
@@ -239,6 +255,14 @@ export default function App() {
               element={
                 <Suspense fallback={<AgricultureSkeleton />}>
                   <AgriculturePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/attendance'
+              element={
+                <Suspense fallback={<AgricultureSkeleton />}>
+                  <AttendancePage />
                 </Suspense>
               }
             />

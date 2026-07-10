@@ -23,6 +23,9 @@ import {
 import { formatINR } from '../../utils/format';
 import { exportTrackedPaymentsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../../components/ui/AsyncButton';
+import { ButtonSpinner } from '../../components/ui/ButtonSpinner';
 
 type FilterTab = 'pending' | 'paid' | 'all';
 type ViewMode = 'list' | 'calendar';
@@ -71,6 +74,8 @@ export function PaymentTrackerPage() {
   const trackedPayments = usePortfolioStore((s) => s.trackedPayments);
   const markPaid = usePortfolioStore((s) => s.markTrackedPaymentPaid);
   const deletePayment = usePortfolioStore((s) => s.deleteTrackedPayment);
+  const { busy: actionBusy, run } = useAsyncAction();
+  const [payingId, setPayingId] = useState<string | null>(null);
 
   const [filterTab, setFilterTab] = useState<FilterTab>('pending');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -279,10 +284,24 @@ export function PaymentTrackerPage() {
                           <button
                             type='button'
                             title='Mark paid'
-                            className='btn-icon btn-icon-edit h-8 w-8 text-emerald-600'
-                            onClick={() => void markPaid(p.id)}
+                            disabled={actionBusy}
+                            className='btn-icon btn-icon-edit h-8 w-8 text-emerald-600 disabled:opacity-50'
+                            onClick={() =>
+                              void run(async () => {
+                                setPayingId(p.id);
+                                try {
+                                  await markPaid(p.id);
+                                } finally {
+                                  setPayingId(null);
+                                }
+                              })
+                            }
                           >
-                            <FiCheck className='h-4 w-4' />
+                            {payingId === p.id ? (
+                              <ButtonSpinner className='h-4 w-4' />
+                            ) : (
+                              <FiCheck className='h-4 w-4' />
+                            )}
                           </button>
                         )}
                         <button
@@ -378,16 +397,21 @@ export function PaymentTrackerPage() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               type='button'
               onClick={() => {
-                if (deleteId) void deletePayment(deleteId);
-                setDeleteId(null);
+                if (!deleteId) return;
+                void run(async () => {
+                  await deletePayment(deleteId);
+                  setDeleteId(null);
+                });
               }}
+              busy={actionBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-500'
             >
               Delete
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>

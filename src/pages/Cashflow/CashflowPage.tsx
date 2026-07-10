@@ -45,7 +45,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CashflowEntry } from '../../types/investmentTypes';
 import { CashflowSkeleton } from '../../components/loader/skeletons';
-import { ImportDividendCsvButton } from '../../components/cashflow/ImportDividendCsvButton';
 import { Modal } from '../../components/ui/Modal';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
@@ -56,6 +55,8 @@ import { expandExportFilenamePattern, ensureCsvExtension } from '../../utils/exp
 import { exportCashflowsCSV } from '../../utils/exportUtils';
 import { useExportPresetsStore } from '../../store/exportPresetsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // import LendingDashboard from './LendingDashboard'; // NEW import for lending tab
 
@@ -834,6 +835,7 @@ export function CashflowPage() {
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteCashflow = usePortfolioStore((s) => s.deleteCashflow);
   const accounts = usePortfolioStore((s) => s.accounts);
+  const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const accountMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -1028,9 +1030,12 @@ export function CashflowPage() {
     setDeleteOpen(true);
   };
   const confirmDelete = () => {
-    if (selectedDeleteId) deleteCashflow(selectedDeleteId);
-    setDeleteOpen(false);
-    setSelectedDeleteId(null);
+    if (!selectedDeleteId) return;
+    void runDelete(async () => {
+      await deleteCashflow(selectedDeleteId);
+      setDeleteOpen(false);
+      setSelectedDeleteId(null);
+    });
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1047,9 +1052,13 @@ export function CashflowPage() {
   };
 
   const confirmBulkDelete = () => {
-    selectedIds.forEach((id) => deleteCashflow(id));
-    setSelectedIds(new Set());
-    setBulkDeleteOpen(false);
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    void runDelete(async () => {
+      await Promise.all(ids.map((id) => deleteCashflow(id)));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    });
   };
 
   const handleExportSelected = () => {
@@ -1102,7 +1111,6 @@ export function CashflowPage() {
             </div>
           </div>
           <div className='flex flex-wrap items-center gap-3'>
-            <ImportDividendCsvButton />
             <button
               className='group relative flex items-center gap-2 cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
               onClick={() => setOpen(true)}
@@ -1728,12 +1736,14 @@ export function CashflowPage() {
               >
                 Cancel
               </button>
-              <button
+              <AsyncButton
                 onClick={confirmDelete}
+                busy={deleteBusy}
+                loadingLabel='Deleting…'
                 className='rounded-xl bg-red-600 px-6 py-2.5 text-sm cursor-pointer font-bold text-white hover:bg-red-700'
               >
                 Yes, Delete
-              </button>
+              </AsyncButton>
             </div>
           </div>
         </Modal>
@@ -1755,12 +1765,14 @@ export function CashflowPage() {
               >
                 Cancel
               </button>
-              <button
+              <AsyncButton
                 onClick={confirmBulkDelete}
+                busy={deleteBusy}
+                loadingLabel='Deleting…'
                 className='rounded-xl bg-red-600 px-6 py-2.5 text-sm cursor-pointer font-bold text-white hover:bg-red-700'
               >
                 Yes, Delete {selectedIds.size} Records
-              </button>
+              </AsyncButton>
             </div>
           </div>
         </Modal>

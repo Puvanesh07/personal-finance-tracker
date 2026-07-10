@@ -30,6 +30,8 @@ import { formatINR } from '../../utils/format';
 import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useMemo, useState } from 'react';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // ── Status Badge ──────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status?: GoalStatus }) {
@@ -55,6 +57,7 @@ export function GoalsPage() {
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
   const updateGoal = usePortfolioStore((s) => s.updateGoal);
+  const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<Goal | null>(null);
@@ -78,9 +81,12 @@ export function GoalsPage() {
   };
 
   const confirmDelete = () => {
-    if (selectedGoalId) deleteGoal(selectedGoalId);
-    setDeleteOpen(false);
-    setSelectedGoalId(null);
+    if (!selectedGoalId) return;
+    void runDelete(async () => {
+      await deleteGoal(selectedGoalId);
+      setDeleteOpen(false);
+      setSelectedGoalId(null);
+    });
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,9 +105,13 @@ export function GoalsPage() {
   };
 
   const confirmBulkDelete = () => {
-    selectedIds.forEach((id) => deleteGoal(id));
-    setSelectedIds(new Set());
-    setBulkDeleteOpen(false);
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    void runDelete(async () => {
+      await Promise.all(ids.map((id) => deleteGoal(id)));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    });
   };
 
   const handleExportSelected = () => {
@@ -601,12 +611,14 @@ export function GoalsPage() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               onClick={confirmDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl cursor-pointer bg-rose-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-rose-700 transition-colors'
             >
               Yes, Delete
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>
@@ -627,12 +639,14 @@ export function GoalsPage() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               onClick={confirmBulkDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl bg-rose-600 hover:bg-rose-700 cursor-pointer px-6 py-2.5 text-sm font-bold text-white transition-colors'
             >
               Yes, Delete {selectedIds.size} Records
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>

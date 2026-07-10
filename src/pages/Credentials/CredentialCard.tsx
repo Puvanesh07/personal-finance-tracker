@@ -18,21 +18,26 @@ import { UpsertCredentialModal } from './UpsertCredentialModal';
 import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useState } from 'react';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../../components/ui/AsyncButton';
 
 export function CredentialCard({ credential }: { credential: Credential }) {
   const [showSecret, setShowSecret] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const deleteCredential = usePortfolioStore((s) => s.deleteCredential);
+  const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
   };
 
-  const handleDelete = async () => {
-    await deleteCredential(credential.id);
-    setDeleteConfirm(false);
+  const handleDelete = () => {
+    void runDelete(async () => {
+      await deleteCredential(credential.id);
+      setDeleteConfirm(false);
+    });
   };
 
   const getIcon = () => {
@@ -181,12 +186,14 @@ export function CredentialCard({ credential }: { credential: Credential }) {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               onClick={handleDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm'
             >
               Delete
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>

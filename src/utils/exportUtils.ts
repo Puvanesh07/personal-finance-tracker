@@ -365,6 +365,62 @@ export function buildAllCSVBlobs(
     });
   }
 
+  // ── Pending Payments (receivables) ─────────────────────────────────────
+  if (state.pendingPayments?.length) {
+    attachments.push({
+      filename: 'pending-payments.csv',
+      content: toCSVString(
+        state.pendingPayments.map((p: any) => ({
+          'Buyer / Vendor': p.buyerName,
+          Phone: p.buyerPhone ?? '',
+          'Item / Description': p.itemDescription,
+          'Amount (₹)': p.amount,
+          'Sale Date': p.saleDate,
+          'Expected Payment Date': p.expectedPaymentDate,
+          Status: p.status,
+          'Received At': p.receivedAt ?? '',
+          Notes: p.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  // ── Payment Tracker (upcoming dues) ──────────────────────────────────────
+  if (state.trackedPayments?.length) {
+    attachments.push({
+      filename: 'payment-tracker.csv',
+      content: toCSVString(
+        state.trackedPayments.map((p: any) => ({
+          Title: p.title,
+          Type: p.paymentType,
+          'Amount (₹)': p.amount,
+          'Due Date': p.dueDate,
+          Status: p.status,
+          'Paid At': p.paidAt ?? '',
+          Recurrence: p.recurrence ?? 'none',
+          'Reminder Days': (p.reminderDays ?? []).join(', '),
+          Notes: p.notes ?? '',
+        })),
+      ),
+    });
+  }
+
+  // ── Credentials ────────────────────────────────────────────────────────────
+  if (state.credentials?.length) {
+    attachments.push({
+      filename: 'credentials.csv',
+      content: toCSVString(
+        state.credentials.map((c: any) => ({
+          Title: c.title,
+          Category: c.category,
+          Identifier: c.identifier ?? '',
+          Notes: c.notes ?? '',
+          'Updated At': c.updatedAt ?? '',
+        })),
+      ),
+    });
+  }
+
   // ── Lending / Financier ───────────────────────────────────────────────────
   if (state.lendingBorrowers?.length) {
     const bMap = new Map<string, string>();
@@ -744,14 +800,17 @@ export function exportPortfolioJSON(
 ) {
   const data = {
     exportedAt: new Date().toISOString(),
-    version: '1.0',
+    version: '2.0',
     investments: state.investments ?? [],
     soldTrades: state.soldTrades ?? [],
     liabilities: state.liabilities ?? [],
     cashflows: state.cashflows ?? [],
     goals: state.goals ?? [],
-    goalContributions: state.goalContributions ?? [], // ← NEW
+    goalContributions: state.goalContributions ?? [],
     accounts: state.accounts ?? [],
+    pendingPayments: state.pendingPayments ?? [],
+    trackedPayments: state.trackedPayments ?? [],
+    credentials: state.credentials ?? [],
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {
     type: 'application/json',

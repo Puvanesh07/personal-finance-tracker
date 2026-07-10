@@ -23,6 +23,8 @@ import { exportLiabilitiesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // NEW: 'settled' tab groups both "paid" credit cards and "returned" personal loans
 type FilterTab = 'all' | 'active' | 'settled';
@@ -33,6 +35,7 @@ export function LiabilitiesPage() {
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const deleteLiability = usePortfolioStore((s) => s.deleteLiability);
   const updateLiability = usePortfolioStore((s) => s.updateLiability);
+  const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   // Only count truly active liabilities in the top summary metrics
   const activeliabilities = liabilities.filter(
@@ -87,9 +90,12 @@ export function LiabilitiesPage() {
   };
 
   const confirmDelete = () => {
-    if (selectedId) deleteLiability(selectedId);
-    setDeleteOpen(false);
-    setSelectedId(null);
+    if (!selectedId) return;
+    void runDelete(async () => {
+      await deleteLiability(selectedId);
+      setDeleteOpen(false);
+      setSelectedId(null);
+    });
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,9 +114,13 @@ export function LiabilitiesPage() {
   };
 
   const confirmBulkDelete = () => {
-    selectedIds.forEach((id) => deleteLiability(id));
-    setSelectedIds(new Set());
-    setBulkDeleteOpen(false);
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    void runDelete(async () => {
+      await Promise.all(ids.map((id) => deleteLiability(id)));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    });
   };
 
   const handleExportSelected = () => {
@@ -787,12 +797,14 @@ export function LiabilitiesPage() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               onClick={confirmDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl cursor-pointer bg-rose-600 hover:bg-rose-700 px-6 py-2.5 text-sm font-bold text-white transition-colors'
             >
               Yes, Delete
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>
@@ -814,12 +826,14 @@ export function LiabilitiesPage() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               onClick={confirmBulkDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl cursor-pointer bg-rose-600 hover:bg-rose-700 px-6 py-2.5 text-sm font-bold text-white transition-colors'
             >
               Yes, Delete {selectedIds.size} Records
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>

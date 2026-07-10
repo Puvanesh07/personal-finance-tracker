@@ -43,6 +43,8 @@ import { createPortal } from 'react-dom';
 import { formatINR } from '../../utils/format';
 import { exportSoldTradesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // ── Inline Calendar Picker ────────────────────────────────────────────────
 function CalendarPicker({
@@ -459,6 +461,7 @@ function SortIcon({
 export function ProfitsPage() {
   const soldTrades = usePortfolioStore((s) => s.soldTrades);
   const deleteSoldTrade = usePortfolioStore((s) => s.deleteSoldTrade);
+  const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const [editTrade, setEditTrade] = useState<SoldTrade | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -564,9 +567,13 @@ export function ProfitsPage() {
   };
 
   const confirmBulkDelete = () => {
-    selectedIds.forEach((id) => deleteSoldTrade(id));
-    setSelectedIds(new Set());
-    setBulkDeleteOpen(false);
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    void runDelete(async () => {
+      await Promise.all(ids.map((id) => deleteSoldTrade(id)));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    });
   };
 
   const handleExportSelected = () => {
@@ -1081,16 +1088,16 @@ export function ProfitsPage() {
                         </td>
                         {/* Actions */}
                         <td className='px-2 py-3.5 align-middle'>
-                          <div className='flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <div className='flex items-center justify-end gap-1'>
                             <button
                               onClick={() => setEditTrade(trade)}
-                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300/70 dark:border-slate-700/60 transition-all'
+                              className='btn-icon btn-icon-edit h-7 w-7'
                             >
                               <FiEdit2 size={12} />
                             </button>
                             <button
                               onClick={() => setDeleteId(trade.id)}
-                              className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 dark:text-slate-400 hover:text-rose-400 border border-slate-300/70 dark:border-slate-700/60 transition-all'
+                              className='btn-icon btn-icon-delete h-7 w-7'
                             >
                               <FiTrash2 size={12} />
                             </button>
@@ -1190,17 +1197,20 @@ export function ProfitsPage() {
             >
               Cancel
             </button>
-            <button
-              onClick={async () => {
-                if (deleteId) {
+            <AsyncButton
+              onClick={() => {
+                if (!deleteId) return;
+                void runDelete(async () => {
                   await deleteSoldTrade(deleteId);
                   setDeleteId(null);
-                }
+                });
               }}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl cursor-pointer bg-red-600/90 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-600 transition-colors'
             >
               Yes, Delete
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>
@@ -1222,12 +1232,14 @@ export function ProfitsPage() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               onClick={confirmBulkDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl cursor-pointer bg-red-600 hover:bg-red-700 px-6 py-2.5 text-sm font-bold text-white transition-colors'
             >
               Yes, Delete {selectedIds.size} Records
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>

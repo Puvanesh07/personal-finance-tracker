@@ -8,12 +8,25 @@ import type {
   SalaryRecord,
   TransactionType,
 } from '../../types/investmentTypes';
+import {
+  autoSyncSalaryForDate,
+  cleanupSalaryLinks,
+  regenerateAllSalariesForMonth,
+  regenerateSalaryForEmployee,
+  syncSalaryPaymentToCashflow,
+} from '../../utils/attendanceAgriSync';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEnsureAgriHydrated,
+  useEnsureAttendanceHydrated,
+} from '../../hooks/useDeferredStoreHydration';
 
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import toast from 'react-hot-toast';
+import { useAgriStore } from '../../store/agricultureStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
+import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Style constants ──────────────────────────────────────────────────────────
 const inp =
@@ -43,6 +56,14 @@ const months12 = () => {
   }
   return out;
 };
+
+function getSyncStores() {
+  return {
+    att: useAttendanceStore.getState(),
+    agri: useAgriStore.getState(),
+    port: usePortfolioStore.getState(),
+  };
+}
 const AVATAR_COLORS = [
   '#0F6E56',
   '#185FA5',
@@ -347,15 +368,21 @@ function EmployeesTab() {
     updateEmployee,
     deleteEmployee,
   } = useAttendanceStore();
+  const cropCycles = useAgriStore((s) => s.cropCycles);
+  const accounts = usePortfolioStore((s) => s.accounts);
+  useEnsureAgriHydrated();
 
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false); // ← prevents double-save
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<AttendanceEmployee | null>(null);
   const [search, setSearch] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [wage, setWage] = useState('300');
   const [notes, setNotes] = useState('');
+  const [cropCycleId, setCropCycleId] = useState('');
+  const [plantationLabel, setPlantationLabel] = useState('');
+  const [defaultAccountId, setDefaultAccountId] = useState('');
 
   function openAdd(emp?: AttendanceEmployee) {
     setEditing(emp ?? null);
@@ -363,11 +390,14 @@ function EmployeesTab() {
     setPhone(emp?.phone ?? '');
     setWage(String(emp?.dailyWage ?? 300));
     setNotes(emp?.notes ?? '');
+    setCropCycleId(emp?.cropCycleId ?? '');
+    setPlantationLabel(emp?.plantationLabel ?? '');
+    setDefaultAccountId(emp?.defaultAccountId ?? '');
     setOpen(true);
   }
 
   async function save() {
-    if (saving) return; // prevent double-click duplicate
+    if (saving) return;
     if (!name.trim()) {
       toast.error('Name is required');
       return;
@@ -384,6 +414,9 @@ function EmployeesTab() {
         phone: phone.trim() || undefined,
         dailyWage: w,
         notes: notes.trim() || undefined,
+        cropCycleId: cropCycleId || undefined,
+        plantationLabel: plantationLabel.trim() || undefined,
+        defaultAccountId: defaultAccountId || undefined,
       };
       if (editing) {
         await updateEmployee(editing.id, payload);
@@ -461,6 +494,15 @@ function EmployeesTab() {
                       {fmt(emp.dailyWage)}/day
                       {emp.phone ? ` · ${emp.phone}` : ''}
                     </div>
+                    {(emp.plantationLabel || emp.cropCycleId) && (
+                      <div className='text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5'>
+                        🌾{' '}
+                        {emp.plantationLabel ||
+                          cropCycles.find((c) => c.id === emp.cropCycleId)
+                            ?.cropName ||
+                          'Farm'}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -482,7 +524,10 @@ function EmployeesTab() {
                       color: 'text-amber-400',
                     },
                   ].map((c) => (
-                    <div key={c.label} className='rounded-xl bg-slate-200 dark:bg-slate-800 p-2'>
+                    <div
+                      key={c.label}
+                      className='rounded-xl bg-slate-200 dark:bg-slate-800 p-2'
+                    >
                       <div className='text-[10px] text-slate-900 dark:text-slate-500'>
                         {c.label}
                       </div>
@@ -543,6 +588,46 @@ function EmployeesTab() {
           <div>
             <label className={lbl}>Daily Wage (₹) *</label>
             <NumericInput className={inp} value={wage} onChange={setWage} />
+          </div>
+          <div>
+            <label className={lbl}>Crop / Plantation</label>
+            <select
+              className={inp}
+              value={cropCycleId}
+              onChange={(e) => setCropCycleId(e.target.value)}
+            >
+              <option value=''>General farm labor</option>
+              {cropCycles.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.cropName}
+                  {c.fieldName ? ` · ${c.fieldName}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={lbl}>Plantation label</label>
+            <input
+              className={inp}
+              value={plantationLabel}
+              onChange={(e) => setPlantationLabel(e.target.value)}
+              placeholder='e.g. Tomato field, Dairy'
+            />
+          </div>
+          <div>
+            <label className={lbl}>Salary account</label>
+            <select
+              className={inp}
+              value={defaultAccountId}
+              onChange={(e) => setDefaultAccountId(e.target.value)}
+            >
+              <option value=''>No account</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className='sm:col-span-2'>
             <label className={lbl}>Notes</label>
@@ -608,6 +693,17 @@ function AttendanceTab() {
   const [txnNote, setTxnNote] = useState('');
   const [txnDate, setTxnDate] = useState(today());
 
+  async function handleDeleteTxn(t: {
+    id: string;
+    employeeId: string;
+    date: string;
+  }) {
+    await deleteTransaction(t.id);
+    const { att, agri, port } = getSyncStores();
+    await autoSyncSalaryForDate(t.employeeId, t.date, att, agri, port);
+    toast.success('Removed — salary auto-updated');
+  }
+
   useEffect(() => {
     const init: Record<
       string,
@@ -656,7 +752,19 @@ function AttendanceTab() {
         }
       }
       if (toAdd.length > 0) await bulkSetAttendance(toAdd);
-      toast.success(`Attendance saved for ${date}`);
+
+      const month = date.slice(0, 7);
+      for (const emp of employees) {
+        const { att, agri, port } = getSyncStores();
+        const existing = att.salaryRecords.find(
+          (s) => s.employeeId === emp.id && s.month === month,
+        );
+        if (existing) {
+          await autoSyncSalaryForDate(emp.id, date, att, agri, port);
+        }
+      }
+
+      toast.success(`Attendance saved for ${date} — salary auto-updated`);
     } finally {
       setSaving(false);
     }
@@ -682,7 +790,9 @@ function AttendanceTab() {
         note: txnNote.trim() || undefined,
         date: txnDate,
       });
-      toast.success('Saved!');
+      const { att, agri, port } = getSyncStores();
+      await autoSyncSalaryForDate(txnEmp, txnDate, att, agri, port);
+      toast.success('Saved — salary auto-updated');
       setTxnOpen(false);
       setTxnAmt('0');
       setTxnNote('');
@@ -766,7 +876,9 @@ function AttendanceTab() {
             <div className='text-lg font-bold font-mono text-slate-900 dark:text-slate-100'>
               {c.val}
             </div>
-            <div className='text-[10px] text-slate-900 dark:text-slate-500'>{c.label}</div>
+            <div className='text-[10px] text-slate-900 dark:text-slate-500'>
+              {c.label}
+            </div>
           </div>
         ))}
       </div>
@@ -866,7 +978,9 @@ function AttendanceTab() {
                     </div>
                     {d.present && (
                       <div className='flex items-center gap-2'>
-                        <span className='text-xs text-slate-900 dark:text-slate-500'>Extra ₹</span>
+                        <span className='text-xs text-slate-900 dark:text-slate-500'>
+                          Extra ₹
+                        </span>
                         <input
                           type='number'
                           className='w-24 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-900 dark:text-slate-100'
@@ -968,7 +1082,9 @@ function AttendanceTab() {
                       key={t.id}
                       className='border-b border-slate-200/70 dark:border-slate-800/50 hover:bg-slate-100/80 dark:bg-slate-800/30'
                     >
-                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400'>{t.date}</td>
+                      <td className='px-3 py-2 text-slate-500 dark:text-slate-400'>
+                        {t.date}
+                      </td>
                       <td className='px-3 py-2 font-bold text-slate-900 dark:text-slate-100'>
                         {emp?.name ?? '—'}
                       </td>
@@ -991,7 +1107,7 @@ function AttendanceTab() {
                       </td>
                       <td className='px-3 py-2'>
                         <ConfirmDelete
-                          onDelete={() => deleteTransaction(t.id)}
+                          onDelete={() => void handleDeleteTxn(t)}
                         />
                       </td>
                     </tr>
@@ -1094,13 +1210,10 @@ function AttendanceTab() {
 function SalaryTab() {
   const {
     employees,
-    attendanceRecords,
-    transactions,
+    // attendanceRecords,
+    // transactions,
     salaryRecords,
-    addSalaryRecord,
-    updateSalaryRecord,
     markSalaryPaid,
-    deleteSalaryRecord,
   } = useAttendanceStore();
 
   const [month, setMonth] = useState(curMonth());
@@ -1117,75 +1230,23 @@ function SalaryTab() {
   const [payAmt, setPayAmt] = useState('0');
   const [payStatus, setPayStatus] = useState<PaymentStatus>('paid');
 
-  function calcSalary(empId: string) {
-    const emp = employees.find((e) => e.id === empId);
-    if (!emp) return null;
-    const recs = attendanceRecords.filter(
-      (r) => r.employeeId === empId && r.date.startsWith(month),
-    );
-    const daysWorked = recs.filter((r) => r.present).length;
-    const baseSalary = daysWorked * emp.dailyWage;
-    const extraWork = recs.reduce((s, r) => s + (r.extraWork ?? 0), 0);
-    const totalSalary = baseSalary + extraWork;
-    const advance = transactions
-      .filter(
-        (t) =>
-          t.employeeId === empId &&
-          t.type === 'advance' &&
-          t.date.startsWith(month),
-      )
-      .reduce((s, t) => s + t.amount, 0);
-    const deductions = transactions
-      .filter(
-        (t) =>
-          t.employeeId === empId &&
-          t.type === 'deduction' &&
-          t.date.startsWith(month),
-      )
-      .reduce((s, t) => s + t.amount, 0);
-    const finalSalary = totalSalary - advance - deductions;
-    return {
-      emp,
-      daysWorked,
-      baseSalary,
-      extraWork,
-      totalSalary,
-      advance,
-      deductions,
-      finalSalary,
-    };
-  }
+  // function calcSalary(empId: string) {
+  //   return calcEmployeeSalary(
+  //     empId,
+  //     month,
+  //     employees,
+  //     attendanceRecords,
+  //     transactions,
+  //   );
+  // }
 
   async function generateAll() {
     if (generating) return;
     setGenerating(true);
     try {
-      for (const emp of employees) {
-        const data = calcSalary(emp.id);
-        if (!data) continue;
-        const existing = salaryRecords.find(
-          (s) => s.employeeId === emp.id && s.month === month,
-        );
-        const payload = {
-          employeeId: emp.id,
-          month,
-          daysWorked: data.daysWorked,
-          baseSalary: data.baseSalary,
-          extraWork: data.extraWork,
-          totalSalary: data.totalSalary,
-          advance: data.advance,
-          deductions: data.deductions,
-          finalSalary: data.finalSalary,
-          paidAmount: existing?.paidAmount ?? 0,
-          paymentStatus: existing?.paymentStatus ?? ('unpaid' as PaymentStatus),
-        };
-        if (existing) {
-          await updateSalaryRecord(existing.id, payload);
-        } else {
-          await addSalaryRecord(payload);
-        }
-      }
-      toast.success('Salary generated for all workers');
+      const { att, agri, port } = getSyncStores();
+      await regenerateAllSalariesForMonth(month, att, agri, port);
+      toast.success('Salary generated & synced to Agriculture');
     } finally {
       setGenerating(false);
     }
@@ -1201,11 +1262,28 @@ function SalaryTab() {
     setPaySaving(true);
     try {
       await markSalaryPaid(payRecord.id, amt, payStatus);
-      toast.success('Payment updated');
+      const emp = employees.find((e) => e.id === payRecord.employeeId);
+      if (emp) {
+        const { port } = getSyncStores();
+        const updated = useAttendanceStore
+          .getState()
+          .salaryRecords.find((s) => s.id === payRecord.id);
+        if (updated) {
+          await syncSalaryPaymentToCashflow(updated, emp, port);
+        }
+      }
+      toast.success('Payment saved & synced to Cashflow');
       setPayOpen(false);
     } finally {
       setPaySaving(false);
     }
+  }
+
+  async function handleDeleteSalary(s: SalaryRecord) {
+    // const emp = employees.find((e) => e.id === s.employeeId);
+    const { att, agri, port } = getSyncStores();
+    await cleanupSalaryLinks(s, att, agri, port);
+    toast.success('Salary deleted — Agriculture & Cashflow updated');
   }
 
   function exportCSV() {
@@ -1256,6 +1334,11 @@ function SalaryTab() {
 
   return (
     <div className='flex flex-col gap-5'>
+      <div className='rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300'>
+        <strong>Auto-sync enabled:</strong> Generate salary → labor cost appears
+        in Agriculture. Mark paid → expense appears in Cashflow. Attendance
+        &amp; advance/deduction changes auto-update existing salary records.
+      </div>
       {/* Controls */}
       <div className='flex flex-wrap items-end gap-3'>
         <div>
@@ -1345,7 +1428,9 @@ function SalaryTab() {
               <div className='text-sm font-bold font-mono text-slate-900 dark:text-slate-100'>
                 {c.val}
               </div>
-              <div className='text-[10px] text-slate-900 dark:text-slate-500'>{c.label}</div>
+              <div className='text-[10px] text-slate-900 dark:text-slate-500'>
+                {c.label}
+              </div>
             </div>
           ))}
         </div>
@@ -1404,7 +1489,19 @@ function SalaryTab() {
                       </div>
                     </div>
                   </div>
-                  <PayBadge status={s.paymentStatus} />
+                  <div className='flex flex-col items-end gap-1'>
+                    <PayBadge status={s.paymentStatus} />
+                    {s.agriExpenseId && (
+                      <span className='rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-bold text-green-600 dark:text-green-400'>
+                        🌾 Agri synced
+                      </span>
+                    )}
+                    {s.paidAmount > 0 && (
+                      <span className='rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400'>
+                        💳 Cashflow
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Calculation rows */}
@@ -1413,23 +1510,31 @@ function SalaryTab() {
                     <span className='text-slate-900 dark:text-slate-500'>
                       Base ({s.daysWorked} × {fmt(emp?.dailyWage ?? 0)})
                     </span>
-                    <span className='text-slate-600 dark:text-slate-700 dark:text-slate-300'>{fmt(s.baseSalary)}</span>
+                    <span className='text-slate-600 dark:text-slate-700 dark:text-slate-300'>
+                      {fmt(s.baseSalary)}
+                    </span>
                   </div>
                   {s.extraWork > 0 && (
                     <div className='flex justify-between text-xs'>
-                      <span className='text-slate-900 dark:text-slate-500'>Extra work</span>
+                      <span className='text-slate-900 dark:text-slate-500'>
+                        Extra work
+                      </span>
                       <span className='text-teal-400'>+{fmt(s.extraWork)}</span>
                     </div>
                   )}
                   {s.advance > 0 && (
                     <div className='flex justify-between text-xs'>
-                      <span className='text-slate-900 dark:text-slate-500'>Advance</span>
+                      <span className='text-slate-900 dark:text-slate-500'>
+                        Advance
+                      </span>
                       <span className='text-amber-400'>−{fmt(s.advance)}</span>
                     </div>
                   )}
                   {s.deductions > 0 && (
                     <div className='flex justify-between text-xs'>
-                      <span className='text-slate-900 dark:text-slate-500'>Deductions</span>
+                      <span className='text-slate-900 dark:text-slate-500'>
+                        Deductions
+                      </span>
                       <span className='text-red-400'>−{fmt(s.deductions)}</span>
                     </div>
                   )}
@@ -1503,24 +1608,21 @@ function SalaryTab() {
                   </button>
                   <button
                     onClick={async () => {
-                      const data = calcSalary(s.employeeId);
-                      if (!data) return;
-                      await updateSalaryRecord(s.id, {
-                        daysWorked: data.daysWorked,
-                        baseSalary: data.baseSalary,
-                        extraWork: data.extraWork,
-                        totalSalary: data.totalSalary,
-                        advance: data.advance,
-                        deductions: data.deductions,
-                        finalSalary: data.finalSalary,
-                      });
-                      toast.success('Refreshed');
+                      const { att, agri, port } = getSyncStores();
+                      await regenerateSalaryForEmployee(
+                        s.employeeId,
+                        month,
+                        att,
+                        agri,
+                        port,
+                      );
+                      toast.success('Refreshed & synced to Agriculture');
                     }}
                     className='rounded-lg bg-slate-200 dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:bg-slate-700'
                   >
                     🔄 Refresh
                   </button>
-                  <ConfirmDelete onDelete={() => deleteSalaryRecord(s.id)} />
+                  <ConfirmDelete onDelete={() => void handleDeleteSalary(s)} />
                 </div>
               </div>
             );
@@ -1546,7 +1648,9 @@ function SalaryTab() {
                 </strong>
               </div>
               <div className='mt-1 flex justify-between'>
-                <span className='text-slate-500 dark:text-slate-400'>Final Salary</span>
+                <span className='text-slate-500 dark:text-slate-400'>
+                  Final Salary
+                </span>
                 <span className='font-bold text-green-400'>
                   {fmt(payRecord.finalSalary)}
                 </span>
@@ -1554,13 +1658,17 @@ function SalaryTab() {
               {payRecord.paidAmount > 0 && (
                 <>
                   <div className='mt-1 flex justify-between'>
-                    <span className='text-slate-500 dark:text-slate-400'>Already Paid</span>
+                    <span className='text-slate-500 dark:text-slate-400'>
+                      Already Paid
+                    </span>
                     <span className='font-bold text-amber-400'>
                       {fmt(payRecord.paidAmount)}
                     </span>
                   </div>
                   <div className='mt-1 flex justify-between'>
-                    <span className='text-slate-500 dark:text-slate-400'>Remaining</span>
+                    <span className='text-slate-500 dark:text-slate-400'>
+                      Remaining
+                    </span>
                     <span className='font-bold text-red-400'>
                       {fmt(payRecord.finalSalary - payRecord.paidAmount)}
                     </span>
@@ -1869,12 +1977,15 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 
 export function AttendancePage() {
   const [tab, setTab] = useState<Tab>('dashboard');
-  const { ready } = useAttendanceStore();
+  const ready = useEnsureAttendanceHydrated();
+  useEnsureAgriHydrated();
 
   if (!ready)
     return (
       <div className='flex h-40 items-center justify-center'>
-        <div className='text-sm text-slate-500 dark:text-slate-400'>Loading…</div>
+        <div className='text-sm text-slate-500 dark:text-slate-400'>
+          Loading…
+        </div>
       </div>
     );
 
@@ -1891,7 +2002,7 @@ export function AttendancePage() {
               Attendance
             </h1>
             <p className='mt-0.5 text-sm text-slate-900 dark:text-slate-500'>
-              Workers · Daily Attendance · Salary & Payments
+              Farm workers · auto-syncs salary to Agriculture &amp; Cashflow
             </p>
           </div>
         </div>

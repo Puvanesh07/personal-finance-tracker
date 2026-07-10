@@ -1,50 +1,53 @@
-// src/components/dashboard/DashboardAgriSummary.tsx
-//
-// FIX: Added redirect icon to navigate to Agriculture page
-
 import { FiArrowUpRight, FiSun } from 'react-icons/fi';
 
+import { useMemo } from 'react';
+import { computeAgriSummary } from '../../utils/agriCalculations';
 import { formatCurrency } from '../../utils/format';
 import { useAgriStore } from '../../store/agricultureStore';
 import { useNavigate } from 'react-router-dom';
+import { useEnsureAgriHydrated } from '../../hooks/useDeferredStoreHydration';
 
 export function DashboardAgriSummary() {
-  const {
-    cropCycles,
-    agriExpenses,
-    milkRecords,
-    coconutRecords,
-    produceSales,
-    livestockEvents,
-  } = useAgriStore();
+  const agriReady = useEnsureAgriHydrated();
+  const cropCycles = useAgriStore((s) => s.cropCycles);
+  const agriExpenses = useAgriStore((s) => s.agriExpenses);
+  const milkRecords = useAgriStore((s) => s.milkRecords);
+  const coconutRecords = useAgriStore((s) => s.coconutRecords);
+  const livestockEvents = useAgriStore((s) => s.livestockEvents);
+  const produceSales = useAgriStore((s) => s.produceSales);
   const navigate = useNavigate();
 
-  const activeCrops = cropCycles.filter((c) => !c.actualHarvestDate).length;
-  const totalAgriExpenses = agriExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const summary = useMemo(
+    () =>
+      agriReady
+        ? computeAgriSummary({
+            cropCycles,
+            agriExpenses,
+            milkRecords,
+            coconutRecords,
+            livestockEvents,
+            produceSales,
+          })
+        : null,
+    [
+      agriReady,
+      cropCycles,
+      agriExpenses,
+      milkRecords,
+      coconutRecords,
+      livestockEvents,
+      produceSales,
+    ],
+  );
 
-  const harvestIncome = cropCycles.reduce(
-    (sum, c) => sum + (c.harvestIncome || 0),
-    0,
-  );
-  const milkIncome = milkRecords.reduce(
-    (sum, m) => sum + m.liters * m.pricePerLiter,
-    0,
-  );
-  const coconutIncome = coconutRecords.reduce(
-    (sum, c) => sum + (c.harvestIncome || 0),
-    0,
-  );
-  const produceIncome = produceSales.reduce(
-    (sum, p) => sum + (p.totalAmount || 0),
-    0,
-  );
-  const livestockSaleIncome = livestockEvents
-    .filter((e) => e.eventType === 'sale')
-    .reduce((sum, e) => sum + (e.price ?? 0), 0);
-  const totalAgriIncome =
-    harvestIncome + milkIncome + coconutIncome + produceIncome + livestockSaleIncome;
-
-  const netAgriProfit = totalAgriIncome - totalAgriExpenses;
+  if (!agriReady || !summary) {
+    return (
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full animate-pulse'>
+        <div className='h-4 w-40 rounded bg-slate-200 dark:bg-slate-800 mb-4' />
+        <div className='h-8 w-32 rounded bg-slate-200 dark:bg-slate-800' />
+      </div>
+    );
+  }
 
   return (
     <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
@@ -53,11 +56,10 @@ export function DashboardAgriSummary() {
           <FiSun className='text-amber-400' />
           Agriculture Overview
         </h2>
-        {/* ✅ FIX: Redirect icon to navigate to Agriculture page */}
         <button
           onClick={() => navigate('/agriculture')}
           title='Go to Agriculture'
-          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-amber-400 transition-colors'
+          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-amber-400 transition-colors'
         >
           <FiArrowUpRight className='h-4 w-4' />
         </button>
@@ -69,15 +71,15 @@ export function DashboardAgriSummary() {
             All-Time Net Profit
           </p>
           <p
-            className={`text-2xl font-bold ${netAgriProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+            className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
           >
-            {netAgriProfit >= 0 ? '+' : ''}
-            {formatCurrency(netAgriProfit)}
+            {summary.netProfit >= 0 ? '+' : ''}
+            {formatCurrency(summary.netProfit)}
           </p>
         </div>
         <div className='text-right'>
           <span className='inline-flex items-center rounded-md bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-400 border border-amber-500/20'>
-            {activeCrops} Active Crops
+            {summary.activeCrops} Active Crops
           </span>
         </div>
       </div>
@@ -88,7 +90,7 @@ export function DashboardAgriSummary() {
             Total Revenue
           </p>
           <p className='text-sm font-semibold text-emerald-400'>
-            {formatCurrency(totalAgriIncome)}
+            {formatCurrency(summary.totalIncome)}
           </p>
         </div>
         <div>
@@ -96,7 +98,7 @@ export function DashboardAgriSummary() {
             Total Expenses
           </p>
           <p className='text-sm font-semibold text-rose-400'>
-            {formatCurrency(totalAgriExpenses)}
+            {formatCurrency(summary.totalExpenses)}
           </p>
         </div>
       </div>

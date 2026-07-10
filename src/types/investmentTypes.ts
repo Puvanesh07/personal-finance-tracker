@@ -467,8 +467,9 @@ export type CropCycle = {
 
 export type AgriExpense = {
   id: string;
-  cropCycleId: string;
+  cropCycleId?: string;
   cropName?: string;
+  plantationLabel?: string;
   category: AgriExpenseCategory;
   amount: number;
   date: string;
@@ -580,6 +581,11 @@ export type AttendanceEmployee = {
   phone?: string;
   dailyWage: number;
   notes?: string;
+  /** Link worker to a crop cycle / plantation in Agriculture */
+  cropCycleId?: string;
+  plantationLabel?: string;
+  /** Default bank account for salary cashflow sync */
+  defaultAccountId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -625,6 +631,9 @@ export type SalaryRecord = {
   paidAmount: number;
   paymentStatus: PaymentStatus;
   notes?: string;
+  /** Linked agriculture labor expense (auto-synced) */
+  agriExpenseId?: string;
+  accountId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;

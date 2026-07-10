@@ -96,7 +96,7 @@ type AttendanceState = {
   // Salary Records
   addSalaryRecord: (
     s: Omit<SalaryRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
-  ) => Promise<void>;
+  ) => Promise<string | void>;
   updateSalaryRecord: (
     id: string,
     patch: Partial<SalaryRecord>,
@@ -124,6 +124,9 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   salaryRecords: [],
 
   hydrate: async (uid) => {
+    const { uid: currentUid, ready } = get();
+    if (currentUid === uid && ready) return;
+
     try {
       const [employees, attendanceRecords, transactions, salaryRecords] =
         await Promise.all([
@@ -346,6 +349,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         b.month.localeCompare(a.month),
       ),
     }));
+    return raw.id;
   },
 
   updateSalaryRecord: async (id, patch) => {

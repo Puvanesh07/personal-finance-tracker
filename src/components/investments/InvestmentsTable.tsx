@@ -1287,17 +1287,16 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           dividendCurrentFY = 0;
         }
 
+        const invested = investedValue(inv);
+        const current = currentValue(inv);
+        const pl = current - invested;
+
         return {
           inv,
-          invested: investedValue(inv),
-          current: currentValue(inv),
-          pl: currentValue(inv) - investedValue(inv),
-          plPct:
-            investedValue(inv) > 0
-              ? ((currentValue(inv) - investedValue(inv)) /
-                  investedValue(inv)) *
-                100
-              : 0,
+          invested,
+          current,
+          pl,
+          plPct: invested > 0 ? (pl / invested) * 100 : 0,
           marketCap: inv.marketCap || extendedData[inv.id]?.cap,
           qty,
           dividendCurrentFY,
@@ -1966,13 +1965,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           )}
                           <button
                             onClick={() => setEdit(inv)}
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all'
+                            title='Edit'
+                            className='btn-icon btn-icon-edit h-7 w-7'
                           >
                             <FiEdit2 size={12} />
                           </button>
                           <button
                             onClick={() => setDeleteId(inv.id)}
-                            className='flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 transition-all'
+                            title='Delete'
+                            className='btn-icon btn-icon-delete h-7 w-7'
                           >
                             <FiTrash2 size={12} />
                           </button>
@@ -2562,7 +2563,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 </span>
                               </div>
                             ) : (
-                              <div className='flex justify-end opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <div className='flex justify-end sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -2606,7 +2607,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       {/* ── Refresh button — equity only ── */}
                       <td className={`px-2 py-3.5 text-center ${bdClass}`}>
                         {isEquityLike(inv) && hasLiveSymbol ? (
-                          <span className='opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <span className='sm:opacity-0 sm:group-hover:opacity-100 transition-opacity'>
                             <RowRefreshButton
                               onClick={() => handleRefreshRow(inv)}
                               refreshing={isRowRefreshing}
@@ -2676,25 +2677,27 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               className={isRowPinned ? 'fill-current' : ''}
                             />
                           </button>
-                          <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <div className='flex items-center gap-1'>
                             {isEquityLike(inv) && (
                               <button
                                 onClick={() => setSellTarget(inv)}
                                 title='Record sale & track profit'
-                                className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all'
+                                className='btn-icon btn-icon-edit h-7 w-7 text-emerald-600 dark:text-emerald-400'
                               >
                                 <FiDollarSign size={12} />
                               </button>
                             )}
                             <button
                               onClick={() => setEdit(inv)}
-                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-300/70 dark:border-slate-700/60 transition-all'
+                              title='Edit'
+                              className='btn-icon btn-icon-edit h-7 w-7'
                             >
                               <FiEdit2 size={12} />
                             </button>
                             <button
                               onClick={() => setDeleteId(inv.id)}
-                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 dark:text-slate-400 hover:text-rose-400 border border-slate-300/70 dark:border-slate-700/60 transition-all'
+                              title='Delete'
+                              className='btn-icon btn-icon-delete h-7 w-7'
                             >
                               <FiTrash2 size={12} />
                             </button>

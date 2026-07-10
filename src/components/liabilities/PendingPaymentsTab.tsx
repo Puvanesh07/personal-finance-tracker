@@ -14,6 +14,8 @@ import { Modal } from '../ui/Modal';
 import { UpsertPendingPaymentModal } from './UpsertPendingPaymentModal';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { AsyncButton } from '../ui/AsyncButton';
 
 type FilterTab = 'pending' | 'received' | 'all';
 
@@ -74,6 +76,7 @@ export function PendingPaymentsTab() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PendingPayment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const active = pendingPayments.filter((p) => p.status === 'pending');
   const received = pendingPayments.filter((p) => p.status === 'received');
@@ -110,9 +113,12 @@ export function PendingPaymentsTab() {
     });
   };
 
-  const confirmDelete = async () => {
-    if (deleteId) await deletePendingPayment(deleteId);
-    setDeleteId(null);
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    void runDelete(async () => {
+      await deletePendingPayment(deleteId);
+      setDeleteId(null);
+    });
   };
 
   return (
@@ -340,13 +346,15 @@ export function PendingPaymentsTab() {
             >
               Cancel
             </button>
-            <button
+            <AsyncButton
               type='button'
-              onClick={() => void confirmDelete()}
+              onClick={confirmDelete}
+              busy={deleteBusy}
+              loadingLabel='Deleting…'
               className='rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-500 transition-colors'
             >
               Delete
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </Modal>

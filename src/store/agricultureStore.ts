@@ -67,19 +67,19 @@ type AgriState = {
 
   addAgriExpense: (
     e: Omit<AgriExpense, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
-  ) => Promise<void>;
+  ) => Promise<string | void>;
   updateAgriExpense: (id: string, patch: Partial<AgriExpense>) => Promise<void>;
   deleteAgriExpense: (id: string) => Promise<void>;
 
   addMilkRecord: (
     m: Omit<MilkRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
-  ) => Promise<void>;
+  ) => Promise<string | void>;
   updateMilkRecord: (id: string, patch: Partial<MilkRecord>) => Promise<void>;
   deleteMilkRecord: (id: string) => Promise<void>;
 
   addCoconutRecord: (
     c: Omit<CoconutRecord, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
-  ) => Promise<void>;
+  ) => Promise<string | void>;
   updateCoconutRecord: (
     id: string,
     patch: Partial<CoconutRecord>,
@@ -97,7 +97,7 @@ type AgriState = {
 
   addProduceSale: (
     p: Omit<ProduceSaleLot, 'id' | 'createdAt' | 'updatedAt' | 'userId'>,
-  ) => Promise<void>;
+  ) => Promise<string | void>;
   updateProduceSale: (
     id: string,
     patch: Partial<ProduceSaleLot>,
@@ -117,6 +117,9 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   produceSales: [],
 
   hydrate: async (uid) => {
+    const { uid: currentUid, ready } = get();
+    if (currentUid === uid && ready) return;
+
     try {
       const [
         fields,
@@ -253,6 +256,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         b.date.localeCompare(a.date),
       ),
     }));
+    return raw.id;
   },
   updateAgriExpense: async (id, patch) => {
     const uid = get().uid;
@@ -290,6 +294,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         b.date.localeCompare(a.date),
       ),
     }));
+    return raw.id;
   },
   updateMilkRecord: async (id, patch) => {
     const uid = get().uid;
@@ -327,6 +332,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         b.date.localeCompare(a.date),
       ),
     }));
+    return raw.id;
   },
   updateCoconutRecord: async (id, patch) => {
     const uid = get().uid;
@@ -410,6 +416,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         b.date.localeCompare(a.date),
       ),
     }));
+    return raw.id;
   },
   updateProduceSale: async (id, patch) => {
     const uid = get().uid;
