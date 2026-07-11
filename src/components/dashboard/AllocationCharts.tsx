@@ -49,9 +49,9 @@ export function AllocationCharts() {
           {formatINR(totals.overall)}
         </p>
       </div>
-      <div className='grid grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]'>
-        <div className='h-56'>
-          <ResponsiveContainer width='100%' height='100%'>
+      <div className='grid min-h-0 grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]'>
+        <div className='h-56 min-h-[224px] w-full'>
+          <ResponsiveContainer width='100%' height={224}>
             <PieChart>
               <Pie
                 data={data}

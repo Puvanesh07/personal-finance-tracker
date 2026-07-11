@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { ensureAuthPersistence } from './authBootstrap';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { motion } from 'framer-motion';
@@ -99,7 +100,7 @@ export default function RegisterPage({
 
     setLoading(true);
     try {
-      // 1. Create Firebase Auth user
+      await ensureAuthPersistence();
       const credential = await createUserWithEmailAndPassword(
         auth,
         form.email.trim(),

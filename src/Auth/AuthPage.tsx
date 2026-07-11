@@ -7,14 +7,13 @@
 //     so authenticated users see it, not unauthenticated visitors on every load
 //  4. Added loading state on sign-in button to prevent double-clicks
 
-import { auth, googleProvider } from '../services/firebase';
-import {
-  getRedirectResult,
-  signInWithRedirect,
-} from 'firebase/auth';
 import { motion, type Variants } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
+import {
+  googleSignInErrorMessage,
+  signInWithGoogle,
+} from './googleSignIn';
 import RegisterPage from './RegisterPage';
 import LoginPage from './LoginPage';
 import {
@@ -276,24 +275,26 @@ export default function AuthPage() {
   const [showRegister, setShowRegister] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
-  useEffect(() => {
-    void getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          toast.success('Welcome to FinTrackly! 🎉', {
-            duration: 3000,
-            style: {
-              background: '#0f172a',
-              color: '#f8fafc',
-              border: '1px solid rgba(16,185,129,0.4)',
-            },
-            iconTheme: { primary: '#10b981', secondary: '#f8fafc' },
-          });
-        }
-      })
-      .catch((error: { code?: string }) => {
-        if (error?.code === 'auth/popup-closed-by-user') return;
-        toast.error('Sign-in failed. Please try again.', {
+  const handleGoogleSignIn = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      const method = await signInWithGoogle();
+      if (method === 'popup') {
+        toast.success('Welcome to FinTrackly! 🎉', {
+          duration: 3000,
+          style: {
+            background: '#0f172a',
+            color: '#f8fafc',
+            border: '1px solid rgba(16,185,129,0.4)',
+          },
+          iconTheme: { primary: '#10b981', secondary: '#f8fafc' },
+        });
+      }
+    } catch (error: unknown) {
+      const message = googleSignInErrorMessage(error);
+      if (message) {
+        toast.error(message, {
           duration: 4000,
           style: {
             background: '#0f172a',
@@ -301,34 +302,8 @@ export default function AuthPage() {
             border: '1px solid rgba(248,113,113,0.4)',
           },
         });
-      })
-      .finally(() => setSigningIn(false));
-  }, []);
-
-  const handleGoogleSignIn = async () => {
-    if (signingIn) return;
-    setSigningIn(true);
-    try {
-      await signInWithRedirect(auth, googleProvider);
-    } catch (error: any) {
-      if (
-        error?.code !== 'auth/popup-closed-by-user' &&
-        error?.code !== 'auth/cancelled-popup-request'
-      ) {
-        toast.error(
-          error?.code === 'auth/network-request-failed'
-            ? 'Network error. Please check your connection.'
-            : 'Sign-in failed. Please try again.',
-          {
-            duration: 4000,
-            style: {
-              background: '#0f172a',
-              color: '#f8fafc',
-              border: '1px solid rgba(248,113,113,0.4)',
-            },
-          },
-        );
       }
+    } finally {
       setSigningIn(false);
     }
   };

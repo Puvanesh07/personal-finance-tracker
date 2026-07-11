@@ -60,6 +60,7 @@ export default defineConfig({
         navigateFallbackDenylist: [
           /^\/api/,
           /^\/assets\//,
+          /^\/__\/auth\//,
           /\.(js|css|woff2?|png|jpg|svg|json|ico)$/,
           /firestore\.googleapis\.com/,
           /identitytoolkit\.googleapis\.com/,
@@ -68,6 +69,12 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    headers: {
+      // Required for Google sign-in popup to communicate with parent window
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
+  },
   build: {
     target: 'es2020',
     sourcemap: false,

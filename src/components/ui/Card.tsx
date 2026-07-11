@@ -15,7 +15,7 @@ export function Card({
           {right ? <div className='shrink-0'>{right}</div> : null}
         </header>
       )}
-      <div className='flex-1'>{children}</div>
+      <div className='min-h-0 flex-1'>{children}</div>
     </section>
   );
 }

@@ -1,4 +1,7 @@
-import { GoogleAuthProvider, browserLocalPersistence, getAuth, setPersistence } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  getAuth,
+} from 'firebase/auth';
 import {
   ReCaptchaEnterpriseProvider,
   initializeAppCheck,
@@ -25,20 +28,23 @@ const firebaseConfig = {
 // 1. Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// 2. Initialize App Check (reCAPTCHA Enterprise)
-if (typeof window !== 'undefined') {
-  // Allow localhost testing by flagging the debug token
-  if (import.meta.env.DEV) {
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  }
+// 2. App Check — opt-in only (misconfigured App Check blocks all sign-in)
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+const enableAppCheck =
+  typeof window !== 'undefined' &&
+  import.meta.env.VITE_ENABLE_APP_CHECK === 'true' &&
+  recaptchaSiteKey &&
+  recaptchaSiteKey !== 'YOUR_RECAPTCHA_SITE_KEY';
 
-  initializeAppCheck(app, {
-    provider: new ReCaptchaEnterpriseProvider(
-      import.meta.env.VITE_RECAPTCHA_SITE_KEY || 'YOUR_RECAPTCHA_SITE_KEY',
-    ),
-    isTokenAutoRefreshEnabled: true,
-  });
+if (enableAppCheck) {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    console.warn('[Firebase] App Check disabled:', err);
+  }
 }
 
 // 3. Initialize Firestore WITH Offline Persistence
@@ -48,14 +54,10 @@ export const db = initializeFirestore(app, {
   }),
 });
 
-// 4. Initialize Auth (explicit local persistence for session restore)
+// 4. Initialize Auth — persistence handled in authBootstrap before sign-in
 export const auth = getAuth(app);
-if (typeof window !== 'undefined') {
-  void setPersistence(auth, browserLocalPersistence).catch((err) =>
-    console.warn('[Firebase] auth persistence:', err),
-  );
-}
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // 5. Initialize Analytics (Only in Production)
 if (typeof window !== 'undefined' && import.meta.env.PROD) {

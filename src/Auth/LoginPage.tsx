@@ -13,12 +13,12 @@ import {
   FiMail,
   FiTrendingUp,
 } from 'react-icons/fi';
+import { auth } from '../services/firebase';
 import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
-
-import { auth } from '../services/firebase';
+import { ensureAuthPersistence } from './authBootstrap';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
@@ -74,6 +74,7 @@ export default function LoginPage({
     }
     setLoading(true);
     try {
+      await ensureAuthPersistence();
       await signInWithEmailAndPassword(auth, email.trim(), password);
       toast.success('Welcome back! 👋', {
         duration: 3000,
@@ -84,18 +85,21 @@ export default function LoginPage({
         },
         iconTheme: { primary: '#10b981', secondary: '#f8fafc' },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLoading(false);
+      const code = (error as { code?: string })?.code;
       const msg =
-        error?.code === 'auth/user-not-found' ||
-        error?.code === 'auth/wrong-password' ||
-        error?.code === 'auth/invalid-credential'
+        code === 'auth/user-not-found' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/invalid-credential'
           ? 'Invalid email or password.'
-          : error?.code === 'auth/too-many-requests'
+          : code === 'auth/too-many-requests'
             ? 'Too many failed attempts. Try again later or reset your password.'
-            : error?.code === 'auth/network-request-failed'
+            : code === 'auth/network-request-failed'
               ? 'Network error. Check your connection.'
-              : 'Sign-in failed. Please try again.';
+              : code === 'auth/app-check-token-fetch-failed'
+                ? 'Security check failed. Try disabling blockers or use another browser.'
+                : 'Sign-in failed. Please try again.';
       toast.error(msg, {
         duration: 4500,
         style: {

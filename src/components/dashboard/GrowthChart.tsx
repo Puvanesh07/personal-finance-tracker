@@ -30,13 +30,14 @@ export function GrowthChart() {
         </AsyncButton>
       }
     >
-      <div className="h-80 w-full pt-4">
+      <div className="min-h-0">
+      <div className="h-80 min-h-[320px] w-full pt-4">
         {data.length === 0 ? (
-          <div className="grid h-full place-items-center rounded-xl bg-slate-50/50 text-sm font-medium text-slate-900 dark:text-slate-500 dark:bg-slate-800/30 dark:text-slate-400">
+          <div className="grid h-full min-h-[320px] place-items-center rounded-xl bg-slate-50/50 text-sm font-medium text-slate-900 dark:text-slate-500 dark:bg-slate-800/30 dark:text-slate-400">
             Add investments to start tracking daily portfolio snapshots.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={320}>
             <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 500 }} axisLine={false} tickLine={false} dy={10} />
               <YAxis
@@ -72,6 +73,7 @@ export function GrowthChart() {
             </LineChart>
           </ResponsiveContainer>
         )}
+      </div>
       </div>
     </Card>
   )
