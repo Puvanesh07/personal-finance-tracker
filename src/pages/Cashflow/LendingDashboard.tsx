@@ -1085,10 +1085,11 @@ function BorrowerDetailModal({
         </div>
 
         {/* CHART SECTION */}
-        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 h-[300px]'>
+        <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5'>
           <h3 className='text-sm font-bold text-slate-500 dark:text-slate-400 mb-4'>
             Interest Earned Over Time
           </h3>
+          <div className='h-[240px] w-full'>
           {interestData.length > 0 ? (
             <ResponsiveContainer width='100%' height='100%'>
               <BarChart data={interestData}>
@@ -1129,6 +1130,7 @@ function BorrowerDetailModal({
               No interest data yet.
             </div>
           )}
+          </div>
         </div>
 
         {/* LEDGER TABLE */}

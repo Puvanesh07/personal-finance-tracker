@@ -1,16 +1,26 @@
 // Unified farm income & expense — day-by-day ledger for all agriculture types
 
-import { FiChevronDown, FiEdit2 } from 'react-icons/fi';
+import { FiEdit2, FiPlus } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
 import { useMemo, useState } from 'react';
 import {
   AgriDropdown,
+  ChartCard,
   DeleteBtn,
   EXPENSE_CATS,
-  SummaryCard,
+  SimpleMoneyFlow,
   inputCls,
   labelCls,
+  SummaryCard,
 } from './agriShared';
+import { DailyLedgerChart } from './DailyLedgerChart';
+import { DateRangeFilter } from '../../components/ui/DateRangeFilter';
+import {
+  createDefaultDateFilter,
+  getDateRange,
+  isDateInRange,
+  type DateFilterState,
+} from '../../utils/dateFilters';
 import {
   removeAgriCashflow,
   syncAgriCashflow,
@@ -28,32 +38,32 @@ import type {
   AgriExpenseCategory,
   CoconutRecord,
   CoconutSellMethod,
+  MilkSession,
   ProduceSaleLot,
 } from '../../types/investmentTypes';
 import toast from 'react-hot-toast';
 import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
-import { PlantationsTab } from './PlantationsTab';
 
 const ENTRY_TYPES = [
   {
     value: 'produce',
     label: 'Harvest / Sale',
     emoji: '🧺',
-    desc: 'Tomato, drumstick kg, fruits',
+    desc: 'Tomato, mango kg, fruits',
   },
   {
     value: 'expense',
-    label: 'Crop Expense',
+    label: 'Farm Expense',
     emoji: '💸',
     desc: 'Fertilizer, labor, tractor',
   },
   {
     value: 'dairy',
-    label: 'Dairy',
+    label: 'Dairy / Milk',
     emoji: '🐄',
-    desc: 'Milk income + feed/vet expense — same day',
+    desc: 'Morning & evening milk + feed cost',
   },
   {
     value: 'coconut',
@@ -74,7 +84,11 @@ const PRESET_UNITS = [
   { value: 'custom', label: 'Custom…' },
 ];
 
-export function FarmIncomeTab() {
+export function FarmIncomeTab({
+  onOpenFarmSetup,
+}: {
+  onOpenFarmSetup?: () => void;
+}) {
   const store = useAgriStore();
   const {
     cropCycles,
@@ -100,8 +114,17 @@ export function FarmIncomeTab() {
     usePortfolioStore();
   const { busy, run } = useAsyncAction();
 
-  const [showSetup, setShowSetup] = useState(false);
   const [filterPlantation, setFilterPlantation] = useState('all');
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterSource, setFilterSource] = useState<
+    'all' | 'produce' | 'dairy' | 'coconut' | 'expense' | 'livestock'
+  >('all');
+  const [dateFilter, setDateFilter] = useState<DateFilterState>(() =>
+    createDefaultDateFilter('month'),
+  );
+  const dateRange = getDateRange(dateFilter);
+  const [mSession, setMSession] = useState<MilkSession>('morning');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<FarmLedgerEntry | null>(null);
   const [editingMilkId, setEditingMilkId] = useState<string | null>(null);
@@ -169,11 +192,71 @@ export function FarmIncomeTab() {
   }, [cropCycles]);
 
   const filtered = useMemo(() => {
-    if (filterPlantation === 'all') return ledger;
-    return ledger.filter((e) => e.plantation === filterPlantation);
-  }, [ledger, filterPlantation]);
+    let rows = ledger;
+    if (filterPlantation !== 'all') {
+      rows = rows.filter((e) => e.plantation === filterPlantation);
+    }
+    if (dateRange) {
+      rows = rows.filter((e) => isDateInRange(e.date, dateRange));
+    }
+    if (filterType !== 'all') {
+      rows = rows.filter((e) => e.type === filterType);
+    }
+    if (filterSource !== 'all') {
+      const sourceMap: Record<string, LedgerSource[]> = {
+        produce: ['produce'],
+        dairy: ['milk'],
+        coconut: ['coconut_income', 'coconut_expense'],
+        expense: ['expense'],
+        livestock: ['livestock'],
+      };
+      rows = rows.filter((e) => sourceMap[filterSource]?.includes(e.source));
+    }
+    const q = ledgerSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (e) =>
+          e.label.toLowerCase().includes(q) ||
+          e.plantation.toLowerCase().includes(q) ||
+          (e.detail ?? '').toLowerCase().includes(q) ||
+          e.date.includes(q),
+      );
+    }
+    return rows;
+  }, [
+    ledger,
+    filterPlantation,
+    dateRange,
+    filterType,
+    filterSource,
+    ledgerSearch,
+  ]);
 
   const dayGroups = useMemo(() => groupLedgerByDay(filtered), [filtered]);
+
+  const dailyChartData = useMemo(
+    () =>
+      dayGroups
+        .slice()
+        .reverse()
+        .slice(-10)
+        .map((d) => ({
+          date: d.date,
+          income: d.income,
+          expense: d.expense,
+          net: d.income - d.expense,
+        })),
+    [dayGroups],
+  );
+
+  const milkDayStatus = useMemo(() => {
+    const dayRecords = milkRecords.filter((m) => m.date === date);
+    const morning = dayRecords.find(
+      (m) => m.session === 'morning' || !m.session,
+    );
+    const evening = dayRecords.find((m) => m.session === 'evening');
+    return { morning, evening };
+  }, [milkRecords, date]);
 
   const totals = useMemo(() => {
     const income = filtered
@@ -204,6 +287,7 @@ export function FarmIncomeTab() {
     setEAmount('0');
     setMLiters('0');
     setMPrice('0');
+    setMSession('morning');
     setCTrees('0');
     setCNuts('0');
     setCPrice('0');
@@ -211,6 +295,12 @@ export function FarmIncomeTab() {
     setSellMethod('by_count');
     setCTons('0');
     setCPriceTon('0');
+  }
+
+  function openAddEntry() {
+    setEditing(null);
+    resetForm();
+    setShowModal(true);
   }
 
   function loadDairyForDate(
@@ -229,6 +319,7 @@ export function FarmIncomeTab() {
         );
     setEditingMilkId(m?.id ?? null);
     setEditingDairyExpenseId(dExp?.id ?? null);
+    setMSession(m?.session ?? 'morning');
     setMLiters(String(m?.liters ?? 0));
     setMPrice(String(m?.pricePerLiter ?? 0));
     setECat(dExp?.category ?? 'feed');
@@ -526,8 +617,21 @@ export function FarmIncomeTab() {
 
     let milkId = editingMilkId;
     if (income > 0) {
+      const duplicate = milkRecords.find(
+        (m) =>
+          m.date === date &&
+          (m.session ?? 'morning') === mSession &&
+          m.id !== milkId,
+      );
+      if (duplicate) {
+        toast.error(
+          `${mSession === 'morning' ? 'Morning' : 'Evening'} milk already recorded for this date`,
+        );
+        return false;
+      }
       const milkPayload = {
         date,
+        session: mSession,
         liters,
         pricePerLiter: price,
         accountId: account || undefined,
@@ -547,7 +651,7 @@ export function FarmIncomeTab() {
           income,
           date,
           account,
-          `Dairy: ${liters}L @ ₹${price}/L`,
+          `Dairy ${mSession}: ${liters}L @ ₹${price}/L`,
           {
             category: 'Dairy Income',
             amount: old.liters * old.pricePerLiter,
@@ -569,7 +673,7 @@ export function FarmIncomeTab() {
             income,
             date,
             account,
-            `Dairy: ${liters}L @ ₹${price}/L`,
+            `Dairy ${mSession}: ${liters}L @ ₹${price}/L`,
           );
         }
       }
@@ -807,22 +911,30 @@ export function FarmIncomeTab() {
 
   return (
     <div className='flex flex-col gap-6'>
-      <button
-        type='button'
-        onClick={() => setShowSetup((v) => !v)}
-        className='flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-left'
-      >
-        <span className='text-sm font-bold'>🌱 Plantation Setup (crops, fields, cows)</span>
-        <FiChevronDown
-          className={`h-4 w-4 transition-transform ${showSetup ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {showSetup && <PlantationsTab />}
+      <div className='rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900'>
+        <h2 className='text-base font-bold text-slate-900 dark:text-white'>
+          📒 Farm Ledger — day-by-day record
+        </h2>
+        <p className='mt-1 text-sm text-slate-500'>
+          Every harvest sale, milk session, and farm cost in one place.
+        </p>
+      </div>
 
-      <p className='text-sm text-slate-600 dark:text-slate-400'>
-        One entry per action — income &amp; expenses sync to Cashflow and
-        Dashboard automatically.
-      </p>
+      {cropCycles.length === 0 && onOpenFarmSetup && (
+        <div className='rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100'>
+          First time?{' '}
+          <button
+            type='button'
+            onClick={onOpenFarmSetup}
+            className='font-bold underline'
+          >
+            Add what you&apos;re growing in My Farm
+          </button>{' '}
+          (mango, tomato, etc.) — we&apos;ll predict harvest dates for you.
+        </div>
+      )}
+
+      <DateRangeFilter value={dateFilter} onChange={setDateFilter} accent='emerald' />
 
       <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
         <SummaryCard
@@ -851,36 +963,110 @@ export function FarmIncomeTab() {
         />
       </div>
 
-      <div className='flex flex-wrap gap-2 items-center justify-between'>
-        <div className='w-48'>
-          <AgriDropdown
-            value={filterPlantation}
-            onChange={setFilterPlantation}
-            options={[
-              { value: 'all', label: 'All Plantations' },
-              ...plantations.map((p) => ({ value: p, label: p })),
-            ]}
-          />
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col gap-3'>
+        <p className='text-xs font-bold uppercase tracking-wider text-slate-500'>
+          Filter &amp; search entries
+        </p>
+        <input
+          type='search'
+          value={ledgerSearch}
+          onChange={(e) => setLedgerSearch(e.target.value)}
+          placeholder='Search mango, dairy, fertilizer, date…'
+          className={inputCls}
+        />
+        <div className='flex flex-wrap gap-2'>
+          <div className='min-w-[140px] flex-1'>
+            <AgriDropdown
+              value={filterPlantation}
+              onChange={setFilterPlantation}
+              options={[
+                { value: 'all', label: 'All Plantations' },
+                ...plantations.map((p) => ({ value: p, label: p })),
+              ]}
+            />
+          </div>
+          <div className='min-w-[120px]'>
+            <AgriDropdown
+              value={filterType}
+              onChange={(v) => setFilterType(v as typeof filterType)}
+              options={[
+                { value: 'all', label: 'All types' },
+                { value: 'income', label: 'Income only' },
+                { value: 'expense', label: 'Expense only' },
+              ]}
+            />
+          </div>
+          <div className='min-w-[120px]'>
+            <AgriDropdown
+              value={filterSource}
+              onChange={(v) => setFilterSource(v as typeof filterSource)}
+              options={[
+                { value: 'all', label: 'All sources' },
+                { value: 'produce', label: 'Produce / harvest' },
+                { value: 'dairy', label: 'Dairy / milk' },
+                { value: 'coconut', label: 'Coconut' },
+                { value: 'expense', label: 'Farm expenses' },
+                { value: 'livestock', label: 'Livestock' },
+              ]}
+            />
+          </div>
         </div>
-        <button
-          type='button'
-          disabled={busy}
-          onClick={() => {
-            setEditing(null);
-            resetForm();
-            setShowModal(true);
-          }}
-          className='px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-50'
-        >
-          + Add Entry
-        </button>
+        {(ledgerSearch || filterPlantation !== 'all' || filterType !== 'all' || filterSource !== 'all') && (
+          <button
+            type='button'
+            onClick={() => {
+              setLedgerSearch('');
+              setFilterPlantation('all');
+              setFilterType('all');
+              setFilterSource('all');
+            }}
+            className='self-start text-xs font-bold text-emerald-600 hover:underline'
+          >
+            Clear all filters
+          </button>
+        )}
       </div>
 
+      {dayGroups.length > 0 && (
+        <ChartCard title='📊 Day-by-day chart — hover any bar for full details'>
+          <DailyLedgerChart dayGroups={dayGroups} />
+        </ChartCard>
+      )}
+
+      {dailyChartData.length > 0 && (
+        <ChartCard title='💰 Money Summary (selected range)' height={180}>
+          <SimpleMoneyFlow
+            income={totals.income}
+            expense={totals.expense}
+            net={totals.net}
+          />
+        </ChartCard>
+      )}
+
       <div className='flex flex-col gap-4'>
-        {dayGroups.length === 0 ? (
-          <p className='text-center text-sm text-slate-500 py-12'>
-            No entries yet. Add your first farm income or expense.
+        <div className='flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/25 bg-white px-4 py-3 dark:bg-slate-900'>
+          <p className='text-sm font-bold text-slate-900 dark:text-white'>
+            Daily entries
           </p>
+          <button
+            type='button'
+            disabled={busy}
+            onClick={openAddEntry}
+            className='inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50'
+          >
+            <FiPlus className='h-4 w-4' />
+            Log income / expense
+          </button>
+        </div>
+        {dayGroups.length === 0 ? (
+          <div className='rounded-2xl border border-dashed border-slate-300 py-12 text-center dark:border-slate-700'>
+            <p className='text-sm font-semibold text-slate-700 dark:text-slate-300'>
+              No entries in this date range
+            </p>
+            <p className='mt-1 text-xs text-slate-500'>
+              Use <strong>Log income / expense</strong> above to add your first entry.
+            </p>
+          </div>
         ) : (
           dayGroups.map((day) => (
             <div
@@ -1015,14 +1201,43 @@ export function FarmIncomeTab() {
 
           {entryKind === 'produce' && (
             <>
+              {cropCycles.length > 0 && (
+                <div className='sm:col-span-2'>
+                  <label className={labelCls}>Pick from my farm</label>
+                  <div className='flex flex-wrap gap-1.5'>
+                    {Array.from(
+                      new Set(cropCycles.map((c) => c.cropName)),
+                    ).map((name) => (
+                      <button
+                        key={name}
+                        type='button'
+                        onClick={() => setPName(name)}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-bold ${
+                          pName === name
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-700'
+                            : 'border-slate-300 dark:border-slate-700'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
-                <label className={labelCls}>Produce / Crop *</label>
+                <label className={labelCls}>What did you sell? *</label>
                 <input
                   className={inputCls}
                   value={pName}
                   onChange={(ev) => setPName(ev.target.value)}
-                  placeholder='Tomato, Drumstick, Onion…'
+                  placeholder='Mango, Tomato, Drumstick…'
+                  list='produce-crops'
                 />
+                <datalist id='produce-crops'>
+                  {cropCycles.map((c) => (
+                    <option key={c.id} value={c.cropName} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className={labelCls}>Unit</label>
@@ -1106,8 +1321,55 @@ export function FarmIncomeTab() {
 
           {entryKind === 'dairy' && (
             <>
+              <div className='sm:col-span-2 flex flex-col gap-2'>
+                <label className={labelCls}>Milk session *</label>
+                <div className='flex gap-2'>
+                  {(
+                    [
+                      { id: 'morning' as MilkSession, label: '🌅 Morning', emoji: '🌅' },
+                      { id: 'evening' as MilkSession, label: '🌙 Evening', emoji: '🌙' },
+                    ] as const
+                  ).map((s) => {
+                    const recorded =
+                      s.id === 'morning'
+                        ? milkDayStatus.morning
+                        : milkDayStatus.evening;
+                    const isTaken =
+                      recorded && recorded.id !== editingMilkId;
+                    return (
+                      <button
+                        key={s.id}
+                        type='button'
+                        disabled={isTaken}
+                        onClick={() => setMSession(s.id)}
+                        className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold transition-all ${
+                          mSession === s.id
+                            ? 'border-teal-500 bg-teal-500/15 text-teal-700 dark:text-teal-300'
+                            : isTaken
+                              ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed dark:border-slate-800 dark:bg-slate-900'
+                              : 'border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        {s.label}
+                        {recorded && (
+                          <span className='mt-0.5 block text-[10px] font-normal opacity-80'>
+                            {recorded.id === editingMilkId
+                              ? 'Editing'
+                              : `✓ ${recorded.liters}L sold`}
+                          </span>
+                        )}
+                        {!recorded && !isTaken && (
+                          <span className='mt-0.5 block text-[10px] font-normal opacity-70'>
+                            Not recorded
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className='sm:col-span-2 text-xs font-bold uppercase tracking-wider text-teal-500'>
-                🥛 Milk income (optional)
+                🥛 Milk income (optional — skip if no sale this session)
               </div>
               <div>
                 <label className={labelCls}>Liters</label>

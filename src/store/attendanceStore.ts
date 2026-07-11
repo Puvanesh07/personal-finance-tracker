@@ -54,7 +54,7 @@ type AttendanceState = {
   transactions: AttendanceTransaction[];
   salaryRecords: SalaryRecord[];
 
-  hydrate: (uid: string) => Promise<void>;
+  hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
   clearAll: () => void;
 
   // Employees
@@ -123,9 +123,9 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   transactions: [],
   salaryRecords: [],
 
-  hydrate: async (uid) => {
+  hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
-    if (currentUid === uid && ready) return;
+    if (!opts?.force && currentUid === uid && ready) return;
 
     try {
       const [employees, attendanceRecords, transactions, salaryRecords] =
@@ -149,15 +149,14 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       });
     } catch (err) {
       console.error('[AttendanceStore] hydrate failed:', err);
-      // Always set ready so the page never stays blank
-      set({ uid, ready: true });
+      set({ uid, ready: false });
     }
   },
 
   clearAll: () =>
     set({
       uid: null,
-      ready: true,
+      ready: false,
       employees: [],
       attendanceRecords: [],
       transactions: [],

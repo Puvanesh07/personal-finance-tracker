@@ -116,6 +116,12 @@ export function buildFarmLedger(data: AgriLedgerData): FarmLedgerEntry[] {
 
   data.milkRecords.forEach((m) => {
     const amt = m.liters * m.pricePerLiter;
+    const sessionLabel =
+      m.session === 'morning'
+        ? 'Morning'
+        : m.session === 'evening'
+          ? 'Evening'
+          : '';
     entries.push({
       id: `mlk_${m.id}`,
       source: 'milk',
@@ -123,10 +129,10 @@ export function buildFarmLedger(data: AgriLedgerData): FarmLedgerEntry[] {
       date: m.date,
       type: 'income',
       amount: amt,
-      label: 'Dairy income',
+      label: sessionLabel ? `Dairy ${sessionLabel}` : 'Dairy income',
       plantation: 'Dairy',
-      detail: `${m.liters} L × ₹${m.pricePerLiter}/L`,
-      emoji: '🥛',
+      detail: `${sessionLabel ? sessionLabel + ' · ' : ''}${m.liters} L × ₹${m.pricePerLiter}/L`,
+      emoji: m.session === 'evening' ? '🌙' : '🌅',
     });
   });
 

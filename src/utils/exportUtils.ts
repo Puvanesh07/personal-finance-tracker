@@ -524,6 +524,7 @@ export function buildAllCSVBlobs(
         content: toCSVString(
           agriState.milkRecords.map((m: any) => ({
             Date: m.date,
+            Session: m.session ?? 'morning',
             Liters: m.liters,
             'Price/Liter': m.pricePerLiter,
             Income: m.liters * m.pricePerLiter,

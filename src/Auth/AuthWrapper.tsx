@@ -32,7 +32,7 @@ export default function AuthWrapper({
   >('init');
 
   const hydrate = usePortfolioStore((s) => s.hydrate);
-  const clearAllData = usePortfolioStore((s) => s.clearAllData);
+  const resetSession = usePortfolioStore((s) => s.resetSession);
   const clearAgri = useAgriStore((s) => s.clearAll);
   const clearAttendance = useAttendanceStore((s) => s.clearAll);
 
@@ -56,14 +56,18 @@ export default function AuthWrapper({
         }
 
         try {
-          await hydrate(user.uid);
+          void hydrate(user.uid).catch(() => {
+            toast.error(
+              'Some data failed to load. Check your connection and refresh.',
+            );
+          });
+          void useAgriStore.getState().hydrate(user.uid);
+          void useAttendanceStore.getState().hydrate(user.uid);
         } catch {
-          toast.error(
-            'Some data failed to load. Check your connection and refresh.',
-          );
+          /* hydrate runs in background */
         }
       } else {
-        clearAllData();
+        resetSession();
         clearAgri();
         clearAttendance();
         hasNavigated.current = false;

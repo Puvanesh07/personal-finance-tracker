@@ -240,6 +240,7 @@ type PortfolioState = {
   deleteSipBudget: () => Promise<void>;
 
   clearAllData: () => Promise<void>;
+  resetSession: () => void;
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
   recordSnapshotIfNeeded: () => Promise<void>;
@@ -284,27 +285,21 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
     set({ uid });
     try {
-      // Phase 1: core collections needed for dashboard & main modules
+      // Phase 1: dashboard-critical only — show UI as soon as this completes
       const [
         investments,
         snapshots,
         liabilities,
-        trackedPayments,
         cashflows,
         goals,
         accounts,
-        soldTrades,
-        insurancePolicies,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
         fetchSub<Liability>(uid, 'liabilities'),
-        fetchSub<TrackedPayment>(uid, 'trackedPayments'),
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
         fetchSub<Account>(uid, 'accounts'),
-        fetchSub<SoldTrade>(uid, 'soldTrades'),
-        fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
       ]);
 
       const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -327,9 +322,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         liabilities: liabilities.sort((a, b) =>
           safeCompare(b.updatedAt, a.updatedAt),
         ),
-        trackedPayments: trackedPayments.sort((a, b) =>
-          safeCompare(a.dueDate, b.dueDate),
-        ),
         cashflows: cashflows.sort(
           (a, b) =>
             safeCompare(b.date, a.date) ||
@@ -341,18 +333,37 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
-        soldTrades: soldTrades.sort((a, b) =>
-          safeCompare(b.soldDate, a.soldDate),
-        ),
-        insurancePolicies: insurancePolicies.sort((a, b) =>
-          safeCompare(a.renewalDate, b.renewalDate),
-        ),
         _lastSnapshotDate: alreadySnappedToday ? today : null,
       });
 
       if (investments.length > 0) {
         void get().recordSnapshotIfNeeded();
       }
+
+      // Phase 1b: other dashboard widgets — background
+      void (async () => {
+        try {
+          const [trackedPayments, soldTrades, insurancePolicies] =
+            await Promise.all([
+              fetchSub<TrackedPayment>(uid, 'trackedPayments'),
+              fetchSub<SoldTrade>(uid, 'soldTrades'),
+              fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
+            ]);
+          set({
+            trackedPayments: trackedPayments.sort((a, b) =>
+              safeCompare(a.dueDate, b.dueDate),
+            ),
+            soldTrades: soldTrades.sort((a, b) =>
+              safeCompare(b.soldDate, a.soldDate),
+            ),
+            insurancePolicies: insurancePolicies.sort((a, b) =>
+              safeCompare(a.renewalDate, b.renewalDate),
+            ),
+          });
+        } catch (err) {
+          console.error('[PortfolioStore] phase 1b hydrate failed:', err);
+        }
+      })();
 
       // Phase 2: secondary collections — load in background without blocking UI
       void (async () => {
@@ -1376,4 +1387,31 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       throw error;
     }
   },
+
+  resetSession: () =>
+    set({
+      uid: null,
+      ready: false,
+      investments: [],
+      snapshots: [],
+      liabilities: [],
+      pendingPayments: [],
+      trackedPayments: [],
+      cashflows: [],
+      goals: [],
+      goalContributions: [],
+      credentials: [],
+      networthSnapshots: [],
+      latestInsight: null,
+      notion: DEFAULT_NOTION,
+      essentials: DEFAULT_ESSENTIALS,
+      accounts: [],
+      soldTrades: [],
+      insurancePolicies: [],
+      insurancePayments: [],
+      lendingBorrowers: [],
+      lendingTransactions: [],
+      sipPlans: [],
+      _lastSnapshotDate: null,
+    }),
 }));

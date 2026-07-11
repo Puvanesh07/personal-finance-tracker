@@ -9,6 +9,7 @@ import type {
   Season,
 } from '../../types/investmentTypes';
 import type { CashflowEntry } from '../../types/investmentTypes';
+import type { ReactNode } from 'react';
 
 export const SEASONS: { value: Season; label: string; emoji: string }[] = [
   { value: 'summer', label: 'Summer ☀️', emoji: '☀️' },
@@ -54,6 +55,31 @@ export const PIE_COLORS = [
   '#fb923c',
   '#64748b',
 ];
+
+export function ChartCard({
+  title,
+  children,
+  height,
+}: {
+  title: string;
+  children: ReactNode;
+  height?: number;
+}) {
+  return (
+    <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
+      <div className='mb-3 text-sm font-bold text-slate-900 dark:text-slate-100'>
+        {title}
+      </div>
+      {typeof height === 'number' ? (
+        <div className='w-full min-w-0' style={{ height }}>
+          {children}
+        </div>
+      ) : (
+        <div className='w-full min-w-0'>{children}</div>
+      )}
+    </div>
+  );
+}
 
 export const inputCls =
   'w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
@@ -226,6 +252,82 @@ export function SummaryCard({
           {sub}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Easy-to-read income / expense / net bars — no chart library needed */
+export function SimpleMoneyFlow({
+  income,
+  expense,
+  net,
+}: {
+  income: number;
+  expense: number;
+  net: number;
+}) {
+  const max = Math.max(income, expense, Math.abs(net), 1);
+  const rows = [
+    { label: 'Total Income', amount: income, color: '#22c55e' },
+    { label: 'Total Expense', amount: expense, color: '#ef4444' },
+    {
+      label: net >= 0 ? 'Net Profit' : 'Net Loss',
+      amount: net,
+      color: net >= 0 ? '#3b82f6' : '#f43f5e',
+    },
+  ];
+  return (
+    <div className='flex flex-col gap-4'>
+      {rows.map((row) => (
+        <div key={row.label}>
+          <div className='mb-1 flex items-center justify-between text-sm'>
+            <span className='font-semibold text-slate-700 dark:text-slate-200'>
+              {row.label}
+            </span>
+            <span className='font-bold tabular-nums' style={{ color: row.color }}>
+              ₹{Math.abs(Math.round(row.amount)).toLocaleString('en-IN')}
+            </span>
+          </div>
+          <div className='h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800'>
+            <div
+              className='h-full rounded-full transition-all duration-500'
+              style={{
+                width: `${Math.min(100, (Math.abs(row.amount) / max) * 100)}%`,
+                backgroundColor: row.color,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function SimpleDailyList({
+  days,
+}: {
+  days: { date: string; income: number; expense: number; net: number }[];
+}) {
+  if (days.length === 0) return null;
+  return (
+    <div className='flex flex-col gap-2'>
+      {days.map((d) => (
+        <div
+          key={d.date}
+          className='flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/50'
+        >
+          <span className='text-sm font-bold text-slate-800 dark:text-slate-100'>
+            📅 {d.date}
+          </span>
+          <div className='flex flex-wrap gap-3 text-xs font-semibold'>
+            <span className='text-emerald-500'>+₹{Math.round(d.income).toLocaleString('en-IN')}</span>
+            <span className='text-red-400'>−₹{Math.round(d.expense).toLocaleString('en-IN')}</span>
+            <span className={d.net >= 0 ? 'text-blue-500' : 'text-rose-500'}>
+              = ₹{Math.round(d.net).toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

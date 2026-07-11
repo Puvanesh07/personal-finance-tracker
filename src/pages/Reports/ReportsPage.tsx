@@ -521,11 +521,12 @@ export function ReportsPage() {
             />
           </div>
           {incomeByCategory.length > 0 && (
-            <div className='flex-1 w-full h-[200px] bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2'>
-              <p className='text-xs text-center font-bold text-slate-500 dark:text-slate-400 mb-1'>
+            <div className='flex-1 w-full'>
+              <p className='text-xs text-center font-bold text-slate-500 dark:text-slate-400 mb-2'>
                 Income Sources
               </p>
-              <ResponsiveContainer width='100%' height='100%'>
+              <div className='h-[180px] w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2'>
+                <ResponsiveContainer width='100%' height='100%'>
                 <PieChart>
                   <Pie
                     data={incomeByCategory}
@@ -548,7 +549,8 @@ export function ReportsPage() {
                     contentStyle={chartTooltipStyle}
                   />
                 </PieChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </SectionCard>

@@ -50,7 +50,7 @@ type AgriState = {
   livestockEvents: LivestockEvent[];
   produceSales: ProduceSaleLot[];
 
-  hydrate: (uid: string) => Promise<void>;
+  hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
   clearAll: () => void;
 
   addField: (
@@ -116,9 +116,9 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   livestockEvents: [],
   produceSales: [],
 
-  hydrate: async (uid) => {
+  hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
-    if (currentUid === uid && ready) return;
+    if (!opts?.force && currentUid === uid && ready) return;
 
     try {
       const [
@@ -157,7 +157,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       });
     } catch (err) {
       console.error('[AgriStore] hydrate failed:', err);
-      set({ uid, ready: true });
+      set({ uid, ready: false });
     }
   },
 
@@ -170,7 +170,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       coconutRecords: [],
       livestockEvents: [],
       produceSales: [],
-      ready: true,
+      ready: false,
       uid: null,
     }),
 

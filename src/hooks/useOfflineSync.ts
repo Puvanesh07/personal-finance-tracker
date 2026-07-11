@@ -27,10 +27,14 @@ export function useOfflineSync() {
       const agriUid = useAgriStore.getState().uid;
       const attUid = useAttendanceStore.getState().uid;
       if (agriUid) {
-        promises.push(useAgriStore.getState().hydrate(user.uid));
+        promises.push(
+          useAgriStore.getState().hydrate(user.uid, { force: true }),
+        );
       }
       if (attUid) {
-        promises.push(useAttendanceStore.getState().hydrate(user.uid));
+        promises.push(
+          useAttendanceStore.getState().hydrate(user.uid, { force: true }),
+        );
       }
 
       const results = await Promise.allSettled(promises);

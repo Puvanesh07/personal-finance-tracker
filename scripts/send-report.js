@@ -548,7 +548,7 @@ ${sections.join('<hr style="border:none;border-top:1px solid #1e3a5f;margin:16px
 </div>
 <div style="text-align:center;padding:16px 8px">
 <p style="color:#475569;font-size:12px;margin:0 0 8px">FinTrackly — Your personal finance and farm tracker</p>
-<p style="color:#334155;font-size:11px;margin:0 0 4px">💡 Save the attached JSON backup to Google Drive or your phone for safekeeping.</p>
+<p style="color:#334155;font-size:11px;margin:0 0 4px">💡 Attached JSON backup includes portfolio, agriculture, attendance, and all modules — same format as Settings → Export JSON.</p>
 <a href="https://finance-tracker-3b842.web.app/settings" style="color:#22c55e;text-decoration:none;font-size:11px">Manage account</a>
 </div></div></body></html>`;
 }
@@ -566,11 +566,18 @@ async function buildReportAndData(uid) {
     investments,
     soldTrades,
     liabilities,
+    pendingPayments,
+    trackedPayments,
     accounts,
     goals,
+    goalContributions,
+    credentials,
+    snapshots,
+    networthSnapshots,
     agriFields,
     agriCropCycles,
     agriExpenses,
+    agriLivestock,
     agriMilkRecords,
     agriLivestockEvents,
     agriCoconut,
@@ -589,11 +596,18 @@ async function buildReportAndData(uid) {
     fetchCol(uid, 'investments'),
     fetchCol(uid, 'soldTrades'),
     fetchCol(uid, 'liabilities'),
+    fetchCol(uid, 'pendingPayments'),
+    fetchCol(uid, 'trackedPayments'),
     fetchCol(uid, 'accounts'),
     fetchCol(uid, 'goals'),
+    fetchCol(uid, 'goalContributions'),
+    fetchCol(uid, 'credentials'),
+    fetchCol(uid, 'snapshots'),
+    fetchCol(uid, 'networthSnapshots'),
     fetchCol(uid, 'agriFields'),
     fetchCol(uid, 'agriCropCycles'),
     fetchCol(uid, 'agriExpenses'),
+    fetchCol(uid, 'agriLivestock'),
     fetchCol(uid, 'agriMilkRecords'),
     fetchCol(uid, 'agriLivestockEvents'),
     fetchCol(uid, 'agriCoconut'),
@@ -614,11 +628,18 @@ async function buildReportAndData(uid) {
     investments,
     soldTrades,
     liabilities,
+    pendingPayments,
+    trackedPayments,
     accounts,
     goals,
+    goalContributions,
+    credentials,
+    snapshots,
+    networthSnapshots,
     agriFields,
     agriCropCycles,
     agriExpenses,
+    agriLivestock,
     agriMilkRecords,
     agriLivestockEvents,
     agriCoconut,
@@ -629,7 +650,7 @@ async function buildReportAndData(uid) {
     attSalary,
     insurancePolicies,
     insurancePayments,
-    sipPlanDocs,
+    sipPlans: sipPlanDocs,
     lendingBorrowers,
     lendingTransactions,
   };
@@ -1362,7 +1383,7 @@ async function main() {
       if (!skipAttachments) {
         // JSON backup
         const jsonPayload = {
-          version: 7,
+          version: 10,
           createdAt: new Date().toISOString(),
           ...allData,
         };
@@ -1439,7 +1460,7 @@ async function main() {
 
       if (!skipAttachments) {
         const jsonPayload = {
-          version: 7,
+          version: 10,
           createdAt: new Date().toISOString(),
           ...allData,
         };

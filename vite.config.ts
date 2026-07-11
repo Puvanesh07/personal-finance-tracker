@@ -59,6 +59,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [
           /^\/api/,
+          /^\/assets\//,
+          /\.(js|css|woff2?|png|jpg|svg|json|ico)$/,
           /firestore\.googleapis\.com/,
           /identitytoolkit\.googleapis\.com/,
         ],

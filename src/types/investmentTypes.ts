@@ -494,9 +494,13 @@ export type Livestock = {
   updatedAt: string;
 };
 
+export type MilkSession = 'morning' | 'evening';
+
 export type MilkRecord = {
   id: string;
   date: string;
+  /** Morning or evening milk sale — max one record per date+session */
+  session?: MilkSession;
   liters: number;
   pricePerLiter: number;
   soldTo?: string;

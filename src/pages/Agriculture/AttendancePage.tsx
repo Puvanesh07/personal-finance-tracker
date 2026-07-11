@@ -15,11 +15,19 @@ import {
   regenerateSalaryForEmployee,
   syncSalaryPaymentToCashflow,
 } from '../../utils/attendanceAgriSync';
+import { SimpleMoneyFlow } from './agriShared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useEnsureAgriHydrated,
   useEnsureAttendanceHydrated,
 } from '../../hooks/useDeferredStoreHydration';
+import { DateRangeFilter } from '../../components/ui/DateRangeFilter';
+import {
+  createDefaultDateFilter,
+  getDateRange,
+  isDateInRange,
+  type DateFilterState,
+} from '../../utils/dateFilters';
 
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
@@ -134,12 +142,21 @@ type Tab = 'dashboard' | 'employees' | 'attendance' | 'salary' | 'reports';
 // ════════════════════════════════════════════════════════════════════════════
 // TAB 0 — DASHBOARD
 // ════════════════════════════════════════════════════════════════════════════
-function DashboardTab() {
+function DashboardTab({ dateFilter }: { dateFilter: DateFilterState }) {
   const { employees, attendanceRecords, transactions, salaryRecords } =
     useAttendanceStore();
 
+  const range = getDateRange(dateFilter);
   const todayStr = today();
-  const month = curMonth();
+
+  const filteredRecords = useMemo(
+    () => attendanceRecords.filter((r) => isDateInRange(r.date, range)),
+    [attendanceRecords, range],
+  );
+  const filteredTxns = useMemo(
+    () => transactions.filter((t) => isDateInRange(t.date, range)),
+    [transactions, range],
+  );
 
   const presentToday = attendanceRecords.filter(
     (r) => r.date === todayStr && r.present,
@@ -148,15 +165,15 @@ function DashboardTab() {
     (r) => r.date === todayStr && !r.present,
   ).length;
 
-  const monthRecs = attendanceRecords.filter((r) => r.date.startsWith(month));
+  const monthRecs = filteredRecords;
   const totalDaysWorked = monthRecs.filter((r) => r.present).length;
   const totalExtraWork = monthRecs.reduce((s, r) => s + (r.extraWork ?? 0), 0);
   const totalWages = monthRecs.reduce(
     (s, r) => s + (r.present ? r.wage : 0),
     0,
   );
-  const totalAdvances = transactions
-    .filter((t) => t.type === 'advance' && t.date.startsWith(month))
+  const totalAdvances = filteredTxns
+    .filter((t) => t.type === 'advance')
     .reduce((s, t) => s + t.amount, 0);
   const pendingPayments = salaryRecords
     .filter((s) => s.paymentStatus !== 'paid')
@@ -183,19 +200,19 @@ function DashboardTab() {
     },
     {
       icon: '📅',
-      label: 'Days Worked (Month)',
+      label: 'Days Worked',
       value: String(totalDaysWorked),
       color: '#a78bfa',
     },
     {
       icon: '💰',
-      label: 'Wages This Month',
+      label: 'Wages (Period)',
       value: fmt(totalWages + totalExtraWork),
       color: '#22c55e',
     },
     {
       icon: '💸',
-      label: 'Advances (Month)',
+      label: 'Advances (Period)',
       value: fmt(totalAdvances),
       color: '#f59e0b',
     },
@@ -218,25 +235,47 @@ function DashboardTab() {
     const days = recs.filter((r) => r.present).length;
     const extra = recs.reduce((s, r) => s + (r.extraWork ?? 0), 0);
     const salary = days * emp.dailyWage + extra;
-    const advance = transactions
+    const advance = filteredTxns
       .filter(
         (t) =>
           t.employeeId === emp.id &&
-          t.type === 'advance' &&
-          t.date.startsWith(month),
+          t.type === 'advance',
       )
       .reduce((s, t) => s + t.amount, 0);
-    const deduction = transactions
+    const deduction = filteredTxns
       .filter(
         (t) =>
           t.employeeId === emp.id &&
-          t.type === 'deduction' &&
-          t.date.startsWith(month),
+          t.type === 'deduction',
       )
       .reduce((s, t) => s + t.amount, 0);
     const final = salary - advance - deduction;
     return { emp, i, days, salary, advance, deduction, extra, final };
   });
+
+  const attendancePie = [
+    { name: 'Present', value: monthRecs.filter((r) => r.present).length },
+    { name: 'Absent', value: monthRecs.filter((r) => !r.present).length },
+  ].filter((x) => x.value > 0);
+
+  const wagesByWorker = empSummary
+    .filter((x) => x.salary > 0)
+    .slice(0, 8)
+    .map((x) => ({
+      name: x.emp.name.split(' ')[0],
+      wages: x.salary,
+    }));
+
+  const periodLabel =
+    dateFilter.mode === 'month'
+      ? monthLabel(curMonth())
+      : dateFilter.mode === 'year'
+        ? String(new Date().getFullYear())
+        : dateFilter.mode === 'week'
+          ? 'Last 7 days'
+          : dateFilter.mode === 'custom'
+            ? `${dateFilter.customStart} → ${dateFilter.customEnd}`
+            : 'All time';
 
   return (
     <div className='flex flex-col gap-6'>
@@ -264,9 +303,54 @@ function DashboardTab() {
         ))}
       </div>
 
+      {(attendancePie.length > 0 || wagesByWorker.length > 0) && (
+        <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+          <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
+            <div className='mb-3 text-sm font-bold'>💰 Wages &amp; Advances</div>
+            <SimpleMoneyFlow
+              income={totalWages + totalExtraWork}
+              expense={totalAdvances}
+              net={totalWages + totalExtraWork - totalAdvances}
+            />
+          </div>
+          {attendancePie.length > 0 && (
+            <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
+              <div className='mb-3 text-sm font-bold'>✅ Attendance days</div>
+              <div className='flex flex-col gap-2'>
+                {attendancePie.map((row) => (
+                  <div
+                    key={row.name}
+                    className='flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/50'
+                  >
+                    <span className='text-sm font-semibold'>{row.name}</span>
+                    <span className='text-lg font-bold'>{row.value} days</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {wagesByWorker.length > 0 && (
+            <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-2'>
+              <div className='mb-3 text-sm font-bold'>👷 Wages by worker</div>
+              <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+                {wagesByWorker.map((x) => (
+                  <div
+                    key={x.name}
+                    className='flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/50'
+                  >
+                    <span className='text-sm font-semibold'>{x.name}</span>
+                    <span className='font-bold text-emerald-500'>{fmt(x.wages)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4'>
         <div className='text-sm font-bold text-slate-900 dark:text-slate-100 mb-4'>
-          {monthLabel(month)} — Employee Summary
+          {periodLabel} — Employee Summary
         </div>
         {empSummary.length === 0 ? (
           <p className='text-xs text-slate-900 dark:text-slate-500 text-center py-6'>
@@ -1735,7 +1819,7 @@ function SalaryTab() {
 // ════════════════════════════════════════════════════════════════════════════
 // TAB 4 — REPORTS (export / import + productivity table)
 // ════════════════════════════════════════════════════════════════════════════
-function ReportsTab() {
+function ReportsTab({ dateFilter }: { dateFilter: DateFilterState }) {
   const {
     employees,
     attendanceRecords,
@@ -1745,6 +1829,7 @@ function ReportsTab() {
     importAttendanceJSON,
   } = useAttendanceStore();
   const importRef = useRef<HTMLInputElement>(null);
+  const range = getDateRange(dateFilter);
 
   function handleExport() {
     const json = exportAttendanceJSON();
@@ -1774,7 +1859,9 @@ function ReportsTab() {
 
   const productivity = useMemo(() => {
     return employees.map((emp) => {
-      const recs = attendanceRecords.filter((r) => r.employeeId === emp.id);
+      const recs = attendanceRecords.filter(
+        (r) => r.employeeId === emp.id && isDateInRange(r.date, range),
+      );
       const totalDays = recs.length;
       const presentDays = recs.filter((r) => r.present).length;
       const pct = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
@@ -1783,10 +1870,20 @@ function ReportsTab() {
         0,
       );
       const advances = transactions
-        .filter((t) => t.employeeId === emp.id && t.type === 'advance')
+        .filter(
+          (t) =>
+            t.employeeId === emp.id &&
+            t.type === 'advance' &&
+            isDateInRange(t.date, range),
+        )
         .reduce((s, t) => s + t.amount, 0);
       const deductions = transactions
-        .filter((t) => t.employeeId === emp.id && t.type === 'deduction')
+        .filter(
+          (t) =>
+            t.employeeId === emp.id &&
+            t.type === 'deduction' &&
+            isDateInRange(t.date, range),
+        )
         .reduce((s, t) => s + t.amount, 0);
       const netPaid = salaryRecords
         .filter((s) => s.employeeId === emp.id)
@@ -1804,7 +1901,7 @@ function ReportsTab() {
         pending,
       };
     });
-  }, [employees, attendanceRecords, transactions, salaryRecords]);
+  }, [employees, attendanceRecords, transactions, salaryRecords, range]);
 
   return (
     <div className='flex flex-col gap-5'>
@@ -1977,6 +2074,9 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 
 export function AttendancePage() {
   const [tab, setTab] = useState<Tab>('dashboard');
+  const [dateFilter, setDateFilter] = useState<DateFilterState>(() =>
+    createDefaultDateFilter('month'),
+  );
   const ready = useEnsureAttendanceHydrated();
   useEnsureAgriHydrated();
 
@@ -2008,6 +2108,12 @@ export function AttendancePage() {
         </div>
       </header>
 
+      <DateRangeFilter
+        value={dateFilter}
+        onChange={setDateFilter}
+        accent='blue'
+      />
+
       {/* Tab bar */}
       <div className='flex flex-wrap gap-1 rounded-xl bg-white dark:bg-slate-900 p-1 w-fit'>
         {TABS.map((t) => (
@@ -2026,11 +2132,11 @@ export function AttendancePage() {
         ))}
       </div>
 
-      {tab === 'dashboard' && <DashboardTab />}
+      {tab === 'dashboard' && <DashboardTab dateFilter={dateFilter} />}
       {tab === 'employees' && <EmployeesTab />}
       {tab === 'attendance' && <AttendanceTab />}
       {tab === 'salary' && <SalaryTab />}
-      {tab === 'reports' && <ReportsTab />}
+      {tab === 'reports' && <ReportsTab dateFilter={dateFilter} />}
     </div>
   );
 }
