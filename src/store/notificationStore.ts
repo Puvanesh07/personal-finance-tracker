@@ -66,6 +66,16 @@ export const useNotificationStore = create<NotificationState>()(
           );
           if (existing) return;
         }
+        // Also dedupe identical title+message+type within 24h (covers missing/unstable entityIds)
+        const duplicate = get().notifications.find(
+          (x) =>
+            x.type === n.type &&
+            x.title === n.title &&
+            x.message === n.message &&
+            Date.now() - new Date(x.createdAt).getTime() < 86_400_000,
+        );
+        if (duplicate) return;
+
         set((s) => ({
           notifications: [
             {

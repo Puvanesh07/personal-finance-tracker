@@ -110,7 +110,7 @@ type PortfolioState = {
   sipPlans: any[];
   _lastSnapshotDate: string | null;
 
-  hydrate: (uid: string) => Promise<void>;
+  hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
 
   addInvestment: (
     investment: Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>,
@@ -279,9 +279,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   sipPlans: [],
   _lastSnapshotDate: null,
 
-  hydrate: async (uid) => {
+  hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
-    if (currentUid === uid && ready) return;
+    if (!opts?.force && currentUid === uid && ready) return;
 
     set({ uid });
     try {
@@ -336,93 +336,105 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         _lastSnapshotDate: alreadySnappedToday ? today : null,
       });
 
-      if (investments.length > 0) {
+      if (investments.length > 0 && !opts?.force) {
         void get().recordSnapshotIfNeeded();
       }
 
-      // Phase 1b: other dashboard widgets — background
-      void (async () => {
-        try {
-          const [trackedPayments, soldTrades, insurancePolicies] =
-            await Promise.all([
-              fetchSub<TrackedPayment>(uid, 'trackedPayments'),
-              fetchSub<SoldTrade>(uid, 'soldTrades'),
-              fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
-            ]);
-          set({
-            trackedPayments: trackedPayments.sort((a, b) =>
-              safeCompare(a.dueDate, b.dueDate),
-            ),
-            soldTrades: soldTrades.sort((a, b) =>
-              safeCompare(b.soldDate, a.soldDate),
-            ),
-            insurancePolicies: insurancePolicies.sort((a, b) =>
-              safeCompare(a.renewalDate, b.renewalDate),
-            ),
-          });
-        } catch (err) {
-          console.error('[PortfolioStore] phase 1b hydrate failed:', err);
-        }
-      })();
-
-      // Phase 2: secondary collections — load in background without blocking UI
-      void (async () => {
-        try {
-          const [
-            pendingPayments,
-            goalContributions,
-            credentials,
-            networthSnapshots,
-            insights,
-            insurancePayments,
-            lendingBorrowers,
-            lendingTransactions,
-            sipPlans,
-          ] = await Promise.all([
-            fetchSub<PendingPayment>(uid, 'pendingPayments'),
-            fetchSub<GoalContribution>(uid, 'goalContributions'),
-            fetchSub<Credential>(uid, 'credentials'),
-            fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
-            fetchSub<InsightSnapshot>(uid, 'insights'),
-            fetchSub<InsurancePayment>(uid, 'insurancePayments'),
-            fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
-            fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
-            fetchSub<any>(uid, 'sipPlans'),
+      const loadPhase1b = async () => {
+        const [trackedPayments, soldTrades, insurancePolicies] =
+          await Promise.all([
+            fetchSub<TrackedPayment>(uid, 'trackedPayments'),
+            fetchSub<SoldTrade>(uid, 'soldTrades'),
+            fetchSub<InsurancePolicy>(uid, 'insurancePolicies'),
           ]);
+        set({
+          trackedPayments: trackedPayments.sort((a, b) =>
+            safeCompare(a.dueDate, b.dueDate),
+          ),
+          soldTrades: soldTrades.sort((a, b) =>
+            safeCompare(b.soldDate, a.soldDate),
+          ),
+          insurancePolicies: insurancePolicies.sort((a, b) =>
+            safeCompare(a.renewalDate, b.renewalDate),
+          ),
+        });
+      };
 
-          set({
-            pendingPayments: pendingPayments.sort((a, b) =>
-              safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
-            ),
-            goalContributions: goalContributions.sort((a, b) =>
-              safeCompare(b.date, a.date),
-            ),
-            credentials: credentials.sort((a, b) =>
-              safeCompare(b.updatedAt, a.updatedAt),
-            ),
-            networthSnapshots: networthSnapshots.sort((a, b) =>
-              safeCompare(b.createdAt, a.createdAt),
-            ),
-            latestInsight:
-              insights.sort((a, b) => safeCompare(b.createdAt, a.createdAt))[0] ??
-              null,
-            insurancePayments: insurancePayments.sort((a, b) =>
-              safeCompare(b.paidAt, a.paidAt),
-            ),
-            lendingBorrowers: lendingBorrowers.sort((a, b) =>
-              safeCompare(b.updatedAt, a.updatedAt),
-            ),
-            lendingTransactions: lendingTransactions.sort((a, b) =>
-              safeCompare(b.date, a.date),
-            ),
-            sipPlans: sipPlans.sort((a: any, b: any) =>
-              safeCompare(a.createdAt, b.createdAt),
-            ),
-          });
-        } catch (err) {
-          console.error('[PortfolioStore] secondary hydrate failed:', err);
-        }
-      })();
+      const loadPhase2 = async () => {
+        const [
+          pendingPayments,
+          goalContributions,
+          credentials,
+          networthSnapshots,
+          insights,
+          insurancePayments,
+          lendingBorrowers,
+          lendingTransactions,
+          sipPlans,
+        ] = await Promise.all([
+          fetchSub<PendingPayment>(uid, 'pendingPayments'),
+          fetchSub<GoalContribution>(uid, 'goalContributions'),
+          fetchSub<Credential>(uid, 'credentials'),
+          fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
+          fetchSub<InsightSnapshot>(uid, 'insights'),
+          fetchSub<InsurancePayment>(uid, 'insurancePayments'),
+          fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
+          fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
+          fetchSub<any>(uid, 'sipPlans'),
+        ]);
+
+        set({
+          pendingPayments: pendingPayments.sort((a, b) =>
+            safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
+          ),
+          goalContributions: goalContributions.sort((a, b) =>
+            safeCompare(b.date, a.date),
+          ),
+          credentials: credentials.sort((a, b) =>
+            safeCompare(b.updatedAt, a.updatedAt),
+          ),
+          networthSnapshots: networthSnapshots.sort((a, b) =>
+            safeCompare(b.createdAt, a.createdAt),
+          ),
+          latestInsight:
+            insights.sort((a, b) => safeCompare(b.createdAt, a.createdAt))[0] ??
+            null,
+          insurancePayments: insurancePayments.sort((a, b) =>
+            safeCompare(b.paidAt, a.paidAt),
+          ),
+          lendingBorrowers: lendingBorrowers.sort((a, b) =>
+            safeCompare(b.updatedAt, a.updatedAt),
+          ),
+          lendingTransactions: lendingTransactions.sort((a, b) =>
+            safeCompare(b.date, a.date),
+          ),
+          sipPlans: sipPlans.sort((a: any, b: any) =>
+            safeCompare(a.createdAt, b.createdAt),
+          ),
+        });
+      };
+
+      if (opts?.force) {
+        // Import / restore: wait until every collection is in memory
+        await Promise.all([
+          loadPhase1b().catch((err) =>
+            console.error('[PortfolioStore] phase 1b hydrate failed:', err),
+          ),
+          loadPhase2().catch((err) =>
+            console.error('[PortfolioStore] secondary hydrate failed:', err),
+          ),
+        ]);
+      } else {
+        // Phase 1b: other dashboard widgets — background
+        void loadPhase1b().catch((err) =>
+          console.error('[PortfolioStore] phase 1b hydrate failed:', err),
+        );
+
+        // Phase 2: secondary collections — load in background without blocking UI
+        void loadPhase2().catch((err) =>
+          console.error('[PortfolioStore] secondary hydrate failed:', err),
+        );
+      }
     } catch (err) {
       console.error('[PortfolioStore] hydrate failed:', err);
       set({ ready: true });

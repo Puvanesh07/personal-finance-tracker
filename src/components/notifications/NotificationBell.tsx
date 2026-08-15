@@ -6,7 +6,7 @@ import { FiBell, FiX, FiCheck, FiCheckCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationStore, type AppNotification } from '../../store/notificationStore';
 import { useSubscription } from '../../context/SubscriptionContext';
-import { markNotificationRead } from '../../services/subscriptionService';
+import { markAllNotificationsRead, markNotificationRead } from '../../services/subscriptionService';
 import { auth } from '../../services/firebase';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -98,7 +98,7 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const { notifications, markRead, markAllRead, dismiss, unreadCount } = useNotificationStore();
+  const { notifications, markRead, markAllRead, dismiss } = useNotificationStore();
   const { notifications: subscriptionNotifications } = useSubscription();
 
   const mergedNotifications: AppNotification[] = [
@@ -113,10 +113,17 @@ export function NotificationBell() {
       actionLabel: 'Upgrade',
     })),
     ...notifications,
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  ]
+    // Drop exact duplicates that can appear from overlapping sources
+    .filter((n, idx, arr) => {
+      const first = arr.findIndex(
+        (x) => x.title === n.title && x.message === n.message && x.type === n.type,
+      );
+      return first === idx;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const count =
-    unreadCount() + subscriptionNotifications.filter((n) => !n.read).length;
+  const count = mergedNotifications.filter((n) => !n.read).length;
 
   const handleRead = (notif: AppNotification) => {
     if (notif.id.startsWith('sub_')) {
@@ -126,6 +133,12 @@ export function NotificationBell() {
       return;
     }
     markRead(notif.id);
+  };
+
+  const handleMarkAllRead = () => {
+    markAllRead();
+    const uid = auth.currentUser?.uid;
+    if (uid) void markAllNotificationsRead(uid);
   };
 
   const handleDismiss = (notif: AppNotification) => {
@@ -176,7 +189,7 @@ export function NotificationBell() {
             </div>
             {count > 0 && (
               <button
-                onClick={markAllRead}
+                onClick={handleMarkAllRead}
                 className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
               >
                 <FiCheckCircle className="h-3 w-3" />

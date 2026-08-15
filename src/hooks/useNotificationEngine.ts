@@ -9,6 +9,16 @@ import {
   daysUntilDue,
 } from '../utils/paymentTracker';
 
+/** Session + day guard so StrictMode / re-renders never fire the same alert twice. */
+const firedKeys = new Set<string>();
+
+function onceToday(key: string): boolean {
+  const full = `${new Date().toDateString()}:${key}`;
+  if (firedKeys.has(full)) return false;
+  firedKeys.add(full);
+  return true;
+}
+
 export function useNotificationEngine() {
   const policies = usePortfolioStore((s) => s.insurancePolicies);
   const liabilities = usePortfolioStore((s) => s.liabilities);
@@ -32,6 +42,8 @@ export function useNotificationEngine() {
 
         // 1. Auto-update to profit if matured (0 days or past)
         if (days <= 0) {
+          if (!onceToday(`matured_auto_${inv.id}`)) return;
+
           const invested = inv.investedAmount || 0;
           const rate = inv.interestRate || 0;
           const duration = inv.durationMonths || 0;
@@ -41,7 +53,7 @@ export function useNotificationEngine() {
           const sellPrice = invested + profit;
 
           // Automatically record the profit in SoldTrades
-          addSoldTrade({
+          void addSoldTrade({
             investmentName: inv.name,
             investmentType: inv.type,
             buyPrice: invested,
@@ -52,7 +64,7 @@ export function useNotificationEngine() {
           });
 
           // Delete the original active investment
-          deleteInvestment(inv.id);
+          void deleteInvestment(inv.id);
 
           // Notify the user of the automatic action
           addNotification({
@@ -60,18 +72,19 @@ export function useNotificationEngine() {
             title: '🎉 Investment Matured & Profit Booked!',
             message: `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${inv.name}" has reached maturity. ₹${profit.toLocaleString('en-IN', { maximumFractionDigits: 0 })} profit has been automatically added to your realized profits.`,
             dueDate: inv.maturityDate,
-            entityId: `matured_auto_${inv.id}_${Date.now()}`,
+            entityId: `matured_auto_${inv.id}`,
             actionLabel: 'View Profits',
             actionPath: '/profits',
           });
         } else if (days <= 7) {
-          // 2. Upcoming maturity notification
+          // 2. Upcoming maturity notification (stable id — one per investment per day)
+          if (!onceToday(`maturity_upcoming_${inv.id}`)) return;
           addNotification({
             type: 'investment_maturity_upcoming',
             title: '⏰ Upcoming Maturity',
             message: `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${inv.name}" is maturing in ${days} day${days === 1 ? '' : 's'}!`,
             dueDate: inv.maturityDate,
-            entityId: `maturity_upcoming_${inv.id}_${days}`,
+            entityId: `maturity_upcoming_${inv.id}`,
             actionLabel: 'View Investments',
             actionPath: '/investments',
           });
@@ -86,6 +99,7 @@ export function useNotificationEngine() {
       const days = differenceInDays(parseISO(policy.renewalDate), today);
 
       if (days <= 30 && days >= -7) {
+        if (!onceToday(`insurance_${policy.id}`)) return;
         const isUrgent = days <= 7;
         addNotification({
           type: 'insurance_renewal',
@@ -136,6 +150,7 @@ export function useNotificationEngine() {
       }
 
       if (daysUntilEMI <= 5) {
+        if (!onceToday(`liability_emi_${liability.id}`)) return;
         const emiStr = liability.emiAmount
           ? `₹${liability.emiAmount.toLocaleString('en-IN')}`
           : 'Check amount';
@@ -173,6 +188,7 @@ export function useNotificationEngine() {
       const days = differenceInDays(parseISO(liability.endDate), today);
 
       if (days <= 3 && days >= -1) {
+        if (!onceToday(`liability_duedate_${liability.id}`)) return;
         addNotification({
           type: 'liability_due',
           title:
@@ -188,7 +204,7 @@ export function useNotificationEngine() {
                 ? `₹${liability.outstanding.toLocaleString('en-IN')} for "${liability.name}" is due today.`
                 : `₹${liability.outstanding.toLocaleString('en-IN')} for "${liability.name}" is due on ${new Date(liability.endDate).toLocaleDateString('en-IN')}.`,
           dueDate: liability.endDate,
-          entityId: `liability_duedate_${liability.id}_${days}`,
+          entityId: `liability_duedate_${liability.id}`,
           actionLabel: 'View Liabilities',
           actionPath: '/liabilities',
         });
@@ -205,6 +221,7 @@ export function useNotificationEngine() {
       );
 
       if (days <= 5 && days >= -7) {
+        if (!onceToday(`pending_payment_${payment.id}`)) return;
         const amountStr = `₹${payment.amount.toLocaleString('en-IN')}`;
         addNotification({
           type: 'pending_payment_due',
@@ -221,7 +238,7 @@ export function useNotificationEngine() {
                 ? `${payment.buyerName} owes ${amountStr} for "${payment.itemDescription}" — due today.`
                 : `${payment.buyerName} owes ${amountStr} for "${payment.itemDescription}" — due ${new Date(payment.expectedPaymentDate).toLocaleDateString('en-IN')}.`,
           dueDate: payment.expectedPaymentDate,
-          entityId: `pending_payment_${payment.id}_${days}`,
+          entityId: `pending_payment_${payment.id}`,
           actionLabel: 'View Pending Payments',
           actionPath: '/liabilities?section=pending-payments',
         });
@@ -240,6 +257,7 @@ export function useNotificationEngine() {
 
       if (!shouldNotify) return;
       if (days < 0 && days < -7) return;
+      if (!onceToday(`payment_tracker_${payment.id}`)) return;
 
       const { title, message } = buildPaymentReminderMessage(payment, days);
 
@@ -248,7 +266,7 @@ export function useNotificationEngine() {
         title,
         message,
         dueDate: payment.dueDate,
-        entityId: `payment_tracker_${payment.id}_${days}`,
+        entityId: `payment_tracker_${payment.id}`,
         actionLabel: 'View Payments',
         actionPath: '/payments',
       });
@@ -262,6 +280,7 @@ export function useNotificationEngine() {
       const pct = (goal.currentAmount / goal.targetAmount) * 100;
 
       if (pct >= 100) {
+        if (!onceToday(`goal_achieved_${goal.id}`)) return;
         addNotification({
           type: 'goal_achieved',
           title: '🎉 Goal Achieved!',
@@ -271,6 +290,7 @@ export function useNotificationEngine() {
           actionPath: '/goals',
         });
       } else if (pct >= 75) {
+        if (!onceToday(`goal_75_${goal.id}`)) return;
         addNotification({
           type: 'goal_progress',
           title: 'Goal Almost There — 75%!',

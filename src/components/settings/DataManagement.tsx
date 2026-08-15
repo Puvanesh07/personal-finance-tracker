@@ -18,6 +18,7 @@ import {
   exportAllSectionsAsCSV,
 } from '../../utils/exportUtils';
 import { exportFullBackup, importFullBackup } from '../../utils/backup';
+import { useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
@@ -50,6 +51,7 @@ function StatBadge({ label, count }: { label: string; count: number }) {
 }
 
 export function ExportImport() {
+  const navigate = useNavigate();
   const state = usePortfolioStore();
   const { hydrate, uid } = state;
   const { hasPremiumAccess } = useSubscription();
@@ -223,12 +225,16 @@ export function ExportImport() {
     setBusy(true);
     try {
       await importFullBackup(pendingFile, uid);
-      await hydrate(uid);
-      await agriHydrate(uid);
-      await attHydrate(uid);
-      toast.success('Backup imported — all data restored.');
+      // Force re-load into memory — without force, hydrate no-ops when already ready
+      await Promise.all([
+        hydrate(uid, { force: true }),
+        agriHydrate(uid, { force: true }),
+        attHydrate(uid, { force: true }),
+      ]);
       setPreviewOpen(false);
       setPendingFile(null);
+      toast.success('Backup imported — all data restored.');
+      navigate('/dashboard');
     } catch (err: any) {
       toast.error(err.message || 'Import failed — check JSON format.');
     } finally {
