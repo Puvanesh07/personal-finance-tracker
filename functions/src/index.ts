@@ -1,9 +1,6 @@
 import * as logger from 'firebase-functions/logger';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import {
-  onCall,
-  HttpsError,
-} from 'firebase-functions/v2/https';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 import {
@@ -19,20 +16,35 @@ import {
   findUidByEmail,
   type Plan,
 } from './subscriptionUtils';
-import { createOrder, fetchPayment, verifyPaymentSignature, razorpaySecrets, ownerSecrets, getOwnerEmail, isRazorpayTestMode, initiateUpiCollectPayment } from './razorpay';
+import {
+  createOrder,
+  fetchPayment,
+  verifyPaymentSignature,
+  razorpaySecrets,
+  ownerSecrets,
+  getOwnerEmail,
+  isRazorpayTestMode,
+  initiateUpiCollectPayment,
+} from './razorpay';
 
 // Load root .env when running in the Functions emulator
 if (process.env.FUNCTIONS_EMULATOR === 'true') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
+  require('dotenv').config({
+    path: require('path').resolve(__dirname, '../../.env'),
+  });
 }
 
 const region = 'asia-south1';
-
 const callableOptions = {
   region,
-  // Allow localhost, Firebase Hosting, and Netlify. Auth is still required.
-  cors: true as const,
+  cors: [
+    'https://fintrackly.web.app',
+    'https://fintrackly.firebaseapp.com',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ],
+  invoker: 'public' as const,
 };
 
 export const onUserProfileCreated = onDocumentCreated(
@@ -60,55 +72,58 @@ export const onUserProfileCreated = onDocumentCreated(
   },
 );
 
-export const initializeTrialIfMissing = onCall(callableOptions, async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
+export const initializeTrialIfMissing = onCall(
+  callableOptions,
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
+    }
 
-  const uid = request.auth.uid;
-  const ref = getDb().collection('users').doc(uid);
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new HttpsError('not-found', 'User profile not found');
-  }
+    const uid = request.auth.uid;
+    const ref = getDb().collection('users').doc(uid);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new HttpsError('not-found', 'User profile not found');
+    }
 
-  const data = snap.data() ?? {};
-  const updates: Record<string, unknown> = {};
+    const data = snap.data() ?? {};
+    const updates: Record<string, unknown> = {};
 
-  if (!data.plan) {
-    Object.assign(updates, buildTrialFields());
-  } else if (!('premiumGranted' in data)) {
-    updates.premiumGranted = false;
-  }
+    if (!data.plan) {
+      Object.assign(updates, buildTrialFields());
+    } else if (!('premiumGranted' in data)) {
+      updates.premiumGranted = false;
+    }
 
-  if (Object.keys(updates).length === 0) {
-    return { initialized: false, synced: false };
-  }
+    if (Object.keys(updates).length === 0) {
+      return { initialized: false, synced: false };
+    }
 
-  await ref.set(
-    {
-      ...updates,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true },
-  );
+    await ref.set(
+      {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true },
+    );
 
-  return { initialized: !data.plan, synced: true };
-});
+    return { initialized: !data.plan, synced: true };
+  },
+);
 
 export const createRazorpayOrder = onCall(
   { ...callableOptions, secrets: razorpaySecrets },
   async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
+    }
 
-  const plan = request.data?.plan as Plan | undefined;
-  if (!plan || !['monthly', 'yearly', 'lifetime'].includes(plan)) {
-    throw new HttpsError('invalid-argument', 'Invalid plan');
-  }
+    const plan = request.data?.plan as Plan | undefined;
+    if (!plan || !['monthly', 'yearly', 'lifetime'].includes(plan)) {
+      throw new HttpsError('invalid-argument', 'Invalid plan');
+    }
 
-  return createOrder(plan as Exclude<Plan, 'trial'>);
+    return createOrder(plan as Exclude<Plan, 'trial'>);
   },
 );
 
@@ -180,7 +195,10 @@ export const confirmUpiPayment = onCall(
       throw new HttpsError('permission-denied', 'Payment does not match order');
     }
     if (payment.method !== 'upi') {
-      throw new HttpsError('failed-precondition', 'Only UPI payments are accepted');
+      throw new HttpsError(
+        'failed-precondition',
+        'Only UPI payments are accepted',
+      );
     }
 
     const status = String(payment.status);
@@ -202,47 +220,53 @@ export const confirmUpiPayment = onCall(
 );
 
 /** Test Mode only — simulates a successful UPI payment when QR/VPA is unavailable on desktop */
-export const simulateTestSubscription = onCall(callableOptions, async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
+export const simulateTestSubscription = onCall(
+  callableOptions,
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
+    }
 
-  if (!isRazorpayTestMode()) {
-    throw new HttpsError(
-      'permission-denied',
-      'Test simulation is only available with Razorpay Test Mode keys',
-    );
-  }
+    if (!isRazorpayTestMode()) {
+      throw new HttpsError(
+        'permission-denied',
+        'Test simulation is only available with Razorpay Test Mode keys',
+      );
+    }
 
-  const plan = request.data?.plan as Plan | undefined;
-  if (!plan || !['monthly', 'yearly', 'lifetime'].includes(plan)) {
-    throw new HttpsError('invalid-argument', 'Invalid plan');
-  }
+    const plan = request.data?.plan as Plan | undefined;
+    if (!plan || !['monthly', 'yearly', 'lifetime'].includes(plan)) {
+      throw new HttpsError('invalid-argument', 'Invalid plan');
+    }
 
-  const uid = request.auth.uid;
-  const paymentId = `test_pay_${Date.now()}`;
-  await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
+    const uid = request.auth.uid;
+    const paymentId = `test_pay_${Date.now()}`;
+    await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
 
-  return { success: true, plan, simulated: true };
-});
+    return { success: true, plan, simulated: true };
+  },
+);
 
 /** Test Mode only — reset current user back to trial so you can test payment again */
-export const resetTestSubscription = onCall(callableOptions, async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
+export const resetTestSubscription = onCall(
+  callableOptions,
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
+    }
 
-  if (!isRazorpayTestMode()) {
-    throw new HttpsError(
-      'permission-denied',
-      'Reset is only available with Razorpay Test Mode keys',
-    );
-  }
+    if (!isRazorpayTestMode()) {
+      throw new HttpsError(
+        'permission-denied',
+        'Reset is only available with Razorpay Test Mode keys',
+      );
+    }
 
-  const uid = request.auth.uid;
-  await resetUserToTrial(uid);
-  return { success: true, reset: true };
-});
+    const uid = request.auth.uid;
+    await resetUserToTrial(uid);
+    return { success: true, reset: true };
+  },
+);
 
 function assertOwnerEmail(request: { auth?: { token?: { email?: string } } }) {
   const ownerEmail = getOwnerEmail();
@@ -263,26 +287,43 @@ export const adminManageSubscription = onCall(
     if (action === 'backfillPremiumGranted') {
       const allUsers = await getDb().collection('users').get();
       let updated = 0;
+
       for (const docSnap of allUsers.docs) {
         if ('premiumGranted' in (docSnap.data() ?? {})) continue;
+
         await docSnap.ref.set(
-          { premiumGranted: false, updatedAt: Timestamp.now() },
+          {
+            premiumGranted: false,
+            updatedAt: Timestamp.now(),
+          },
           { merge: true },
         );
+
         updated += 1;
       }
-      return { success: true, action, updated, total: allUsers.size };
+
+      return {
+        success: true,
+        action,
+        updated,
+        total: allUsers.size,
+      };
     }
 
     if (action === 'setPremiumAccess') {
       if (!email || typeof email !== 'string') {
         throw new HttpsError('invalid-argument', 'email is required');
       }
+
       if (typeof enabled !== 'boolean') {
-        throw new HttpsError('invalid-argument', 'enabled must be true or false');
+        throw new HttpsError(
+          'invalid-argument',
+          'enabled must be true or false',
+        );
       }
 
       let uid: string;
+
       try {
         uid = await findUidByEmail(email);
       } catch {
@@ -294,7 +335,14 @@ export const adminManageSubscription = onCall(
       } else {
         await revokePremiumAccess(uid);
       }
-      return { success: true, action, email, uid, premiumGranted: enabled };
+
+      return {
+        success: true,
+        action,
+        email,
+        uid,
+        premiumGranted: enabled,
+      };
     }
 
     throw new HttpsError('invalid-argument', 'Unknown action');
@@ -304,90 +352,106 @@ export const adminManageSubscription = onCall(
 export const verifyRazorpayPayment = onCall(
   { ...callableOptions, secrets: razorpaySecrets },
   async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
+    }
 
-  const uid = request.auth.uid;
-  const {
-    razorpay_order_id: orderId,
-    razorpay_payment_id: paymentId,
-    razorpay_signature: signature,
-    plan,
-  } = request.data ?? {};
+    const uid = request.auth.uid;
+    const {
+      razorpay_order_id: orderId,
+      razorpay_payment_id: paymentId,
+      razorpay_signature: signature,
+      plan,
+    } = request.data ?? {};
 
-  if (!orderId || !paymentId || !signature || !plan) {
-    throw new HttpsError('invalid-argument', 'Missing payment details');
-  }
-  if (!['monthly', 'yearly', 'lifetime'].includes(plan)) {
-    throw new HttpsError('invalid-argument', 'Invalid plan');
-  }
+    if (!orderId || !paymentId || !signature || !plan) {
+      throw new HttpsError('invalid-argument', 'Missing payment details');
+    }
+    if (!['monthly', 'yearly', 'lifetime'].includes(plan)) {
+      throw new HttpsError('invalid-argument', 'Invalid plan');
+    }
 
-  const valid = verifyPaymentSignature(orderId, paymentId, signature);
-  if (!valid) {
-    throw new HttpsError('permission-denied', 'Invalid payment signature');
-  }
+    const valid = verifyPaymentSignature(orderId, paymentId, signature);
+    if (!valid) {
+      throw new HttpsError('permission-denied', 'Invalid payment signature');
+    }
 
-  const payment = await fetchPayment(paymentId);
-  if (payment.method !== 'upi') {
-    throw new HttpsError('failed-precondition', 'Only UPI payments are accepted');
-  }
-  if (payment.status !== 'captured' && payment.status !== 'authorized') {
-    throw new HttpsError('failed-precondition', 'Payment not completed');
-  }
+    const payment = await fetchPayment(paymentId);
+    if (payment.method !== 'upi') {
+      throw new HttpsError(
+        'failed-precondition',
+        'Only UPI payments are accepted',
+      );
+    }
+    if (payment.status !== 'captured' && payment.status !== 'authorized') {
+      throw new HttpsError('failed-precondition', 'Payment not completed');
+    }
 
-  await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
+    await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
 
-  return { success: true, plan };
+    return { success: true, plan };
   },
 );
 
 export const restorePurchase = onCall(
   { ...callableOptions, secrets: razorpaySecrets },
   async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
-
-  const uid = request.auth.uid;
-  const snap = await getDb().collection('users').doc(uid).get();
-  const data = snap.data();
-
-  if (!data?.paymentId) {
-    return { restored: false, message: 'No previous payment found for this account.' };
-  }
-
-  if (data.premiumGranted === true || data.plan === 'lifetime') {
-    return { restored: true, message: 'Lifetime access is already active.' };
-  }
-
-  const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
-  if (expiresAt && expiresAt.getTime() > Date.now() && data.subscriptionStatus === 'active') {
-    return { restored: true, message: 'Your subscription is already active.' };
-  }
-
-  try {
-    const payment = await fetchPayment(data.paymentId);
-    if (payment.status === 'captured' || payment.status === 'authorized') {
-      const plan = (data.plan as Plan) || 'monthly';
-      const newExpires = getExpiresAtForPlan(
-        plan === 'trial' ? 'monthly' : (plan as Exclude<Plan, 'trial'>),
-      );
-      await getDb().collection('users').doc(uid).set(
-        {
-          subscriptionStatus: 'active',
-          expiresAt: newExpires,
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true },
-      );
-      return { restored: true, message: 'Purchase restored successfully.' };
+    if (!request.auth?.uid) {
+      throw new HttpsError('unauthenticated', 'Authentication required');
     }
-  } catch (err) {
-    logger.warn('restorePurchase failed', err);
-  }
 
-  return { restored: false, message: 'Could not verify previous payment with Razorpay.' };
+    const uid = request.auth.uid;
+    const snap = await getDb().collection('users').doc(uid).get();
+    const data = snap.data();
+
+    if (!data?.paymentId) {
+      return {
+        restored: false,
+        message: 'No previous payment found for this account.',
+      };
+    }
+
+    if (data.premiumGranted === true || data.plan === 'lifetime') {
+      return { restored: true, message: 'Lifetime access is already active.' };
+    }
+
+    const expiresAt = data.expiresAt?.toDate?.() as Date | undefined;
+    if (
+      expiresAt &&
+      expiresAt.getTime() > Date.now() &&
+      data.subscriptionStatus === 'active'
+    ) {
+      return {
+        restored: true,
+        message: 'Your subscription is already active.',
+      };
+    }
+
+    try {
+      const payment = await fetchPayment(data.paymentId);
+      if (payment.status === 'captured' || payment.status === 'authorized') {
+        const plan = (data.plan as Plan) || 'monthly';
+        const newExpires = getExpiresAtForPlan(
+          plan === 'trial' ? 'monthly' : (plan as Exclude<Plan, 'trial'>),
+        );
+        await getDb().collection('users').doc(uid).set(
+          {
+            subscriptionStatus: 'active',
+            expiresAt: newExpires,
+            updatedAt: Timestamp.now(),
+          },
+          { merge: true },
+        );
+        return { restored: true, message: 'Purchase restored successfully.' };
+      }
+    } catch (err) {
+      logger.warn('restorePurchase failed', err);
+    }
+
+    return {
+      restored: false,
+      message: 'Could not verify previous payment with Razorpay.',
+    };
   },
 );
 
@@ -424,7 +488,8 @@ export const expireSubscriptions = onSchedule(
 
       await createSubscriptionNotification(uid, {
         title: 'Trial expired',
-        message: 'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
+        message:
+          'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
         type: 'warning',
       });
     }
@@ -459,4 +524,3 @@ export const deleteExpiredUsers = onSchedule(
     }
   },
 );
-
