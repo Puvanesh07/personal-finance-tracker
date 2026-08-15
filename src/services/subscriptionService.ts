@@ -242,9 +242,89 @@ function submitRazorpayPayment(
 }
 
 const RAZORPAY_CUSTOM_SCRIPT = 'https://checkout.razorpay.com/v1/razorpay.js';
+const RAZORPAY_CHECKOUT_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => reject(new Error('Failed to load payment script')));
+      // Already loaded
+      if (window.Razorpay) {
+        resolve();
+        return;
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load payment script'));
+    document.body.appendChild(script);
+  });
+}
+
+/** Standard Checkout (QR / UPI apps) — works on live merchants without S2S UPI collect. */
+export async function payWithStandardCheckout(params: {
+  keyId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  email: string;
+  contact: string;
+  planName: string;
+}): Promise<RazorpayPaymentResult> {
+  await loadScript(RAZORPAY_CHECKOUT_SCRIPT);
+
+  if (!window.Razorpay || typeof window.Razorpay !== 'function') {
+    throw new Error('Razorpay Checkout failed to load. Please refresh and try again.');
+  }
+
+  return new Promise((resolve, reject) => {
+    const options: Record<string, unknown> = {
+      key: params.keyId,
+      amount: params.amount,
+      currency: params.currency || 'INR',
+      name: 'FinTrackly',
+      description: `${params.planName} subscription`,
+      order_id: params.orderId,
+      prefill: {
+        email: params.email,
+        contact: params.contact.replace(/\D/g, '').slice(-10) || '9999999999',
+      },
+      theme: { color: '#059669' },
+      method: { upi: true, card: true, netbanking: true, wallet: false },
+      handler: (response: RazorpayPaymentResult) => {
+        if (!response.razorpay_order_id || !response.razorpay_payment_id || !response.razorpay_signature) {
+          reject(new Error('Invalid payment response from Razorpay'));
+          return;
+        }
+        resolve(response);
+      },
+      modal: {
+        ondismiss: () => reject(new Error('Payment cancelled')),
+      },
+    };
+
+    const Checkout = window.Razorpay;
+    if (!Checkout) {
+      reject(new Error('Razorpay Checkout failed to load. Please refresh and try again.'));
+      return;
+    }
+    const rzp = new Checkout(options);
+    if (typeof rzp.open !== 'function') {
+      reject(new Error('Razorpay Checkout is unavailable. Please refresh and try again.'));
+      return;
+    }
+    rzp.open();
+  });
 }
 
 export async function simulateTestSubscription(plan: PaidPlan): Promise<{
@@ -293,6 +373,19 @@ export async function confirmUpiPayment(params: {
   return result.data;
 }
 
+function callableErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+    const msg = (err as { message: string }).message;
+    if (msg && !msg.includes('internal')) return msg;
+  }
+  return fallback;
+}
+
+/**
+ * Live payments use Razorpay Standard Checkout (QR / UPI apps).
+ * Server-side UPI collect (`/v1/payments/create/json`) is not available on most live merchants
+ * and returns 404 — that was causing the 500 on initiateUpiCollect.
+ */
 export async function payWithUpiIdAndWait(params: {
   plan: PaidPlan;
   vpa: string;
@@ -315,16 +408,47 @@ export async function payWithUpiIdAndWait(params: {
 
   params.onStatus?.('Creating payment…');
   const order = await createRazorpayOrder(params.plan);
+
+  // Live (and non-test-VPA): open Standard Checkout — scan QR or pay in UPI app.
+  if (!isTestKey) {
+    params.onStatus?.('Complete payment in the Razorpay window…');
+    const planLabel =
+      params.plan === 'monthly' ? 'Monthly' : params.plan === 'yearly' ? 'Yearly' : 'Lifetime';
+    const response = await payWithStandardCheckout({
+      keyId: order.keyId,
+      orderId: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      email: params.email,
+      contact: params.contact,
+      planName: planLabel,
+    });
+    params.onStatus?.('Confirming payment…');
+    await verifyRazorpayPayment({ ...response, plan: params.plan });
+    return;
+  }
+
+  // Test Mode with a real-looking VPA: try server collect (works with Razorpay test keys).
   params.onStatus?.(`Payment request sent to ${vpa}. Open your UPI app and approve it.`);
 
-  const collect = await initiateUpiCollect({
-    orderId: order.orderId,
-    amount: order.amount,
-    vpa,
-    email: params.email,
-    contact: params.contact,
-    plan: params.plan,
-  });
+  let collect: { paymentId: string; simulated?: boolean; captured?: boolean };
+  try {
+    collect = await initiateUpiCollect({
+      orderId: order.orderId,
+      amount: order.amount,
+      vpa,
+      email: params.email,
+      contact: params.contact,
+      plan: params.plan,
+    });
+  } catch (err) {
+    throw new Error(
+      callableErrorMessage(
+        err,
+        'Could not start UPI payment. In Test Mode use success@razorpay.',
+      ),
+    );
+  }
 
   if (collect.captured || collect.simulated) return;
 

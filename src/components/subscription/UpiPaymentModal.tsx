@@ -5,6 +5,7 @@ import { auth } from '../../services/firebase';
 import {
   createRazorpayOrder,
   isValidUpiId,
+  payWithStandardCheckout,
   payWithUpiApp,
   payWithUpiIdAndWait,
   verifyRazorpayPayment,
@@ -110,6 +111,39 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const handleCheckoutPay = async () => {
+    if (!user?.email) {
+      toast.error('Please sign in to pay');
+      return;
+    }
+
+    setStep('waiting');
+    setStatusText('Opening Razorpay…');
+
+    try {
+      const order = await createRazorpayOrder(plan);
+      const response = await payWithStandardCheckout({
+        keyId: order.keyId,
+        orderId: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        email: user.email,
+        contact: user.phoneNumber || '9999999999',
+        planName: planInfo?.name ?? plan,
+      });
+      setStep('processing');
+      setStatusText('Confirming payment…');
+      await verifyRazorpayPayment({ ...response, plan });
+      setStatusText('Payment confirmed!');
+      onPaid(plan);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Payment failed');
+      setStep('form');
+      setStatusText('');
+    }
+  };
+
   const handleUpiIdPay = async () => {
     const vpa = upiId.trim().toLowerCase();
     if (!isValidUpiId(vpa)) {
@@ -122,7 +156,7 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
     }
 
     setStep('waiting');
-    setStatusText('Sending payment request to your UPI app…');
+    setStatusText(isTestMode ? 'Sending payment request…' : 'Opening Razorpay checkout…');
 
     try {
       await payWithUpiIdAndWait({
@@ -227,39 +261,53 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
                 </>
               )}
 
-              <label className='block text-sm font-bold text-slate-900 dark:text-white'>
-                UPI ID
-                <input
-                  type='text'
-                  value={upiId}
-                  onChange={(e) => setUpiId(e.target.value)}
-                  placeholder={isTestMode ? 'success@razorpay' : 'name@upi'}
-                  autoComplete='off'
-                  autoCapitalize='none'
-                  className='mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white'
-                />
-              </label>
-              {isTestMode && (
-                <p className='mt-2 text-xs text-slate-500'>
-                  Test mode — enter{' '}
+              {!isTestMode ? (
+                <>
+                  <p className='text-sm text-slate-600 dark:text-slate-400'>
+                    Pay with UPI QR, GPay, PhonePe, or card in the secure Razorpay window.
+                  </p>
                   <button
                     type='button'
-                    className='font-semibold text-emerald-600 hover:underline dark:text-emerald-400'
-                    onClick={() => setUpiId('success@razorpay')}
+                    onClick={handleCheckoutPay}
+                    className='mt-4 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-500'
                   >
-                    success@razorpay
-                  </button>{' '}
-                  to complete payment without charging.
-                </p>
+                    Pay {planInfo?.priceLabel}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className='block text-sm font-bold text-slate-900 dark:text-white'>
+                    UPI ID
+                    <input
+                      type='text'
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      placeholder='success@razorpay'
+                      autoComplete='off'
+                      autoCapitalize='none'
+                      className='mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white'
+                    />
+                  </label>
+                  <p className='mt-2 text-xs text-slate-500'>
+                    Test mode — enter{' '}
+                    <button
+                      type='button'
+                      className='font-semibold text-emerald-600 hover:underline dark:text-emerald-400'
+                      onClick={() => setUpiId('success@razorpay')}
+                    >
+                      success@razorpay
+                    </button>{' '}
+                    to complete payment without charging.
+                  </p>
+                  <button
+                    type='button'
+                    onClick={handleUpiIdPay}
+                    className='mt-4 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-500'
+                  >
+                    Pay {planInfo?.priceLabel}
+                  </button>
+                </>
               )}
-
-              <button
-                type='button'
-                onClick={handleUpiIdPay}
-                className='mt-4 flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-emerald-500'
-              >
-                Pay {planInfo?.priceLabel}
-              </button>
             </>
           ) : (
             <div className='flex flex-col items-center py-10 text-center'>
@@ -274,7 +322,7 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
                 {step === 'waiting' ? 'Waiting for approval' : 'Payment confirmed'}
               </p>
               <p className='mt-2 max-w-sm text-sm text-slate-600 dark:text-slate-400'>
-                {statusText || 'Open your UPI app and approve the request.'}
+                {statusText || 'Complete payment in the Razorpay window.'}
               </p>
               {step === 'waiting' && (
                 <button

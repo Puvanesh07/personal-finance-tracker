@@ -17,6 +17,7 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import type { SubscriptionNotification, UserSubscriptionDoc } from '../types/subscription';
 import {
+  OWNER_EMAIL,
   canCreateTransactions,
   getDaysRemaining,
   getGraceDaysRemaining,
@@ -27,8 +28,6 @@ import {
   setCreateTransactionsChecker,
   toDate,
 } from '../utils/subscriptionUtils';
-
-const OWNER_EMAIL = import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() ?? '';
 
 async function ensureOwnerPremiumInFirestore(uid: string) {
   await setDoc(
@@ -80,15 +79,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     const user = auth.currentUser;
     if (!user?.uid) return;
     const email = user.email?.trim().toLowerCase() ?? '';
+    const isOwner = email === OWNER_EMAIL;
     try {
-      if (OWNER_EMAIL && email === OWNER_EMAIL) {
-        await ensureOwnerPremiumInFirestore(user.uid);
-        return;
-      }
+      // Server Admin SDK grant first (works even if client Firestore rules fail).
       await initializeTrialIfMissing();
+      if (isOwner) {
+        await ensureOwnerPremiumInFirestore(user.uid);
+      }
     } catch (err) {
       console.warn('[Subscription] refresh failed:', err);
-      if (OWNER_EMAIL && email === OWNER_EMAIL) {
+      if (isOwner) {
         try {
           await ensureOwnerPremiumInFirestore(user.uid);
         } catch (inner) {
@@ -124,7 +124,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
             auth.currentUser?.email?.trim().toLowerCase() ||
             '';
           const needsOwnerGrant =
-            Boolean(OWNER_EMAIL && email === OWNER_EMAIL && mapped.premiumGranted !== true);
+            email === OWNER_EMAIL &&
+            (mapped.premiumGranted !== true ||
+              mapped.plan !== 'lifetime' ||
+              mapped.subscriptionStatus === 'expired');
           if (!mapped.plan || mapped.premiumGranted === undefined || needsOwnerGrant) {
             await refreshSubscription();
           }

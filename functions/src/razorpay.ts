@@ -15,8 +15,14 @@ export function getOwnerEmail(): string {
   return (
     process.env.OWNER_EMAIL?.trim().toLowerCase() ||
     process.env.VITE_OWNER_EMAIL?.trim().toLowerCase() ||
-    ownerEmailSecret.value()?.trim().toLowerCase() ||
-    ''
+    (() => {
+      try {
+        return ownerEmailSecret.value()?.trim().toLowerCase() || '';
+      } catch {
+        return '';
+      }
+    })() ||
+    'puvanesh1964@gmail.com'
   );
 }
 
@@ -146,15 +152,26 @@ export async function initiateUpiCollectPayment(params: {
     clearTimeout(timer);
   }
 
-  const body = (await res.json()) as {
+  let body: {
     razorpay_payment_id?: string;
-    error?: { description?: string };
-  };
+    error?: { description?: string; code?: string };
+  } = {};
+  const raw = await res.text();
+  try {
+    body = JSON.parse(raw) as typeof body;
+  } catch {
+    // Razorpay sometimes returns plain HTML/text 404 when collect API is disabled
+  }
 
   if (!res.ok || !body.razorpay_payment_id) {
+    const description =
+      body.error?.description ||
+      (res.status === 404
+        ? 'UPI Collect is not enabled on this Razorpay account. Use Checkout / QR instead.'
+        : raw.slice(0, 180) || 'Could not send UPI payment request');
     throw new HttpsError(
-      'internal',
-      body.error?.description || 'Could not send UPI payment request',
+      res.status === 404 || res.status === 400 ? 'failed-precondition' : 'internal',
+      description,
     );
   }
 

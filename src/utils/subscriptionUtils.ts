@@ -12,6 +12,10 @@ export function toDate(
   return null;
 }
 
+/** Hardcoded fallback so production builds still recognize the owner if env is missing. */
+export const OWNER_EMAIL =
+  import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() || 'puvanesh1964@gmail.com';
+
 export function hasPremiumAccess(
   userDoc: UserSubscriptionDoc | null | undefined,
   authEmail?: string | null,
@@ -20,11 +24,10 @@ export function hasPremiumAccess(
   if (userDoc.premiumGranted === true) return true;
   if (userDoc.plan === 'lifetime') return true;
 
-  const ownerEmail = import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() ?? '';
   const docEmail =
     typeof userDoc.email === 'string' ? userDoc.email.trim().toLowerCase() : '';
   const loginEmail = authEmail?.trim().toLowerCase() ?? '';
-  if (ownerEmail && (docEmail === ownerEmail || loginEmail === ownerEmail)) {
+  if (docEmail === OWNER_EMAIL || loginEmail === OWNER_EMAIL) {
     return true;
   }
 
@@ -41,9 +44,9 @@ export function isExpiredStatus(
   userDoc: UserSubscriptionDoc | null | undefined,
   authEmail?: string | null,
 ): boolean {
-  return (
-    userDoc?.subscriptionStatus === 'expired' || !hasPremiumAccess(userDoc, authEmail)
-  );
+  // Premium / owner access always wins over a stale "expired" status field.
+  if (hasPremiumAccess(userDoc, authEmail)) return false;
+  return userDoc?.subscriptionStatus === 'expired';
 }
 
 export function getDaysRemaining(userDoc: UserSubscriptionDoc | null | undefined): number | null {

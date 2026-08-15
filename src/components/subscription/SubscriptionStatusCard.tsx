@@ -8,9 +8,9 @@ import {
 } from '../../context/SubscriptionContext';
 import { auth } from '../../services/firebase';
 import { adminManageSubscription, restorePurchase } from '../../services/subscriptionService';
-import { formatPlanLabel } from '../../utils/subscriptionUtils';
+import { OWNER_EMAIL, formatPlanLabel } from '../../utils/subscriptionUtils';
 
-const ownerEmail = import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() ?? '';
+const ownerEmail = OWNER_EMAIL;
 
 export function SubscriptionStatusCard() {
   const {
