@@ -1,11 +1,13 @@
-import { FiAlertTriangle, FiClock, FiZap } from 'react-icons/fi';
+import { FiAlertTriangle, FiClock, FiRefreshCw, FiZap } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import {
   formatSubscriptionDate,
   useSubscription,
 } from '../../context/SubscriptionContext';
-import { OWNER_EMAIL } from '../../utils/subscriptionUtils';
+import { OWNER_EMAIL, formatPlanLabel } from '../../utils/subscriptionUtils';
 import { auth } from '../../services/firebase';
+
+const RENEWAL_WARNING_DAYS = 7;
 
 export function DashboardSubscriptionBanner() {
   const {
@@ -14,6 +16,7 @@ export function DashboardSubscriptionBanner() {
     hasPremiumAccess,
     isTrial,
     isExpired,
+    daysRemaining,
     trialDaysRemaining,
     graceDaysRemaining,
   } = useSubscription();
@@ -21,6 +24,70 @@ export function DashboardSubscriptionBanner() {
   const email = auth.currentUser?.email?.trim().toLowerCase() ?? '';
   if (loading || email === OWNER_EMAIL) return null;
   if (userSubscription?.premiumGranted || userSubscription?.plan === 'lifetime') return null;
+
+  const plan = userSubscription?.plan;
+  const isPaidRenewable = plan === 'monthly' || plan === 'yearly';
+  const needsRenewal =
+    isPaidRenewable &&
+    hasPremiumAccess &&
+    !isExpired &&
+    daysRemaining !== null &&
+    daysRemaining <= RENEWAL_WARNING_DAYS;
+
+  if (needsRenewal) {
+    const planLabel = formatPlanLabel(plan);
+    return (
+      <section className='rounded-2xl border border-amber-500/35 bg-gradient-to-r from-amber-500/15 via-orange-500/5 to-transparent p-4 md:p-5'>
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+          <div>
+            <p className='flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-300'>
+              <FiRefreshCw className='h-4 w-4' />
+              Renew or update your plan
+            </p>
+            <dl className='mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 sm:gap-3'>
+              <div>
+                <dt className='font-semibold uppercase tracking-wide text-slate-500'>Current plan</dt>
+                <dd className='mt-0.5 font-bold text-slate-900 dark:text-white'>{planLabel}</dd>
+              </div>
+              <div>
+                <dt className='font-semibold uppercase tracking-wide text-slate-500'>Days left</dt>
+                <dd className='mt-0.5 font-bold text-amber-700 dark:text-amber-300'>
+                  {daysRemaining}
+                </dd>
+              </div>
+              <div>
+                <dt className='font-semibold uppercase tracking-wide text-slate-500'>Expires on</dt>
+                <dd className='mt-0.5 font-bold text-slate-900 dark:text-white'>
+                  {formatSubscriptionDate(userSubscription?.expiresAt ?? null)}
+                </dd>
+              </div>
+            </dl>
+            <p className='mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400'>
+              Your {planLabel.toLowerCase()} plan ends in {daysRemaining} day
+              {daysRemaining === 1 ? '' : 's'}. Renew to keep access, or switch to Lifetime and never
+              renew again.
+            </p>
+          </div>
+          <div className='flex shrink-0 flex-col gap-2 sm:items-stretch'>
+            <Link
+              to='/pricing'
+              className='inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-amber-500'
+            >
+              <FiRefreshCw className='h-3.5 w-3.5' />
+              Renew / update plan
+            </Link>
+            <Link
+              to='/pricing'
+              className='inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-500/20 dark:text-emerald-300'
+            >
+              <FiZap className='h-3.5 w-3.5' />
+              Go Lifetime
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (isTrial && hasPremiumAccess) {
     return (

@@ -60,7 +60,6 @@ export const PRICING_PLANS: PricingPlan[] = [
     priceLabel: '₹599',
     period: '/year',
     description: 'Best value — save over 30%',
-    recommended: true,
   },
   {
     id: 'lifetime',
@@ -68,7 +67,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     price: 899,
     priceLabel: '₹899',
     period: ' one-time',
-    description: 'Pay once, use forever',
+    description: 'Pay once, use forever — never renew again',
+    recommended: true,
   },
 ];
 
