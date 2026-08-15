@@ -34,6 +34,10 @@ import { buildAccountsForecast } from '../../utils/advancedInsights';
 import { format } from 'date-fns';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { usePremiumActions } from '../../hooks/usePremiumActions';
+import { FREE_ACCOUNT_LIMIT } from '../../types/subscription';
+import toast from 'react-hot-toast';
 
 const ACCOUNT_COLORS = [
   '#10b981',
@@ -351,6 +355,16 @@ export function AccountsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<Account | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { hasPremiumAccess } = useSubscription();
+  const { premiumActionProps, guardAction } = usePremiumActions();
+
+  const openAddAccount = guardAction(() => {
+    if (!hasPremiumAccess && accounts.length >= FREE_ACCOUNT_LIMIT) {
+      toast.error(`Free plan allows up to ${FREE_ACCOUNT_LIMIT} accounts. Upgrade for unlimited.`);
+      return;
+    }
+    setAddOpen(true);
+  });
 
   // ── ✅ FIX 2: Live balance = opening balance ± cashflows on/after openingBalanceDate ──
   const accountStats = useMemo(() => {
@@ -449,8 +463,9 @@ export function AccountsPage() {
           </div>
         </div>
         <button
-          className='group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-indigo-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/25 transition-all hover:-translate-y-0.5'
-          onClick={() => setAddOpen(true)}
+          {...premiumActionProps}
+          className='group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-indigo-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/25 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
+          onClick={openAddAccount}
           type='button'
         >
           <FiPlus className='h-4 w-4' />
@@ -564,8 +579,9 @@ export function AccountsPage() {
             Add your bank accounts and credit cards to start tracking.
           </p>
           <button
-            className='mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg'
-            onClick={() => setAddOpen(true)}
+            {...premiumActionProps}
+            className='mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-700 px-6 py-2.5 text-sm font-bold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-45'
+            onClick={openAddAccount}
             type='button'
           >
             <FiPlus className='h-4 w-4' /> Add First Account

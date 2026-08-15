@@ -14,7 +14,8 @@ import {
   FiUser,
 } from 'react-icons/fi';
 import { auth, db } from '../services/firebase';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { buildTrialFields } from '../utils/subscriptionUtils';
 
 import { FcGoogle } from 'react-icons/fc';
 import { motion } from 'framer-motion';
@@ -56,6 +57,7 @@ export default function GoogleProfileModal({
     setLoading(true);
 
     try {
+      const trial = buildTrialFields();
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: user.displayName || '',
@@ -64,6 +66,14 @@ export default function GoogleProfileModal({
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         authProvider: 'google',
+        plan: trial.plan,
+        subscriptionStatus: trial.subscriptionStatus,
+        trialStart: Timestamp.fromDate(trial.trialStart),
+        trialEnd: Timestamp.fromDate(trial.trialEnd),
+        expiresAt: Timestamp.fromDate(trial.expiresAt),
+        gracePeriodEnd: Timestamp.fromDate(trial.gracePeriodEnd),
+        paymentId: trial.paymentId,
+        premiumGranted: trial.premiumGranted,
       });
 
       toast.success('Profile saved! Welcome to FinTrackly 🎉', {

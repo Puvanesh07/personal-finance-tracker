@@ -18,6 +18,7 @@ import {
   FiAlertOctagon,
   FiCheckCircle,
   FiCloud,
+  FiCreditCard,
   FiDatabase,
   FiDownload,
   FiEdit2,
@@ -37,6 +38,7 @@ import EncryptionSettings from './EncryptionSettings';
 import { EssentialsSettings } from '../../components/settings/EssentialsSettings';
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
+import { SubscriptionStatusCard } from '../../components/subscription/SubscriptionStatusCard';
 import { auth } from '../../services/firebase';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -44,6 +46,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 
 type TabId =
   | 'profile'
+  | 'subscription'
   | 'data'
   | 'app'
   | 'essentials'
@@ -57,6 +60,7 @@ const TABS: {
   color?: string;
 }[] = [
   { id: 'profile', label: 'Profile', icon: FiUser },
+  { id: 'subscription', label: 'Subscription', icon: FiCreditCard },
   { id: 'data', label: 'Export / Import', icon: FiDatabase },
   { id: 'app', label: 'App & Security', icon: FiSmartphone },
   { id: 'essentials', label: 'Essentials', icon: FiShield },
@@ -436,6 +440,12 @@ export function SettingsPage() {
     switch (activeTab) {
       case 'profile':
         return <ProfileTab />;
+      case 'subscription':
+        return (
+          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+            <SubscriptionStatusCard />
+          </div>
+        );
       case 'data':
         return (
           <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>

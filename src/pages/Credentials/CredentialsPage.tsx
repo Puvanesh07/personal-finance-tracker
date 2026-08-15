@@ -7,8 +7,10 @@ import { CredentialCard } from './CredentialCard';
 import { UpsertCredentialModal } from './UpsertCredentialModal';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { buildCredentialSecurityInsights } from '../../utils/advancedInsights';
+import { usePremiumActions } from '../../hooks/usePremiumActions';
 
 export function CredentialsPage() {
+  const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const credentials = usePortfolioStore((s) => s.credentials);
   const [query, setQuery] = useState('');
@@ -55,8 +57,9 @@ export function CredentialsPage() {
             </div>
           </div>
           <button
+            {...premiumActionProps}
             onClick={() => setIsAddOpen(true)}
-            className='flex h-10 w-10 md:w-auto md:px-4 items-center justify-center gap-2 rounded-xl bg-fuchsia-500 text-white font-medium shadow-lg shadow-fuchsia-500/20 hover:bg-fuchsia-400 transition-colors'
+            className='flex h-10 w-10 md:w-auto md:px-4 items-center justify-center gap-2 rounded-xl bg-fuchsia-500 text-white font-medium shadow-lg shadow-fuchsia-500/20 hover:bg-fuchsia-400 transition-colors disabled:cursor-not-allowed disabled:opacity-45'
           >
             <FiPlus className='h-5 w-5' />
             <span className='hidden md:inline'>Add New</span>

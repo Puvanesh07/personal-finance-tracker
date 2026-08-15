@@ -21,6 +21,7 @@ import {
 } from 'react-icons/fi';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { BsBank2 } from 'react-icons/bs';
 import { ImportAngelOnePdfButton } from '../../components/investments/ImportAngelOnePdfButton';
@@ -256,6 +257,7 @@ function normalisePlatform(platform?: string): string {
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export function InvestmentsPage() {
+  const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const investments = usePortfolioStore((s) => s.investments);
   const [initializingView, setInitializingView] = useState(true);
@@ -488,8 +490,9 @@ export function InvestmentsPage() {
           {/* Only show Add Asset button on investments tab */}
           {activeTab === 'investments' && (
             <button
+              {...premiumActionProps}
               onClick={() => setIsAddOpen(true)}
-              disabled={isAddOpen}
+              disabled={isAddOpen || premiumActionProps.disabled}
               className='flex h-10 w-10 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-4'
             >
               <FiPlus className='h-5 w-5' />

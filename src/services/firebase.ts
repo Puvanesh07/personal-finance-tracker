@@ -26,7 +26,7 @@ const firebaseConfig = {
 };
 
 // 1. Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 
 // 2. App Check — opt-in only (misconfigured App Check blocks all sign-in)
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;

@@ -100,6 +100,21 @@ const InsurancePage = lazy(() =>
     default: m.InsurancePage,
   })),
 );
+const PricingPage = lazy(() =>
+  import('./components/subscription/PricingPage').then((m) => ({
+    default: m.PricingPage,
+  })),
+);
+const PaymentSuccessPage = lazy(() =>
+  import('./pages/Subscription/PaymentSuccessPage').then((m) => ({
+    default: m.PaymentSuccessPage,
+  })),
+);
+const PaymentFailurePage = lazy(() =>
+  import('./pages/Subscription/PaymentFailurePage').then((m) => ({
+    default: m.PaymentFailurePage,
+  })),
+);
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -247,6 +262,30 @@ export default function App() {
               element={
                 <Suspense fallback={<SettingsSkeleton />}>
                   <SettingsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/pricing'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <PricingPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/payment/success'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <PaymentSuccessPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/payment/failure'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <PaymentFailurePage />
                 </Suspense>
               }
             />

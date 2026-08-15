@@ -12,6 +12,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { useMemo, useState } from 'react';
 
+import { usePremiumActions } from '../../hooks/usePremiumActions';
 import type { TrackedPayment } from '../../types/investmentTypes';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertTrackedPaymentModal } from '../../components/payments/UpsertTrackedPaymentModal';
@@ -70,6 +71,7 @@ function StatusBadge({ payment }: { payment: TrackedPayment }) {
 }
 
 export function PaymentTrackerPage() {
+  const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const trackedPayments = usePortfolioStore((s) => s.trackedPayments);
   const markPaid = usePortfolioStore((s) => s.markTrackedPaymentPaid);
@@ -145,12 +147,13 @@ export function PaymentTrackerPage() {
             Export
           </button>
           <button
+            {...premiumActionProps}
             type='button'
             onClick={() => {
               setEditPayment(null);
               setModalOpen(true);
             }}
-            className='flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-sky-500/25 hover:bg-sky-500 transition-colors'
+            className='flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-sky-500/25 hover:bg-sky-500 transition-colors disabled:cursor-not-allowed disabled:opacity-45'
           >
             <FiPlus className='h-4 w-4' />
             Add Payment

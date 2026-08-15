@@ -19,6 +19,16 @@ import {
 
 import { create } from 'zustand';
 import { db } from '../services/firebase';
+import { checkCanCreateTransactions } from '../utils/subscriptionUtils';
+import toast from 'react-hot-toast';
+
+function blockIfExpired(): boolean {
+  if (!checkCanCreateTransactions()) {
+    toast.error('Your trial has expired. Subscribe to add new transactions.');
+    return true;
+  }
+  return false;
+}
 
 const agriCol = (uid: string, col: string) => collection(db, 'users', uid, col);
 const agriDoc = (uid: string, col: string, id: string) =>
@@ -178,6 +188,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addField: async (f) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: Field = clean({
       ...f,
@@ -209,6 +220,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addCropCycle: async (c) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: CropCycle = clean({
       ...c,
@@ -242,6 +254,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addAgriExpense: async (e) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: AgriExpense = clean({
       ...e,
@@ -280,6 +293,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addMilkRecord: async (m) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: MilkRecord = clean({
       ...m,
@@ -318,6 +332,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addCoconutRecord: async (c) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: CoconutRecord = clean({
       ...c,
@@ -358,6 +373,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addLivestockEvent: async (e) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: LivestockEvent = clean({
       ...e,
@@ -402,6 +418,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   addProduceSale: async (p) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfExpired()) return;
     const t = now();
     const raw: ProduceSaleLot = clean({
       ...p,

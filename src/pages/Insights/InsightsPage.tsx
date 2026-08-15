@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
 import { PortfolioAIAnalysisPanel } from '../../components/insights/PortfolioAIAnalysisPanel';
+import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 import { computeAlpha, projectFutureValue } from '../../utils/advancedInsights';
 import { buildPortfolioAIContext } from '../../utils/portfolioAIContext';
 import {
@@ -722,6 +723,7 @@ export default function InsightsPage() {
     : null;
 
   return (
+    <SubscriptionGuard feature='portfolio_analytics'>
     <div className='flex flex-col gap-6 pb-10 max-w-5xl mx-auto'>
       {/* Header */}
       <header className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent p-5 border border-amber-500/20 shadow-sm'>
@@ -767,7 +769,11 @@ export default function InsightsPage() {
         </div>
       ) : (
         <div className='flex flex-col gap-6'>
-          {aiContext && <PortfolioAIAnalysisPanel context={aiContext} />}
+          {aiContext && (
+            <SubscriptionGuard feature='ai_insights'>
+              <PortfolioAIAnalysisPanel context={aiContext} />
+            </SubscriptionGuard>
+          )}
           {/* ── Health Score + Breakdown ── */}
           <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5'>
             <h2 className='text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4'>
@@ -1207,5 +1213,6 @@ export default function InsightsPage() {
         )}
       </Modal>
     </div>
+    </SubscriptionGuard>
   );
 }

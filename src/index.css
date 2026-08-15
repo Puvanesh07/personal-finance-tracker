@@ -222,6 +222,17 @@ html.dark .row-hover:hover {
   background-color: rgb(30 41 59 / 0.65);
 }
 
+/* ── Subscription lock — disable premium mutation buttons when trial expired ── */
+body.subscription-locked [data-premium-action]:not([data-premium-exempt]) {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
+body.subscription-locked [data-premium-action]:not([data-premium-exempt]):hover {
+  transform: none;
+}
+
 /* ── Net worth formula label ── */
 .net-worth-formula {
   font-size: 0.7rem;

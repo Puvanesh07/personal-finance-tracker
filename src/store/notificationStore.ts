@@ -15,7 +15,11 @@ export type NotifType =
   | 'investment_matured'
   | 'investment_maturity_upcoming'
   | 'pending_payment_due'
-  | 'payment_tracker_due';
+  | 'payment_tracker_due'
+  | 'warning'
+  | 'error'
+  | 'success'
+  | 'info';
 
 export interface AppNotification {
   id: string;

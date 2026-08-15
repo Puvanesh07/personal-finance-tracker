@@ -27,6 +27,7 @@ import toast from 'react-hot-toast';
 import { useAgriStore } from '../../store/agricultureStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 const SIP_STORAGE_KEY = 'fintrackly_sip_plan';
 
@@ -51,6 +52,7 @@ function StatBadge({ label, count }: { label: string; count: number }) {
 export function ExportImport() {
   const state = usePortfolioStore();
   const { hydrate, uid } = state;
+  const { hasPremiumAccess } = useSubscription();
   const agriState = useAgriStore();
   const agriHydrate = agriState.hydrate;
   const attState = useAttendanceStore();
@@ -101,6 +103,10 @@ export function ExportImport() {
   const totalRecords = Object.values(exportSummary).reduce((s, n) => s + n, 0);
 
   const handleExportCSVSeparate = () => {
+    if (!hasPremiumAccess) {
+      toast.error('CSV export requires a premium subscription.');
+      return;
+    }
     if (totalRecords === 0) {
       toast.error('Nothing to export — add some data first.');
       return;
@@ -115,6 +121,10 @@ export function ExportImport() {
   };
 
   const handleExportCSVZip = async () => {
+    if (!hasPremiumAccess) {
+      toast.error('CSV export requires a premium subscription.');
+      return;
+    }
     if (totalRecords === 0) {
       toast.error('Nothing to export — add some data first.');
       return;
@@ -152,6 +162,11 @@ export function ExportImport() {
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!hasPremiumAccess) {
+      toast.error('Cloud backup restore requires a premium subscription.');
+      if (importRef.current) importRef.current.value = '';
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file || !uid) return;
     try {
@@ -239,7 +254,9 @@ export function ExportImport() {
             <FiTable className='h-4 w-4 text-emerald-400' />
           </div>
           <div>
-            <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>Export as CSV</p>
+            <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
+              Export as CSV
+            </p>
             <p className='text-xs text-slate-900 dark:text-slate-500'>
               Open in Excel, Google Sheets, or any spreadsheet app.
             </p>
@@ -250,7 +267,9 @@ export function ExportImport() {
           <div className='flex flex-col gap-2 rounded-xl border border-slate-300/60 dark:border-slate-700/50 bg-slate-100/90 dark:bg-slate-800/40 p-4'>
             <div className='flex items-center gap-2'>
               <FiFileText className='h-4 w-4 text-emerald-400' />
-              <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>Separate Files</p>
+              <p className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+                Separate Files
+              </p>
             </div>
             <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
               One CSV per section.
@@ -298,11 +317,17 @@ export function ExportImport() {
                   className={`h-3.5 w-3.5 shrink-0 ${count > 0 ? 'text-emerald-400' : 'text-slate-600 dark:text-slate-700'}`}
                 />
                 <span
-                  className={count > 0 ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-slate-600'}
+                  className={
+                    count > 0
+                      ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300'
+                      : 'text-slate-500 dark:text-slate-600'
+                  }
                 >
                   {label}{' '}
                   {count > 0 && (
-                    <span className='text-slate-900 dark:text-slate-500 ml-1'>({count})</span>
+                    <span className='text-slate-900 dark:text-slate-500 ml-1'>
+                      ({count})
+                    </span>
                   )}
                 </span>
               </div>
@@ -493,7 +518,9 @@ export function DangerZone() {
             <FiTrash2 className='h-5 w-5 text-rose-400' />
           </div>
           <div className='flex-1 min-w-0'>
-            <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>Clear All Data</p>
+            <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
+              Clear All Data
+            </p>
             <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>
               Permanently wipes all data. Your login credentials remain intact.
             </p>

@@ -29,6 +29,7 @@ import { FiPieChart, FiTarget } from 'react-icons/fi';
 
 import { AiFillCalculator } from 'react-icons/ai';
 import { SIPCalculator } from './Calculator/SIPCalculator';
+import { SubscriptionGuard } from '../components/subscription/SubscriptionGuard';
 import { useState } from 'react';
 
 // ── Calculators
@@ -90,8 +91,16 @@ export function ToolsPage() {
       {/* Grids */}
       <main>
         {activeTab === 'calculators' && <CalculatorsGrid />}
-        {activeTab === 'analysis' && <AnalysisGrid />}
-        {activeTab === 'planning' && <PlanningGrid />}
+        {activeTab === 'analysis' && (
+          <SubscriptionGuard feature='portfolio_analytics'>
+            <AnalysisGrid />
+          </SubscriptionGuard>
+        )}
+        {activeTab === 'planning' && (
+          <SubscriptionGuard feature='portfolio_analytics'>
+            <PlanningGrid />
+          </SubscriptionGuard>
+        )}
       </main>
     </div>
   );

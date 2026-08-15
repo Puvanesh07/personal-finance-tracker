@@ -36,6 +36,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useThemeStore } from '../../store/themeStore';
+import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 
 // ─── Reusable UI Components ──────────────────────────────────────────────────
 
@@ -350,6 +351,7 @@ export function ReportsPage() {
   }, [portStore.investments]);
 
   return (
+    <SubscriptionGuard feature='advanced_reports'>
     <div className='flex flex-col gap-6 pb-10 animate-in fade-in duration-300'>
       {/* ── Advanced Header ── */}
       <header className='flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 shadow-sm'>
@@ -854,5 +856,6 @@ export function ReportsPage() {
         </SectionCard>
       </div>
     </div>
+    </SubscriptionGuard>
   );
 }

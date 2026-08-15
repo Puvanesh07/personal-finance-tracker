@@ -56,6 +56,7 @@ import { exportCashflowsCSV } from '../../utils/exportUtils';
 import { useExportPresetsStore } from '../../store/exportPresetsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // import LendingDashboard from './LendingDashboard'; // NEW import for lending tab
@@ -827,6 +828,7 @@ function SortableHeader({
 // ─────────────────────────────────────────────────────────────────────────
 
 export function CashflowPage() {
+  const { premiumActionProps } = usePremiumActions();
   // const [activeTab, setActiveTab] = useState<'personal' | 'lending'>(
   //   'personal',
   // );
@@ -1112,7 +1114,8 @@ export function CashflowPage() {
           </div>
           <div className='flex flex-wrap items-center gap-3'>
             <button
-              className='group relative flex items-center gap-2 cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
+              {...premiumActionProps}
+              className='group relative flex items-center gap-2 cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
               onClick={() => setOpen(true)}
               type='button'
             >

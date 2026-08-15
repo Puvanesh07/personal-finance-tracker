@@ -31,6 +31,7 @@ import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useMemo, useState } from 'react';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // ── Status Badge ──────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ function StatusBadge({ status }: { status?: GoalStatus }) {
 type FilterTab = 'all' | 'active' | 'done';
 
 export function GoalsPage() {
+  const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const goals = usePortfolioStore((s) => s.goals);
   const cashflows = usePortfolioStore((s) => s.cashflows);
@@ -177,7 +179,8 @@ export function GoalsPage() {
         </div>
 
         <button
-          className='group relative flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
+          {...premiumActionProps}
+          className='group relative flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
           onClick={() => setOpen(true)}
           type='button'
         >

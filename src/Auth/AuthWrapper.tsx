@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 import AuthPage from './AuthPage';
 import { Loader } from '../components/loader/Loader';
+import { SubscriptionProvider } from '../context/SubscriptionContext';
 import { auth } from '../services/firebase';
 import {
   consumeRedirectResultOnce,
@@ -123,5 +124,5 @@ export default function AuthWrapper({
 
   if (authState === 'init') return <Loader />;
   if (authState === 'logged-out') return <AuthPage />;
-  return <>{children}</>;
+  return <SubscriptionProvider>{children}</SubscriptionProvider>;
 }

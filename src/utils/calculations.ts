@@ -13,33 +13,79 @@ export function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+// The five types the rest of the app understands. Anything else (bad/legacy
+// data from an import, a manually-edited JSON backup, a future type that
+// hasn't shipped yet, etc.) is treated as 'other' so a single malformed
+// record can never crash the whole dashboard.
+export const KNOWN_INVESTMENT_TYPES: InvestmentType[] = [
+  'stock',
+  'mutual_fund',
+  'bond',
+  'fixed_deposit',
+  'other',
+];
+
+export function isKnownInvestmentType(type: unknown): type is InvestmentType {
+  return (
+    typeof type === 'string' &&
+    (KNOWN_INVESTMENT_TYPES as string[]).includes(type)
+  );
+}
+
+/** Safely resolves the bucket a (possibly malformed) investment belongs to. */
+export function safeInvestmentType(inv: unknown): InvestmentType {
+  const type = (inv as { type?: unknown } | null | undefined)?.type;
+  return isKnownInvestmentType(type) ? type : 'other';
+}
+
 export function investedValue(inv: Investment): number {
   switch (inv.type) {
     case 'stock':
-      return inv.quantity * inv.buyPrice;
+      return (inv.quantity ?? 0) * (inv.buyPrice ?? 0);
     case 'mutual_fund':
-      return inv.investedAmount;
+      return inv.investedAmount ?? 0;
     case 'bond':
-      return inv.investedAmount;
+      return inv.investedAmount ?? 0;
     case 'fixed_deposit':
-      return inv.investedAmount;
+      return inv.investedAmount ?? 0;
     case 'other':
-      return inv.investedAmount;
+      return inv.investedAmount ?? 0;
+    default: {
+      // Unknown/legacy type — fall back to whatever numeric hint is present
+      // instead of throwing, so a single bad record can't break the app.
+      const anyInv = inv as {
+        investedAmount?: number;
+        quantity?: number;
+        buyPrice?: number;
+      };
+      if (anyInv.investedAmount != null) return anyInv.investedAmount;
+      if (anyInv.quantity != null && anyInv.buyPrice != null) {
+        return anyInv.quantity * anyInv.buyPrice;
+      }
+      return 0;
+    }
   }
 }
 
 export function currentValue(inv: Investment): number {
   switch (inv.type) {
     case 'stock':
-      return inv.quantity * inv.currentPrice;
+      return (inv.quantity ?? 0) * (inv.currentPrice ?? 0);
     case 'mutual_fund':
-      return inv.units * inv.nav;
+      return (inv.units ?? 0) * (inv.nav ?? 0);
     case 'bond':
-      return inv.investedAmount + expectedInterestForBond(inv);
+      return (inv.investedAmount ?? 0) + expectedInterestForBond(inv);
     case 'fixed_deposit':
       return maturityValueForFD(inv);
     case 'other':
-      return inv.currentValue;
+      return inv.currentValue ?? 0;
+    default:
+      // Unknown/legacy type — best-effort fallback, never throw.
+      return (
+        (inv as { currentValue?: number })?.currentValue ??
+        (inv as { investedAmount?: number })?.investedAmount ??
+        0
+      );
   }
 }
 
@@ -49,16 +95,24 @@ export function profitLoss(inv: Investment): number {
 
 export function expectedInterestForBond(bond: BondInvestment): number {
   return (
-    (bond.investedAmount * (bond.interestRate / 100) * bond.durationMonths) / 12
+    ((bond.investedAmount ?? 0) *
+      ((bond.interestRate ?? 0) / 100) *
+      (bond.durationMonths ?? 0)) /
+    12
   );
 }
 
 export function interestEarnedForFD(fd: FixedDepositInvestment): number {
-  return (fd.investedAmount * (fd.interestRate / 100) * fd.durationMonths) / 12;
+  return (
+    ((fd.investedAmount ?? 0) *
+      ((fd.interestRate ?? 0) / 100) *
+      (fd.durationMonths ?? 0)) /
+    12
+  );
 }
 
 export function maturityValueForFD(fd: FixedDepositInvestment): number {
-  return fd.investedAmount + interestEarnedForFD(fd);
+  return (fd.investedAmount ?? 0) + interestEarnedForFD(fd);
 }
 
 export function typeLabel(type: InvestmentType) {
@@ -105,14 +159,23 @@ export function summarizePortfolio(
   let bondsInterest = 0;
   let fdsInterest = 0;
 
-  for (const inv of investments) {
+  for (const inv of investments ?? []) {
+    if (!inv) continue; // guard against null/undefined entries in imported data
+
+    // Route unrecognized/malformed types into the 'other' bucket instead of
+    // crashing — byType[inv.type] used to be indexed directly, which threw
+    // "Cannot read properties of undefined (reading 'invested')" whenever a
+    // record had a type outside the five known ones (e.g. bad/edited JSON
+    // import, or a legacy type that's since been removed).
+    const bucket = safeInvestmentType(inv);
+
     const invested = investedValue(inv);
     const current = currentValue(inv);
     const pl = current - invested;
 
-    byType[inv.type].invested += invested;
-    byType[inv.type].current += current;
-    byType[inv.type].profitLoss += pl;
+    byType[bucket].invested += invested;
+    byType[bucket].current += current;
+    byType[bucket].profitLoss += pl;
 
     if (inv.type === 'bond') bondsInterest += expectedInterestForBond(inv);
     if (inv.type === 'fixed_deposit') fdsInterest += interestEarnedForFD(inv);

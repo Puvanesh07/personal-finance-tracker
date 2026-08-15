@@ -19,7 +19,8 @@ import {
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { ensureAuthPersistence } from './authBootstrap';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import { buildTrialFields } from '../utils/subscriptionUtils';
 
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -112,6 +113,7 @@ export default function RegisterPage({
       await updateProfile(user, { displayName: form.name.trim() });
 
       // 3. Save full profile to Firestore users/{uid}
+      const trial = buildTrialFields();
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: form.name.trim(),
@@ -120,6 +122,14 @@ export default function RegisterPage({
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         authProvider: 'email',
+        plan: trial.plan,
+        subscriptionStatus: trial.subscriptionStatus,
+        trialStart: Timestamp.fromDate(trial.trialStart),
+        trialEnd: Timestamp.fromDate(trial.trialEnd),
+        expiresAt: Timestamp.fromDate(trial.expiresAt),
+        gracePeriodEnd: Timestamp.fromDate(trial.gracePeriodEnd),
+        paymentId: trial.paymentId,
+        premiumGranted: trial.premiumGranted,
       });
 
       toast.success(`Welcome, ${form.name.split(' ')[0]}! 🎉`, {

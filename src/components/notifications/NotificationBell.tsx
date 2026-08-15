@@ -5,6 +5,9 @@ import { useRef, useState, useEffect } from 'react';
 import { FiBell, FiX, FiCheck, FiCheckCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationStore, type AppNotification } from '../../store/notificationStore';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { markNotificationRead } from '../../services/subscriptionService';
+import { auth } from '../../services/firebase';
 import { format, formatDistanceToNow } from 'date-fns';
 
 const TYPE_ICONS: Record<string, string> = {
@@ -19,6 +22,10 @@ const TYPE_ICONS: Record<string, string> = {
   investment_maturity_upcoming: '⏰',
   pending_payment_due: '💰',
   payment_tracker_due: '🔔',
+  warning: '⚠️',
+  error: '❌',
+  success: '✅',
+  info: 'ℹ️',
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -33,6 +40,10 @@ const TYPE_COLORS: Record<string, string> = {
   investment_maturity_upcoming: 'bg-amber-500/10 border-amber-500/20',
   pending_payment_due: 'bg-indigo-500/10 border-indigo-500/20',
   payment_tracker_due: 'bg-sky-500/10 border-sky-500/20',
+  warning: 'bg-amber-500/10 border-amber-500/20',
+  error: 'bg-rose-500/10 border-rose-500/20',
+  success: 'bg-emerald-500/10 border-emerald-500/20',
+  info: 'bg-blue-500/10 border-blue-500/20',
 };
 
 function NotifCard({ notif, onRead, onDismiss, onAction }: {
@@ -88,7 +99,39 @@ export function NotificationBell() {
   const navigate = useNavigate();
 
   const { notifications, markRead, markAllRead, dismiss, unreadCount } = useNotificationStore();
-  const count = unreadCount();
+  const { notifications: subscriptionNotifications } = useSubscription();
+
+  const mergedNotifications: AppNotification[] = [
+    ...subscriptionNotifications.map((n) => ({
+      id: `sub_${n.id}`,
+      title: n.title,
+      message: n.message,
+      type: n.type,
+      read: n.read,
+      createdAt: n.createdAt.toISOString(),
+      actionPath: '/pricing',
+      actionLabel: 'Upgrade',
+    })),
+    ...notifications,
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const count =
+    unreadCount() + subscriptionNotifications.filter((n) => !n.read).length;
+
+  const handleRead = (notif: AppNotification) => {
+    if (notif.id.startsWith('sub_')) {
+      const uid = auth.currentUser?.uid;
+      const subId = notif.id.replace('sub_', '');
+      if (uid) void markNotificationRead(uid, subId);
+      return;
+    }
+    markRead(notif.id);
+  };
+
+  const handleDismiss = (notif: AppNotification) => {
+    if (notif.id.startsWith('sub_')) return;
+    dismiss(notif.id);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -98,7 +141,7 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const recent = notifications.slice(0, 20);
+  const recent = mergedNotifications.slice(0, 20);
 
   return (
     <div ref={ref} className="relative">
@@ -154,8 +197,8 @@ export function NotificationBell() {
                 <NotifCard
                   key={n.id}
                   notif={n}
-                  onRead={() => markRead(n.id)}
-                  onDismiss={() => dismiss(n.id)}
+                  onRead={() => handleRead(n)}
+                  onDismiss={() => handleDismiss(n)}
                   onAction={() => {
                     if (n.actionPath) navigate(n.actionPath);
                     setOpen(false);

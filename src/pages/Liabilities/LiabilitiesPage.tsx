@@ -24,6 +24,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // NEW: 'settled' tab groups both "paid" credit cards and "returned" personal loans
@@ -31,6 +32,7 @@ type FilterTab = 'all' | 'active' | 'settled';
 type PageSection = 'debts' | 'pending_payments';
 
 export function LiabilitiesPage() {
+  const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const deleteLiability = usePortfolioStore((s) => s.deleteLiability);
@@ -256,7 +258,8 @@ export function LiabilitiesPage() {
           </div>
         </div>
         <button
-          className='group relative flex items-center cursor-pointer justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40'
+          {...premiumActionProps}
+          className='group relative flex items-center cursor-pointer justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
           onClick={() => setOpen(true)}
           type='button'
         >

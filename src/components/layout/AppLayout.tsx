@@ -10,12 +10,15 @@ import {
 } from 'react-icons/fi';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 
 import { ALL_NAV_ITEMS, NAV_GROUPS } from '../../navigation/appNav';
 import { CommandPalette } from './CommandPalette';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { TrialBanner } from '../subscription/TrialBanner';
+import { UpgradeModal } from '../subscription/UpgradeModal';
 import { ThemeToggle } from './ThemeToggle';
 import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
@@ -24,6 +27,7 @@ import { useAppHotkeys } from '../../hooks/useAppHotkeys';
 import { useLiabilityReminders } from '../../hooks/useLiabilityReminders';
 import { useNotificationEngine } from '../../hooks/useNotificationEngine';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 function desktopLinkClass(isActive: boolean, accent: string, bg: string) {
   const base =
@@ -45,6 +49,29 @@ export function AppLayout() {
   useLiabilityReminders();
   useNotificationEngine();
   useOfflineSync();
+
+  const { canCreateTransactions, loading: subscriptionLoading } = useSubscription();
+  const isLocked = !subscriptionLoading && !canCreateTransactions;
+
+  useEffect(() => {
+    document.body.classList.toggle('subscription-locked', isLocked);
+    return () => document.body.classList.remove('subscription-locked');
+  }, [isLocked]);
+
+  useEffect(() => {
+    if (!isLocked) return;
+
+    const handler = (event: MouseEvent) => {
+      const target = (event.target as Element | null)?.closest('[data-premium-action]');
+      if (!target || target.closest('[data-premium-exempt]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toast.error('Your trial has expired. Subscribe to continue.');
+    };
+
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [isLocked]);
 
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -249,6 +276,7 @@ export function AppLayout() {
           <NotificationBell />
         </div>
         <div className='mx-auto min-h-full w-full max-w-7xl overflow-x-hidden p-4 pb-28 md:p-6 md:pb-8'>
+          <TrialBanner />
           <Outlet />
         </div>
       </main>
@@ -336,6 +364,7 @@ export function AppLayout() {
       </Modal>
 
       <PWAInstallBanner />
+      <UpgradeModal />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <KeyboardShortcutsModal
