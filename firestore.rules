@@ -35,10 +35,39 @@ service cloud.firestore {
             .hasOnly(['premiumGranted', 'updatedAt']);
     }
 
+    function isOwnerEmail() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'puvanesh1964@gmail.com';
+    }
+
+    // Owner may self-activate complimentary lifetime premium from the client
+    function isOwnerSelfPremiumGrant() {
+      return isOwnerEmail()
+        && request.resource.data.premiumGranted == true
+        && request.resource.data.plan == 'lifetime'
+        && request.resource.data.subscriptionStatus == 'active'
+        && request.resource.data.paymentId == null
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              'plan',
+              'subscriptionStatus',
+              'premiumGranted',
+              'expiresAt',
+              'gracePeriodEnd',
+              'trialEnd',
+              'paymentId',
+              'updatedAt',
+            ]);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId) && isValidTrialCreate();
-      allow update: if isOwner(userId) && (subscriptionFieldsUnchanged() || isPremiumGrantedBackfill());
+      allow update: if isOwner(userId)
+        && (subscriptionFieldsUnchanged()
+            || isPremiumGrantedBackfill()
+            || isOwnerSelfPremiumGrant());
 
       match /{collection}/{document=**} {
         allow read, write: if isOwner(userId);

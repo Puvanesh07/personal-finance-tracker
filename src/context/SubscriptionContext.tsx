@@ -13,6 +13,8 @@ import {
   listenSubscriptionNotifications,
   listenUserSubscription,
 } from '../services/subscriptionService';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import type { SubscriptionNotification, UserSubscriptionDoc } from '../types/subscription';
 import {
   canCreateTransactions,
@@ -25,6 +27,25 @@ import {
   setCreateTransactionsChecker,
   toDate,
 } from '../utils/subscriptionUtils';
+
+const OWNER_EMAIL = import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() ?? '';
+
+async function ensureOwnerPremiumInFirestore(uid: string) {
+  await setDoc(
+    doc(db, 'users', uid),
+    {
+      plan: 'lifetime',
+      subscriptionStatus: 'active',
+      premiumGranted: true,
+      expiresAt: null,
+      gracePeriodEnd: null,
+      trialEnd: null,
+      paymentId: null,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
 
 interface SubscriptionContextValue {
   userSubscription: UserSubscriptionDoc | null;
@@ -56,12 +77,24 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [upgradeModalDismissed, setUpgradeModalDismissed] = useState(false);
 
   const refreshSubscription = useCallback(async () => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    const user = auth.currentUser;
+    if (!user?.uid) return;
+    const email = user.email?.trim().toLowerCase() ?? '';
     try {
+      if (OWNER_EMAIL && email === OWNER_EMAIL) {
+        await ensureOwnerPremiumInFirestore(user.uid);
+        return;
+      }
       await initializeTrialIfMissing();
     } catch (err) {
-      console.warn('[Subscription] initializeTrialIfMissing failed:', err);
+      console.warn('[Subscription] refresh failed:', err);
+      if (OWNER_EMAIL && email === OWNER_EMAIL) {
+        try {
+          await ensureOwnerPremiumInFirestore(user.uid);
+        } catch (inner) {
+          console.warn('[Subscription] owner self-grant failed:', inner);
+        }
+      }
     }
   }, []);
 
@@ -86,7 +119,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
         if (!initialized && mapped) {
           initialized = true;
-          if (!mapped.plan || mapped.premiumGranted === undefined) {
+          const email =
+            mapped.email?.toString().trim().toLowerCase() ||
+            auth.currentUser?.email?.trim().toLowerCase() ||
+            '';
+          const needsOwnerGrant =
+            Boolean(OWNER_EMAIL && email === OWNER_EMAIL && mapped.premiumGranted !== true);
+          if (!mapped.plan || mapped.premiumGranted === undefined || needsOwnerGrant) {
             await refreshSubscription();
           }
         }
@@ -102,16 +141,19 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshSubscription]);
 
-  const premium = hasPremiumAccess(userSubscription);
-  const expired = isExpiredStatus(userSubscription);
+  const authEmail = auth.currentUser?.email ?? null;
+  const premium = hasPremiumAccess(userSubscription, authEmail);
+  const expired = isExpiredStatus(userSubscription, authEmail);
   const trial = isTrialPlan(userSubscription);
   const daysRemaining = getDaysRemaining(userSubscription);
   const graceDaysRemaining = getGraceDaysRemaining(userSubscription);
   const trialDaysRemaining = getTrialDaysRemaining(userSubscription);
-  const canCreate = canCreateTransactions(userSubscription);
+  const canCreate = canCreateTransactions(userSubscription, authEmail);
 
   useEffect(() => {
-    setCreateTransactionsChecker(() => canCreateTransactions(userSubscription));
+    setCreateTransactionsChecker(() =>
+      canCreateTransactions(userSubscription, auth.currentUser?.email),
+    );
   }, [userSubscription, canCreate]);
 
   const value = useMemo<SubscriptionContextValue>(

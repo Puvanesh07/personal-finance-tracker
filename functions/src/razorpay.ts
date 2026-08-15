@@ -21,17 +21,30 @@ export function getOwnerEmail(): string {
 }
 
 function getCredentials(): { keyId: string; keySecret: string } {
-  // Local emulator: reads from functions/.secret.local or root .env via dotenv
-  const envKeyId = process.env.RAZORPAY_KEY_ID;
-  const envSecret = process.env.RAZORPAY_KEY_SECRET;
-  if (envKeyId && envSecret) {
-    return { keyId: envKeyId, keySecret: envSecret };
+  // Prefer injected secrets (Cloud Functions), then local .env (emulator)
+  let keyId = '';
+  let keySecret = '';
+
+  try {
+    keyId = razorpayKeyId.value()?.trim() ?? '';
+    keySecret = razorpayKeySecret.value()?.trim() ?? '';
+  } catch {
+    // Secrets not bound on this function / local emulator without secrets
   }
 
-  const keyId = razorpayKeyId.value();
-  const keySecret = razorpayKeySecret.value();
+  if (!keyId || !keySecret) {
+    keyId = process.env.RAZORPAY_KEY_ID?.trim() ?? '';
+    keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() ?? '';
+  }
+
   if (!keyId || !keySecret) {
     throw new HttpsError('failed-precondition', 'Razorpay is not configured');
+  }
+  if (!keyId.startsWith('rzp_')) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Invalid Razorpay Key ID. Re-set RAZORPAY_KEY_ID secret and redeploy.',
+    );
   }
   return { keyId, keySecret };
 }

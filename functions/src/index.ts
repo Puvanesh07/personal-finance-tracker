@@ -38,12 +38,8 @@ if (process.env.FUNCTIONS_EMULATOR === 'true') {
 const region = 'asia-south1';
 const callableOptions = {
   region,
-  cors: [
-    'https://fintrackly.web.app',
-    'https://fintrackly.firebaseapp.com',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-  ],
+  // Allow all origins; Firebase Auth still protects every callable.
+  cors: true as const,
   invoker: 'public' as const,
 };
 
@@ -73,13 +69,15 @@ export const onUserProfileCreated = onDocumentCreated(
 );
 
 export const initializeTrialIfMissing = onCall(
-  callableOptions,
+  { ...callableOptions, secrets: ownerSecrets },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Authentication required');
     }
 
     const uid = request.auth.uid;
+    const callerEmail = request.auth.token?.email?.trim().toLowerCase() ?? '';
+    const ownerEmail = getOwnerEmail();
     const ref = getDb().collection('users').doc(uid);
     const snap = await ref.get();
     if (!snap.exists) {
@@ -87,6 +85,13 @@ export const initializeTrialIfMissing = onCall(
     }
 
     const data = snap.data() ?? {};
+
+    // Owner account always gets complimentary lifetime premium
+    if (ownerEmail && callerEmail === ownerEmail && data.premiumGranted !== true) {
+      await grantPremiumAccess(uid);
+      return { initialized: false, synced: true, ownerGranted: true };
+    }
+
     const updates: Record<string, unknown> = {};
 
     if (!data.plan) {

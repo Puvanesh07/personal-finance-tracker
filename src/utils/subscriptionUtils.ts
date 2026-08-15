@@ -12,10 +12,22 @@ export function toDate(
   return null;
 }
 
-export function hasPremiumAccess(userDoc: UserSubscriptionDoc | null | undefined): boolean {
+export function hasPremiumAccess(
+  userDoc: UserSubscriptionDoc | null | undefined,
+  authEmail?: string | null,
+): boolean {
   if (!userDoc) return false;
   if (userDoc.premiumGranted === true) return true;
   if (userDoc.plan === 'lifetime') return true;
+
+  const ownerEmail = import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() ?? '';
+  const docEmail =
+    typeof userDoc.email === 'string' ? userDoc.email.trim().toLowerCase() : '';
+  const loginEmail = authEmail?.trim().toLowerCase() ?? '';
+  if (ownerEmail && (docEmail === ownerEmail || loginEmail === ownerEmail)) {
+    return true;
+  }
+
   const expiresAt = toDate(userDoc.expiresAt);
   if (!expiresAt) return false;
   return expiresAt.getTime() > Date.now();
@@ -25,8 +37,13 @@ export function isTrialPlan(userDoc: UserSubscriptionDoc | null | undefined): bo
   return userDoc?.plan === 'trial';
 }
 
-export function isExpiredStatus(userDoc: UserSubscriptionDoc | null | undefined): boolean {
-  return userDoc?.subscriptionStatus === 'expired' || !hasPremiumAccess(userDoc);
+export function isExpiredStatus(
+  userDoc: UserSubscriptionDoc | null | undefined,
+  authEmail?: string | null,
+): boolean {
+  return (
+    userDoc?.subscriptionStatus === 'expired' || !hasPremiumAccess(userDoc, authEmail)
+  );
 }
 
 export function getDaysRemaining(userDoc: UserSubscriptionDoc | null | undefined): number | null {
@@ -58,10 +75,12 @@ export function getTrialDaysRemaining(
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
-export function canCreateTransactions(userDoc: UserSubscriptionDoc | null | undefined): boolean {
+export function canCreateTransactions(
+  userDoc: UserSubscriptionDoc | null | undefined,
+  authEmail?: string | null,
+): boolean {
   if (!userDoc) return false;
-  if (hasPremiumAccess(userDoc)) return true;
-  return false;
+  return hasPremiumAccess(userDoc, authEmail);
 }
 
 export function buildTrialFields(now = new Date()) {
