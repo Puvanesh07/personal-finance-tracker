@@ -1,12 +1,15 @@
-import * as admin from 'firebase-admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 
-let _db: FirebaseFirestore.Firestore | null = null;
+let _db: Firestore | null = null;
 
-export function getDb(): FirebaseFirestore.Firestore {
+export function getDb(): Firestore {
   if (!_db) {
-    if (!admin.apps.length) admin.initializeApp();
-    _db = admin.firestore();
+    if (getApps().length === 0) {
+      initializeApp();
+    }
+    _db = getFirestore();
   }
   return _db;
 }
@@ -151,20 +154,22 @@ export async function activatePaidPlan(
   });
 }
 
-export async function grantPremiumAccess(uid: string): Promise<void> {
-  await getDb().collection('users').doc(uid).set(
-    {
-      plan: 'lifetime',
-      subscriptionStatus: 'active',
-      premiumGranted: true,
-      expiresAt: null,
-      gracePeriodEnd: null,
-      trialEnd: null,
-      paymentId: null,
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true },
-  );
+export async function grantPremiumAccess(uid: string, email?: string | null): Promise<void> {
+  const payload: Record<string, unknown> = {
+    plan: 'lifetime',
+    subscriptionStatus: 'active',
+    premiumGranted: true,
+    expiresAt: null,
+    gracePeriodEnd: null,
+    trialEnd: null,
+    paymentId: null,
+    updatedAt: Timestamp.now(),
+  };
+  if (email) {
+    payload.email = email.trim().toLowerCase();
+  }
+
+  await getDb().collection('users').doc(uid).set(payload, { merge: true });
 
   await createSubscriptionNotification(uid, {
     title: 'Premium access activated',
@@ -211,15 +216,33 @@ export async function resetUserToTrial(uid: string): Promise<void> {
 
 export async function findUidByEmail(email: string): Promise<string> {
   const normalized = email.trim().toLowerCase();
+
+  // Prefer Firebase Auth — works even if Firestore email field is missing/mismatched.
+  try {
+    if (getApps().length === 0) initializeApp();
+    const authUser = await getAuth().getUserByEmail(normalized);
+    return authUser.uid;
+  } catch {
+    // Fall through to Firestore lookup
+  }
+
   const snap = await getDb()
     .collection('users')
     .where('email', '==', normalized)
     .limit(1)
     .get();
 
-  if (snap.empty) {
-    throw new Error(`No user found for email: ${normalized}`);
+  if (!snap.empty) {
+    return snap.docs[0].id;
   }
 
-  return snap.docs[0].id;
+  // Case-insensitive scan (legacy docs may store mixed-case emails)
+  const all = await getDb().collection('users').select('email').get();
+  const match = all.docs.find((d) => {
+    const e = d.data()?.email;
+    return typeof e === 'string' && e.trim().toLowerCase() === normalized;
+  });
+  if (match) return match.id;
+
+  throw new Error(`No user found for email: ${normalized}`);
 }

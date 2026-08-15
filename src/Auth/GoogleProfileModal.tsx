@@ -61,7 +61,7 @@ export default function GoogleProfileModal({
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: user.displayName || '',
-        email: user.email || '',
+        email: (user.email || '').trim().toLowerCase(),
         phone: cleaned,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

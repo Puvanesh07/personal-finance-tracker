@@ -16,23 +16,29 @@ export function toDate(
 export const OWNER_EMAIL =
   import.meta.env.VITE_OWNER_EMAIL?.trim().toLowerCase() || 'puvanesh1964@gmail.com';
 
+function isOwnerEmail(authEmail?: string | null, docEmail?: string | null): boolean {
+  const login = authEmail?.trim().toLowerCase() ?? '';
+  const doc = docEmail?.trim().toLowerCase() ?? '';
+  return login === OWNER_EMAIL || doc === OWNER_EMAIL;
+}
+
 export function hasPremiumAccess(
   userDoc: UserSubscriptionDoc | null | undefined,
   authEmail?: string | null,
 ): boolean {
+  // Owner always has full access — even before the Firestore profile loads.
+  if (isOwnerEmail(authEmail, typeof userDoc?.email === 'string' ? userDoc.email : null)) {
+    return true;
+  }
+
   if (!userDoc) return false;
   if (userDoc.premiumGranted === true) return true;
   if (userDoc.plan === 'lifetime') return true;
 
-  const docEmail =
-    typeof userDoc.email === 'string' ? userDoc.email.trim().toLowerCase() : '';
-  const loginEmail = authEmail?.trim().toLowerCase() ?? '';
-  if (docEmail === OWNER_EMAIL || loginEmail === OWNER_EMAIL) {
-    return true;
-  }
-
+  // Active trial or paid plan with a future expiry = full premium access
   const expiresAt = toDate(userDoc.expiresAt);
   if (!expiresAt) return false;
+  if (userDoc.subscriptionStatus === 'expired') return false;
   return expiresAt.getTime() > Date.now();
 }
 
@@ -44,9 +50,14 @@ export function isExpiredStatus(
   userDoc: UserSubscriptionDoc | null | undefined,
   authEmail?: string | null,
 ): boolean {
-  // Premium / owner access always wins over a stale "expired" status field.
   if (hasPremiumAccess(userDoc, authEmail)) return false;
-  return userDoc?.subscriptionStatus === 'expired';
+  if (!userDoc) return false;
+  if (userDoc.subscriptionStatus === 'expired') return true;
+  const expiresAt = toDate(userDoc.expiresAt);
+  if (expiresAt && expiresAt.getTime() <= Date.now() && userDoc.plan === 'trial') {
+    return true;
+  }
+  return false;
 }
 
 export function getDaysRemaining(userDoc: UserSubscriptionDoc | null | undefined): number | null {

@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import {
   initializeTrialIfMissing,
@@ -29,10 +30,11 @@ import {
   toDate,
 } from '../utils/subscriptionUtils';
 
-async function ensureOwnerPremiumInFirestore(uid: string) {
+async function ensureOwnerPremiumInFirestore(uid: string, email: string) {
   await setDoc(
     doc(db, 'users', uid),
     {
+      email: email.trim().toLowerCase(),
       plan: 'lifetime',
       subscriptionStatus: 'active',
       premiumGranted: true,
@@ -70,10 +72,26 @@ function mapUserDoc(data: Record<string, unknown> | null): UserSubscriptionDoc |
 }
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
+  const [uid, setUid] = useState<string | null>(auth.currentUser?.uid ?? null);
+  const [authEmail, setAuthEmail] = useState<string | null>(
+    auth.currentUser?.email ?? null,
+  );
   const [userSubscription, setUserSubscription] = useState<UserSubscriptionDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<SubscriptionNotification[]>([]);
   const [upgradeModalDismissed, setUpgradeModalDismissed] = useState(false);
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      setUid(user?.uid ?? null);
+      setAuthEmail(user?.email ?? null);
+      if (!user) {
+        setUserSubscription(null);
+        setNotifications([]);
+        setLoading(false);
+      }
+    });
+  }, []);
 
   const refreshSubscription = useCallback(async () => {
     const user = auth.currentUser;
@@ -81,16 +99,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     const email = user.email?.trim().toLowerCase() ?? '';
     const isOwner = email === OWNER_EMAIL;
     try {
-      // Server Admin SDK grant first (works even if client Firestore rules fail).
       await initializeTrialIfMissing();
       if (isOwner) {
-        await ensureOwnerPremiumInFirestore(user.uid);
+        await ensureOwnerPremiumInFirestore(user.uid, email);
       }
     } catch (err) {
       console.warn('[Subscription] refresh failed:', err);
       if (isOwner) {
         try {
-          await ensureOwnerPremiumInFirestore(user.uid);
+          await ensureOwnerPremiumInFirestore(user.uid, email);
         } catch (inner) {
           console.warn('[Subscription] owner self-grant failed:', inner);
         }
@@ -99,7 +116,6 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
     if (!uid) {
       setUserSubscription(null);
       setNotifications([]);
@@ -117,18 +133,20 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         setUserSubscription(mapped);
         setLoading(false);
 
-        if (!initialized && mapped) {
+        if (!initialized) {
           initialized = true;
           const email =
-            mapped.email?.toString().trim().toLowerCase() ||
+            mapped?.email?.toString().trim().toLowerCase() ||
             auth.currentUser?.email?.trim().toLowerCase() ||
             '';
           const needsOwnerGrant =
             email === OWNER_EMAIL &&
-            (mapped.premiumGranted !== true ||
+            (!mapped ||
+              mapped.premiumGranted !== true ||
               mapped.plan !== 'lifetime' ||
               mapped.subscriptionStatus === 'expired');
-          if (!mapped.plan || mapped.premiumGranted === undefined || needsOwnerGrant) {
+          const needsTrialInit = !mapped || !mapped.plan || mapped.premiumGranted === undefined;
+          if (needsTrialInit || needsOwnerGrant) {
             await refreshSubscription();
           }
         }
@@ -142,9 +160,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       unsubUser();
       unsubNotifs();
     };
-  }, [refreshSubscription]);
+  }, [uid, refreshSubscription]);
 
-  const authEmail = auth.currentUser?.email ?? null;
   const premium = hasPremiumAccess(userSubscription, authEmail);
   const expired = isExpiredStatus(userSubscription, authEmail);
   const trial = isTrialPlan(userSubscription);

@@ -9,6 +9,7 @@ import { DashboardAgriSummary } from '../../components/dashboard/DashboardAgriSu
 import { DashboardCashflowSummary } from '../../components/dashboard/DashboardCashflowSummary';
 import { DashboardPaymentsSummary } from '../../components/dashboard/DashboardPaymentsSummary';
 import { DashboardSkeleton } from '../../components/loader/skeletons';
+import { DashboardSubscriptionBanner } from '../../components/dashboard/DashboardSubscriptionBanner';
 import { DashboardTopHoldingsInsights } from '../../components/dashboard/DashboardTopHoldingsInsights';
 import { GoalsEssentialsSummary } from '../../components/dashboard/GoalsEssentialsSummary';
 import { GrowthChart } from '../../components/dashboard/GrowthChart';
@@ -63,6 +64,8 @@ export function DashboardPage() {
           </div>
         </div>
       </header>
+
+      <DashboardSubscriptionBanner />
 
       <section className='grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3'>
         {QUICK_ACTIONS.map((action) => (

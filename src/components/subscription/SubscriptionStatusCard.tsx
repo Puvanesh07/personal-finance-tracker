@@ -1,4 +1,4 @@
-import { FiCreditCard, FiLoader, FiRefreshCw, FiShield, FiZap } from 'react-icons/fi';
+import { FiAlertTriangle, FiCreditCard, FiLoader, FiRefreshCw, FiShield, FiZap } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import {
 } from '../../context/SubscriptionContext';
 import { auth } from '../../services/firebase';
 import { adminManageSubscription, restorePurchase } from '../../services/subscriptionService';
+import { GRACE_PERIOD_DAYS, TRIAL_DAYS } from '../../types/subscription';
 import { OWNER_EMAIL, formatPlanLabel } from '../../utils/subscriptionUtils';
 
 const ownerEmail = OWNER_EMAIL;
@@ -19,6 +20,7 @@ export function SubscriptionStatusCard() {
     hasPremiumAccess,
     daysRemaining,
     graceDaysRemaining,
+    trialDaysRemaining,
     isTrial,
     isExpired,
     refreshSubscription,
@@ -30,6 +32,7 @@ export function SubscriptionStatusCard() {
   const currentEmail = auth.currentUser?.email?.trim().toLowerCase() ?? '';
   const isOwner = Boolean(ownerEmail && currentEmail === ownerEmail);
   const isGranted = userSubscription?.premiumGranted === true;
+  const isLifetime = userSubscription?.plan === 'lifetime' || isGranted || isOwner;
 
   const handleRestore = async () => {
     setRestoring(true);
@@ -81,6 +84,15 @@ export function SubscriptionStatusCard() {
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      await refreshSubscription();
+      toast.success('Subscription refreshed');
+    } catch {
+      toast.error('Could not refresh subscription');
+    }
+  };
+
   if (loading) {
     return (
       <div className='rounded-2xl border border-slate-200 bg-slate-100 p-6 animate-pulse dark:border-slate-800 dark:bg-slate-900/60'>
@@ -89,26 +101,45 @@ export function SubscriptionStatusCard() {
     );
   }
 
-  const statusLabel = hasPremiumAccess
+  const statusLabel = isOwner || isGranted || isLifetime
     ? 'Active'
     : isExpired
       ? 'Expired'
-      : userSubscription?.subscriptionStatus ?? 'Unknown';
+      : isTrial && hasPremiumAccess
+        ? 'Trial active'
+        : hasPremiumAccess
+          ? 'Active'
+          : userSubscription?.subscriptionStatus ?? 'Unknown';
 
-  const statusColor = hasPremiumAccess
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : 'text-rose-500';
+  const statusColor =
+    hasPremiumAccess || isOwner
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-rose-500';
+
+  const planLabel = isOwner || isGranted
+    ? 'Lifetime (Owner)'
+    : formatPlanLabel(userSubscription?.plan);
 
   return (
     <div className='rounded-2xl border border-slate-200 bg-slate-100 p-6 dark:border-slate-800 dark:bg-slate-900/60'>
-      <div className='mb-5 flex items-center gap-3'>
-        <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500'>
-          <FiCreditCard className='h-5 w-5' />
+      <div className='mb-5 flex items-center justify-between gap-3'>
+        <div className='flex items-center gap-3'>
+          <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500'>
+            <FiCreditCard className='h-5 w-5' />
+          </div>
+          <div>
+            <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Subscription</h2>
+            <p className='text-xs text-slate-500'>Plan, trial, and account deletion details</p>
+          </div>
         </div>
-        <div>
-          <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Subscription</h2>
-          <p className='text-xs text-slate-500'>Manage your FinTrackly plan</p>
-        </div>
+        <button
+          type='button'
+          onClick={handleRefresh}
+          className='inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+        >
+          <FiRefreshCw className='h-3.5 w-3.5' />
+          Refresh
+        </button>
       </div>
 
       <dl className='grid gap-3 sm:grid-cols-2'>
@@ -116,63 +147,134 @@ export function SubscriptionStatusCard() {
           <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
             Current Plan
           </dt>
-          <dd className='mt-1 text-sm font-bold text-slate-900 dark:text-slate-100'>
-            {formatPlanLabel(userSubscription?.plan)}
-          </dd>
+          <dd className='mt-1 text-sm font-bold text-slate-900 dark:text-slate-100'>{planLabel}</dd>
         </div>
         <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
           <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>Status</dt>
           <dd className={`mt-1 text-sm font-bold capitalize ${statusColor}`}>{statusLabel}</dd>
         </div>
-        {isGranted && (
+
+        {(isGranted || isOwner) && (
           <div className='rounded-xl bg-violet-500/10 px-4 py-3 sm:col-span-2'>
             <dt className='text-[11px] font-bold uppercase tracking-wider text-violet-600'>
               Complimentary access
             </dt>
             <dd className='mt-1 text-sm font-semibold text-violet-700 dark:text-violet-300'>
-              Premium granted by owner — no payment required
+              Lifetime premium — no payment required
             </dd>
           </div>
         )}
-        {isTrial && (
+
+        {isTrial && !isLifetime && (
+          <>
+            <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
+              <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+                Trial start
+              </dt>
+              <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
+                {formatSubscriptionDate(userSubscription?.trialStart ?? null)}
+              </dd>
+            </div>
+            <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
+              <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+                Trial end
+              </dt>
+              <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
+                {formatSubscriptionDate(userSubscription?.trialEnd ?? null)}
+              </dd>
+            </div>
+            <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
+              <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+                Trial days left
+              </dt>
+              <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
+                {trialDaysRemaining ?? daysRemaining ?? '—'} / {TRIAL_DAYS}
+              </dd>
+            </div>
+            <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
+              <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
+                Data deletion date
+              </dt>
+              <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
+                {formatSubscriptionDate(userSubscription?.gracePeriodEnd ?? null)}
+              </dd>
+            </div>
+            <div className='rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 sm:col-span-2'>
+              <dt className='flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400'>
+                <FiAlertTriangle className='h-3.5 w-3.5' />
+                After trial
+              </dt>
+              <dd className='mt-1 text-sm text-amber-800 dark:text-amber-200'>
+                If you do not upgrade, premium features lock after the trial. Your account data is
+                then scheduled for deletion {GRACE_PERIOD_DAYS} days after trial end (
+                {formatSubscriptionDate(userSubscription?.gracePeriodEnd ?? null)}).
+              </dd>
+            </div>
+          </>
+        )}
+
+        {!isTrial && !isLifetime && (
           <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
             <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
-              Trial End Date
+              Expiry date
             </dt>
             <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
-              {formatSubscriptionDate(userSubscription?.trialEnd ?? null)}
+              {formatSubscriptionDate(userSubscription?.expiresAt ?? null)}
             </dd>
           </div>
         )}
-        <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
-          <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
-            {userSubscription?.plan === 'lifetime' || isGranted ? 'Access' : 'Expiry Date'}
-          </dt>
-          <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
-            {userSubscription?.plan === 'lifetime' || isGranted
-              ? 'Never expires'
-              : formatSubscriptionDate(userSubscription?.expiresAt ?? null)}
-          </dd>
-        </div>
-        {daysRemaining !== null && userSubscription?.plan !== 'lifetime' && !isGranted && (
+
+        {isLifetime && (
+          <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
+            <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>Access</dt>
+            <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
+              Never expires
+            </dd>
+          </div>
+        )}
+
+        {daysRemaining !== null && !isLifetime && !isTrial && (
           <div className='rounded-xl bg-white/70 px-4 py-3 dark:bg-slate-800/50'>
             <dt className='text-[11px] font-bold uppercase tracking-wider text-slate-500'>
-              Days Remaining
+              Days remaining
             </dt>
             <dd className='mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100'>
               {daysRemaining}
             </dd>
           </div>
         )}
-        {isExpired && graceDaysRemaining !== null && (
-          <div className='rounded-xl bg-rose-500/10 px-4 py-3'>
-            <dt className='text-[11px] font-bold uppercase tracking-wider text-rose-500'>
-              Data Deletion In
-            </dt>
-            <dd className='mt-1 text-sm font-bold text-rose-600 dark:text-rose-300'>
-              {graceDaysRemaining} day{graceDaysRemaining === 1 ? '' : 's'}
-            </dd>
-          </div>
+
+        {isExpired && (
+          <>
+            <div className='rounded-xl bg-rose-500/10 px-4 py-3'>
+              <dt className='text-[11px] font-bold uppercase tracking-wider text-rose-500'>
+                Data deletion in
+              </dt>
+              <dd className='mt-1 text-sm font-bold text-rose-600 dark:text-rose-300'>
+                {graceDaysRemaining ?? '—'} day
+                {(graceDaysRemaining ?? 0) === 1 ? '' : 's'}
+              </dd>
+            </div>
+            <div className='rounded-xl bg-rose-500/10 px-4 py-3'>
+              <dt className='text-[11px] font-bold uppercase tracking-wider text-rose-500'>
+                Deletion date
+              </dt>
+              <dd className='mt-1 text-sm font-bold text-rose-600 dark:text-rose-300'>
+                {formatSubscriptionDate(userSubscription?.gracePeriodEnd ?? null)}
+              </dd>
+            </div>
+            <div className='rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 sm:col-span-2'>
+              <dt className='flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-rose-600'>
+                <FiAlertTriangle className='h-3.5 w-3.5' />
+                Account deletion warning
+              </dt>
+              <dd className='mt-1 text-sm text-rose-700 dark:text-rose-200'>
+                Premium features are locked. Subscribe before{' '}
+                {formatSubscriptionDate(userSubscription?.gracePeriodEnd ?? null)} to keep your
+                data. Unpaid accounts are deleted after the {GRACE_PERIOD_DAYS}-day grace period.
+              </dd>
+            </div>
+          </>
         )}
       </dl>
 
@@ -184,6 +286,15 @@ export function SubscriptionStatusCard() {
           >
             <FiZap className='h-4 w-4' />
             Upgrade
+          </Link>
+        )}
+        {isTrial && hasPremiumAccess && !isOwner && (
+          <Link
+            to='/pricing'
+            className='inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-bold text-white'
+          >
+            <FiZap className='h-4 w-4' />
+            Upgrade plan
           </Link>
         )}
         <button

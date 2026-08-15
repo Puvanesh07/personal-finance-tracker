@@ -1,3 +1,4 @@
+import { initializeApp, getApps } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -26,6 +27,11 @@ import {
   isRazorpayTestMode,
   initiateUpiCollectPayment,
 } from './razorpay';
+
+// Ensure Admin SDK is ready before any callable runs.
+if (getApps().length === 0) {
+  initializeApp();
+}
 
 // Load root .env when running in the Functions emulator
 if (process.env.FUNCTIONS_EMULATOR === 'true') {
@@ -80,16 +86,59 @@ export const initializeTrialIfMissing = onCall(
     const ownerEmail = getOwnerEmail();
     const ref = getDb().collection('users').doc(uid);
     const snap = await ref.get();
+    const data = snap.exists ? (snap.data() ?? {}) : {};
+
+    // Create a minimal profile if the Firestore doc is missing (common for older accounts).
     if (!snap.exists) {
-      throw new HttpsError('not-found', 'User profile not found');
+      if (ownerEmail && callerEmail === ownerEmail) {
+        await grantPremiumAccess(uid, callerEmail);
+        await ref.set(
+          {
+            uid,
+            email: callerEmail,
+            name: (request.auth.token?.name as string) || '',
+            createdAt: Timestamp.now(),
+          },
+          { merge: true },
+        );
+        return { initialized: true, synced: true, ownerGranted: true };
+      }
+
+      const trial = buildTrialFields();
+      await ref.set(
+        {
+          uid,
+          email: callerEmail,
+          name: (request.auth.token?.name as string) || '',
+          ...trial,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true },
+      );
+      await createSubscriptionNotification(uid, {
+        title: 'Welcome to FinTrackly!',
+        message: 'Your 7-day free trial has started. Enjoy all premium features.',
+        type: 'success',
+      });
+      return { initialized: true, synced: true };
     }
 
-    const data = snap.data() ?? {};
-
     // Owner account always gets complimentary lifetime premium
-    if (ownerEmail && callerEmail === ownerEmail && data.premiumGranted !== true) {
-      await grantPremiumAccess(uid);
-      return { initialized: false, synced: true, ownerGranted: true };
+    if (ownerEmail && callerEmail === ownerEmail) {
+      if (
+        data.premiumGranted !== true ||
+        data.plan !== 'lifetime' ||
+        data.subscriptionStatus !== 'active'
+      ) {
+        await grantPremiumAccess(uid, callerEmail);
+        return { initialized: false, synced: true, ownerGranted: true };
+      }
+      // Keep email normalized on the profile for admin lookups
+      if (typeof data.email !== 'string' || data.email.toLowerCase() !== callerEmail) {
+        await ref.set({ email: callerEmail, updatedAt: Timestamp.now() }, { merge: true });
+      }
+      return { initialized: false, synced: false, ownerGranted: true };
     }
 
     const updates: Record<string, unknown> = {};
@@ -98,6 +147,10 @@ export const initializeTrialIfMissing = onCall(
       Object.assign(updates, buildTrialFields());
     } else if (!('premiumGranted' in data)) {
       updates.premiumGranted = false;
+    }
+
+    if (callerEmail && (!data.email || String(data.email).toLowerCase() !== callerEmail)) {
+      updates.email = callerEmail;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -336,7 +389,7 @@ export const adminManageSubscription = onCall(
       }
 
       if (enabled) {
-        await grantPremiumAccess(uid);
+        await grantPremiumAccess(uid, email.trim().toLowerCase());
       } else {
         await revokePremiumAccess(uid);
       }
@@ -355,13 +408,14 @@ export const adminManageSubscription = onCall(
 );
 
 export const verifyRazorpayPayment = onCall(
-  { ...callableOptions, secrets: razorpaySecrets },
+  { ...callableOptions, secrets: [...razorpaySecrets, ...ownerSecrets] },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Authentication required');
     }
 
     const uid = request.auth.uid;
+    const callerEmail = request.auth.token?.email?.trim().toLowerCase() ?? '';
     const {
       razorpay_order_id: orderId,
       razorpay_payment_id: paymentId,
@@ -376,25 +430,42 @@ export const verifyRazorpayPayment = onCall(
       throw new HttpsError('invalid-argument', 'Invalid plan');
     }
 
-    const valid = verifyPaymentSignature(orderId, paymentId, signature);
-    if (!valid) {
-      throw new HttpsError('permission-denied', 'Invalid payment signature');
-    }
+    try {
+      const valid = verifyPaymentSignature(orderId, paymentId, signature);
+      if (!valid) {
+        throw new HttpsError('permission-denied', 'Invalid payment signature');
+      }
 
-    const payment = await fetchPayment(paymentId);
-    if (payment.method !== 'upi') {
+      const payment = await fetchPayment(paymentId);
+      const method = String(payment.method ?? '');
+      // Standard Checkout may complete via UPI, card, or netbanking
+      if (!['upi', 'card', 'netbanking'].includes(method)) {
+        throw new HttpsError(
+          'failed-precondition',
+          `Unsupported payment method: ${method || 'unknown'}`,
+        );
+      }
+      if (payment.status !== 'captured' && payment.status !== 'authorized') {
+        throw new HttpsError('failed-precondition', 'Payment not completed');
+      }
+
+      const ownerEmail = getOwnerEmail();
+      // Owner always keeps complimentary lifetime even after a paid checkout
+      if (ownerEmail && callerEmail === ownerEmail) {
+        await grantPremiumAccess(uid, callerEmail);
+        return { success: true, plan: 'lifetime', ownerGranted: true };
+      }
+
+      await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
+      return { success: true, plan };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error('verifyRazorpayPayment failed', err);
       throw new HttpsError(
-        'failed-precondition',
-        'Only UPI payments are accepted',
+        'internal',
+        err instanceof Error ? err.message : 'Payment verification failed',
       );
     }
-    if (payment.status !== 'captured' && payment.status !== 'authorized') {
-      throw new HttpsError('failed-precondition', 'Payment not completed');
-    }
-
-    await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
-
-    return { success: true, plan };
   },
 );
 

@@ -1,22 +1,26 @@
 import { FiX, FiZap } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { auth } from '../../services/firebase';
 import { useSubscription } from '../../context/SubscriptionContext';
+import { OWNER_EMAIL } from '../../utils/subscriptionUtils';
 
-type ModalCase = 'three_days' | 'one_day' | 'expired' | null;
+type ModalCase = 'trial_welcome' | 'expired' | null;
 
-const SESSION_KEY = 'fintrackly-upgrade-modal-dismissed';
+function storageKey(uid: string, kind: 'trial' | 'expired') {
+  return `fintrackly-upgrade-modal-${kind}-${uid}`;
+}
 
 function getModalCase(
   isTrial: boolean,
   hasPremiumAccess: boolean,
   isExpired: boolean,
-  trialDaysRemaining: number | null,
+  authEmail: string | null,
 ): ModalCase {
+  const email = authEmail?.trim().toLowerCase() ?? '';
+  if (email === OWNER_EMAIL) return null;
+  if (hasPremiumAccess && isTrial) return 'trial_welcome';
   if (isExpired || (!hasPremiumAccess && !isTrial)) return 'expired';
-  if (!isTrial || !hasPremiumAccess || trialDaysRemaining === null) return null;
-  if (trialDaysRemaining === 3) return 'three_days';
-  if (trialDaysRemaining === 1) return 'one_day';
   return null;
 }
 
@@ -24,17 +28,12 @@ const COPY: Record<
   Exclude<ModalCase, null>,
   { title: string; message: string; primary: string; secondary: string }
 > = {
-  three_days: {
-    title: 'Your free trial ends in 3 days',
-    message: 'Subscribe now to continue using premium features without interruption.',
+  trial_welcome: {
+    title: 'Your 7-day free trial is active',
+    message:
+      'You have full access to all premium features during the trial. Upgrade anytime to keep access after the trial ends. After expiry, unpaid accounts are scheduled for data deletion in 30 days.',
     primary: 'Upgrade Now',
-    secondary: 'Later',
-  },
-  one_day: {
-    title: 'Trial ends tomorrow',
-    message: 'Upgrade today to avoid feature lock.',
-    primary: 'Upgrade Now',
-    secondary: 'Remind Me Later',
+    secondary: 'Continue with Free Trial',
   },
   expired: {
     title: 'Trial expired',
@@ -51,34 +50,54 @@ export function UpgradeModal() {
     isTrial,
     hasPremiumAccess,
     isExpired,
-    trialDaysRemaining,
     upgradeModalDismissed,
     dismissUpgradeModalForSession,
   } = useSubscription();
 
   const [open, setOpen] = useState(false);
-  const modalCase = getModalCase(isTrial, hasPremiumAccess, isExpired, trialDaysRemaining);
+  const authEmail = auth.currentUser?.email ?? null;
+  const uid = auth.currentUser?.uid ?? '';
+  const modalCase = getModalCase(isTrial, hasPremiumAccess, isExpired, authEmail);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !modalCase || !uid) {
+      setOpen(false);
+      return;
+    }
 
-    const sessionDismissed = sessionStorage.getItem(SESSION_KEY) === '1';
-    if (modalCase === 'expired') {
+    // Trial welcome: show once per account (survives refresh)
+    if (modalCase === 'trial_welcome') {
+      if (localStorage.getItem(storageKey(uid, 'trial')) === '1') {
+        setOpen(false);
+        return;
+      }
+      if (upgradeModalDismissed) {
+        setOpen(false);
+        return;
+      }
       setOpen(true);
       return;
     }
-    if (upgradeModalDismissed || sessionDismissed) return;
-    if (modalCase) setOpen(true);
-  }, [loading, modalCase, upgradeModalDismissed]);
+
+    // Expired: show until they subscribe (can dismiss for this browser tab session)
+    if (sessionStorage.getItem(storageKey(uid, 'expired')) === '1') {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+  }, [loading, modalCase, upgradeModalDismissed, uid]);
 
   if (!open || !modalCase) return null;
 
   const copy = COPY[modalCase];
 
   const handleDismiss = () => {
-    if (modalCase !== 'expired') {
-      sessionStorage.setItem(SESSION_KEY, '1');
+    if (modalCase === 'trial_welcome' && uid) {
+      localStorage.setItem(storageKey(uid, 'trial'), '1');
       dismissUpgradeModalForSession();
+    }
+    if (modalCase === 'expired' && uid) {
+      sessionStorage.setItem(storageKey(uid, 'expired'), '1');
     }
     setOpen(false);
   };
@@ -90,15 +109,14 @@ export function UpgradeModal() {
           <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500'>
             <FiZap className='h-6 w-6' />
           </div>
-          {modalCase !== 'expired' && (
-            <button
-              type='button'
-              onClick={handleDismiss}
-              className='rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-            >
-              <FiX className='h-4 w-4' />
-            </button>
-          )}
+          <button
+            type='button'
+            onClick={handleDismiss}
+            className='rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+            aria-label='Close'
+          >
+            <FiX className='h-4 w-4' />
+          </button>
         </div>
 
         <h2 className='mt-4 text-xl font-black text-slate-900 dark:text-white'>{copy.title}</h2>
@@ -109,7 +127,7 @@ export function UpgradeModal() {
         <div className='mt-6 flex flex-col gap-2 sm:flex-row'>
           <Link
             to='/pricing'
-            onClick={() => setOpen(false)}
+            onClick={handleDismiss}
             className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-bold text-white'
           >
             <FiZap className='h-4 w-4' />
