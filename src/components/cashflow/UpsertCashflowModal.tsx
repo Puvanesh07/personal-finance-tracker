@@ -46,7 +46,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Default Categories (FinBoom-style complete list) ──────────────────────
 
-const DEFAULT_EXPENSE_CATEGORIES = [
+export const DEFAULT_EXPENSE_CATEGORIES = [
   { key: 'Housing & Rent', icon: '🏠' },
   { key: 'Food & Dining', icon: '🍽️' },
   { key: 'Groceries', icon: '🛒' },
@@ -73,7 +73,7 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   { key: 'Other Expense', icon: '📦' },
 ];
 
-const DEFAULT_INCOME_CATEGORIES = [
+export const DEFAULT_INCOME_CATEGORIES = [
   { key: 'Salary', icon: '💼' },
   { key: 'Business', icon: '🏢' },
   { key: 'Freelance', icon: '💻' },
@@ -417,7 +417,9 @@ function CategoryDropdown({
               </span>
             </>
           ) : (
-            <span className='text-slate-900 dark:text-slate-500'>Select a category</span>
+            <span className='text-slate-900 dark:text-slate-500'>
+              Select a category
+            </span>
           )}
         </div>
         <FiChevronDown

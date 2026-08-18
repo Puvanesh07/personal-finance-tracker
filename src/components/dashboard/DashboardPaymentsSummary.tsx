@@ -39,7 +39,7 @@ export function DashboardPaymentsSummary() {
         <div>
           <p className='text-xs font-medium text-slate-500 mb-1'>Upcoming</p>
           <p className='text-sm font-semibold text-amber-400'>
-            {stats.upcoming.length} in 14 days
+            {stats.upcoming.length}
           </p>
         </div>
         <div>

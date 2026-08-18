@@ -26,6 +26,7 @@ import {
   FiTrash2,
   FiTrendingDown,
   FiTrendingUp,
+  FiUpload,
 } from 'react-icons/fi';
 import {
   addMonths,
@@ -41,23 +42,27 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
+import {
+  ensureCsvExtension,
+  expandExportFilenamePattern,
+} from '../../utils/exportFilename';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { AsyncButton } from '../../components/ui/AsyncButton';
 import type { CashflowEntry } from '../../types/investmentTypes';
 import { CashflowSkeleton } from '../../components/loader/skeletons';
+import { ImportCashflowModal } from '../../components/cashflow/ImportCashflowModal';
 import { Modal } from '../../components/ui/Modal';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
 import { buildCashflowAdvancedInsights } from '../../utils/advancedInsights';
 import { createPortal } from 'react-dom';
-import { formatINR } from '../../utils/format';
-import { expandExportFilenamePattern, ensureCsvExtension } from '../../utils/exportFilename';
 import { exportCashflowsCSV } from '../../utils/exportUtils';
+import { formatINR } from '../../utils/format';
+import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useExportPresetsStore } from '../../store/exportPresetsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
-import { AsyncButton } from '../../components/ui/AsyncButton';
 
 // import LendingDashboard from './LendingDashboard'; // NEW import for lending tab
 
@@ -867,6 +872,7 @@ export function CashflowPage() {
     return format(endOfMonth(new Date()), 'yyyy-MM-dd');
   });
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [edit, setEdit] = useState<CashflowEntry | null>(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -1070,7 +1076,9 @@ export function CashflowPage() {
       'cashflow-selection-{date}';
     const fn = ensureCsvExtension(expandExportFilenamePattern(pattern));
     exportCashflowsCSV(rows, accounts, fn);
-    useExportPresetsStore.getState().rememberFilename('cashflow-bulk-csv', pattern);
+    useExportPresetsStore
+      .getState()
+      .rememberFilename('cashflow-bulk-csv', pattern);
   };
 
   if (!ready) return <CashflowSkeleton />;
@@ -1115,6 +1123,15 @@ export function CashflowPage() {
           <div className='flex flex-wrap items-center gap-3'>
             <button
               {...premiumActionProps}
+              className='flex items-center gap-2 cursor-pointer rounded-xl border border-emerald-200/80 bg-white/50 px-4 py-2.5 text-sm font-semibold text-emerald-700 backdrop-blur-sm transition-all hover:bg-emerald-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20'
+              onClick={() => setImportOpen(true)}
+              type='button'
+            >
+              <FiUpload className='h-4 w-4' />
+              <span>Import CSV/Excel</span>
+            </button>
+            <button
+              {...premiumActionProps}
               className='group relative flex items-center gap-2 cursor-pointer overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
               onClick={() => setOpen(true)}
               type='button'
@@ -1128,28 +1145,42 @@ export function CashflowPage() {
 
         <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
           <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Savings rate</p>
-            <p className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+              Savings rate
+            </p>
+            <p
+              className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+            >
               {advanced.savingsRate.toFixed(1)}%
             </p>
-          <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-            {advanced.savingsRate >= 25 ? 'Strong' : advanced.savingsRate >= 10 ? 'Watch' : 'Risk'}
-          </p>
+            <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+              {advanced.savingsRate >= 25
+                ? 'Strong'
+                : advanced.savingsRate >= 10
+                  ? 'Watch'
+                  : 'Risk'}
+            </p>
           </div>
           <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Burn rate / month</p>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+              Burn rate / month
+            </p>
             <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
               {formatINR(advanced.burnRateMonthly)}
             </p>
           </div>
           <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Top expense category</p>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+              Top expense category
+            </p>
             <p className='mt-1 text-sm font-black text-slate-900 dark:text-slate-100'>
               {advanced.topExpenseCategory}
             </p>
           </div>
           <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Top expense amount</p>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+              Top expense amount
+            </p>
             <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
               {formatINR(advanced.topExpenseAmount)}
             </p>
@@ -1713,6 +1744,10 @@ export function CashflowPage() {
           open={open}
           onClose={() => setOpen(false)}
           mode='create'
+        />
+        <ImportCashflowModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
         />
         {edit && (
           <UpsertCashflowModal
