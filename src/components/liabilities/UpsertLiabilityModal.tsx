@@ -157,7 +157,7 @@ export function UpsertLiabilityModal(props: Props) {
   };
 
   const inputCls =
-    'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-700 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500';
+    'w-full rounded-xl border border-slate-200/80 bg-white/50 px-4 py-2.5 text-sm font-medium text-slate-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-100 dark:focus:border-emerald-500';
   const labelCls =
     'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block';
 
@@ -252,7 +252,7 @@ export function UpsertLiabilityModal(props: Props) {
                     <button
                       key={opt.id}
                       type='button'
-                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'}`}
                       onClick={() => {
                         set({ type: opt.id as LiabilityType, status: '' });
                         setIsDropdownOpen(false);
@@ -421,7 +421,7 @@ export function UpsertLiabilityModal(props: Props) {
                 className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
                   state.status === opt.value
                     ? opt.cls
-                    : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500 dark:border-slate-700'
+                    : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500 dark:border-slate-700 dark:hover:text-slate-200'
                 }`}
               >
                 {opt.label}

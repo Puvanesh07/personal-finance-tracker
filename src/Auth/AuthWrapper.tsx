@@ -19,6 +19,7 @@ import { googleSignInErrorMessage } from './googleSignIn';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAgriStore } from '../store/agricultureStore';
 import { useAttendanceStore } from '../store/attendanceStore';
+import { useNotificationStore } from '../store/notificationStore';
 
 export default function AuthWrapper({
   children,
@@ -33,6 +34,8 @@ export default function AuthWrapper({
   const resetSession = usePortfolioStore((s) => s.resetSession);
   const clearAgri = useAgriStore((s) => s.clearAll);
   const clearAttendance = useAttendanceStore((s) => s.clearAll);
+  const setNotifScope = useNotificationStore((s) => s.setScope);
+  const clearNotifScope = useNotificationStore((s) => s.clearScope);
 
   const navigate = useNavigate();
   const hasNavigated = useRef(false);
@@ -47,6 +50,10 @@ export default function AuthWrapper({
       if (cancelled) return;
       const isSameUser = activeUid.current === user.uid;
       activeUid.current = user.uid;
+      // Set notification scope FIRST — before adding any notifications,
+      // so addNotification() isn't rejected by the uid guard, and the
+      // persisted bucket for this user is loaded correctly.
+      setNotifScope(user.uid);
       setAuthState('logged-in');
 
       if (isSameUser) return;
@@ -71,6 +78,7 @@ export default function AuthWrapper({
       resetSession();
       clearAgri();
       clearAttendance();
+      clearNotifScope();
       hasNavigated.current = false;
       setAuthState('logged-out');
     };

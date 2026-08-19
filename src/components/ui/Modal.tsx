@@ -37,7 +37,7 @@ export function Modal({
           </header>
 
           {/* ── Scrollable body — max 80vh so it never overflows viewport ── */}
-          <div className='max-h-[80dvh] overflow-y-auto overscroll-contain p-5 sm:p-6'>
+          <div className='max-h-[80dvh] overflow-y-auto overscroll-contain p-5 sm:p-6 text-slate-900 dark:text-slate-100'>
             {children}
           </div>
         </div>

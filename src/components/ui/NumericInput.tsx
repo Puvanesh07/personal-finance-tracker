@@ -22,9 +22,20 @@ function formatWithCommas(raw: string): string {
   if (!raw || raw === '' || raw === '-') return raw;
   const [intPart, ...decParts] = raw.split('.');
   const hasDecimal = raw.includes('.');
-  const intFormatted = intPart
-    ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-    : '';
+  let intFormatted = '';
+  if (intPart) {
+    const isNegative = intPart.startsWith('-');
+    const absInt = isNegative ? intPart.slice(1) : intPart;
+    let formattedAbs: string;
+    if (absInt.length <= 3) {
+      formattedAbs = absInt;
+    } else {
+      const last3 = absInt.slice(-3);
+      const rest = absInt.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+      formattedAbs = rest + ',' + last3;
+    }
+    intFormatted = isNegative ? '-' + formattedAbs : formattedAbs;
+  }
   return hasDecimal ? `${intFormatted}.${decParts.join('.')}` : intFormatted;
 }
 

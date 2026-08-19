@@ -115,6 +115,26 @@ const PaymentFailurePage = lazy(() =>
     default: m.PaymentFailurePage,
   })),
 );
+const PrivacyPolicyPage = lazy(() =>
+  import('./pages/Legal/PrivacyPolicyPage').then((m) => ({
+    default: m.PrivacyPolicyPage,
+  })),
+);
+const TermsPage = lazy(() =>
+  import('./pages/Legal/TermsPage').then((m) => ({
+    default: m.TermsPage,
+  })),
+);
+const FeedbackPage = lazy(() =>
+  import('./pages/Support/FeedbackPage').then((m) => ({
+    default: m.FeedbackPage,
+  })),
+);
+const ContactUsPage = lazy(() =>
+  import('./pages/Support/ContactUsPage').then((m) => ({
+    default: m.ContactUsPage,
+  })),
+);
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -302,6 +322,38 @@ export default function App() {
               element={
                 <Suspense fallback={<AgricultureSkeleton />}>
                   <AttendancePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/privacy'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <PrivacyPolicyPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/terms'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <TermsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/feedback'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <FeedbackPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/contact'
+              element={
+                <Suspense fallback={<SettingsSkeleton />}>
+                  <ContactUsPage />
                 </Suspense>
               }
             />

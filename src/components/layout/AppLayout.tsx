@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 
 import { ALL_NAV_ITEMS, NAV_GROUPS } from '../../navigation/appNav';
 import { CommandPalette } from './CommandPalette';
+import { FeedbackModal } from './FeedbackModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
@@ -278,6 +279,40 @@ export function AppLayout() {
         <div className='mx-auto min-h-full w-full max-w-7xl overflow-x-hidden p-4 pb-28 md:p-6 md:pb-8'>
           <TrialBanner />
           <Outlet />
+
+          <div className='mt-16 md:mt-20 border-t border-slate-200/70 dark:border-slate-800/60 pt-8'>
+            <footer className='flex flex-col md:flex-row md:items-center md:justify-between gap-5 text-sm'>
+              <nav className='flex flex-wrap items-center gap-x-5 gap-y-2 text-slate-500 dark:text-slate-500'>
+                <NavLink
+                  to='/privacy'
+                  className='font-medium hover:text-slate-900 dark:hover:text-slate-300 transition-colors'
+                >
+                  Privacy
+                </NavLink>
+                <NavLink
+                  to='/feedback'
+                  className='font-medium hover:text-slate-900 dark:hover:text-slate-300 transition-colors'
+                >
+                  Support
+                </NavLink>
+                <NavLink
+                  to='/contact'
+                  className='font-medium hover:text-slate-900 dark:hover:text-slate-300 transition-colors'
+                >
+                  Contact Us
+                </NavLink>
+                <NavLink
+                  to='/terms'
+                  className='font-medium hover:text-slate-900 dark:hover:text-slate-300 transition-colors'
+                >
+                  Terms & Conditions
+                </NavLink>
+              </nav>
+              <p className='text-xs text-slate-500 dark:text-slate-500 md:text-right font-medium'>
+                © 2026 Fintrackly · Made in India
+              </p>
+            </footer>
+          </div>
         </div>
       </main>
 
@@ -365,6 +400,7 @@ export function AppLayout() {
 
       <PWAInstallBanner />
       <UpgradeModal />
+      <FeedbackModal />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <KeyboardShortcutsModal

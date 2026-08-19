@@ -4,47 +4,16 @@
 import { useRef, useState, useEffect } from 'react';
 import { FiBell, FiX, FiCheck, FiCheckCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { useNotificationStore, type AppNotification } from '../../store/notificationStore';
+import {
+  NOTIF_COLORS,
+  NOTIF_ICONS,
+  useNotificationStore,
+  type AppNotification,
+} from '../../store/notificationStore';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { markAllNotificationsRead, markNotificationRead } from '../../services/subscriptionService';
 import { auth } from '../../services/firebase';
 import { format, formatDistanceToNow } from 'date-fns';
-
-const TYPE_ICONS: Record<string, string> = {
-  insurance_renewal: '🛡️',
-  liability_due: '💳',
-  goal_achieved: '🎯',
-  goal_progress: '📊',
-  investment_alert: '📈',
-  system: '🔔',
-  strategy_tip: '💡',
-  investment_matured: '🎉',
-  investment_maturity_upcoming: '⏰',
-  pending_payment_due: '💰',
-  payment_tracker_due: '🔔',
-  warning: '⚠️',
-  error: '❌',
-  success: '✅',
-  info: 'ℹ️',
-};
-
-const TYPE_COLORS: Record<string, string> = {
-  insurance_renewal: 'bg-blue-500/10 border-blue-500/20',
-  liability_due: 'bg-rose-500/10 border-rose-500/20',
-  goal_achieved: 'bg-emerald-500/10 border-emerald-500/20',
-  goal_progress: 'bg-teal-500/10 border-teal-500/20',
-  investment_alert: 'bg-amber-500/10 border-amber-500/20',
-  system: 'bg-slate-500/5 dark:bg-slate-500/10 border-slate-400/30 dark:border-slate-500/20',
-  strategy_tip: 'bg-violet-500/10 border-violet-500/20',
-  investment_matured: 'bg-emerald-500/10 border-emerald-500/20',
-  investment_maturity_upcoming: 'bg-amber-500/10 border-amber-500/20',
-  pending_payment_due: 'bg-indigo-500/10 border-indigo-500/20',
-  payment_tracker_due: 'bg-sky-500/10 border-sky-500/20',
-  warning: 'bg-amber-500/10 border-amber-500/20',
-  error: 'bg-rose-500/10 border-rose-500/20',
-  success: 'bg-emerald-500/10 border-emerald-500/20',
-  info: 'bg-blue-500/10 border-blue-500/20',
-};
 
 function NotifCard({ notif, onRead, onDismiss, onAction }: {
   notif: AppNotification;
@@ -56,10 +25,10 @@ function NotifCard({ notif, onRead, onDismiss, onAction }: {
     <div
       className={`relative flex gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
         notif.read ? 'opacity-60' : ''
-      } ${TYPE_COLORS[notif.type] || 'bg-slate-100/90 dark:bg-slate-800/40 border-slate-300/50 dark:border-slate-700/40'}`}
+      } ${NOTIF_COLORS[notif.type] || 'bg-slate-100/90 dark:bg-slate-800/40 border-slate-300/50 dark:border-slate-700/40'}`}
       onClick={() => { onRead(); if (notif.actionPath) onAction(); }}
     >
-      <span className="text-lg shrink-0 mt-0.5">{TYPE_ICONS[notif.type] || '🔔'}</span>
+      <span className="text-lg shrink-0 mt-0.5">{NOTIF_ICONS[notif.type] || '🔔'}</span>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold text-slate-900 dark:text-slate-200 leading-snug">{notif.title}</p>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{notif.message}</p>
@@ -108,7 +77,9 @@ export function NotificationBell() {
       message: n.message,
       type: n.type,
       read: n.read,
+      dismissed: false,
       createdAt: n.createdAt.toISOString(),
+      updatedAt: n.createdAt.toISOString(),
       actionPath: '/pricing',
       actionLabel: 'Upgrade',
     })),

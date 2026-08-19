@@ -527,31 +527,95 @@ export function ReportsPage() {
               <p className='text-xs text-center font-bold text-slate-500 dark:text-slate-400 mb-2'>
                 Income Sources
               </p>
-              <div className='h-[180px] w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2'>
-                <ResponsiveContainer width='100%' height='100%'>
-                <PieChart>
-                  <Pie
-                    data={incomeByCategory}
-                    dataKey='value'
-                    nameKey='name'
-                    cx='50%'
-                    cy='50%'
-                    outerRadius={60}
-                    label={({ name, percent }) =>
-                      `${name} ${((percent || 0) * 100).toFixed(0)}%`
-                    }
-                    labelLine={false}
-                  >
-                    {incomeByCategory.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v: any) => formatINR(Number(v) || 0)}
-                    contentStyle={chartTooltipStyle}
-                  />
-                </PieChart>
-                </ResponsiveContainer>
+              <div className='w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4'>
+                <div className='flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6'>
+                  {/* Donut */}
+                  <div className='h-[180px] sm:h-[200px] w-full sm:w-[45%] shrink-0'>
+                    <ResponsiveContainer width='100%' height='100%'>
+                      <PieChart>
+                        <Pie
+                          data={incomeByCategory}
+                          dataKey='value'
+                          nameKey='name'
+                          cx='50%'
+                          cy='50%'
+                          innerRadius={40}
+                          outerRadius={68}
+                          paddingAngle={1.5}
+                          strokeWidth={0}
+                        >
+                          {incomeByCategory.map((_, i) => (
+                            <Cell
+                              key={i}
+                              fill={COLORS[i % COLORS.length]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(v: any, _n: any, p: any) => [
+                            formatINR(Number(v) || 0),
+                            p?.payload?.name ?? 'Income',
+                          ]}
+                          labelFormatter={() => ''}
+                          contentStyle={chartTooltipStyle}
+                          cursor={{ fill: 'rgba(148,163,184,0.08)' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Legend */}
+                  <div className='w-full sm:flex-1 min-w-0 flex flex-col gap-1.5'>
+                    {incomeByCategory
+                      .slice()
+                      .sort((a, b) => b.value - a.value)
+                      .map((item, i) => {
+                        const color = COLORS[i % COLORS.length];
+                        const total = incomeByCategory.reduce(
+                          (s, x) => s + (Number(x.value) || 0),
+                          0,
+                        );
+                        const pct =
+                          total > 0
+                            ? ((Number(item.value) || 0) / total) * 100
+                            : 0;
+                        const label =
+                          String(item.name ?? 'Uncategorized').length > 24
+                            ? String(item.name).slice(0, 22) + '…'
+                            : String(item.name ?? 'Uncategorized');
+                        return (
+                          <div
+                            key={item.name + '-' + i}
+                            className='flex items-center gap-2.5 min-w-0 rounded-lg px-2 py-1.5 -mx-1 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors'
+                          >
+                            <span
+                              className='w-3 h-3 rounded-sm shrink-0 ring-1 ring-black/5 dark:ring-white/10'
+                              style={{ backgroundColor: color }}
+                              aria-hidden
+                            />
+                            <span
+                              className='text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 min-w-0 truncate flex-1'
+                              title={String(item.name ?? '')}
+                            >
+                              {label}
+                            </span>
+                            <span className='text-xs sm:text-sm tabular-nums font-semibold text-slate-500 dark:text-slate-400 shrink-0 w-11 text-right'>
+                              {pct.toFixed(0)}%
+                            </span>
+                            <span className='text-xs sm:text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 shrink-0 w-24 text-right'>
+                              {formatINR(Number(item.value) || 0)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    {incomeByCategory.length > 8 && (
+                      <p className='text-[10px] text-slate-400 dark:text-slate-500 pt-1 -mb-1 px-2'>
+                        Showing {incomeByCategory.length} sources — only top 8
+                        are coloured distinctly.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -42,7 +42,7 @@ function StatBadge({ label, count }: { label: string; count: number }) {
         {label}
       </span>
       <span
-        className={`text-xs font-bold ${count > 0 ? 'text-slate-900 dark:text-slate-800 dark:text-slate-200' : 'text-slate-500 dark:text-slate-600'}`}
+        className={`text-xs font-bold ${count > 0 ? 'text-slate-900 dark:text-slate-200' : 'text-slate-500 dark:text-slate-600'}`}
       >
         {count}
       </span>
@@ -325,8 +325,8 @@ export function ExportImport() {
                 <span
                   className={
                     count > 0
-                      ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300'
-                      : 'text-slate-500 dark:text-slate-600'
+                      ? 'text-slate-600 dark:text-slate-300'
+                      : 'text-slate-500 dark:text-slate-400'
                   }
                 >
                   {label}{' '}
@@ -434,7 +434,7 @@ export function ExportImport() {
                 setPreviewOpen(false);
                 setPendingFile(null);
               }}
-              className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 disabled:opacity-50'
+              className='px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-200 disabled:opacity-50'
             >
               Cancel
             </button>
