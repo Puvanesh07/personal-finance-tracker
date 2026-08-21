@@ -1824,12 +1824,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
       })()}
 
       {/* ── MOBILE VIEW ── */}
-      <div className='flex w-full flex-col gap-2.5 md:hidden'>
+      <div className='flex w-full max-w-full flex-col gap-2.5 px-1 md:hidden'>
         {/* Select-all bar */}
         <div className='flex items-center justify-between px-1 py-1'>
           <button
             onClick={toggleSelectAll}
-            className='flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-wider hover:text-emerald-400 transition-colors'
+            className='flex items-center gap-2 text-[11px] font-bold text-slate-900 dark:text-slate-500 uppercase tracking-wider hover:text-emerald-400 transition-colors'
           >
             {isAllSelected ? (
               <FiCheckSquare size={15} className='text-emerald-500' />
@@ -1839,7 +1839,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             {isAllSelected ? 'Deselect All' : 'Select All'}
           </button>
           <span className='text-[11px] text-slate-500 dark:text-slate-600 font-medium'>
-            {displayRows.length} asset{displayRows.length !== 1 ? 's' : ''}
+            {displayRows.length} assets
           </span>
         </div>
 
@@ -1872,21 +1872,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     ? 'border-emerald-500/40 bg-emerald-500/[0.05]'
                     : isRowPinned
                       ? 'border-amber-500/45 bg-amber-500/[0.04] dark:bg-amber-500/[0.06]'
-                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60'
+                      : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60'
                 }`}
               >
-                {/* P&L accent stripe on left edge */}
+                {/* Profit/Loss accent bar on left edge */}
                 <div
-                  className={`absolute left-0 top-0 bottom-0 w-[3px] ${isProfit ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                  className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-l-2xl ${isProfit ? 'bg-emerald-500' : 'bg-rose-500'}`}
                 />
 
-                <div className='pl-4 pr-3 pt-3 pb-3'>
-                  {/* ── Top row: checkbox · name · actions ── */}
+                <div className='pl-3 pr-3 pt-3 pb-3'>
+                  {/* ── Row 1: Checkbox + Name + Actions ── */}
                   <div className='flex items-start gap-2.5'>
-                    {/* Checkbox */}
                     <button
                       onClick={() => toggleRow(inv.id)}
-                      className='mt-0.5 shrink-0 text-slate-400 hover:text-emerald-400 transition-colors'
+                      className='mt-0.5 shrink-0 text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
                     >
                       {isSelected ? (
                         <FiCheckSquare size={15} className='text-emerald-500' />
@@ -1895,51 +1894,59 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       )}
                     </button>
 
-                    {/* Name + chips */}
                     <div className='flex-1 min-w-0'>
-                      <div className='flex items-start justify-between gap-2 min-w-0'>
+                      <div className='flex items-start justify-between gap-2'>
                         <div className='min-w-0 flex-1'>
                           <h3
-                            className='font-bold text-sm text-slate-900 dark:text-slate-100 truncate leading-snug'
+                            className='font-bold text-[14px] text-slate-900 dark:text-slate-100 truncate leading-tight'
                             title={inv.name}
                           >
                             {inv.name}
                           </h3>
-                          {/* Chips row — wraps naturally, never overflows */}
-                          <div className='flex items-center gap-1.5 mt-1.5 flex-wrap'>
+                          <div className='flex items-center gap-1.5 mt-1 flex-wrap'>
                             <TypeChip inv={inv} />
-                            <span className='inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap'>
+                            <span className='inline-flex items-center rounded-md bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider'>
                               {formatPlatformName(inv.platform)}
                             </span>
                             {qty !== null && qty !== undefined && (
-                              <span className='text-[10px] text-slate-500 dark:text-slate-500 font-medium whitespace-nowrap'>
-                                ×{Number(qty).toLocaleString('en-IN', { maximumFractionDigits: 4 })}
+                              <span className='text-[10px] text-slate-500 dark:text-slate-600 font-medium'>
+                                ×{' '}
+                                {Number(qty).toLocaleString('en-IN', {
+                                  maximumFractionDigits: 4,
+                                })}
                               </span>
                             )}
-                            <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 whitespace-nowrap'>
+                            <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400'>
                               {weightPct.toFixed(1)}%
                             </span>
                             {(inv as any).convictionTag && (
-                              <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400 uppercase whitespace-nowrap'>
+                              <span className='text-[9px] px-1.5 py-0.5 rounded-md font-bold border border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400 uppercase'>
                                 {(inv as any).convictionTag}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Action buttons — compact, shrink-0 */}
+                        {/* Action buttons */}
                         <div className='flex items-center gap-1 shrink-0'>
                           <button
                             type='button'
                             onClick={() => togglePin(inv.id)}
-                            title={isRowPinned ? 'Unpin' : 'Pin to top'}
+                            title={
+                              isRowPinned
+                                ? 'Unpin from top of table'
+                                : 'Pin to top of table'
+                            }
                             className={`flex items-center justify-center w-7 h-7 rounded-lg border transition-all ${
                               isRowPinned
                                 ? 'bg-amber-500/15 border-amber-500/35 text-amber-600 dark:text-amber-400'
-                                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700/60 text-slate-400 hover:text-amber-500'
+                                : 'bg-slate-200 dark:bg-slate-800 border border-slate-300/60 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400'
                             }`}
                           >
-                            <FiBookmark size={12} className={isRowPinned ? 'fill-current' : ''} />
+                            <FiBookmark
+                              size={12}
+                              className={isRowPinned ? 'fill-current' : ''}
+                            />
                           </button>
                           {isEquityLike(inv) && hasLiveSymbol && (
                             <RowRefreshButton
@@ -1950,34 +1957,48 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           {isEquityLike(inv) && (
                             <button
                               onClick={() => setSellTarget(inv)}
-                              title='Record sale'
+                              title='Record sale & track profit'
                               className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all'
                             >
                               <FiDollarSign size={12} />
                             </button>
                           )}
-                          <button onClick={() => setEdit(inv)} title='Edit' className='btn-icon btn-icon-edit h-7 w-7'>
+                          <button
+                            onClick={() => setEdit(inv)}
+                            title='Edit'
+                            className='btn-icon btn-icon-edit h-7 w-7'
+                          >
                             <FiEdit2 size={12} />
                           </button>
-                          <button onClick={() => setDeleteId(inv.id)} title='Delete' className='btn-icon btn-icon-delete h-7 w-7'>
+                          <button
+                            onClick={() => setDeleteId(inv.id)}
+                            title='Delete'
+                            className='btn-icon btn-icon-delete h-7 w-7'
+                          >
                             <FiTrash2 size={12} />
                           </button>
                         </div>
                       </div>
 
-                      {/* Sector + Cap tags (stocks) */}
+                      {/* Sector + Cap tags — stocks only */}
                       {inv.type === 'stock' && (
                         <div className='mt-2'>
-                          <SectorCapCell inv={inv} marketCap={marketCap} onSave={handleSaveClassification} />
+                          <SectorCapCell
+                            inv={inv}
+                            marketCap={marketCap}
+                            onSave={handleSaveClassification}
+                          />
                         </div>
                       )}
 
-                      {/* FolioSync Score — equity */}
+                      {/* FolioSync Score (mobile) — equity only */}
                       {isEquityLike(inv) && (
                         <div className='mt-2'>
                           <FolioSyncCell
                             inv={inv}
-                            storedFundamentals={folioSyncData[inv.id]?.fundamentals}
+                            storedFundamentals={
+                              folioSyncData[inv.id]?.fundamentals
+                            }
                             storedResult={folioSyncData[inv.id]?.result}
                             onSave={handleFolioSyncSave}
                           />
@@ -1986,44 +2007,28 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     </div>
                   </div>
 
-                  {/* ── Stats row: 2-col grid, no horizontal scroll ── */}
+                  {/* ── Row 2: Stats grid ── */}
                   <div
-                    className={`mt-3 pt-3 border-t grid grid-cols-2 gap-x-3 gap-y-2 ${
-                      isSelected ? 'border-emerald-500/20' : 'border-slate-200/70 dark:border-slate-800/60'
-                    }`}
+                    className={`mt-3 pt-3 border-t grid grid-cols-4 gap-1 ${isSelected ? 'border-emerald-500/20' : 'border-slate-200/70 dark:border-slate-800/60'}`}
                   >
                     {/* Invested */}
                     <div className='flex flex-col gap-0.5'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                         Invested
                       </span>
-                      <span className='text-sm font-semibold text-slate-500 dark:text-slate-400 tabular-nums'>
+                      <span className='text-[13px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums'>
                         {formatINR(invested)}
                       </span>
                     </div>
 
-                    {/* P&L */}
-                    <div className='flex flex-col gap-0.5 items-end'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-600'>
-                        P&amp;L
-                      </span>
-                      <span className={`text-sm font-bold tabular-nums ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {isProfit ? '+' : ''}{formatINR(pl)}
-                      </span>
-                      <span className={`text-[10px] font-semibold tabular-nums ${isProfit ? 'text-emerald-500/80' : 'text-rose-500/80'}`}>
-                        {isProfit ? '▲' : '▼'} {Math.abs(plPct).toFixed(2)}%
-                      </span>
-                    </div>
-
                     {/* Current Value */}
-                    <div className='flex flex-col gap-0.5'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-600'>
-                        Current Value
+                    <div className='flex flex-col gap-0.5 items-center'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                        Curr. Value
                       </span>
-                      <span className='text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100'>
+                      <span className='text-[13px] font-bold tabular-nums text-slate-900 dark:text-slate-100'>
                         {formatINR(current)}
                       </span>
-                      {/* Live price tag beneath current value */}
                       {isEquityLike(inv) && hasLiveSymbol && (
                         <PriceCell
                           inv={inv}
@@ -2033,61 +2038,88 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       )}
                     </div>
 
-                    {/* Dividend (equity) OR Fixed-income details */}
+                    {/* Dividend (equity) | Details (fixed income) */}
                     {isEquityLike(inv) ? (
-                      <div className='flex flex-col gap-0.5 items-end'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-600'>
+                      <div className='flex flex-col gap-0.5 items-center'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Div ({shortFYLabel})
                         </span>
                         {canFetchDiv ? (
                           isDivLoading ? (
-                            <FiRefreshCw size={11} className='animate-spin text-slate-400 mt-0.5' />
-                          ) : dividendCurrentFY !== null && dividendCurrentFY > 0 ? (
-                            <button
-                              className='text-right'
-                              title='View full dividend history'
+                            <span className='text-[10px] text-slate-900 dark:text-slate-500 mt-1'>
+                              <FiRefreshCw size={10} className='animate-spin' />
+                            </span>
+                          ) : dividendCurrentFY !== null &&
+                            dividendCurrentFY > 0 ? (
+                            <div
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded px-1 transition-colors'
+                              title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
-                              <span className='text-sm font-bold text-emerald-500 tabular-nums block'>
+                              <span className='text-[13px] font-bold text-emerald-400 tabular-nums'>
                                 {formatINR(dividendCurrentFY)}
                               </span>
-                              <span className='text-[9px] text-slate-400 font-medium'>
-                                tap for history
+                              <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium tabular-nums'>
+                                History
                               </span>
-                            </button>
-                          ) : dividendCurrentFY !== null ? (
-                            <button
-                              className='text-right'
-                              title='View full dividend history'
+                            </div>
+                          ) : dividendCurrentFY !== null &&
+                            dividendCurrentFY === 0 ? (
+                            <div
+                              className='flex flex-col items-center gap-0.5 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 rounded px-1 transition-colors'
+                              title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
-                              <span className='text-sm font-medium text-slate-500 dark:text-slate-500 tabular-nums block'>
+                              <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
                                 ₹0
                               </span>
-                              <span className='text-[9px] text-slate-400 font-medium'>
-                                tap for history
+                              <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium tabular-nums'>
+                                History
                               </span>
-                            </button>
+                            </div>
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleRefreshRowDiv(inv); }}
-                              className='inline-flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400 hover:text-emerald-400 transition-colors mt-0.5'
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRefreshRowDiv(inv);
+                              }}
+                              className='mt-0.5 inline-flex items-center gap-1 rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors'
                             >
                               <FiRefreshCw size={8} /> Fetch
                             </button>
                           )
                         ) : (
-                          <span className='text-sm font-medium text-slate-400 dark:text-slate-600'>—</span>
+                          <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
+                            —
+                          </span>
                         )}
                       </div>
                     ) : (
-                      <div className='flex flex-col gap-0.5 items-end'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-600'>
+                      <div className='flex flex-col gap-0.5 items-center'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
                           Details
                         </span>
                         <FixedIncomeDetails inv={inv} />
                       </div>
                     )}
+
+                    {/* P&L */}
+                    <div className='flex flex-col gap-0.5 items-end'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                        P&amp;L
+                      </span>
+                      <span
+                        className={`text-[13px] font-bold tabular-nums ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}
+                      >
+                        {isProfit ? '+' : ''}
+                        {formatINR(pl)}
+                      </span>
+                      <span
+                        className={`text-[10px] font-semibold tabular-nums ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
+                      >
+                        {isProfit ? '▲' : '▼'} {Math.abs(plPct).toFixed(2)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
