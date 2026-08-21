@@ -39,6 +39,7 @@ import { EssentialsSettings } from '../../components/settings/EssentialsSettings
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
 import { SubscriptionStatusCard } from '../../components/subscription/SubscriptionStatusCard';
+import { TrialUsagePanel } from '../../components/subscription/TrialUsagePanel';
 import { auth } from '../../services/firebase';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -442,8 +443,9 @@ export function SettingsPage() {
         return <ProfileTab />;
       case 'subscription':
         return (
-          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col gap-6'>
             <SubscriptionStatusCard />
+            <TrialUsagePanel />
           </div>
         );
       case 'data':

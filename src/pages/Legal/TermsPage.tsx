@@ -1,6 +1,7 @@
 import {
   FiAlertTriangle,
   FiAward,
+  FiArrowLeft,
   FiBriefcase,
   FiCalendar,
   FiCreditCard,
@@ -14,6 +15,7 @@ import {
   FiZap,
 } from 'react-icons/fi';
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function StatRow({
   label,
@@ -78,8 +80,19 @@ function SectionCard({
 }
 
 export function TermsPage() {
+  const navigate = useNavigate();
   return (
     <div className='flex flex-col gap-6 pb-10 animate-in fade-in duration-300'>
+      <button
+        type='button'
+        onClick={() => navigate(-1)}
+        className='flex w-fit items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors -ml-1'
+        aria-label='Go back'
+      >
+        <FiArrowLeft className='h-4 w-4' />
+        Back
+      </button>
+
       <header className='flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-transparent p-6 border border-violet-500/20 shadow-sm'>
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-violet-600 text-white shadow-lg shadow-violet-500/30'>

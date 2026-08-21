@@ -20,6 +20,7 @@ import type { SubscriptionNotification, UserSubscriptionDoc } from '../types/sub
 import {
   OWNER_EMAIL,
   canCreateTransactions,
+  canAddFeature,
   getDaysRemaining,
   getGraceDaysRemaining,
   getTrialDaysRemaining,
@@ -27,6 +28,7 @@ import {
   isExpiredStatus,
   isTrialPlan,
   setCreateTransactionsChecker,
+  setFeatureLimitChecker,
   toDate,
 } from '../utils/subscriptionUtils';
 
@@ -173,6 +175,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setCreateTransactionsChecker(() =>
       canCreateTransactions(userSubscription, auth.currentUser?.email),
+    );
+    // Register the per-feature limit checker so stores can call
+    // checkFeatureLimit(feature, count) without importing React hooks.
+    setFeatureLimitChecker((feature, currentCount) =>
+      canAddFeature(feature, currentCount, userSubscription, auth.currentUser?.email),
     );
   }, [userSubscription, canCreate]);
 

@@ -5,34 +5,56 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type NotifType =
+  // ── Onboarding / system ──────────────────────────────────────────────
+  | 'welcome'
+  | 'system'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'strategy_tip'
+  // ── Trial / subscription ─────────────────────────────────────────────
+  | 'trial_started'
+  | 'trial_ending'
+  | 'trial_expired'
+  | 'subscription_activated'
+  | 'subscription_renewed'
+  | 'subscription_cancelled'
+  | 'subscription_expiring'
+  | 'subscription_expired'
+  | 'payment_success'
+  | 'payment_failed'
+  | 'payment_pending'
+  // ── Insurance ────────────────────────────────────────────────────────
   | 'insurance_renewal'
   | 'insurance_expired'
+  // ── Liabilities ──────────────────────────────────────────────────────
   | 'liability_due'
   | 'liability_emi'
   | 'liability_overdue'
+  // ── Goals ────────────────────────────────────────────────────────────
   | 'goal_achieved'
   | 'goal_progress'
   | 'goal_contribution_reminder'
+  // ── Investments ──────────────────────────────────────────────────────
   | 'investment_alert'
-  | 'system'
-  | 'strategy_tip'
   | 'investment_matured'
   | 'investment_maturity_upcoming'
+  // ── Payments ─────────────────────────────────────────────────────────
   | 'pending_payment_due'
   | 'pending_payment_overdue'
   | 'payment_tracker_due'
   | 'payment_tracker_overdue'
+  // ── Lending ──────────────────────────────────────────────────────────
   | 'lending_due'
   | 'lending_overdue'
+  // ── SIP ──────────────────────────────────────────────────────────────
   | 'sip_reminder'
   | 'sip_allocation_mismatch'
+  // ── Security / misc ──────────────────────────────────────────────────
   | 'credential_stale'
   | 'emergency_fund_low'
-  | 'networth_drop'
-  | 'warning'
-  | 'error'
-  | 'success'
-  | 'info';
+  | 'networth_drop';
 
 export interface AppNotification {
   id: string;
@@ -409,7 +431,70 @@ export const useNotificationStore = create<NotificationState>()(
 );
 
 // ── Convenience exports ──────────────────────────────────────────────────────
+
+/** Human-readable category label for each notification type */
+export const NOTIF_CATEGORY: Record<NotifType, string> = {
+  welcome: 'Welcome',
+  system: 'System',
+  info: 'Info',
+  success: 'Success',
+  warning: 'Warning',
+  error: 'Alert',
+  strategy_tip: 'Tip',
+  trial_started: 'Subscription',
+  trial_ending: 'Subscription',
+  trial_expired: 'Subscription',
+  subscription_activated: 'Subscription',
+  subscription_renewed: 'Subscription',
+  subscription_cancelled: 'Subscription',
+  subscription_expiring: 'Subscription',
+  subscription_expired: 'Subscription',
+  payment_success: 'Payment',
+  payment_failed: 'Payment',
+  payment_pending: 'Payment',
+  insurance_renewal: 'Insurance',
+  insurance_expired: 'Insurance',
+  liability_due: 'Liability',
+  liability_emi: 'Liability',
+  liability_overdue: 'Liability',
+  goal_achieved: 'Goals',
+  goal_progress: 'Goals',
+  goal_contribution_reminder: 'Goals',
+  investment_alert: 'Investment',
+  investment_matured: 'Investment',
+  investment_maturity_upcoming: 'Investment',
+  pending_payment_due: 'Payments',
+  pending_payment_overdue: 'Payments',
+  payment_tracker_due: 'Payments',
+  payment_tracker_overdue: 'Payments',
+  lending_due: 'Lending',
+  lending_overdue: 'Lending',
+  sip_reminder: 'SIP',
+  sip_allocation_mismatch: 'SIP',
+  credential_stale: 'Security',
+  emergency_fund_low: 'Emergency Fund',
+  networth_drop: 'Net Worth',
+};
+
 export const NOTIF_ICONS: Record<NotifType, string> = {
+  welcome: '👋',
+  system: '🔔',
+  info: 'ℹ️',
+  success: '✅',
+  warning: '⚠️',
+  error: '❌',
+  strategy_tip: '💡',
+  trial_started: '🎉',
+  trial_ending: '⏳',
+  trial_expired: '🔒',
+  subscription_activated: '⭐',
+  subscription_renewed: '🔄',
+  subscription_cancelled: '❌',
+  subscription_expiring: '⏰',
+  subscription_expired: '🔒',
+  payment_success: '💳',
+  payment_failed: '❌',
+  payment_pending: '⏳',
   insurance_renewal: '🛡️',
   insurance_expired: '🚨',
   liability_due: '💳',
@@ -419,8 +504,6 @@ export const NOTIF_ICONS: Record<NotifType, string> = {
   goal_progress: '📊',
   goal_contribution_reminder: '💰',
   investment_alert: '📈',
-  system: '🔔',
-  strategy_tip: '💡',
   investment_matured: '🎉',
   investment_maturity_upcoming: '⏰',
   pending_payment_due: '💰',
@@ -434,13 +517,27 @@ export const NOTIF_ICONS: Record<NotifType, string> = {
   credential_stale: '🔐',
   emergency_fund_low: '🛟',
   networth_drop: '📉',
-  warning: '⚠️',
-  error: '❌',
-  success: '✅',
-  info: 'ℹ️',
 };
 
 export const NOTIF_COLORS: Record<NotifType, string> = {
+  welcome: 'bg-emerald-500/10 border-emerald-500/25',
+  system: 'bg-slate-500/5 border-slate-400/20',
+  info: 'bg-blue-500/10 border-blue-500/20',
+  success: 'bg-emerald-500/10 border-emerald-500/20',
+  warning: 'bg-amber-500/10 border-amber-500/20',
+  error: 'bg-rose-500/10 border-rose-500/20',
+  strategy_tip: 'bg-violet-500/10 border-violet-500/20',
+  trial_started: 'bg-emerald-500/10 border-emerald-500/25',
+  trial_ending: 'bg-amber-500/15 border-amber-500/30',
+  trial_expired: 'bg-rose-500/10 border-rose-500/20',
+  subscription_activated: 'bg-emerald-500/10 border-emerald-500/20',
+  subscription_renewed: 'bg-emerald-500/10 border-emerald-500/20',
+  subscription_cancelled: 'bg-rose-500/10 border-rose-500/20',
+  subscription_expiring: 'bg-amber-500/10 border-amber-500/20',
+  subscription_expired: 'bg-rose-500/15 border-rose-500/30',
+  payment_success: 'bg-emerald-500/10 border-emerald-500/20',
+  payment_failed: 'bg-rose-500/15 border-rose-500/30',
+  payment_pending: 'bg-amber-500/10 border-amber-500/20',
   insurance_renewal: 'bg-blue-500/10 border-blue-500/20',
   insurance_expired: 'bg-rose-500/15 border-rose-500/30',
   liability_due: 'bg-rose-500/10 border-rose-500/20',
@@ -450,9 +547,6 @@ export const NOTIF_COLORS: Record<NotifType, string> = {
   goal_progress: 'bg-teal-500/10 border-teal-500/20',
   goal_contribution_reminder: 'bg-amber-500/10 border-amber-500/20',
   investment_alert: 'bg-amber-500/10 border-amber-500/20',
-  system:
-    'bg-slate-500/5 dark:bg-slate-500/10 border-slate-400/30 dark:border-slate-500/20',
-  strategy_tip: 'bg-violet-500/10 border-violet-500/20',
   investment_matured: 'bg-emerald-500/10 border-emerald-500/20',
   investment_maturity_upcoming: 'bg-amber-500/10 border-amber-500/20',
   pending_payment_due: 'bg-indigo-500/10 border-indigo-500/20',
@@ -466,8 +560,4 @@ export const NOTIF_COLORS: Record<NotifType, string> = {
   credential_stale: 'bg-slate-500/10 border-slate-500/30',
   emergency_fund_low: 'bg-amber-500/15 border-amber-500/30',
   networth_drop: 'bg-rose-500/10 border-rose-500/20',
-  warning: 'bg-amber-500/10 border-amber-500/20',
-  error: 'bg-rose-500/10 border-rose-500/20',
-  success: 'bg-emerald-500/10 border-emerald-500/20',
-  info: 'bg-blue-500/10 border-blue-500/20',
 };

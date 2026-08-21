@@ -70,6 +70,24 @@ export default function AuthWrapper({
       });
       void useAgriStore.getState().hydrate(user.uid);
       void useAttendanceStore.getState().hydrate(user.uid);
+
+      // Fire a welcome notification once per user, ever.
+      // Uses the store's oncePerPeriod('once') guard so it never repeats
+      // even after logout → login cycles on the same device.
+      const notifStore = useNotificationStore.getState();
+      if (notifStore.oncePerPeriod(`welcome_v2:${user.uid}`, 'once')) {
+        notifStore.addNotification({
+          type: 'welcome',
+          title: 'Welcome to Fintrackly! 👋',
+          message:
+            'Your personal finance journey starts here. Track your net worth, investments, expenses, liabilities, insurance, goals, agriculture, and more — all in one place.',
+          entityId: `welcome_${user.uid}`,
+          periodKey: 'once',
+          severity: 'info',
+          actionLabel: 'Get Started',
+          actionPath: '/dashboard',
+        });
+      }
     };
 
     const handleLoggedOut = () => {

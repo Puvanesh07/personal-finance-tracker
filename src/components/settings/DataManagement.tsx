@@ -225,7 +225,10 @@ export function ExportImport() {
     setBusy(true);
     try {
       await importFullBackup(pendingFile, uid);
-      // Force re-load into memory — without force, hydrate no-ops when already ready
+      // Force re-hydrate all stores so in-memory state matches Firestore.
+      // We await the full Promise.all before navigating — if any store's
+      // hydrate() fails it now sets ready:true (with hydrateError) rather
+      // than leaving the page stuck on a loading skeleton.
       await Promise.all([
         hydrate(uid, { force: true }),
         agriHydrate(uid, { force: true }),
@@ -236,6 +239,10 @@ export function ExportImport() {
       toast.success('Backup imported — all data restored.');
       navigate('/dashboard');
     } catch (err: any) {
+      // Import or hydration failed — close the preview modal so the user
+      // isn't stuck, then surface the error message.
+      setPreviewOpen(false);
+      setPendingFile(null);
       toast.error(err.message || 'Import failed — check JSON format.');
     } finally {
       setBusy(false);

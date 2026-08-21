@@ -140,3 +140,79 @@ export function setCreateTransactionsChecker(checker: () => boolean) {
 export function checkCanCreateTransactions(): boolean {
   return createTransactionsChecker();
 }
+
+// ─── Per-feature trial limit helpers ─────────────────────────────────────────
+
+import type { TrialFeatureKey } from '../types/subscription';
+import { TRIAL_FEATURE_LIMITS } from '../types/subscription';
+
+/**
+ * Returns true if the user is allowed to add one more record for `feature`.
+ *
+ * Rules:
+ *  • Owner / premium-granted / paid plan → always allowed (no limit).
+ *  • Active trial → allowed only if currentCount < TRIAL_FEATURE_LIMITS[feature].
+ *  • Expired / no subscription → blocked (existing checkCanCreateTransactions handles this).
+ */
+export function canAddFeature(
+  feature: TrialFeatureKey,
+  currentCount: number,
+  userDoc: UserSubscriptionDoc | null | undefined,
+  authEmail?: string | null,
+): boolean {
+  // Premium users have no limit
+  if (hasPremiumAccess(userDoc, authEmail)) {
+    // But if they are on an active trial, apply the count limit
+    if (!userDoc || userDoc.plan !== 'trial') return true;
+  }
+  if (!userDoc) return false;
+  if (userDoc.plan !== 'trial') return true; // paid plan → unlimited
+
+  const limit = TRIAL_FEATURE_LIMITS[feature];
+  return currentCount < limit;
+}
+
+/**
+ * Module-level checker injected from SubscriptionContext (same pattern as
+ * checkCanCreateTransactions). Stores call `checkFeatureLimit(feature)`
+ * which reads current counts from their own state and the registered checker.
+ *
+ * The checker is set via `setFeatureLimitChecker` from SubscriptionContext.
+ */
+let featureLimitChecker: (feature: TrialFeatureKey, currentCount: number) => boolean =
+  () => true;
+
+export function setFeatureLimitChecker(
+  checker: (feature: TrialFeatureKey, currentCount: number) => boolean,
+) {
+  featureLimitChecker = checker;
+}
+
+/**
+ * Called from store addX methods.  Returns true if the add is allowed.
+ * Returns false (and the caller should bail out) when the trial limit is hit.
+ */
+export function checkFeatureLimit(
+  feature: TrialFeatureKey,
+  currentCount: number,
+): boolean {
+  return featureLimitChecker(feature, currentCount);
+}
+
+/** Human-readable trial-limit message for toast / UI copy. */
+export function trialLimitMessage(feature: TrialFeatureKey): string {
+  const limit = TRIAL_FEATURE_LIMITS[feature];
+  const labels: Record<TrialFeatureKey, string> = {
+    investments: 'investment',
+    cashflows: 'cashflow entry',
+    payments: 'payment',
+    insurance: 'insurance policy',
+    liabilities: 'liability',
+    credentials: 'credential',
+    accounts: 'account',
+    agriculture: 'agriculture record',
+    goals: 'goal',
+    attendance: 'employee',
+  };
+  return `Trial limit reached: ${limit} ${labels[feature]}${limit === 1 ? '' : 's'} allowed during the free trial. Upgrade to add more.`;
+}

@@ -42,6 +42,29 @@ import { db } from '../services/firebase';
 import { calculateNetWorth, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { nextDueDate } from '../utils/paymentTracker';
+import {
+  checkFeatureLimit,
+  checkCanCreateTransactions,
+  trialLimitMessage,
+} from '../utils/subscriptionUtils';
+import type { TrialFeatureKey } from '../types/subscription';
+import toast from 'react-hot-toast';
+
+/** Returns true and shows a toast when the user should be blocked from adding.
+ *  Call at the top of every addX method that is subject to trial limits. */
+function blockIfLimited(feature: TrialFeatureKey, currentCount: number): boolean {
+  // First: global expiry check (expired trial = block everything)
+  if (!checkCanCreateTransactions()) {
+    toast.error('Your trial has expired. Subscribe to add new records.');
+    return true;
+  }
+  // Second: per-feature count limit for active trial users
+  if (!checkFeatureLimit(feature, currentCount)) {
+    toast.error(trialLimitMessage(feature));
+    return true;
+  }
+  return false;
+}
 
 const userCol = (uid: string, col: string) => collection(db, 'users', uid, col);
 const userDoc = (uid: string, col: string, id: string) =>
@@ -444,6 +467,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addInvestment: async (investment) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('investments', get().investments.length)) return;
     const t = now();
     const withMeta = clean({
       ...investment,
@@ -559,6 +583,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addLiability: async (liability) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('liabilities', get().liabilities.length)) return;
     const t = now();
     const withMeta = clean({
       ...(liability as any),
@@ -598,6 +623,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addPendingPayment: async (payment) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('payments', get().pendingPayments.length + get().trackedPayments.length)) return;
     const t = now();
     const withMeta = clean({
       ...payment,
@@ -648,6 +674,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addTrackedPayment: async (payment) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('payments', get().pendingPayments.length + get().trackedPayments.length)) return;
     const t = now();
     const withMeta = clean({
       ...payment,
@@ -748,6 +775,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addCashflow: async (entry) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('cashflows', get().cashflows.length)) return;
     const t = now();
     const withMeta = clean({
       ...entry,
@@ -791,6 +819,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addGoal: async (goal) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('goals', get().goals.length)) return;
     const t = now();
     const withMeta = clean({
       ...(goal as any),
@@ -856,6 +885,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addCredential: async (credential) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('credentials', get().credentials.length)) return;
     const t = now();
     const withMeta = clean({
       ...credential,
@@ -899,6 +929,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addAccount: async (account) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('accounts', get().accounts.length)) return;
     const t = now();
     const raw = clean({
       ...account,
@@ -982,6 +1013,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addInsurancePolicy: async (policy) => {
     const uid = get().uid;
     if (!uid) return;
+    if (blockIfLimited('insurance', get().insurancePolicies.length)) return;
     const t = now();
     const withMeta = clean({
       ...policy,

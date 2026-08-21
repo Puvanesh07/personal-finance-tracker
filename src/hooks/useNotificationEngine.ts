@@ -6,6 +6,9 @@
 //  • Gated on portfolioStore.ready — engine only fires AFTER data is fully
 //    hydrated from Firestore (fixes "notifications sometimes don't appear").
 //  • Covers every reminder source in the app:
+//      Welcome & onboarding
+//      Trial started / ending / expired
+//      Subscription activated / expiring / expired / payment events
 //      Insurance renewals / expirations
 //      Liability EMIs / end-dates / overdue
 //      Payment tracker (every reminder day, due, overdue)
@@ -34,6 +37,7 @@ import {
 } from '../store/notificationStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAgriStore } from '../store/agricultureStore';
+import { useSubscriptionOptional } from '../context/SubscriptionContext';
 import {
   buildPaymentReminderMessage,
   daysUntilDue,
@@ -108,6 +112,15 @@ export function useNotificationEngine() {
   const ready = usePortfolioStore((s) => s.ready);
   const storeUid = usePortfolioStore((s) => s.uid);
 
+  // Subscription context — optional so this hook works if provider is missing
+  const subscription = useSubscriptionOptional();
+  const isTrial = subscription?.isTrial ?? false;
+  const trialDaysRemaining = subscription?.trialDaysRemaining ?? null;
+  const isExpired = subscription?.isExpired ?? false;
+  const hasPremium = subscription?.hasPremiumAccess ?? false;
+  const subLoading = subscription?.loading ?? true;
+  const userSub = subscription?.userSubscription ?? null;
+
   const addNotif = useNotificationStore((s) => s.addNotification);
   const notifUid = useNotificationStore((s) => s.uid);
 
@@ -136,6 +149,12 @@ export function useNotificationEngine() {
     addNotif,
     addSoldTrade,
     deleteInvestment,
+    isTrial,
+    trialDaysRemaining,
+    isExpired,
+    hasPremium,
+    subLoading,
+    userSub,
   });
   dataRef.current = {
     policies,
@@ -157,6 +176,12 @@ export function useNotificationEngine() {
     addNotif,
     addSoldTrade,
     deleteInvestment,
+    isTrial,
+    trialDaysRemaining,
+    isExpired,
+    hasPremium,
+    subLoading,
+    userSub,
   };
 
   // Run ONCE per uid/ready change.  All fine-grained dedup is handled via the
@@ -171,6 +196,8 @@ export function useNotificationEngine() {
     // same day, the user never sees them.
     if (!ready || !storeUid || storeUid !== notifUid) return;
     if (agriUid && agriUid !== storeUid) return;
+    // Also wait for subscription context to resolve so trial/plan state is accurate
+    if (subLoading) return;
 
     const d = dataRef.current;
     const today = new Date();
@@ -1009,6 +1036,182 @@ export function useNotificationEngine() {
       }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // 12. TRIAL notifications — started, ending soon, expired
+    // ─────────────────────────────────────────────────────────────────────
+    if (!d.subLoading && d.userSub) {
+      const plan = d.userSub.plan;
+      const status = d.userSub.subscriptionStatus;
+
+      // 12a. Trial started — fire once per user, ever
+      if (plan === 'trial' && status === 'active') {
+        if (
+          once('trial_started_v1', { kind: 'period', periodKey: 'once' })
+        ) {
+          add({
+            type: 'trial_started',
+            title: 'Your 7-Day Free Trial Has Started 🎉',
+            message:
+              'Welcome to Fintrackly! You now have access to all premium features during your free trial. Explore investments, goals, insurance, and more.',
+            entityId: 'trial_started',
+            periodKey: 'once',
+            severity: 'info',
+            actionLabel: 'Explore Features',
+            actionPath: '/dashboard',
+          });
+        }
+      }
+
+      // 12b. Trial ending soon — 3 days and 1 day warnings
+      if (d.isTrial && d.trialDaysRemaining !== null) {
+        const tdr = d.trialDaysRemaining;
+        if (tdr === 3) {
+          if (once('trial_ending_3d', { kind: 'day' })) {
+            add({
+              type: 'trial_ending',
+              title: 'Your Free Trial Ends in 3 Days ⏳',
+              message:
+                'Your Fintrackly free trial expires in 3 days. Upgrade now to keep accessing all premium features without interruption.',
+              entityId: 'trial_ending_3d',
+              periodKey: `${mk}_tdr3`,
+              severity: 'medium',
+              actionLabel: 'Upgrade Now',
+              actionPath: '/pricing',
+            });
+          }
+        } else if (tdr === 1) {
+          if (once('trial_ending_1d', { kind: 'day' })) {
+            add({
+              type: 'trial_ending',
+              title: 'Your Free Trial Ends Tomorrow ⏳',
+              message:
+                'Your Fintrackly free trial ends tomorrow. Subscribe today to continue using all premium features seamlessly.',
+              entityId: 'trial_ending_1d',
+              periodKey: `${mk}_tdr1`,
+              severity: 'high',
+              actionLabel: 'Upgrade Now',
+              actionPath: '/pricing',
+            });
+          }
+        } else if (tdr === 0) {
+          if (once('trial_ending_today', { kind: 'day' })) {
+            add({
+              type: 'trial_ending',
+              title: 'Your Free Trial Ends Today ⏳',
+              message:
+                'This is the last day of your free trial. Subscribe before midnight to avoid losing access to premium features.',
+              entityId: 'trial_ending_today',
+              periodKey: `${mk}_tdr0`,
+              severity: 'high',
+              actionLabel: 'Subscribe Now',
+              actionPath: '/pricing',
+            });
+          }
+        }
+      }
+
+      // 12c. Trial expired
+      if (d.isExpired && plan === 'trial') {
+        if (once('trial_expired_v1', { kind: 'month' })) {
+          add({
+            type: 'trial_expired',
+            title: 'Your Free Trial Has Ended 🔒',
+            message:
+              'Your 7-day free trial has ended. Upgrade your plan to continue accessing all premium features including exports, analytics, and unlimited transactions.',
+            entityId: 'trial_expired',
+            periodKey: mk,
+            severity: 'critical',
+            actionLabel: 'Upgrade Plan',
+            actionPath: '/pricing',
+          });
+        }
+      }
+
+      // 12d. Paid subscription expiring soon (non-trial)
+      if (
+        plan !== 'trial' &&
+        plan !== 'lifetime' &&
+        status === 'active' &&
+        !d.isExpired
+      ) {
+        const daysLeft = d.userSub.expiresAt
+          ? differenceInDays(
+              new Date(
+                typeof d.userSub.expiresAt === 'object' &&
+                'toDate' in d.userSub.expiresAt
+                  ? (d.userSub.expiresAt as any).toDate()
+                  : d.userSub.expiresAt,
+              ),
+              today,
+            )
+          : null;
+        if (daysLeft !== null && daysLeft <= 7 && daysLeft >= 0) {
+          const dayLabel = daysLeft === 0 ? 'today' : `in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+          if (once(`sub_expiring_${daysLeft}d`, { kind: 'day' })) {
+            add({
+              type: 'subscription_expiring',
+              title: `Your Subscription Expires ${daysLeft === 0 ? 'Today' : `in ${daysLeft} Day${daysLeft === 1 ? '' : 's'}`} ⏰`,
+              message: `Your Fintrackly ${plan} plan expires ${dayLabel}. Renew now to avoid interruption.`,
+              entityId: `sub_expiring_${daysLeft}d`,
+              periodKey: `${mk}_subexp${daysLeft}`,
+              severity: daysLeft <= 1 ? 'high' : 'medium',
+              actionLabel: 'Renew Now',
+              actionPath: '/pricing',
+            });
+          }
+        }
+      }
+
+      // 12e. Paid subscription expired
+      if (plan !== 'trial' && d.isExpired) {
+        if (once('sub_expired_v1', { kind: 'month' })) {
+          add({
+            type: 'subscription_expired',
+            title: 'Your Subscription Has Expired 🔒',
+            message:
+              'Your Fintrackly subscription has ended. Renew your plan to continue accessing all premium features.',
+            entityId: 'sub_expired',
+            periodKey: mk,
+            severity: 'critical',
+            actionLabel: 'Renew Plan',
+            actionPath: '/pricing',
+          });
+        }
+      }
+
+      // 12f. Subscription activated (once per plan purchase)
+      if (
+        plan !== 'trial' &&
+        status === 'active' &&
+        !d.isExpired &&
+        !d.isTrial
+      ) {
+        const planLabel =
+          plan === 'monthly'
+            ? 'Monthly'
+            : plan === 'yearly'
+              ? 'Yearly'
+              : 'Lifetime';
+        if (
+          once(`sub_activated_${plan}`, {
+            kind: 'period',
+            periodKey: `activated_${plan}_${d.userSub.paymentId ?? 'grant'}`,
+          })
+        ) {
+          add({
+            type: 'subscription_activated',
+            title: `${planLabel} Plan Activated ⭐`,
+            message: `Your Fintrackly ${planLabel} plan is now active. Enjoy full access to all premium features — thank you for subscribing!`,
+            entityId: `sub_activated_${plan}`,
+            periodKey: `activated_${plan}_${d.userSub.paymentId ?? 'grant'}`,
+            severity: 'info',
+            actionLabel: 'View Dashboard',
+            actionPath: '/dashboard',
+          });
+        }
+      }
+    }
+
     // Use every value referenced in deps array to satisfy exhaustive-deps.
     void goalContribThisMonth;
 
@@ -1026,6 +1229,11 @@ export function useNotificationEngine() {
     notifUid,
     agriReady,
     agriUid,
+    subLoading,
+    isTrial,
+    trialDaysRemaining,
+    isExpired,
+    hasPremium,
     policies.length,
     liabilities.length,
     goals.length,

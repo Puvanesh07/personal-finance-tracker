@@ -8,13 +8,15 @@ import { useNavigate } from 'react-router-dom';
 import { useEnsureAgriHydrated } from '../../hooks/useDeferredStoreHydration';
 
 export function DashboardAgriSummary() {
-  const agriReady = useEnsureAgriHydrated();
+  const { ready: agriReady, error: agriError } = useEnsureAgriHydrated();
   const cropCycles = useAgriStore((s) => s.cropCycles);
   const agriExpenses = useAgriStore((s) => s.agriExpenses);
   const milkRecords = useAgriStore((s) => s.milkRecords);
   const coconutRecords = useAgriStore((s) => s.coconutRecords);
   const livestockEvents = useAgriStore((s) => s.livestockEvents);
   const produceSales = useAgriStore((s) => s.produceSales);
+  const hydrate = useAgriStore((s) => s.hydrate);
+  const storeUid = useAgriStore((s) => s.uid);
   const navigate = useNavigate();
 
   const summary = useMemo(
@@ -40,11 +42,35 @@ export function DashboardAgriSummary() {
     ],
   );
 
-  if (!agriReady || !summary) {
+  // Still loading — first fetch in flight
+  if (!agriReady) {
     return (
       <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full animate-pulse'>
         <div className='h-4 w-40 rounded bg-slate-200 dark:bg-slate-800 mb-4' />
         <div className='h-8 w-32 rounded bg-slate-200 dark:bg-slate-800' />
+      </div>
+    );
+  }
+
+  // Hydration finished but with an error — show a compact error state
+  // instead of an infinite pulsing skeleton
+  if (agriError) {
+    return (
+      <div className='rounded-2xl border border-rose-500/20 bg-rose-500/5 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full gap-3'>
+        <h2 className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100'>
+          <FiSun className='text-amber-400' />
+          Agriculture Overview
+        </h2>
+        <p className='text-xs text-rose-400'>Failed to load agriculture data.</p>
+        {storeUid && (
+          <button
+            type='button'
+            onClick={() => void hydrate(storeUid, { force: true })}
+            className='mt-auto w-fit rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors'
+          >
+            Retry
+          </button>
+        )}
       </div>
     );
   }
@@ -71,15 +97,15 @@ export function DashboardAgriSummary() {
             All-Time Net Profit
           </p>
           <p
-            className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+            className={`text-2xl font-bold ${summary!.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
           >
-            {summary.netProfit >= 0 ? '+' : ''}
-            {formatCurrency(summary.netProfit)}
+            {summary!.netProfit >= 0 ? '+' : ''}
+            {formatCurrency(summary!.netProfit)}
           </p>
         </div>
         <div className='text-right'>
           <span className='inline-flex items-center rounded-md bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-400 border border-amber-500/20'>
-            {summary.activeCrops} Active Crops
+            {summary!.activeCrops} Active Crops
           </span>
         </div>
       </div>
@@ -90,7 +116,7 @@ export function DashboardAgriSummary() {
             Total Revenue
           </p>
           <p className='text-sm font-semibold text-emerald-400'>
-            {formatCurrency(summary.totalIncome)}
+            {formatCurrency(summary!.totalIncome)}
           </p>
         </div>
         <div>
@@ -98,7 +124,7 @@ export function DashboardAgriSummary() {
             Total Expenses
           </p>
           <p className='text-sm font-semibold text-rose-400'>
-            {formatCurrency(summary.totalExpenses)}
+            {formatCurrency(summary!.totalExpenses)}
           </p>
         </div>
       </div>

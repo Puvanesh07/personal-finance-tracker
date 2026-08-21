@@ -19,7 +19,11 @@ import {
 
 import { create } from 'zustand';
 import { db } from '../services/firebase';
-import { checkCanCreateTransactions } from '../utils/subscriptionUtils';
+import {
+  checkCanCreateTransactions,
+  checkFeatureLimit,
+  trialLimitMessage,
+} from '../utils/subscriptionUtils';
 import toast from 'react-hot-toast';
 
 function blockIfExpired(): boolean {
@@ -28,6 +32,36 @@ function blockIfExpired(): boolean {
     return true;
   }
   return false;
+}
+
+/** Returns true (and toasts) when the agriculture trial limit is reached. */
+function blockIfAgriLimited(currentTotalAgriRecords: number): boolean {
+  if (!checkFeatureLimit('agriculture', currentTotalAgriRecords)) {
+    toast.error(trialLimitMessage('agriculture'));
+    return true;
+  }
+  return false;
+}
+
+/** Sum of all agri sub-collection records in state — used for limit checks. */
+function totalAgriRecords(s: {
+  fields: unknown[];
+  cropCycles: unknown[];
+  agriExpenses: unknown[];
+  milkRecords: unknown[];
+  coconutRecords: unknown[];
+  livestockEvents: unknown[];
+  produceSales: unknown[];
+}): number {
+  return (
+    s.fields.length +
+    s.cropCycles.length +
+    s.agriExpenses.length +
+    s.milkRecords.length +
+    s.coconutRecords.length +
+    s.livestockEvents.length +
+    s.produceSales.length
+  );
 }
 
 const agriCol = (uid: string, col: string) => collection(db, 'users', uid, col);
@@ -49,9 +83,14 @@ async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   return snap.docs.map((d) => d.data() as T);
 }
 
+// Module-level flag — prevents concurrent hydration calls from piling up
+// (e.g. DashboardAgriSummary + AgriculturePage mounting at the same time).
+let _hydrating = false;
+
 type AgriState = {
   uid: string | null;
   ready: boolean;
+  hydrateError: string | null;
   fields: Field[];
   cropCycles: CropCycle[];
   agriExpenses: AgriExpense[];
@@ -118,6 +157,7 @@ type AgriState = {
 export const useAgriStore = create<AgriState>((set, get) => ({
   uid: null,
   ready: false,
+  hydrateError: null,
   fields: [],
   cropCycles: [],
   agriExpenses: [],
@@ -129,6 +169,11 @@ export const useAgriStore = create<AgriState>((set, get) => ({
   hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
     if (!opts?.force && currentUid === uid && ready) return;
+
+    // Prevent concurrent hydrations — use a module-level flag.
+    // Force calls (e.g. post-import) are always allowed through.
+    if (_hydrating && !opts?.force) return;
+    _hydrating = true;
 
     try {
       const [
@@ -151,6 +196,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       set({
         uid,
         ready: true,
+        hydrateError: null,
         fields: fields.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
         cropCycles: cropCycles.sort((a, b) =>
           b.startDate.localeCompare(a.startDate),
@@ -167,11 +213,23 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       });
     } catch (err) {
       console.error('[AgriStore] hydrate failed:', err);
-      set({ uid, ready: false });
+      // Set ready:true so useEnsureAgriHydrated stops retrying and the UI
+      // renders with whatever data is already in the store (or empty arrays).
+      // hydrateError lets the UI show a proper error state instead of
+      // looping infinitely on the loading skeleton.
+      set({
+        uid,
+        ready: true,
+        hydrateError:
+          err instanceof Error ? err.message : 'Failed to load agriculture data',
+      });
+    } finally {
+      _hydrating = false;
     }
   },
 
-  clearAll: () =>
+  clearAll: () => {
+    _hydrating = false;
     set({
       fields: [],
       cropCycles: [],
@@ -181,14 +239,17 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       livestockEvents: [],
       produceSales: [],
       ready: false,
+      hydrateError: null,
       uid: null,
-    }),
+    });
+  },
 
   // ── Fields ────────────────────────────────────────────────────────────────
   addField: async (f) => {
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: Field = clean({
       ...f,
@@ -221,6 +282,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: CropCycle = clean({
       ...c,
@@ -255,6 +317,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: AgriExpense = clean({
       ...e,
@@ -294,6 +357,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: MilkRecord = clean({
       ...m,
@@ -333,6 +397,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: CoconutRecord = clean({
       ...c,
@@ -374,6 +439,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: LivestockEvent = clean({
       ...e,
@@ -419,6 +485,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     if (blockIfExpired()) return;
+    if (blockIfAgriLimited(totalAgriRecords(get()))) return;
     const t = now();
     const raw: ProduceSaleLot = clean({
       ...p,

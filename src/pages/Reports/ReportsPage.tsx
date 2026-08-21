@@ -115,7 +115,7 @@ function SectionCard({
 // ─── Main Reports Page ───────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  useEnsureAgriHydrated();
+  useEnsureAgriHydrated(); // triggers hydration; return value not needed here
   useEnsureAttendanceHydrated();
   const portStore = usePortfolioStore();
   const agriStore = useAgriStore();

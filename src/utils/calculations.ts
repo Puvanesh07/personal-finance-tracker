@@ -74,7 +74,9 @@ export function currentValue(inv: Investment): number {
     case 'mutual_fund':
       return (inv.units ?? 0) * (inv.nav ?? 0);
     case 'bond':
-      return (inv.investedAmount ?? 0) + expectedInterestForBond(inv);
+      // Use prorated accrued interest (not full-term interest) so the
+      // current value grows day-by-day toward maturity, not jump to full.
+      return currentValueForBond(inv);
     case 'fixed_deposit':
       return maturityValueForFD(inv);
     case 'other':
@@ -93,6 +95,10 @@ export function profitLoss(inv: Investment): number {
   return currentValue(inv) - investedValue(inv);
 }
 
+/**
+ * Total (full-term) simple interest for a bond — used for reporting the
+ * total expected interest at maturity, not the current accrued value.
+ */
 export function expectedInterestForBond(bond: BondInvestment): number {
   return (
     ((bond.investedAmount ?? 0) *
@@ -102,6 +108,29 @@ export function expectedInterestForBond(bond: BondInvestment): number {
   );
 }
 
+/**
+ * Accrued interest for a bond as of today, prorated by elapsed time.
+ * Uses startDate → today, capped at the full-term interest so we never
+ * exceed the maturity value (e.g. if today is past maturityDate).
+ */
+export function accruedInterestForBond(bond: BondInvestment): number {
+  const totalInterest = expectedInterestForBond(bond);
+  if (totalInterest <= 0) return 0;
+  const totalDays = (bond.durationMonths ?? 0) * 30.4375; // avg days/month
+  if (totalDays <= 0) return totalInterest;
+  const start = bond.startDate ? new Date(bond.startDate) : null;
+  if (!start || Number.isNaN(start.getTime())) return totalInterest;
+  const elapsedDays = Math.max(
+    0,
+    (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return Math.min(totalInterest, totalInterest * (elapsedDays / totalDays));
+}
+
+/**
+ * Total (full-term) simple interest for an FD — used for reporting the
+ * total interest at maturity, not the current accrued value.
+ */
 export function interestEarnedForFD(fd: FixedDepositInvestment): number {
   return (
     ((fd.investedAmount ?? 0) *
@@ -111,8 +140,32 @@ export function interestEarnedForFD(fd: FixedDepositInvestment): number {
   );
 }
 
+/**
+ * Accrued interest for an FD as of today, prorated by elapsed time.
+ * Uses startDate → today, capped at the full-term interest.
+ */
+export function accruedInterestForFD(fd: FixedDepositInvestment): number {
+  const totalInterest = interestEarnedForFD(fd);
+  if (totalInterest <= 0) return 0;
+  const totalDays = (fd.durationMonths ?? 0) * 30.4375;
+  if (totalDays <= 0) return totalInterest;
+  const start = fd.startDate ? new Date(fd.startDate) : null;
+  if (!start || Number.isNaN(start.getTime())) return totalInterest;
+  const elapsedDays = Math.max(
+    0,
+    (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  return Math.min(totalInterest, totalInterest * (elapsedDays / totalDays));
+}
+
+/** Current (prorated) value of an FD as of today. */
 export function maturityValueForFD(fd: FixedDepositInvestment): number {
-  return (fd.investedAmount ?? 0) + interestEarnedForFD(fd);
+  return (fd.investedAmount ?? 0) + accruedInterestForFD(fd);
+}
+
+/** Current (prorated) value of a bond as of today. */
+export function currentValueForBond(bond: BondInvestment): number {
+  return (bond.investedAmount ?? 0) + accruedInterestForBond(bond);
 }
 
 export function typeLabel(type: InvestmentType) {
@@ -210,7 +263,151 @@ export function calculateCAGR(
   years: number,
 ): number | null {
   if (startValue <= 0 || endValue <= 0 || years <= 0) return null;
-  return Math.pow(endValue / startValue, 1 / years) - 1;
+  // Clamp unreasonably long periods (>50 years) to avoid precision issues
+  const y = Math.min(years, 50);
+  return Math.pow(endValue / startValue, 1 / y) - 1;
+}
+
+/**
+ * Returns the earliest reliable purchase date for an investment.
+ * Prefers the earliest lot date when lots are present, otherwise
+ * falls back to startDate (bonds/FDs) then createdAt.
+ */
+export function earliestInvestmentDate(inv: Investment): Date {
+  const anyInv = inv as any;
+
+  // Lots: stock or mutual fund with multiple purchase tranches
+  if (Array.isArray(anyInv.lots) && anyInv.lots.length > 0) {
+    const dates = (anyInv.lots as Array<{ date?: string }>)
+      .map((l) => (l.date ? new Date(l.date) : null))
+      .filter((d): d is Date => d !== null && !Number.isNaN(d.getTime()));
+    if (dates.length > 0) {
+      return dates.reduce((min, d) => (d < min ? d : min));
+    }
+  }
+
+  // Bonds / FDs have an explicit start date
+  if (anyInv.startDate) {
+    const d = new Date(anyInv.startDate);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // Fallback to Firestore document creation timestamp
+  const fallback = new Date(inv.createdAt);
+  return Number.isNaN(fallback.getTime()) ? new Date() : fallback;
+}
+
+/**
+ * Build XIRR cashflow points for a single investment.
+ *
+ * For stocks/MFs that have a lots[] array every lot becomes its own
+ * outflow at the lot's date. For single-lot holdings the invested amount
+ * is a single outflow at earliestInvestmentDate. The terminal inflow is
+ * currentValue(inv) at today.
+ *
+ * Amount convention: outflows are negative, the terminal inflow is positive.
+ */
+export function buildInvestmentCashflows(
+  inv: Investment,
+): Array<{ amount: number; date: Date }> {
+  const flows: Array<{ amount: number; date: Date }> = [];
+  const anyInv = inv as any;
+  const today = new Date();
+
+  if (Array.isArray(anyInv.lots) && anyInv.lots.length > 0) {
+    // Per-lot outflows
+    for (const lot of anyInv.lots as Array<{
+      date?: string;
+      quantity?: number;
+      units?: number;
+      buyPrice?: number;
+      nav?: number;
+      investedAmount?: number;
+    }>) {
+      const date = lot.date ? new Date(lot.date) : null;
+      if (!date || Number.isNaN(date.getTime())) continue;
+
+      let outflow = 0;
+      if (inv.type === 'stock') {
+        outflow = (lot.quantity ?? 0) * (lot.buyPrice ?? 0);
+      } else if (inv.type === 'mutual_fund') {
+        outflow =
+          lot.investedAmount ??
+          (lot.units ?? 0) * (lot.nav ?? 0);
+      }
+
+      if (outflow > 0) flows.push({ amount: -outflow, date });
+    }
+  }
+
+  // If no valid lot outflows were produced, use a single outflow
+  if (flows.length === 0) {
+    const invested = investedValue(inv);
+    if (invested > 0) {
+      flows.push({ amount: -invested, date: earliestInvestmentDate(inv) });
+    }
+  }
+
+  // Terminal inflow: current value today
+  const cv = currentValue(inv);
+  if (cv > 0) flows.push({ amount: cv, date: today });
+
+  return flows;
+}
+
+/**
+ * Build XIRR cashflow points for a whole portfolio (array of investments).
+ * Each investment contributes its own outflows (using lots if available)
+ * plus one shared terminal inflow for the total current value.
+ */
+export function buildPortfolioCashflows(
+  investments: Investment[],
+): Array<{ amount: number; date: Date }> {
+  const flows: Array<{ amount: number; date: Date }> = [];
+  let totalCurrent = 0;
+
+  for (const inv of investments) {
+    const anyInv = inv as any;
+    if (Array.isArray(anyInv.lots) && anyInv.lots.length > 0) {
+      for (const lot of anyInv.lots as Array<{
+        date?: string;
+        quantity?: number;
+        units?: number;
+        buyPrice?: number;
+        nav?: number;
+        investedAmount?: number;
+      }>) {
+        const date = lot.date ? new Date(lot.date) : null;
+        if (!date || Number.isNaN(date.getTime())) continue;
+
+        let outflow = 0;
+        if (inv.type === 'stock') {
+          outflow = (lot.quantity ?? 0) * (lot.buyPrice ?? 0);
+        } else if (inv.type === 'mutual_fund') {
+          outflow =
+            lot.investedAmount ??
+            (lot.units ?? 0) * (lot.nav ?? 0);
+        }
+        if (outflow > 0) flows.push({ amount: -outflow, date });
+      }
+
+      // Only accumulate current value for lot-based investments here;
+      // single-investment outflow is added below when no lots found
+      totalCurrent += currentValue(inv);
+      continue;
+    }
+
+    // No lots: single outflow at earliest date
+    const invested = investedValue(inv);
+    if (invested > 0) {
+      flows.push({ amount: -invested, date: earliestInvestmentDate(inv) });
+    }
+    totalCurrent += currentValue(inv);
+  }
+
+  if (totalCurrent > 0) flows.push({ amount: totalCurrent, date: new Date() });
+
+  return flows;
 }
 
 type CashflowPoint = { amount: number; date: string | Date };

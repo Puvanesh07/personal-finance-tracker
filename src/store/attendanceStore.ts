@@ -20,6 +20,12 @@ import {
 
 import { create } from 'zustand';
 import { db } from '../services/firebase';
+import {
+  checkCanCreateTransactions,
+  checkFeatureLimit,
+  trialLimitMessage,
+} from '../utils/subscriptionUtils';
+import toast from 'react-hot-toast';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,6 +174,16 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   addEmployee: async (e) => {
     const uid = get().uid;
     if (!uid) return;
+    // Block if trial has expired globally
+    if (!checkCanCreateTransactions()) {
+      toast.error('Your trial has expired. Subscribe to add new records.');
+      return;
+    }
+    // Block if attendance trial limit is reached
+    if (!checkFeatureLimit('attendance', get().employees.length)) {
+      toast.error(trialLimitMessage('attendance'));
+      return;
+    }
     const t = now();
     const raw: AttendanceEmployee = clean({
       ...e,

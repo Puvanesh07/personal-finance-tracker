@@ -454,7 +454,7 @@ function EmployeesTab() {
   } = useAttendanceStore();
   const cropCycles = useAgriStore((s) => s.cropCycles);
   const accounts = usePortfolioStore((s) => s.accounts);
-  useEnsureAgriHydrated();
+  useEnsureAgriHydrated(); // triggers hydration; return value not needed here
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -2078,7 +2078,7 @@ export function AttendancePage() {
     createDefaultDateFilter('month'),
   );
   const ready = useEnsureAttendanceHydrated();
-  useEnsureAgriHydrated();
+  useEnsureAgriHydrated(); // triggers hydration; return value not needed here
 
   if (!ready)
     return (

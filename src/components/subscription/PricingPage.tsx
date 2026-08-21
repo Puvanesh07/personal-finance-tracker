@@ -1,6 +1,6 @@
-import { FiCheck, FiLoader, FiStar, FiZap } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiLoader, FiStar, FiZap } from 'react-icons/fi';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { auth } from '../../services/firebase';
 import { UpiPaymentModal } from './UpiPaymentModal';
@@ -30,6 +30,16 @@ export function PricingPage() {
 
   return (
     <div className='flex flex-col gap-8 pb-10'>
+      {/* Back button → Settings / Subscription tab */}
+      <Link
+        to='/settings'
+        className='flex w-fit items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors -ml-1'
+        aria-label='Back to Settings'
+      >
+        <FiArrowLeft className='h-4 w-4' />
+        Back to Settings
+      </Link>
+
       <header className='rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-slate-100/60 p-6 dark:from-emerald-500/10 dark:to-slate-900/40'>
         <div className='flex items-center gap-3'>
           <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'>

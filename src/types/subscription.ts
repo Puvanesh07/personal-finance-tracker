@@ -77,6 +77,63 @@ export const FREE_CATEGORY_LIMIT = 10;
 export const TRIAL_DAYS = 7;
 export const GRACE_PERIOD_DAYS = 30;
 
+// ─── Trial feature usage limits ───────────────────────────────────────────────
+// Central config — change values here to update limits everywhere in the app.
+// Premium/monthly/yearly/lifetime users are never subject to these limits.
+
+export type TrialFeatureKey =
+  | 'investments'
+  | 'cashflows'
+  | 'payments'
+  | 'insurance'
+  | 'liabilities'
+  | 'credentials'
+  | 'accounts'
+  | 'agriculture'
+  | 'goals'
+  | 'attendance';
+
+export const TRIAL_FEATURE_LIMITS: Record<TrialFeatureKey, number> = {
+  investments: 5,
+  cashflows:   5,
+  payments:    1,
+  insurance:   1,
+  liabilities: 1,
+  credentials: 1,
+  accounts:    1,
+  agriculture: 1,
+  goals:       1,
+  attendance:  1,
+};
+
+/** Display labels for each feature key (used in UI) */
+export const TRIAL_FEATURE_LABELS: Record<TrialFeatureKey, string> = {
+  investments: 'Investments',
+  cashflows:   'Cashflows',
+  payments:    'Payments',
+  insurance:   'Insurance',
+  liabilities: 'Liabilities',
+  credentials: 'Credentials',
+  accounts:    'Accounts',
+  agriculture: 'Agriculture',
+  goals:       'Goals',
+  attendance:  'Attendance',
+};
+
+/** Emoji icon for each feature key (used in progress UI) */
+export const TRIAL_FEATURE_ICONS: Record<TrialFeatureKey, string> = {
+  investments: '📈',
+  cashflows:   '💵',
+  payments:    '🔔',
+  insurance:   '🛡️',
+  liabilities: '💳',
+  credentials: '🔐',
+  accounts:    '🏦',
+  agriculture: '🌾',
+  goals:       '🎯',
+  attendance:  '👥',
+};
+
 export type PremiumFeature =
   | 'portfolio_analytics'
   | 'export'
