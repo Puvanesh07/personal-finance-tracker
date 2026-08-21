@@ -2046,3 +2046,155 @@ export function buildExplainContext(intent: string): Record<string, unknown> {
   const result = fetchPersonalData(intent);
   return result.context ?? {};
 }
+
+// ─── Structured response dispatcher ──────────────────────────────────────────
+//
+// Maps every intent to a typed AgentResponse from aiAgentTools.ts.
+// AIAgentPage calls this — fetchPersonalData is kept for generateFullReport.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type { AgentResponse } from './aiAgentResponseTypes';
+import { textResponse } from './aiAgentResponseTypes';
+import {
+  getFinancialOverview,
+  getNetWorth,
+  getPortfolioSummary,
+  getLosingInvestments,
+  getTopInvestments,
+  getInvestmentBySymbol,
+  getPortfolioProfitableCount,
+  getPortfolioSectors,
+  getCashflowSummary,
+  getCashflowCategories,
+  getPaymentsDueSoon,
+  getPaymentsOverdue,
+  getNextPayment,
+  getInsuranceSummary,
+  getNextInsuranceRenewal,
+  getLiabilitiesSummary,
+  getHighestInterestLiability,
+  getDebtRatio,
+  getGoalsSummary,
+  getGoalClosestToCompletion,
+  getGoalsOnTrack,
+  getAccountsSummary,
+  getAgriculture,
+  getAgricultureBestCrop,
+  getAgricultureActiveCrops,
+  getLendingSummary,
+  getLendingOutstanding,
+} from './aiAgentTools';
+
+export function fetchAgentResponse(
+  intent: string,
+  symbol?: string,
+  dateScope?: 'today' | 'this_week' | 'this_month',
+): AgentResponse {
+  // Dev trace — log every routing decision so mismatches are visible in console
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[AIAgent] fetchAgentResponse →', { intent, symbol, dateScope });
+  }
+  // Stock / fund specific lookup
+  if (intent === 'stock_lookup' && symbol) return getInvestmentBySymbol(symbol);
+
+  // Date-scoped cashflow
+  if (intent === 'cashflow') return getCashflowSummary(dateScope);
+
+  switch (intent) {
+    // Dashboard / overview
+    case 'dashboard':           return getFinancialOverview();
+    case 'net_worth':           return getNetWorth();
+    case 'general_personal':    return getFinancialOverview();
+
+    // Portfolio
+    case 'portfolio':                  return getPortfolioSummary();
+    case 'portfolio_best':             return getTopInvestments();
+    case 'portfolio_worst':            return getLosingInvestments();
+    case 'portfolio_profitable_count': return getPortfolioProfitableCount();
+    case 'portfolio_loss_count':       return getLosingInvestments();
+    case 'portfolio_best_pct':         return getTopInvestments();
+    case 'portfolio_sectors':          return getPortfolioSectors();
+    case 'portfolio_pnl':              return getPortfolioSummary();
+    case 'portfolio_invested':         return getPortfolioSummary();
+    case 'portfolio_value':            return getPortfolioSummary();
+
+    // Cashflow (handled above; these are sub-intents that don't use dateScope)
+    case 'cashflow_categories':         return getCashflowCategories();
+    case 'cashflow_peak_expense_month': return getCashflowSummary();
+    case 'cashflow_peak_income_month':  return getCashflowSummary();
+    case 'cashflow_trend':              return getCashflowSummary();
+    case 'cashflow_overspend':          return getCashflowSummary();
+
+    // Payments
+    case 'payments':           return getPaymentsDueSoon(30);
+    case 'payments_week':      return getPaymentsDueSoon(7);
+    case 'payments_month':     return getPaymentsDueSoon(30);
+    case 'payments_overdue':   return getPaymentsOverdue();
+    case 'payments_recurring': return getPaymentsDueSoon(30);
+    case 'payments_largest':   return getPaymentsDueSoon(30);
+    case 'payments_next':      return getNextPayment();
+    case 'payments_paid':      return getPaymentsDueSoon(30);
+
+    // Insurance
+    case 'insurance':                   return getInsuranceSummary();
+    case 'insurance_count':             return getInsuranceSummary();
+    case 'insurance_coverage':          return getInsuranceSummary();
+    case 'insurance_premium':           return getInsuranceSummary();
+    case 'insurance_next_renewal':      return getNextInsuranceRenewal();
+    case 'insurance_expiring_soon':     return getNextInsuranceRenewal();
+    case 'insurance_highest_coverage':  return getInsuranceSummary();
+    case 'insurance_highest_premium':   return getInsuranceSummary();
+
+    // Liabilities
+    case 'liabilities':                  return getLiabilitiesSummary();
+    case 'liabilities_count':            return getLiabilitiesSummary();
+    case 'liabilities_highest_interest': return getHighestInterestLiability();
+    case 'liabilities_highest_balance':  return getLiabilitiesSummary();
+    case 'liabilities_priority':         return getHighestInterestLiability();
+    case 'liabilities_debt_ratio':       return getDebtRatio();
+
+    // Goals
+    case 'goals':                  return getGoalsSummary();
+    case 'goals_closest':          return getGoalClosestToCompletion();
+    case 'goals_lowest_progress':  return getGoalsSummary();
+    case 'goals_remaining':        return getGoalsSummary();
+    case 'goals_completion_rate':  return getGoalsSummary();
+    case 'goals_nearest_deadline': return getGoalsSummary();
+    case 'goals_on_track':         return getGoalsOnTrack();
+    case 'goals_savings_needed':   return getGoalsOnTrack();
+    case 'goals_next_focus':       return getGoalClosestToCompletion();
+
+    // Accounts
+    case 'accounts':              return getAccountsSummary();
+    case 'accounts_count':        return getAccountsSummary();
+    case 'accounts_highest':      return getAccountsSummary();
+    case 'accounts_distribution': return getAccountsSummary();
+    case 'accounts_cash':         return getAccountsSummary();
+
+    // Agriculture
+    case 'agriculture':                      return getAgriculture();
+    case 'agriculture_best_crop':            return getAgricultureBestCrop();
+    case 'agriculture_highest_expense_crop': return getAgriculture();
+    case 'agriculture_active_crops':         return getAgricultureActiveCrops();
+    case 'agriculture_next_harvest':         return getAgricultureActiveCrops();
+    case 'agriculture_expenses':             return getAgriculture();
+
+    // Lending
+    case 'lending':                    return getLendingSummary();
+    case 'lending_total':              return getLendingSummary();
+    case 'lending_outstanding':        return getLendingOutstanding();
+    case 'lending_borrower_count':     return getLendingSummary();
+    case 'lending_top_borrower':       return getLendingOutstanding();
+    case 'lending_interest_collected': return getLendingSummary();
+    case 'lending_highest_rate':       return getLendingSummary();
+    case 'lending_overdue':            return getLendingOutstanding();
+    case 'lending_recovered':          return getLendingSummary();
+
+    default: {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[AIAgent] fetchAgentResponse: unhandled intent', { intent, symbol, dateScope });
+      }
+      return textResponse(`📭 I don't have a specific data view for "${intent}" yet. Try rephrasing your question or ask for a general overview.`);
+    }
+  }
+}
