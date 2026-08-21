@@ -17,11 +17,6 @@ import { MaturityTimeline } from '../../components/dashboard/MaturityTimeline';
 import { SummaryCards } from '../../components/dashboard/SummaryCards';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
-const DashboardPortfolioAI = lazy(() =>
-  import('../../components/dashboard/DashboardPortfolioAI').then((m) => ({
-    default: m.DashboardPortfolioAI,
-  })),
-);
 const MarketCapAllocationChart = lazy(() =>
   import('../../components/dashboard/MarketCapAllocationChart').then((m) => ({
     default: m.MarketCapAllocationChart,
@@ -83,12 +78,6 @@ export function DashboardPage() {
 
       <section>
         <SummaryCards />
-      </section>
-
-      <section>
-        <Suspense fallback={<SectionFallback />}>
-          <DashboardPortfolioAI />
-        </Suspense>
       </section>
 
       <section>

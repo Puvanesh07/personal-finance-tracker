@@ -149,6 +149,7 @@ export function AppLayout() {
                   <NavLink
                     key={item.to}
                     to={item.to}
+                    title={item.label}
                     className={({ isActive }) =>
                       desktopLinkClass(isActive, item.accent, item.bg)
                     }
@@ -165,6 +166,7 @@ export function AppLayout() {
         <div className='mt-4 border-t border-slate-200/70 dark:border-slate-800/60 pt-4 flex flex-col gap-1'>
           <NavLink
             to='/settings'
+            title='Settings'
             className={({ isActive }) =>
               desktopLinkClass(
                 isActive,
@@ -178,6 +180,7 @@ export function AppLayout() {
           </NavLink>
           <button
             onClick={() => setLogoutOpen(true)}
+            title='Sign out of your account'
             className='flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors'
           >
             <FiLogOut className='h-4 w-4 shrink-0' />

@@ -1108,6 +1108,89 @@ export function ProfitsSkeleton() {
   );
 }
 
+// ─── AI AGENT ────────────────────────────────────────────────────────────────
+export function AIAgentSkeleton() {
+  return (
+    <SkeletonPage>
+      <PageHeader color='#8b5cf6' titleW={170} subtitleW={250} hasButton />
+
+      {/* API key / status bar */}
+      <Card accent='#8b5cf6' pad='16px 20px' delay={0.05}>
+        <Row gap={12}>
+          <Avatar size={40} color='#8b5cf6' />
+          <Col gap={6} style={{ flex: 1 }}>
+            <Bone w={160} h={12} />
+            <Bone w='80%' h={10} />
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Suggested chips */}
+      <Card delay={0.1}>
+        <Bone w={140} h={11} mb={12} />
+        <Row gap={8} style={{ flexWrap: 'wrap' }}>
+          {[110, 130, 105, 120, 140, 115, 108, 125].map((w, i) => (
+            <Bone key={i} w={w} h={30} r={20} />
+          ))}
+        </Row>
+      </Card>
+
+      {/* Message thread placeholder */}
+      <Card pad='0' delay={0.15} style={{ flex: 1, minHeight: 200 }}>
+        {[
+          { role: 'user', lines: [120] },
+          { role: 'ai', lines: [220, 180, 160] },
+          { role: 'user', lines: [90] },
+          { role: 'ai', lines: [200, 170] },
+        ].map((msg, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'flex',
+              flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+              gap: 10,
+              padding: '14px 16px',
+              borderBottom: i < 3 ? `1px solid ${C_BONE}` : 'none',
+              animation: `skFadeUp 0.4s ${0.18 + i * 0.07}s both`,
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: msg.role === 'user' ? '#8b5cf620' : '#8b5cf630',
+                flexShrink: 0,
+                marginTop: 2,
+              }}
+            />
+            <div
+              style={{
+                maxWidth: '75%',
+                background: msg.role === 'user' ? '#8b5cf618' : C_BONE,
+                borderRadius: msg.role === 'user' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                padding: '12px 14px',
+              }}
+            >
+              {msg.lines.map((w, j) => (
+                <Bone key={j} w={w} h={11} mb={j < msg.lines.length - 1 ? 7 : 0} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      {/* Input bar */}
+      <Card delay={0.35}>
+        <Row gap={10}>
+          <Bone w='100%' h={38} r={12} style={{ flex: 1 }} />
+          <Bone w={38} h={38} r={12} />
+        </Row>
+      </Card>
+    </SkeletonPage>
+  );
+}
+
 // ─── 12. AGRICULTURE ─────────────────────────────────────────────────────────
 export function AgricultureSkeleton() {
   return (

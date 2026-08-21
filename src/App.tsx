@@ -3,6 +3,7 @@
 import {
   AccountsSkeleton,
   AgricultureSkeleton,
+  AIAgentSkeleton,
   CashflowSkeleton,
   DashboardSkeleton,
   GoalsSkeleton,
@@ -62,6 +63,7 @@ const CredentialsPage = lazy(() =>
   })),
 ); // ← NEW
 const InsightsPage = lazy(() => import('./pages/Insights/InsightsPage'));
+const AIAgentPage = lazy(() => import('./pages/AIAgent/AIAgentPage'));
 const ToolsPage = lazy(() =>
   import('./Tools/ToolsPage').then((m) => ({ default: m.ToolsPage })),
 );
@@ -250,6 +252,14 @@ export default function App() {
               element={
                 <Suspense fallback={<InsightsSkeleton />}>
                   <InsightsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/ai-agent'
+              element={
+                <Suspense fallback={<AIAgentSkeleton />}>
+                  <AIAgentPage />
                 </Suspense>
               }
             />

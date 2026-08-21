@@ -12,10 +12,8 @@ import { useMemo, useState } from 'react';
 
 import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
-import { PortfolioAIAnalysisPanel } from '../../components/insights/PortfolioAIAnalysisPanel';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 import { computeAlpha, projectFutureValue } from '../../utils/advancedInsights';
-import { buildPortfolioAIContext } from '../../utils/portfolioAIContext';
 import {
   calculateNetWorth,
   summarizePortfolio,
@@ -555,7 +553,6 @@ export default function InsightsPage() {
     investments,
     liabilities,
     cashflows,
-    goals,
     latestInsight,
     saveInsightSnapshot,
     ready,
@@ -630,18 +627,6 @@ export default function InsightsPage() {
       topSectorPct,
     };
   }, [investments, liabilities, cashflows, essentials, latestInsight]);
-
-  const aiContext = useMemo(
-    () =>
-      buildPortfolioAIContext({
-        investments,
-        liabilities,
-        cashflows,
-        essentials,
-        goals,
-      }),
-    [investments, liabilities, cashflows, essentials, goals],
-  );
 
   const { health, fire } = metrics;
   const healthLabel =
@@ -769,11 +754,6 @@ export default function InsightsPage() {
         </div>
       ) : (
         <div className='flex flex-col gap-6'>
-          {aiContext && (
-            <SubscriptionGuard feature='ai_insights'>
-              <PortfolioAIAnalysisPanel context={aiContext} />
-            </SubscriptionGuard>
-          )}
           {/* ── Health Score + Breakdown ── */}
           <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5'>
             <h2 className='text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4'>
