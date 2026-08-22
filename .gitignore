@@ -14,6 +14,7 @@ dist-ssr
 
 # Environment variables
 .env
+functions/.env
 .env.*
 !.env.example
 
