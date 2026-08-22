@@ -261,7 +261,7 @@ export function NotificationSettings() {
                 className='inline-flex items-center gap-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 px-2.5 py-1 text-[11px] font-bold text-white transition-colors'
               >
                 <FiPlay className='h-3 w-3' />
-                {testing ? 'Running test…' : 'Test Payment & Insurance Reminders'}
+                {testing ? 'Running test…' : 'Test All Reminders'}
               </button>
             </div>
             {testResult && (
@@ -273,7 +273,9 @@ export function NotificationSettings() {
                 )}
                 {testResult.ok && testResult.results && testResult.results.length === 0 && (
                   <p className='text-[11.5px] text-slate-500 dark:text-slate-400'>
-                    Ran successfully — no tracked payments or insurance policies were evaluated (none found).
+                    Ran successfully — no payments, insurance, goals, liabilities, SIP, lending or
+                    subscription records were found for this account. (Agriculture and attendance
+                    reminders aren't evaluated by this test — that rule logic doesn't exist yet.)
                   </p>
                 )}
                 {testResult.results && testResult.results.length > 0 && (

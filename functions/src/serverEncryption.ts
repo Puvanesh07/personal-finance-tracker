@@ -31,28 +31,43 @@
  * and decrypts documents the same way `decryptDoc()` does on the client, so
  * the Cloud Function sees the real field values.
  *
- * ── Configuration ────────────────────────────────────────────────────────
+ * ── Salt configuration & fallback ────────────────────────────────────────
  * The salt MUST match whatever the web app was built with
- * (`VITE_ENCRYPTION_SALT` in the app's root `.env`). If you never set
- * `VITE_ENCRYPTION_SALT`, the client falls back to the literal string
- * 'default-finance-salt-v1' — and so does this file, automatically. No
- * configuration is required in that (very common) case.
+ * (`VITE_ENCRYPTION_SALT` in the app's root `.env` / hosting build env). If
+ * you never set `VITE_ENCRYPTION_SALT`, the client falls back to the literal
+ * string 'default-finance-salt-v1'.
  *
  * If you DID set a custom VITE_ENCRYPTION_SALT for the web app, create
- * `functions/.env` (a separate file from the root `.env` — Firebase
+ * `functions/.env` (a SEPARATE file from the root `.env` — Firebase
  * Functions v2 auto-loads `functions/.env` at deploy/runtime) containing:
  *
  *   ENCRYPTION_SALT=<the exact same value as your root .env's VITE_ENCRYPTION_SALT>
+ *
+ * To avoid every document silently failing to decrypt if this is ever
+ * missing or wrong (which is what produced "no tracked payments or
+ * insurance policies were evaluated (none found)" — the decrypt was
+ * throwing for every single doc and being swallowed), decryptDoc() below
+ * tries EVERY known candidate salt (configured env value, then the built-in
+ * default) before giving up, and throws a specific, readable error — which
+ * the caller now surfaces into the on-screen test results instead of only
+ * Cloud Functions logs — if none of them work.
  */
 
 const DEFAULT_SALT = 'default-finance-salt-v1';
 
-function getSalt(): string {
-  return (
-    process.env.ENCRYPTION_SALT?.trim() ||
-    process.env.VITE_ENCRYPTION_SALT?.trim() ||
-    DEFAULT_SALT
-  );
+function getConfiguredSalt(): string | null {
+  const v = process.env.ENCRYPTION_SALT?.trim() || process.env.VITE_ENCRYPTION_SALT?.trim();
+  return v || null;
+}
+
+function candidateSalts(): { label: string; salt: string }[] {
+  const configured = getConfiguredSalt();
+  const out: { label: string; salt: string }[] = [];
+  if (configured) {
+    out.push({ label: 'ENCRYPTION_SALT (functions/.env)', salt: configured });
+  }
+  out.push({ label: 'built-in default (default-finance-salt-v1)', salt: DEFAULT_SALT });
+  return out;
 }
 
 export type FirestoreDoc = Record<string, unknown>;
@@ -61,8 +76,7 @@ export type FirestoreDoc = Record<string, unknown>;
 // for every single document.
 const _keyCache = new Map<string, CryptoKey>();
 
-async function deriveKey(uid: string): Promise<CryptoKey> {
-  const salt = getSalt();
+async function deriveKey(uid: string, salt: string): Promise<CryptoKey> {
   const cacheKey = `${uid}::${salt}`;
   const cached = _keyCache.get(cacheKey);
   if (cached) return cached;
@@ -100,7 +114,10 @@ function fromBase64(str: string): Uint8Array {
 
 /**
  * Decrypt a document read from Firestore via the Admin SDK.
- * Mirrors `decryptDoc()` in src/services/encryptionService.ts exactly.
+ * Mirrors `decryptDoc()` in src/services/encryptionService.ts, except it
+ * tries every candidate salt before failing (see file header) and throws a
+ * specific, actionable error instead of a generic one.
+ *
  * If the doc isn't encrypted (`_encrypted !== true`), it's returned as-is
  * (minus the `_encrypted` flag) — same backward-compatible behavior as the
  * client.
@@ -112,23 +129,32 @@ export async function decryptDoc<T>(uid: string, raw: FirestoreDoc): Promise<T> 
     return copy as unknown as T;
   }
 
-  const key = await deriveKey(uid);
   const iv = fromBase64(raw['_iv'] as string);
   const ciphertextBytes = fromBase64(raw['_data'] as string);
 
-  try {
-    const plaintextBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: iv as BufferSource },
-      key,
-      ciphertextBytes as BufferSource,
-    );
-    return JSON.parse(new TextDecoder().decode(plaintextBuffer)) as T;
-  } catch (err) {
-    throw new Error(
-      `[serverEncryption] Decryption failed for uid=${uid} doc id=${String(raw['id'])}. ` +
-        `This means ENCRYPTION_SALT here does not match VITE_ENCRYPTION_SALT used by the ` +
-        `web app, or the document is corrupted. ` +
-        `err=${err instanceof Error ? err.message : String(err)}`,
-    );
+  const attempts = candidateSalts();
+  const errors: string[] = [];
+
+  for (const { label, salt } of attempts) {
+    try {
+      const key = await deriveKey(uid, salt);
+      const plaintextBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv as BufferSource },
+        key,
+        ciphertextBytes as BufferSource,
+      );
+      return JSON.parse(new TextDecoder().decode(plaintextBuffer)) as T;
+    } catch (err) {
+      errors.push(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
+
+  throw new Error(
+    `Could not decrypt doc id=${String(raw['id'])} for uid=${uid} with any known salt ` +
+      `(tried ${attempts.length}: ${attempts.map((a) => a.label).join(', ')}). ` +
+      `This means the salt the web app used to encrypt this document does not match either ` +
+      `candidate here. Set functions/.env's ENCRYPTION_SALT to the exact value of your web ` +
+      `app's VITE_ENCRYPTION_SALT (check your hosting provider's build environment variables, ` +
+      `not just your local .env) and redeploy functions. Details: ${errors.join(' | ')}`,
+  );
 }

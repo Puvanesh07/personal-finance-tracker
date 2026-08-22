@@ -33,7 +33,30 @@
  * decrypts each document (see ./serverEncryption.ts) before the rule
  * checks run — without that step every field (dueDate, renewalDate, ...)
  * reads as `undefined`, which is what caused the
- * "daysUntilDue=NaN ... no push queued" results.
+ * "daysUntilDue=NaN ... no push queued" results. If decryption itself
+ * fails for every doc (e.g. functions/.env's ENCRYPTION_SALT doesn't match
+ * the web app's VITE_ENCRYPTION_SALT), fetchCol() now pushes an ERROR line
+ * into the results array instead of silently returning an empty list —
+ * previously that looked identical to "you have no data" ("none found").
+ *
+ * NOTE ON COVERAGE — what is and isn't implemented here:
+ *   ✅ Payments (checkPayments), Insurance (checkInsurance), Goals
+ *      (checkGoals), Liabilities/EMI (checkLiabilities), SIP (checkSIP),
+ *      Lending (checkLending), Subscription/trial (checkSubscription) all
+ *      have real rule logic AND are wired into both the 30-min scheduler
+ *      AND the on-demand testPushNotifications callable below.
+ *   ❌ Agriculture reminders and Attendance reminders have toggles in
+ *      src/components/notifications/NotificationSettings.tsx
+ *      (agricultureReminders, attendanceReminders) and in
+ *      NotifSettings below, but there is NO rule logic anywhere in this
+ *      file for either — no checkAgriculture(), no checkAttendance(). No
+ *      agri or attendance push notification has ever been sent by this
+ *      function; the toggles currently do nothing. Same for weeklyDigest
+ *      and monthlyReport (client-side toggles, no server implementation).
+ *      Building these requires deciding what should actually trigger a
+ *      reminder for each (e.g. an agri crop-cycle harvest date, a
+ *      livestock event, an unmarked attendance day) before rules can be
+ *      written — that's a feature-build task, not a bug fix.
  */
 
 import * as logger from 'firebase-functions/logger';
@@ -244,24 +267,42 @@ async function sendToUser(
  * Each document is decrypted independently so one corrupted/undecryptable
  * doc (e.g. written under a different salt) doesn't stop the rest of the
  * user's payments/policies from being evaluated.
+ *
+ * IMPORTANT: decryption failures are pushed into `opts.results` (not just
+ * logged) — if ALL documents in a collection fail to decrypt, the caller
+ * ends up with an empty list and reports "0 found", which looks identical
+ * to "you have no data" unless the underlying decrypt errors are visible.
+ * Pass `opts` (the same one threaded through from testPushNotifications)
+ * so a salt mismatch shows up directly in the on-screen test results.
  */
-async function fetchCol<T>(uid: string, col: string): Promise<T[]> {
+async function fetchCol<T>(
+  uid: string,
+  col: string,
+  opts?: { results?: string[] },
+): Promise<T[]> {
   const db = getDb();
   const snap = await db.collection('users').doc(uid).collection(col).get();
 
   const out: T[] = [];
+  let failed = 0;
   for (const d of snap.docs) {
     try {
       const decrypted = await decryptDoc<Record<string, unknown>>(uid, d.data() as FirestoreDoc);
       out.push({ id: d.id, ...decrypted } as T);
     } catch (err) {
-      logger.error(
-        `[pushNotif] uid=${uid} col=${col} doc=${d.id} — decryption failed, skipping this doc: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      failed++;
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[pushNotif] uid=${uid} col=${col} doc=${d.id} — decryption failed, skipping this doc: ${msg}`);
+      opts?.results?.push(`ERROR (decrypt failed — ${col}): uid=${uid} doc=${d.id} — ${msg}`);
     }
   }
+
+  if (opts?.results) {
+    opts.results.push(
+      `INFO (${col}): uid=${uid} — found ${snap.size} doc(s), decrypted ${out.length}, failed ${failed}.`,
+    );
+  }
+
   return out;
 }
 
@@ -276,7 +317,7 @@ async function checkPayments(
     logger.info(`[pushNotif] uid=${uid} — paymentReminders is OFF in notificationSettings, skipping all payment checks.`);
     return;
   }
-  const payments = await fetchCol<any>(uid, 'trackedPayments');
+  const payments = await fetchCol<any>(uid, 'trackedPayments', opts);
   logger.info(`[pushNotif] uid=${uid} — evaluating ${payments.length} tracked payment(s).`);
 
   for (const p of payments) {
@@ -341,7 +382,7 @@ async function checkInsurance(
     logger.info(`[pushNotif] uid=${uid} — insuranceReminders is OFF in notificationSettings, skipping all insurance checks.`);
     return;
   }
-  const policies = await fetchCol<any>(uid, 'insurancePolicies');
+  const policies = await fetchCol<any>(uid, 'insurancePolicies', opts);
   logger.info(`[pushNotif] uid=${uid} — evaluating ${policies.length} insurance polic${policies.length === 1 ? 'y' : 'ies'}.`);
 
   for (const pol of policies) {
@@ -405,9 +446,10 @@ async function checkGoals(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
   if (!settings.goalReminders) return;
-  const goals = await fetchCol<any>(uid, 'goals');
+  const goals = await fetchCol<any>(uid, 'goals', opts);
 
   for (const g of goals) {
     if (g.status === 'completed') continue;
@@ -415,8 +457,11 @@ async function checkGoals(
       ? Math.round((g.currentAmount / g.targetAmount) * 100)
       : 0;
 
+    let fired = false;
+
     // Goal achieved
     if (pct >= 100) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `goal_achieved:${g.id}:once`,
         title:      `🎯 Goal Achieved!`,
@@ -427,13 +472,14 @@ async function checkGoals(
         entityId:   g.id,
         actionLabel: 'View Goals',
         tag:        `goal_${g.id}`,
-      });
+      }, opts);
     }
 
     // Deadline approaching
     if (g.dueDate) {
       const days = daysDiff(g.dueDate);
       if (days === 7 && pct < 100) {
+        fired = true;
         await sendToUser(uid, devices, {
           key:        `goal_deadline_7d:${g.id}:${todayStr()}`,
           title:      `⏰ Goal Deadline in 7 Days`,
@@ -444,9 +490,10 @@ async function checkGoals(
           entityId:   g.id,
           actionLabel: 'View Goals',
           tag:        `goal_${g.id}`,
-        });
+        }, opts);
       }
       if (days === 30 && pct < 80) {
+        fired = true;
         await sendToUser(uid, devices, {
           key:        `goal_deadline_30d:${g.id}:${todayStr()}`,
           title:      `📊 Goal Deadline in 30 Days`,
@@ -457,13 +504,14 @@ async function checkGoals(
           entityId:   g.id,
           actionLabel: 'View Goals',
           tag:        `goal_${g.id}`,
-        });
+        }, opts);
       }
     }
 
     // Monthly contribution reminder — 1st of month
     const today = new Date();
     if (today.getDate() === 1 && pct < 100) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `goal_monthly:${g.id}:${currentMonthKey()}`,
         title:      `💰 Monthly Goal Contribution`,
@@ -474,7 +522,13 @@ async function checkGoals(
         entityId:   g.id,
         actionLabel: 'Add Contribution',
         tag:        `goal_${g.id}`,
-      });
+      }, opts);
+    }
+
+    if (!fired) {
+      const line = `uid=${uid} goal=${g.id} name="${g.name}" pct=${pct}% dueDate=${g.dueDate ?? 'none'} — matches no goal rule today (achieved needs pct>=100; deadline rules only fire at exactly 7 or 30 days left; monthly nudge only fires on the 1st).`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (goal): ${line}`);
     }
   }
 }
@@ -484,17 +538,24 @@ async function checkLiabilities(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
   if (!settings.emiReminders) return;
-  const liabilities = await fetchCol<any>(uid, 'liabilities');
+  const liabilities = await fetchCol<any>(uid, 'liabilities', opts);
   const today = new Date();
 
   for (const l of liabilities) {
     if (l.status === 'paid' || l.status === 'returned') continue;
-    if (!l.emiAmount || l.emiAmount <= 0) continue;
+    if (!l.emiAmount || l.emiAmount <= 0) {
+      opts?.results?.push(`SKIPPED (liability): uid=${uid} liability=${l.id} — no emiAmount set, skipping.`);
+      continue;
+    }
+
+    let fired = false;
 
     // EMI-day reminder (1st of month nudge)
     if (today.getDate() === 1) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `emi_monthly:${l.id}:${currentMonthKey()}`,
         title:      `💸 EMI Due This Month`,
@@ -505,13 +566,14 @@ async function checkLiabilities(
         entityId:   l.id,
         actionLabel: 'View Liabilities',
         tag:        `emi_${l.id}`,
-      });
+      }, opts);
     }
 
     // End-date approaching
     if (l.endDate) {
       const days = daysDiff(l.endDate);
       if (days === 3 || days === 1 || days === 0) {
+        fired = true;
         const label = days === 0 ? 'Today' : `in ${days} day${days > 1 ? 's' : ''}`;
         await sendToUser(uid, devices, {
           key:        `liab_end_${days}d:${l.id}:${todayStr()}`,
@@ -523,8 +585,14 @@ async function checkLiabilities(
           entityId:   l.id,
           actionLabel: 'Pay Now',
           tag:        `liab_${l.id}`,
-        });
+        }, opts);
       }
+    }
+
+    if (!fired) {
+      const line = `uid=${uid} liability=${l.id} name="${l.name}" endDate=${l.endDate ?? 'none'} — matches no liability rule today (monthly nudge only fires on the 1st; end-date rule only fires at exactly 3, 1, or 0 days left).`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (liability): ${line}`);
     }
   }
 }
@@ -534,14 +602,21 @@ async function checkSIP(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
   if (!settings.sipReminders) return;
   const today = new Date();
-  if (today.getDate() !== 5) return;
+  if (today.getDate() !== 5 && !opts?.force) {
+    opts?.results?.push(`NO MATCH (sip): uid=${uid} — SIP reminder only fires on the 5th of the month (today is the ${today.getDate()}).`);
+    return;
+  }
 
-  const sipPlans = await fetchCol<any>(uid, 'sipPlans');
+  const sipPlans = await fetchCol<any>(uid, 'sipPlans', opts);
   const budgetDoc = sipPlans.find((s) => s.type === 'budget');
-  if (!budgetDoc?.budget || budgetDoc.budget <= 0) return;
+  if (!budgetDoc?.budget || budgetDoc.budget <= 0) {
+    opts?.results?.push(`NO MATCH (sip): uid=${uid} — no sipPlans doc with type='budget' and budget>0 found.`);
+    return;
+  }
 
   await sendToUser(uid, devices, {
     key:        `sip_monthly:${currentMonthKey()}:${uid}`,
@@ -553,7 +628,7 @@ async function checkSIP(
     entityId:   `sip_${uid}`,
     actionLabel: 'View SIP Plan',
     tag:        'sip_monthly',
-  });
+  }, opts);
 }
 
 // 6. Lending overdue
@@ -561,15 +636,21 @@ async function checkLending(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
   if (!settings.lendingReminders) return;
-  const borrowers = await fetchCol<any>(uid, 'lendingBorrowers');
+  const borrowers = await fetchCol<any>(uid, 'lendingBorrowers', opts);
 
   for (const b of borrowers) {
-    if (b.status !== 'active' || !b.nextDueDate) continue;
+    if (b.status !== 'active' || !b.nextDueDate) {
+      opts?.results?.push(`SKIPPED (lending): uid=${uid} borrower=${b.id} — status is not 'active' or nextDueDate is missing.`);
+      continue;
+    }
     const days = daysDiff(b.nextDueDate);
+    let fired = false;
 
     if (days === 3) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `lending_due_3d:${b.id}:${todayStr()}`,
         title:      `🤝 Lending Due in 3 Days`,
@@ -580,9 +661,10 @@ async function checkLending(
         entityId:   b.id,
         actionLabel: 'View Lending',
         tag:        `lending_${b.id}`,
-      });
+      }, opts);
     }
     if (days <= 0 && days >= -3) {
+      fired = true;
       const label = days === 0 ? 'today' : `${Math.abs(days)} day(s) ago`;
       await sendToUser(uid, devices, {
         key:        `lending_overdue_${Math.abs(days)}d:${b.id}:${todayStr()}`,
@@ -594,7 +676,13 @@ async function checkLending(
         entityId:   b.id,
         actionLabel: 'View Lending',
         tag:        `lending_${b.id}`,
-      });
+      }, opts);
+    }
+
+    if (!fired) {
+      const line = `uid=${uid} borrower=${b.id} name="${b.name}" nextDueDate=${b.nextDueDate} daysUntilDue=${days} — matches no lending rule today (due reminder only fires at exactly 3 days out; overdue only fires from 0 to -3 days).`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (lending): ${line}`);
     }
   }
 }
@@ -604,6 +692,7 @@ async function checkSubscription(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
   if (!settings.subscriptionAlerts) return;
   const db = getDb();
@@ -611,15 +700,20 @@ async function checkSubscription(
   if (!snap.exists) return;
   const data = snap.data()!;
 
-  if (data.premiumGranted === true || data.plan === 'lifetime') return;
+  if (data.premiumGranted === true || data.plan === 'lifetime') {
+    opts?.results?.push(`SKIPPED (subscription): uid=${uid} — premiumGranted or lifetime plan, no trial/expiry checks apply.`);
+    return;
+  }
 
   const status: string = data.subscriptionStatus ?? '';
   const trialEnd: Timestamp | null = data.trialEnd ?? null;
+  let fired = false;
 
   if (status === 'active' && trialEnd) {
     const days = daysDiff(trialEnd.toDate().toISOString().slice(0, 10));
 
     if (days === 3) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `trial_ending_3d:${uid}:${todayStr()}`,
         title:      `⏳ Fintrackly Trial Ending Soon`,
@@ -630,9 +724,10 @@ async function checkSubscription(
         entityId:   uid,
         actionLabel: 'Upgrade Now',
         tag:        'trial_ending',
-      });
+      }, opts);
     }
     if (days === 1) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `trial_ending_1d:${uid}:${todayStr()}`,
         title:      `⏳ Trial Ends Tomorrow`,
@@ -643,9 +738,10 @@ async function checkSubscription(
         entityId:   uid,
         actionLabel: 'Upgrade Now',
         tag:        'trial_ending',
-      });
+      }, opts);
     }
     if (days === 0) {
+      fired = true;
       await sendToUser(uid, devices, {
         key:        `trial_ending_today:${uid}:${todayStr()}`,
         title:      `🔒 Fintrackly Trial Ends Today`,
@@ -656,11 +752,15 @@ async function checkSubscription(
         entityId:   uid,
         actionLabel: 'Subscribe Now',
         tag:        'trial_ending',
-      });
+      }, opts);
+    }
+    if (!fired) {
+      opts?.results?.push(`NO MATCH (subscription): uid=${uid} trialEnd=${trialEnd.toDate().toISOString().slice(0, 10)} daysUntilTrialEnd=${days} — only fires at exactly 3, 1, or 0 days left.`);
     }
   }
 
   if (status === 'expired') {
+    fired = true;
     await sendToUser(uid, devices, {
       key:        `sub_expired:${uid}:${todayStr()}`,
       title:      `🔒 Subscription Expired`,
@@ -671,7 +771,11 @@ async function checkSubscription(
       entityId:   uid,
       actionLabel: 'Subscribe',
       tag:        'subscription_expired',
-    });
+    }, opts);
+  }
+
+  if (!fired && status !== 'active') {
+    opts?.results?.push(`NO MATCH (subscription): uid=${uid} status="${status}" — not 'active' with a trialEnd, and not 'expired'.`);
   }
 }
 
@@ -749,16 +853,28 @@ export const testPushNotifications = onCall(
 
     const opts = { force, results };
 
+    // Every category that has rule logic implemented is tested here — not
+    // just payments/insurance. (Previously only these two were wired into
+    // the test callable, which is why goals/liabilities/SIP/lending never
+    // showed anything when you pressed "Test" even though their rules run
+    // in the 30-min scheduler.) Agriculture and attendance reminders are
+    // NOT included because there is currently no rule logic for them at
+    // all anywhere in this file — see the file header note.
     await Promise.all([
       checkPayments(uid, enabledDevices, settings, opts),
       checkInsurance(uid, enabledDevices, settings, opts),
+      checkGoals(uid, enabledDevices, settings, opts),
+      checkLiabilities(uid, enabledDevices, settings, opts),
+      checkSIP(uid, enabledDevices, settings, opts),
+      checkLending(uid, enabledDevices, settings, opts),
+      checkSubscription(uid, enabledDevices, settings, opts),
     ]);
 
     return {
       ok: true,
       deviceCount: enabledDevices.length,
       settings,
-      results, // human-readable line per payment/policy evaluated: SENT / NO MATCH / SKIPPED / ERROR
+      results, // human-readable line per record evaluated: SENT / NO MATCH / SKIPPED / ERROR / INFO
     };
   },
 );
