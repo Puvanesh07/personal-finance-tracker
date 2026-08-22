@@ -25,6 +25,43 @@
  *
  * Firestore paths written:
  *   users/{uid}/pushSent/{key}              — dedup record (expires after 7d)
+ *   users/{uid}/notificationDevices/{id}    — failCount/failDates/lastSuccessAt
+ *                                              bookkeeping (see STALE TOKEN
+ *                                              HANDLING below); device docs
+ *                                              are deleted only once they
+ *                                              cross the multi-day threshold.
+ *
+ * ── STALE TOKEN HANDLING ─────────────────────────────────────────────────────
+ * A push token can come back as "not-registered"/"invalid-registration-token"
+ * for two very different reasons:
+ *   (a) It's genuinely dead — the browser/OS unsubscribed it, the app was
+ *       uninstalled, etc. This is a real, persistent condition.
+ *   (b) It's a BRAND NEW token that hasn't finished propagating through
+ *       Apple's/Google's push infrastructure yet, and/or it's being hit by
+ *       several concurrent sends at once (this file runs 7 rule categories
+ *       in parallel per user, and if more than one of them matches, they'd
+ *       previously all call messaging.send() to the same token at nearly
+ *       the same millisecond) — this is transient and resolves itself.
+ *
+ * Naively deleting the device doc on the FIRST failure conflates these two
+ * cases and risks wiping out a perfectly good, just-registered token,
+ * silently breaking notifications for that user until they reinstall.
+ *
+ * This file instead:
+ *   1. Serializes sends to the same token within a single invocation
+ *      (withTokenLock) with a small stagger, instead of firing them all
+ *      simultaneously.
+ *   2. Retries once after a short delay on that specific error class
+ *      (sendWithRetry) before treating it as a failure at all.
+ *   3. If it still fails, records a "strike" against the device doc for
+ *      TODAY's date only (recordDeviceFailure) — multiple failures on the
+ *      same calendar day only count once, so one noisy burst can't itself
+ *      cross the threshold.
+ *   4. Only deletes the device doc once it has struck out on
+ *      STALE_FAIL_THRESHOLD separate calendar days.
+ *   5. Any successful send on that token resets its strike count to 0
+ *      (recordDeviceSuccess) — so a token that had one bad day and then
+ *      works fine isn't slowly marched toward deletion.
  *
  * NOTE ON ENCRYPTION:
  * trackedPayments / insurancePolicies / goals / liabilities / sipPlans /
@@ -72,8 +109,10 @@ const region = 'asia-south1';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface NotifDevice {
-  token: string;
-  enabled: boolean;
+  id:       string;   // Firestore doc id under notificationDevices — needed
+                       // so sendToUser can record strikes / delete the doc.
+  token:    string;
+  enabled:  boolean;
   platform: string;
 }
 
@@ -126,6 +165,10 @@ function currentMonthKey(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Returns true if the current time (IST) is within the quiet window.
  * Handles overnight windows like 22:00 → 07:00.
@@ -173,6 +216,111 @@ async function markSent(uid: string, key: string): Promise<void> {
     .set({ sentAt: Timestamp.now(), key }, { merge: true });
 }
 
+// ── Stale-token bookkeeping ─────────────────────────────────────────────────
+
+const STALE_FAIL_THRESHOLD = 3; // must fail on this many SEPARATE calendar days
+
+/** Reset a device's strike count after a successful send. */
+async function recordDeviceSuccess(uid: string, deviceDocId: string): Promise<void> {
+  const db = getDb();
+  await db
+    .collection('users').doc(uid)
+    .collection('notificationDevices').doc(deviceDocId)
+    .set({ failCount: 0, failDates: [], lastSuccessAt: Timestamp.now() }, { merge: true });
+}
+
+/**
+ * Records a failed send against a device doc for TODAY's date only (repeat
+ * failures on the same day only count once, so a single noisy burst of
+ * concurrent sends can't itself cross the threshold). Returns true if the
+ * device has now failed on STALE_FAIL_THRESHOLD or more separate days and
+ * should be deleted.
+ */
+async function recordDeviceFailure(uid: string, deviceDocId: string): Promise<boolean> {
+  const db = getDb();
+  const ref = db
+    .collection('users').doc(uid)
+    .collection('notificationDevices').doc(deviceDocId);
+
+  const snap = await ref.get();
+  if (!snap.exists) return false; // already gone, nothing to do
+
+  const data = snap.data()!;
+  const prevFailDates: string[] = Array.isArray(data.failDates) ? data.failDates : [];
+  const today = todayStr();
+
+  const failDates = prevFailDates.includes(today)
+    ? prevFailDates
+    : [...prevFailDates, today].slice(-10); // keep at most the last 10 fail-days
+
+  await ref.set(
+    { failCount: failDates.length, failDates, lastFailedAt: Timestamp.now() },
+    { merge: true },
+  );
+
+  return failDates.length >= STALE_FAIL_THRESHOLD;
+}
+
+// ── Per-token send serialization ────────────────────────────────────────────
+// All 7 rule categories run in parallel per user (see Promise.all below), so
+// if more than one matches, they'd otherwise all call messaging.send() to the
+// SAME token within the same millisecond. Queuing sends to a given token and
+// staggering them slightly avoids hammering a single (possibly still-
+// propagating) token with a burst of simultaneous requests.
+
+const _tokenSendQueue = new Map<string, Promise<unknown>>();
+
+function withTokenLock<T>(token: string, fn: () => Promise<T>): Promise<T> {
+  const prev = _tokenSendQueue.get(token) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(async () => {
+    const result = await fn();
+    await sleep(150); // small stagger before the next queued send on this token
+    return result;
+  });
+  _tokenSendQueue.set(token, next);
+  return next;
+}
+
+type SendOutcome = 'sent' | 'stale' | 'error';
+
+/**
+ * Sends one FCM message to one token. On "not-registered" /
+ * "invalid-registration-token", waits briefly and retries ONCE before
+ * concluding the token is actually stale — a just-created subscription can
+ * bounce with this exact error while it's still propagating.
+ */
+async function sendWithRetry(
+  token: string,
+  payload: Parameters<ReturnType<typeof getMessaging>['send']>[0],
+): Promise<{ outcome: SendOutcome; errCode?: string }> {
+  const messaging = getMessaging();
+
+  const attempt = async (): Promise<{ outcome: SendOutcome; errCode?: string }> => {
+    try {
+      await messaging.send(payload);
+      return { outcome: 'sent' };
+    } catch (err: any) {
+      const code = err?.errorInfo?.code ?? err?.code;
+      return { outcome: 'error', errCode: code };
+    }
+  };
+
+  const isStaleCode = (code?: string) =>
+    code === 'messaging/registration-token-not-registered' ||
+    code === 'messaging/invalid-registration-token';
+
+  const first = await attempt();
+  if (first.outcome === 'sent') return first;
+  if (!isStaleCode(first.errCode)) return first; // real error, don't retry
+
+  // Possibly just propagation lag — wait and try exactly once more.
+  await sleep(1_500);
+  const second = await attempt();
+  if (second.outcome === 'sent') return second;
+  if (isStaleCode(second.errCode)) return { outcome: 'stale', errCode: second.errCode };
+  return second;
+}
+
 /** Send an FCM message to all enabled devices for a user. */
 async function sendToUser(
   uid: string,
@@ -180,8 +328,7 @@ async function sendToUser(
   msg: PushMessage,
   opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
-  const messaging = getMessaging();
-  const enabled   = devices.filter((d) => d.enabled && d.token);
+  const enabled = devices.filter((d) => d.enabled && d.token);
   if (!enabled.length) {
     const line = `uid=${uid} key=${msg.key} — no enabled devices with a token, skipping.`;
     logger.info(`[pushNotif] ${line}`);
@@ -198,58 +345,88 @@ async function sendToUser(
     return;
   }
 
-  const sends = enabled.map((device) =>
-    messaging.send({
-      token: device.token,
-      notification: { title: msg.title, body: msg.body },
-      webpush: {
-        notification: {
-          title:   msg.title,
-          body:    msg.body,
-          icon:    '/icons/android-chrome-192x192.png',
-          badge:   '/icons/favicon-32x32.png',
-          tag:     msg.tag ?? msg.notifType,
-          vibrate: [100, 50, 200],
-          requireInteraction: msg.severity === 'critical',
-          actions: msg.actionLabel
-            ? [{ action: 'open', title: msg.actionLabel }]
-            : [],
-        },
-        fcmOptions: {
-          link: `https://fintrackly.web.app${msg.clickUrl}`,
-        },
-        data: {
-          clickUrl:   msg.clickUrl,
-          notifType:  msg.notifType,
-          severity:   msg.severity,
-          entityId:   msg.entityId,
-          actionLabel: msg.actionLabel ?? '',
-          tag:        msg.tag ?? msg.notifType,
-        },
+  const payloadFor = (device: NotifDevice) => ({
+    token: device.token,
+    notification: { title: msg.title, body: msg.body },
+    webpush: {
+      notification: {
+        title:   msg.title,
+        body:    msg.body,
+        icon:    '/icons/android-chrome-192x192.png',
+        badge:   '/icons/favicon-32x32.png',
+        tag:     msg.tag ?? msg.notifType,
+        vibrate: [100, 50, 200],
+        requireInteraction: msg.severity === 'critical',
+        actions: msg.actionLabel
+          ? [{ action: 'open', title: msg.actionLabel }]
+          : [],
       },
-    }).catch((err) => {
-      // InvalidRegistration / NotRegistered — token expired, ignore
-      if (
-        err?.errorInfo?.code === 'messaging/registration-token-not-registered' ||
-        err?.errorInfo?.code === 'messaging/invalid-registration-token'
-      ) {
-        const line = `Stale token for uid=${uid}. Skipping.`;
-        logger.warn(`[pushNotif] ${line}`);
-        opts?.results?.push(`ERROR (stale token): ${line}`);
-        return null;
+      fcmOptions: {
+        link: `https://fintrackly.web.app${msg.clickUrl}`,
+      },
+      data: {
+        clickUrl:   msg.clickUrl,
+        notifType:  msg.notifType,
+        severity:   msg.severity,
+        entityId:   msg.entityId,
+        actionLabel: msg.actionLabel ?? '',
+        tag:        msg.tag ?? msg.notifType,
+      },
+    },
+  });
+
+  let sentCount = 0;
+
+  const sends = enabled.map((device) =>
+    // Serialize + stagger sends that share the same token, instead of firing
+    // every category's send to this token at the same instant.
+    withTokenLock(device.token, async () => {
+      const { outcome, errCode } = await sendWithRetry(device.token, payloadFor(device));
+
+      if (outcome === 'sent') {
+        sentCount++;
+        await recordDeviceSuccess(uid, device.id);
+        return;
       }
-      const line = `Send error uid=${uid}: ${err?.errorInfo?.code ?? err?.message}`;
+
+      if (outcome === 'stale') {
+        const shouldDelete = await recordDeviceFailure(uid, device.id);
+        if (shouldDelete) {
+          const db = getDb();
+          await db
+            .collection('users').doc(uid)
+            .collection('notificationDevices').doc(device.id)
+            .delete();
+          const line = `Token for uid=${uid} device=${device.id} failed on ${STALE_FAIL_THRESHOLD}+ separate days — removed.`;
+          logger.warn(`[pushNotif] ${line}`);
+          opts?.results?.push(`CLEANED (stale token removed): ${line}`);
+        } else {
+          const line = `uid=${uid} device=${device.id} — token bounced as not-registered (recorded as a strike for today; not yet removed, may just be propagation lag on a new token).`;
+          logger.warn(`[pushNotif] ${line}`);
+          opts?.results?.push(`ERROR (stale token, strike recorded): ${line}`);
+        }
+        return;
+      }
+
+      // outcome === 'error': a real send failure unrelated to token validity
+      const line = `Send error uid=${uid} device=${device.id}: ${errCode ?? 'unknown'}`;
       logger.error(`[pushNotif] ${line}`);
       opts?.results?.push(`ERROR (FCM send failed): ${line}`);
-      return null;
     }),
   );
 
   await Promise.all(sends);
-  await markSent(uid, msg.key);
-  const sentLine = `Sent "${msg.title}" → uid=${uid} (${enabled.length} device(s))`;
-  logger.info(`[pushNotif] ${sentLine}`);
-  opts?.results?.push(`SENT: ${sentLine}`);
+
+  if (sentCount > 0) {
+    await markSent(uid, msg.key);
+    const sentLine = `Sent "${msg.title}" → uid=${uid} (${sentCount}/${enabled.length} device(s))`;
+    logger.info(`[pushNotif] ${sentLine}`);
+    opts?.results?.push(`SENT: ${sentLine}`);
+  } else {
+    const line = `uid=${uid} key=${msg.key} — all ${enabled.length} device send attempt(s) failed, nothing marked as sent (dedup key NOT written, will retry next run).`;
+    logger.warn(`[pushNotif] ${line}`);
+    opts?.results?.push(`FAILED (no device succeeded): ${line}`);
+  }
 }
 
 // ── Rule evaluators ───────────────────────────────────────────────────────────
@@ -800,7 +977,9 @@ export const testPushNotifications = onCall(
     const devicesSnap = await db
       .collection('users').doc(uid)
       .collection('notificationDevices').get();
-    const devices: NotifDevice[] = devicesSnap.docs.map((d) => d.data() as NotifDevice);
+    const devices: NotifDevice[] = devicesSnap.docs.map(
+      (d) => ({ id: d.id, ...(d.data() as Omit<NotifDevice, 'id'>) }),
+    );
     const enabledDevices = devices.filter((d) => d.enabled && d.token);
 
     if (!enabledDevices.length) {
@@ -854,12 +1033,9 @@ export const testPushNotifications = onCall(
     const opts = { force, results };
 
     // Every category that has rule logic implemented is tested here — not
-    // just payments/insurance. (Previously only these two were wired into
-    // the test callable, which is why goals/liabilities/SIP/lending never
-    // showed anything when you pressed "Test" even though their rules run
-    // in the 30-min scheduler.) Agriculture and attendance reminders are
-    // NOT included because there is currently no rule logic for them at
-    // all anywhere in this file — see the file header note.
+    // just payments/insurance. Agriculture and attendance reminders are NOT
+    // included because there is currently no rule logic for them at all
+    // anywhere in this file — see the file header note.
     await Promise.all([
       checkPayments(uid, enabledDevices, settings, opts),
       checkInsurance(uid, enabledDevices, settings, opts),
@@ -874,7 +1050,7 @@ export const testPushNotifications = onCall(
       ok: true,
       deviceCount: enabledDevices.length,
       settings,
-      results, // human-readable line per record evaluated: SENT / NO MATCH / SKIPPED / ERROR / INFO
+      results, // human-readable line per record evaluated: SENT / NO MATCH / SKIPPED / ERROR / INFO / CLEANED
     };
   },
 );
@@ -911,7 +1087,7 @@ export const processScheduledNotifications = onSchedule(
           .collection('notificationDevices').get();
 
         const devices: NotifDevice[] = devicesSnap.docs
-          .map((d) => d.data() as NotifDevice)
+          .map((d) => ({ id: d.id, ...(d.data() as Omit<NotifDevice, 'id'>) }))
           .filter((d) => d.enabled && d.token);
 
         if (!devices.length) { skipped++; continue; }
