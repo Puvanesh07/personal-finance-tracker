@@ -25,6 +25,15 @@
  *
  * Firestore paths written:
  *   users/{uid}/pushSent/{key}              — dedup record (expires after 7d)
+ *
+ * NOTE ON ENCRYPTION:
+ * trackedPayments / insurancePolicies / goals / liabilities / sipPlans /
+ * lendingBorrowers documents are encrypted client-side before being written
+ * to Firestore (see src/services/encryptionService.ts). fetchCol() below
+ * decrypts each document (see ./serverEncryption.ts) before the rule
+ * checks run — without that step every field (dueDate, renewalDate, ...)
+ * reads as `undefined`, which is what caused the
+ * "daysUntilDue=NaN ... no push queued" results.
  */
 
 import * as logger from 'firebase-functions/logger';
@@ -33,6 +42,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getMessaging } from 'firebase-admin/messaging';
 import { Timestamp } from 'firebase-admin/firestore';
 import { getDb } from './subscriptionUtils';
+import { decryptDoc, type FirestoreDoc } from './serverEncryption';
 
 const region = 'asia-south1';
 
@@ -221,10 +231,38 @@ async function sendToUser(
 
 // ── Rule evaluators ───────────────────────────────────────────────────────────
 
+/**
+ * Fetch every document in a subcollection AND decrypt it.
+ *
+ * Documents are written by the client via encryptDoc() (see
+ * src/services/encryptionService.ts) and are encrypted by default, so the
+ * raw Admin SDK data only has { _encrypted, _iv, _data, id, ... } — none of
+ * the real fields. Without this decryption step, every field the caller
+ * reads (dueDate, renewalDate, amount, title, ...) is `undefined`, which is
+ * exactly what produced the `daysUntilDue=NaN` / "NO MATCH" results.
+ *
+ * Each document is decrypted independently so one corrupted/undecryptable
+ * doc (e.g. written under a different salt) doesn't stop the rest of the
+ * user's payments/policies from being evaluated.
+ */
 async function fetchCol<T>(uid: string, col: string): Promise<T[]> {
   const db = getDb();
   const snap = await db.collection('users').doc(uid).collection(col).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as T[];
+
+  const out: T[] = [];
+  for (const d of snap.docs) {
+    try {
+      const decrypted = await decryptDoc<Record<string, unknown>>(uid, d.data() as FirestoreDoc);
+      out.push({ id: d.id, ...decrypted } as T);
+    } catch (err) {
+      logger.error(
+        `[pushNotif] uid=${uid} col=${col} doc=${d.id} — decryption failed, skipping this doc: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+  return out;
 }
 
 // 1. Tracked Payments
