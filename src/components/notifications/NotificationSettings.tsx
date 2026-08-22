@@ -10,8 +10,9 @@
 
 import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { FiBell, FiBellOff, FiInfo, FiRefreshCw, FiSave } from 'react-icons/fi';
-import { db, auth } from '../../services/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { FiBell, FiBellOff, FiInfo, FiRefreshCw, FiSave, FiPlay } from 'react-icons/fi';
+import { db, auth, app } from '../../services/firebase';
 import {
   getNotificationPermission,
   isPushSupported,
@@ -19,6 +20,15 @@ import {
   unregisterDevice,
 } from '../../services/fcmService';
 import toast from 'react-hot-toast';
+
+const functions = getFunctions(app, 'asia-south1');
+
+interface TestPushResult {
+  ok: boolean;
+  reason?: string;
+  deviceCount?: number;
+  results?: string[];
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,6 +134,8 @@ export function NotificationSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [permState, setPermState] = useState(getNotificationPermission());
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestPushResult | null>(null);
   const supported = isPushSupported();
 
   useEffect(() => {
@@ -176,6 +188,28 @@ export function NotificationSettings() {
     setSaving(false);
   };
 
+  const handleTestPush = async () => {
+    if (!uid) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const testFn = httpsCallable<{ force: boolean }, TestPushResult>(functions, 'testPushNotifications');
+      const res = await testFn({ force: true });
+      setTestResult(res.data);
+      if (res.data.ok) {
+        toast.success('Test run complete — see results below.');
+      } else {
+        toast.error(res.data.reason ?? 'Test run could not proceed.');
+      }
+    } catch (err: any) {
+      const message = err?.message ?? 'Test run failed.';
+      setTestResult({ ok: false, reason: message });
+      toast.error(message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className='flex items-center gap-2 py-10 text-slate-500 dark:text-slate-400'>
@@ -213,13 +247,55 @@ export function NotificationSettings() {
             <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
               This device is registered. You'll receive alerts even when the app is closed.
             </p>
-            <button
-              onClick={handleDisablePush}
-              disabled={saving}
-              className='mt-2 text-[11px] font-bold text-rose-500 hover:text-rose-400 transition-colors'
-            >
-              Disable for this device
-            </button>
+            <div className='mt-2 flex items-center gap-3 flex-wrap'>
+              <button
+                onClick={handleDisablePush}
+                disabled={saving}
+                className='text-[11px] font-bold text-rose-500 hover:text-rose-400 transition-colors'
+              >
+                Disable for this device
+              </button>
+              <button
+                onClick={handleTestPush}
+                disabled={testing}
+                className='inline-flex items-center gap-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 px-2.5 py-1 text-[11px] font-bold text-white transition-colors'
+              >
+                <FiPlay className='h-3 w-3' />
+                {testing ? 'Running test…' : 'Test Payment & Insurance Reminders'}
+              </button>
+            </div>
+            {testResult && (
+              <div className='mt-3 rounded-lg border border-slate-200/70 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/40 p-3'>
+                {!testResult.ok && (
+                  <p className='text-[11.5px] font-semibold text-rose-500'>
+                    {testResult.reason}
+                  </p>
+                )}
+                {testResult.ok && testResult.results && testResult.results.length === 0 && (
+                  <p className='text-[11.5px] text-slate-500 dark:text-slate-400'>
+                    Ran successfully — no tracked payments or insurance policies were evaluated (none found).
+                  </p>
+                )}
+                {testResult.results && testResult.results.length > 0 && (
+                  <ul className='space-y-1'>
+                    {testResult.results.map((line, i) => (
+                      <li
+                        key={i}
+                        className={`text-[11px] font-mono leading-relaxed ${
+                          line.startsWith('SENT')
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : line.startsWith('ERROR')
+                            ? 'text-rose-500'
+                            : 'text-slate-500 dark:text-slate-400'
+                        }`}
+                      >
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div></>
         ) : permState === 'denied' ? (
           <><FiBellOff className='h-5 w-5 shrink-0 text-rose-400 mt-0.5' />

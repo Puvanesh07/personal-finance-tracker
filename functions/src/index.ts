@@ -6,7 +6,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // ── Push notifications scheduler ──────────────────────────────────────────────
-export { processScheduledNotifications } from './pushNotifications';
+export { processScheduledNotifications, testPushNotifications } from './pushNotifications';
 import {
   buildTrialFields,
   createSubscriptionNotification,

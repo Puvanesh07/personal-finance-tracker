@@ -29,6 +29,7 @@
 
 import * as logger from 'firebase-functions/logger';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getMessaging } from 'firebase-admin/messaging';
 import { Timestamp } from 'firebase-admin/firestore';
 import { getDb } from './subscriptionUtils';
@@ -118,7 +119,8 @@ function isQuietHour(settings: NotifSettings): boolean {
 }
 
 /** Check Firestore pushSent dedup record. Returns true if NOT yet sent today. */
-async function shouldSend(uid: string, key: string): Promise<boolean> {
+async function shouldSend(uid: string, key: string, force?: boolean): Promise<boolean> {
+  if (force) return true; // testing mode — ignore dedup entirely
   const db = getDb();
   const ref = db.collection('users').doc(uid).collection('pushSent').doc(key);
   const snap = await ref.get();
@@ -143,14 +145,25 @@ async function sendToUser(
   uid: string,
   devices: NotifDevice[],
   msg: PushMessage,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
   const messaging = getMessaging();
   const enabled   = devices.filter((d) => d.enabled && d.token);
-  if (!enabled.length) return;
+  if (!enabled.length) {
+    const line = `uid=${uid} key=${msg.key} — no enabled devices with a token, skipping.`;
+    logger.info(`[pushNotif] ${line}`);
+    opts?.results?.push(`SKIPPED (no devices): ${line}`);
+    return;
+  }
 
   // Check dedup
-  const ok = await shouldSend(uid, msg.key);
-  if (!ok) return;
+  const ok = await shouldSend(uid, msg.key, opts?.force);
+  if (!ok) {
+    const line = `uid=${uid} key=${msg.key} — already sent within the last 7 days (dedup), skipping.`;
+    logger.info(`[pushNotif] ${line}`);
+    opts?.results?.push(`SKIPPED (dedup — already sent): ${line}`);
+    return;
+  }
 
   const sends = enabled.map((device) =>
     messaging.send({
@@ -187,17 +200,23 @@ async function sendToUser(
         err?.errorInfo?.code === 'messaging/registration-token-not-registered' ||
         err?.errorInfo?.code === 'messaging/invalid-registration-token'
       ) {
-        logger.warn(`[pushNotif] Stale token for uid=${uid}. Skipping.`);
+        const line = `Stale token for uid=${uid}. Skipping.`;
+        logger.warn(`[pushNotif] ${line}`);
+        opts?.results?.push(`ERROR (stale token): ${line}`);
         return null;
       }
-      logger.error(`[pushNotif] Send error uid=${uid}:`, err?.errorInfo?.code ?? err?.message);
+      const line = `Send error uid=${uid}: ${err?.errorInfo?.code ?? err?.message}`;
+      logger.error(`[pushNotif] ${line}`);
+      opts?.results?.push(`ERROR (FCM send failed): ${line}`);
       return null;
     }),
   );
 
   await Promise.all(sends);
   await markSent(uid, msg.key);
-  logger.info(`[pushNotif] Sent "${msg.title}" → uid=${uid} (${enabled.length} device(s))`);
+  const sentLine = `Sent "${msg.title}" → uid=${uid} (${enabled.length} device(s))`;
+  logger.info(`[pushNotif] ${sentLine}`);
+  opts?.results?.push(`SENT: ${sentLine}`);
 }
 
 // ── Rule evaluators ───────────────────────────────────────────────────────────
@@ -213,14 +232,23 @@ async function checkPayments(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
-  if (!settings.paymentReminders) return;
+  if (!settings.paymentReminders) {
+    logger.info(`[pushNotif] uid=${uid} — paymentReminders is OFF in notificationSettings, skipping all payment checks.`);
+    return;
+  }
   const payments = await fetchCol<any>(uid, 'trackedPayments');
+  logger.info(`[pushNotif] uid=${uid} — evaluating ${payments.length} tracked payment(s).`);
 
   for (const p of payments) {
-    if (p.status === 'paid') continue;
+    if (p.status === 'paid') {
+      logger.info(`[pushNotif] uid=${uid} payment=${p.id} — status is 'paid', skipping.`);
+      continue;
+    }
     const days = daysDiff(p.dueDate);
     const reminderDays: number[] = p.reminderDays ?? [1, 3, 7];
+    logger.info(`[pushNotif] uid=${uid} payment=${p.id} title="${p.title}" dueDate=${p.dueDate} daysUntilDue=${days} reminderDays=[${reminderDays.join(',')}]`);
 
     let fireKey = '';
     let title   = '';
@@ -244,7 +272,12 @@ async function checkPayments(
       severity = 'critical';
     }
 
-    if (!fireKey) continue;
+    if (!fireKey) {
+      const line = `uid=${uid} payment=${p.id} — daysUntilDue=${days} matches no reminder rule, no push queued.`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (payment): ${line}`);
+      continue;
+    }
     await sendToUser(uid, devices, {
       key:        fireKey,
       title,
@@ -255,7 +288,7 @@ async function checkPayments(
       entityId:   p.id,
       actionLabel: 'View Payments',
       tag:        `payment_${p.id}`,
-    });
+    }, opts);
   }
 }
 
@@ -264,16 +297,34 @@ async function checkInsurance(
   uid: string,
   devices: NotifDevice[],
   settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
-  if (!settings.insuranceReminders) return;
+  if (!settings.insuranceReminders) {
+    logger.info(`[pushNotif] uid=${uid} — insuranceReminders is OFF in notificationSettings, skipping all insurance checks.`);
+    return;
+  }
   const policies = await fetchCol<any>(uid, 'insurancePolicies');
+  logger.info(`[pushNotif] uid=${uid} — evaluating ${policies.length} insurance polic${policies.length === 1 ? 'y' : 'ies'}.`);
 
   for (const pol of policies) {
-    if (!pol.renewalDate || pol.status === 'expired') continue;
+    if (!pol.renewalDate) {
+      logger.info(`[pushNotif] uid=${uid} policy=${pol.id} — no renewalDate set, skipping.`);
+      continue;
+    }
+    if (pol.status === 'expired') {
+      logger.info(`[pushNotif] uid=${uid} policy=${pol.id} — status is 'expired', skipping.`);
+      continue;
+    }
     const days = daysDiff(pol.renewalDate);
     const triggerDays = [30, 15, 7, 3, 1, 0];
+    logger.info(`[pushNotif] uid=${uid} policy=${pol.id} name="${pol.policyName}" renewalDate=${pol.renewalDate} daysUntilRenewal=${days} triggerDays=[${triggerDays.join(',')}]`);
 
-    if (!triggerDays.includes(days) && !(days < 0 && days >= -3)) continue;
+    if (!triggerDays.includes(days) && !(days < 0 && days >= -3)) {
+      const line = `uid=${uid} policy=${pol.id} — daysUntilRenewal=${days} matches no trigger day, no push queued.`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (insurance): ${line}`);
+      continue;
+    }
 
     let title = '';
     let body  = '';
@@ -307,7 +358,7 @@ async function checkInsurance(
       entityId:   pol.id,
       actionLabel: 'View Insurance',
       tag:        `insurance_${pol.id}`,
-    });
+    }, opts);
   }
 }
 
@@ -585,6 +636,94 @@ async function checkSubscription(
     });
   }
 }
+
+// ── On-demand test callable ───────────────────────────────────────────────────
+// Lets you (signed in as yourself) trigger the exact same rule engine
+// instantly, for just your own account, and get a plain-English report back —
+// instead of waiting for the 30-min scheduler and digging through Cloud
+// Function logs. Pass { force: true } to bypass the dedup check so repeated
+// test runs on the same day still send.
+export const testPushNotifications = onCall(
+  { region },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'You must be signed in to run this test.');
+    }
+    const force = request.data?.force === true;
+
+    const db = getDb();
+    const results: string[] = [];
+
+    const devicesSnap = await db
+      .collection('users').doc(uid)
+      .collection('notificationDevices').get();
+    const devices: NotifDevice[] = devicesSnap.docs.map((d) => d.data() as NotifDevice);
+    const enabledDevices = devices.filter((d) => d.enabled && d.token);
+
+    if (!enabledDevices.length) {
+      return {
+        ok: false,
+        reason: 'No enabled device with a token found under notificationDevices for this account. Enable push from Settings on the device first.',
+        deviceCount: devices.length,
+        results: [],
+      };
+    }
+
+    const settingsSnap = await db
+      .collection('users').doc(uid)
+      .collection('notificationSettings').doc('config').get();
+
+    const settings: NotifSettings = {
+      pushEnabled:       true,
+      paymentReminders:  true,
+      insuranceReminders:true,
+      goalReminders:     true,
+      emiReminders:      true,
+      lendingReminders:  true,
+      sipReminders:      true,
+      subscriptionAlerts:true,
+      investmentAlerts:  true,
+      quietHoursEnabled: true,
+      quietHoursStart:   '22:00',
+      quietHoursEnd:     '07:00',
+      ...(settingsSnap.exists ? settingsSnap.data() : {}),
+    };
+
+    if (!settings.pushEnabled) {
+      return {
+        ok: false,
+        reason: 'pushEnabled is OFF in your notificationSettings/config document.',
+        settings,
+        results: [],
+      };
+    }
+
+    const inQuietHour = isQuietHour(settings);
+    if (inQuietHour && !force) {
+      return {
+        ok: false,
+        reason: `Currently inside your quiet hours window (${settings.quietHoursStart}–${settings.quietHoursEnd} IST). Pass force:true to override for testing, or disable quiet hours.`,
+        settings,
+        results: [],
+      };
+    }
+
+    const opts = { force, results };
+
+    await Promise.all([
+      checkPayments(uid, enabledDevices, settings, opts),
+      checkInsurance(uid, enabledDevices, settings, opts),
+    ]);
+
+    return {
+      ok: true,
+      deviceCount: enabledDevices.length,
+      settings,
+      results, // human-readable line per payment/policy evaluated: SENT / NO MATCH / SKIPPED / ERROR
+    };
+  },
+);
 
 // ── Main scheduled function ───────────────────────────────────────────────────
 
