@@ -576,7 +576,7 @@ export function LiabilitiesPage() {
                     <p
                       className={`mt-0.5 text-lg font-black ${isSettled ? 'line-through text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}
                     >
-                      {formatINR(l.principal)}
+                      {formatINR(isSettled ? l.principal : l.outstanding)}
                     </p>
                   </div>
                   <div className='text-right'>
