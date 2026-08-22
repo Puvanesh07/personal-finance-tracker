@@ -210,12 +210,32 @@ async function shouldSend(uid: string, key: string, force?: boolean): Promise<bo
   return ageMs > 7 * 86_400_000;
 }
 
-async function markSent(uid: string, key: string): Promise<void> {
+async function markSent(
+  uid: string,
+  key: string,
+  meta?: {
+    status?: 'sent' | 'failed';
+    sentCount?: number;
+    deviceCount?: number;
+    errorCodes?: string[];
+    notifType?: string;
+    title?: string;
+  },
+): Promise<void> {
   const db = getDb();
   await db
     .collection('users').doc(uid)
     .collection('pushSent').doc(key)
-    .set({ sentAt: Timestamp.now(), key }, { merge: true });
+    .set({
+      sentAt: Timestamp.now(),
+      key,
+      status: meta?.status ?? 'sent',
+      sentCount: meta?.sentCount ?? 0,
+      deviceCount: meta?.deviceCount ?? 0,
+      errorCodes: meta?.errorCodes ?? [],
+      notifType: meta?.notifType ?? '',
+      title: meta?.title ?? '',
+    }, { merge: true });
 }
 
 // ── Stale-token bookkeeping ─────────────────────────────────────────────────
@@ -370,19 +390,19 @@ async function sendToUser(
         renotify: true,
         silent:  false,
         vibrate: [100, 50, 200],
-        timestampMs: Date.now(),
+        timestamp: Date.now(),
         requireInteraction: msg.severity === 'critical',
         actions: msg.actionLabel
           ? [{ action: 'open', title: msg.actionLabel, icon: '/icons/favicon-32x32.png' }]
           : [],
-        data: {
-          clickUrl:   msg.clickUrl,
-          notifType:  msg.notifType,
-          severity:   msg.severity,
-          entityId:   msg.entityId,
-          actionLabel: msg.actionLabel ?? '',
-          tag:        msg.tag ?? msg.notifType,
-        },
+      },
+      data: {
+        clickUrl:   msg.clickUrl,
+        notifType:  msg.notifType,
+        severity:   msg.severity,
+        entityId:   msg.entityId,
+        actionLabel: msg.actionLabel ?? '',
+        tag:        msg.tag ?? msg.notifType,
       },
       fcmOptions: {
         link: `https://fintrackly.web.app${msg.clickUrl}`,
@@ -477,6 +497,7 @@ async function sendToUser(
   });
 
   let sentCount = 0;
+  const errorCodesSeen: string[] = [];
 
   const sends = enabled.map((device) =>
     // Serialize + stagger sends that share the same token, instead of firing
@@ -491,6 +512,7 @@ async function sendToUser(
       }
 
       if (outcome === 'stale') {
+        if (errCode && !errorCodesSeen.includes(errCode)) errorCodesSeen.push(errCode);
         const shouldDelete = await recordDeviceFailure(uid, device.id);
         if (shouldDelete) {
           const db = getDb();
@@ -510,6 +532,7 @@ async function sendToUser(
       }
 
       // outcome === 'error': a real send failure unrelated to token validity
+      if (errCode && !errorCodesSeen.includes(errCode)) errorCodesSeen.push(errCode);
       const line = `Send error uid=${uid} device=${device.id}: ${errCode ?? 'unknown'}`;
       logger.error(`[pushNotif] ${line}`);
       opts?.results?.push(`ERROR (FCM send failed): ${line}`);
@@ -518,13 +541,22 @@ async function sendToUser(
 
   await Promise.all(sends);
 
+  const status: 'sent' | 'failed' = sentCount > 0 ? 'sent' : 'failed';
+  await markSent(uid, msg.key, {
+    status,
+    sentCount,
+    deviceCount: enabled.length,
+    errorCodes: errorCodesSeen,
+    notifType: msg.notifType,
+    title: msg.title,
+  });
+
   if (sentCount > 0) {
-    await markSent(uid, msg.key);
     const sentLine = `Sent "${msg.title}" → uid=${uid} (${sentCount}/${enabled.length} device(s))`;
     logger.info(`[pushNotif] ${sentLine}`);
     opts?.results?.push(`SENT: ${sentLine}`);
   } else {
-    const line = `uid=${uid} key=${msg.key} — all ${enabled.length} device send attempt(s) failed, nothing marked as sent (dedup key NOT written, will retry next run).`;
+    const line = `uid=${uid} key=${msg.key} — all ${enabled.length} device send attempt(s) failed (errors: ${errorCodesSeen.join(',') || 'none'}). Recorded in pushSent with status=failed to prevent infinite retries.`;
     logger.warn(`[pushNotif] ${line}`);
     opts?.results?.push(`FAILED (no device succeeded): ${line}`);
   }
