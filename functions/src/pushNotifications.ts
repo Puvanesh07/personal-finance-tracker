@@ -79,9 +79,11 @@
  * NOTE ON COVERAGE — what is and isn't implemented here:
  *   ✅ Payments (checkPayments), Insurance (checkInsurance), Goals
  *      (checkGoals), Liabilities/EMI (checkLiabilities), SIP (checkSIP),
- *      Lending (checkLending), Subscription/trial (checkSubscription) all
- *      have real rule logic AND are wired into both the 30-min scheduler
- *      AND the on-demand testPushNotifications callable below.
+ *      Lending (checkLending), Investment Maturity (checkInvestments),
+ *      Pending Payments / Receivables (checkPendingPayments),
+ *      Subscription/trial (checkSubscription) all have real rule logic
+ *      AND are wired into both the 30-min scheduler AND the on-demand
+ *      testPushNotifications callable below.
  *   ❌ Agriculture reminders and Attendance reminders have toggles in
  *      src/components/notifications/NotificationSettings.tsx
  *      (agricultureReminders, attendanceReminders) and in
@@ -345,6 +347,15 @@ async function sendToUser(
     return;
   }
 
+  const severityToPriority: Record<string, 'normal' | 'high'> = {
+    info:    'normal',
+    low:     'normal',
+    medium:  'normal',
+    high:    'high',
+    critical: 'high',
+  };
+  const priority = severityToPriority[msg.severity ?? 'medium'];
+
   const payloadFor = (device: NotifDevice) => ({
     token: device.token,
     notification: { title: msg.title, body: msg.body },
@@ -354,15 +365,105 @@ async function sendToUser(
         body:    msg.body,
         icon:    '/icons/android-chrome-192x192.png',
         badge:   '/icons/favicon-32x32.png',
+        image:   '/icons/apple-touch-icon.png',
         tag:     msg.tag ?? msg.notifType,
+        renotify: true,
+        silent:  false,
         vibrate: [100, 50, 200],
+        timestampMs: Date.now(),
         requireInteraction: msg.severity === 'critical',
         actions: msg.actionLabel
-          ? [{ action: 'open', title: msg.actionLabel }]
+          ? [{ action: 'open', title: msg.actionLabel, icon: '/icons/favicon-32x32.png' }]
           : [],
+        data: {
+          clickUrl:   msg.clickUrl,
+          notifType:  msg.notifType,
+          severity:   msg.severity,
+          entityId:   msg.entityId,
+          actionLabel: msg.actionLabel ?? '',
+          tag:        msg.tag ?? msg.notifType,
+        },
       },
       fcmOptions: {
         link: `https://fintrackly.web.app${msg.clickUrl}`,
+        analyticsLabel: msg.notifType,
+      },
+      headers: {
+        Urgency: priority === 'high' ? 'high' : 'normal',
+      },
+    },
+    // iOS Safari PWA Web Push & APNs
+    // Without this explicit block, FCM *translates* the generic
+    // notification{} → APNs but only intermittently for Web Push tokens
+    // registered via Safari iOS 16.4+ (PWA Add to Home Screen). The symptom
+    // is exactly what the user sees: admin.messaging().send() returns HTTP
+    // 200 + tokens count "SENT (2/2)", but iPhone Notification Center shows
+    // only 0–1 of the dozen scheduled banner alerts.
+    apns: {
+      headers: {
+        'apns-priority': priority === 'high' ? '10' : '5',
+        'apns-push-type': 'alert',
+        'apns-topic': 'app.fintrackly.web.push',
+      },
+      payload: {
+        aps: {
+          alert: {
+            title: msg.title,
+            subtitle: 'from Fintrackly',
+            body: msg.body,
+            ...(msg.actionLabel ? { 'action-loc-key': msg.actionLabel } : {}),
+          },
+          sound: msg.severity === 'critical'
+            ? { critical: true, name: 'default', volume: 1.0 }
+            : 'default',
+          badge: 1,
+          'thread-id': msg.tag ?? msg.notifType,
+          'content-available': 1,
+          'mutable-content': 1,
+          category: msg.actionLabel ? 'FINTrackly_CATEGORY_ACTION' : 'FINTrackly_CATEGORY_DEFAULT',
+        },
+        clickUrl:   msg.clickUrl,
+        notifType:  msg.notifType,
+        severity:   msg.severity,
+        entityId:   msg.entityId,
+        actionLabel: msg.actionLabel ?? '',
+        tag:        msg.tag ?? msg.notifType,
+      },
+      fcmOptions: {
+        imageUrl: 'https://fintrackly.web.app/icons/apple-touch-icon.png',
+      },
+    },
+    // Android PWA via Chrome / Android Web Layer via TWA / Play Services
+    // FCM auto-routes Chrome Android Push tokens through Play Services; the
+    // block below guarantees: (1) a notification channel per-severity so the
+    // user can turn high/critical back on if they got muted; (2) heads-up
+    // pop-up on high priority instead of silent status bar only.
+    android: {
+      priority,
+      ttl: priority === 'high' ? 2 * 60 * 60 : 24 * 60 * 60, // 2h high vs 24h normal
+      notification: {
+        title: msg.title,
+        body: msg.body,
+        icon: 'drawable/ic_stat_name',
+        color: '#0F766E', // teal-700 — matches Fintrackly brand
+        sound: 'default',
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        defaultLightSettings: true,
+        sticky: false,
+        eventTimestamp: new Date(),
+        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+        channelId:
+          msg.severity === 'critical' ? 'fintrackly_critical'
+          : msg.severity === 'high'  ? 'fintrackly_high'
+          : 'fintrackly_default',
+        tag: msg.tag ?? msg.notifType,
+        imageUrl: 'https://fintrackly.web.app/icons/android-chrome-192x192.png',
+        ...(msg.actionLabel ? {
+          actions: [
+            { title: msg.actionLabel, action: 'open', icon: 'drawable/ic_stat_name' },
+          ],
+        } : {}),
       },
       data: {
         clickUrl:   msg.clickUrl,
@@ -514,18 +615,19 @@ async function checkPayments(
     if (days === 0) {
       fireKey = `payment_due_today:${p.id}:${todayStr()}`;
       title   = `🔔 Payment Due Today`;
-      body    = `${p.title} — ${fmt(p.amount)} is due today.`;
+      body    = `${p.title} — ${fmt(p.amount)} is due today (${p.dueDate}). Don't forget to pay!`;
       severity = 'high';
     } else if (days > 0 && reminderDays.includes(days)) {
       fireKey = `payment_due_${days}d:${p.id}:${todayStr()}`;
       title   = `💳 Payment Due in ${days} Day${days > 1 ? 's' : ''}`;
-      body    = `${p.title} — ${fmt(p.amount)} due on ${p.dueDate}.`;
+      body    = `"${p.title}" — ${fmt(p.amount)} is due on ${p.dueDate} (${days} day${days > 1 ? 's' : ''} left).`;
       severity = days <= 1 ? 'high' : 'medium';
-    } else if (days === -1 || days === -3) {
-      fireKey = `payment_overdue_${Math.abs(days)}d:${p.id}:${todayStr()}`;
-      title   = `⚠️ Payment Overdue`;
-      body    = `${p.title} — ${fmt(p.amount)} was due ${Math.abs(days)} day${Math.abs(days) > 1 ? 's' : ''} ago.`;
-      severity = 'critical';
+    } else if (days < 0 && [-1, -3, -6, -9, -12].includes(days)) {
+      const absDays = Math.abs(days);
+      fireKey = `payment_overdue_${absDays}d:${p.id}:${todayStr()}`;
+      title   = absDays >= 6 ? `🚨 Payment OVERDUE ${absDays}d` : `⚠️ Payment Overdue`;
+      body    = `${p.title} — ${fmt(p.amount)} was due ${absDays} day${absDays > 1 ? 's' : ''} ago on ${p.dueDate}. Pay immediately to avoid penalties.`;
+      severity = absDays >= 6 ? 'critical' : 'high';
     }
 
     if (!fireKey) {
@@ -567,16 +669,24 @@ async function checkInsurance(
       logger.info(`[pushNotif] uid=${uid} policy=${pol.id} — no renewalDate set, skipping.`);
       continue;
     }
-    if (pol.status === 'expired') {
-      logger.info(`[pushNotif] uid=${uid} policy=${pol.id} — status is 'expired', skipping.`);
-      continue;
-    }
     const days = daysDiff(pol.renewalDate);
     const triggerDays = [30, 15, 7, 3, 1, 0];
-    logger.info(`[pushNotif] uid=${uid} policy=${pol.id} name="${pol.policyName}" renewalDate=${pol.renewalDate} daysUntilRenewal=${days} triggerDays=[${triggerDays.join(',')}]`);
+
+    // If policy is marked 'expired' in the DB but renewal isn't recent enough
+    // for an expired push (i.e. more than 3 days past renewal), skip it —
+    // otherwise we'd re-fire an "expired" push every 30 minutes forever.
+    // But if it just expired within the last 3 days (days in [-3, -1]),
+    // DON'T skip — we still want to send the "Insurance Expired" push even
+    // though the client UI may have already flipped status to 'expired'.
+    if (pol.status === 'expired' && !(days < 0 && days >= -3)) {
+      logger.info(`[pushNotif] uid=${uid} policy=${pol.id} — status='expired' and renewal not within the last 3 days (days=${days}), skipping.`);
+      opts?.results?.push(`SKIPPED (insurance): uid=${uid} policy=${pol.id} — status expired and ${Math.abs(days)}d past renewal (only -1/-2/-3d fire).`);
+      continue;
+    }
+    logger.info(`[pushNotif] uid=${uid} policy=${pol.id} name="${pol.policyName}" renewalDate=${pol.renewalDate} daysUntilRenewal=${days} triggerDays=[${triggerDays.join(',')}] status=${pol.status ?? 'n/a'}`);
 
     if (!triggerDays.includes(days) && !(days < 0 && days >= -3)) {
-      const line = `uid=${uid} policy=${pol.id} — daysUntilRenewal=${days} matches no trigger day, no push queued.`;
+      const line = `uid=${uid} policy=${pol.id} — daysUntilRenewal=${days} matches no trigger day (renewal reminders at 30/15/7/3/1/0d; expired reminders only for -1/-2/-3d). No push queued.`;
       logger.info(`[pushNotif] ${line}`);
       opts?.results?.push(`NO MATCH (insurance): ${line}`);
       continue;
@@ -588,16 +698,33 @@ async function checkInsurance(
     let fireKey  = '';
 
     if (days < 0) {
+      const absDays = Math.abs(days);
       fireKey  = `insurance_expired:${pol.id}:${todayStr()}`;
       title    = `🚨 Insurance Expired`;
-      body     = `${pol.policyName} expired ${Math.abs(days)} day(s) ago. Renew immediately!`;
+      body     = `${pol.policyName}${pol.provider ? ` (${pol.provider})` : ''} expired ${absDays} day${absDays === 1 ? '' : 's'} ago on ${pol.renewalDate}. Coverage: ${fmt(pol.coverageAmount ?? 0)}. Renew immediately!`;
       severity = 'critical';
     } else if (days === 0) {
       fireKey  = `insurance_due_today:${pol.id}:${todayStr()}`;
       title    = `🛡️ Insurance Renews Today`;
-      body     = `${pol.policyName} — ${fmt(pol.premiumAmount ?? 0)} renewal due today.`;
+      body     = `${pol.policyName}${pol.provider ? ` (${pol.provider})` : ''} expires TODAY. Premium ${fmt(pol.premiumAmount ?? 0)}. Coverage ${fmt(pol.coverageAmount ?? 0)}.`;
       severity = 'high';
+    } else if (days === 1) {
+      fireKey  = `insurance_due_${days}d:${pol.id}:${todayStr()}`;
+      title    = `⏰ Renewal Tomorrow: ${pol.policyName}`;
+      body     = `${pol.policyName} — premium ${fmt(pol.premiumAmount ?? 0)} due tomorrow.`;
+      severity = 'high';
+    } else if (days === 7) {
+      fireKey  = `insurance_due_${days}d:${pol.id}:${todayStr()}`;
+      title    = `🛡️ Insurance Due in 7 Days`;
+      body     = `${pol.policyName}${pol.provider ? ` (${pol.provider})` : ''} — ${fmt(pol.coverageAmount ?? 0)} coverage renews in 7 days. Plan for premium ${fmt(pol.premiumAmount ?? 0)}.`;
+      severity = 'medium';
+    } else if (days === 30) {
+      fireKey  = `insurance_due_${days}d:${pol.id}:${todayStr()}`;
+      title    = `🛡️ Insurance Renewal Upcoming (30d)`;
+      body     = `${pol.policyName}${pol.provider ? ` (${pol.provider})` : ''} renews in 30 days. Expected premium: ${fmt(pol.premiumAmount ?? 0)}.`;
+      severity = 'low';
     } else {
+      // 15d or 3d catches
       fireKey  = `insurance_due_${days}d:${pol.id}:${todayStr()}`;
       title    = `🛡️ Insurance Renewal in ${days} Day${days > 1 ? 's' : ''}`;
       body     = `${pol.policyName}${pol.provider ? ` (${pol.provider})` : ''} — premium ${fmt(pol.premiumAmount ?? 0)} due in ${days} days.`;
@@ -710,6 +837,28 @@ async function checkGoals(
   }
 }
 
+function _daysToNextDayOfMonth(todayDate: number, dueDay: number, today: Date): number {
+  if (dueDay >= todayDate) {
+    return dueDay - todayDate;
+  }
+  const nextMonthSameDay = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    dueDay,
+  );
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), todayDate);
+  return Math.round((nextMonthSameDay.getTime() - todayMidnight.getTime()) / 86_400_000);
+}
+
+function _daySuffix(d: number): string {
+  const j = d % 10;
+  const k = d % 100;
+  if (j === 1 && k !== 11) return 'st';
+  if (j === 2 && k !== 12) return 'nd';
+  if (j === 3 && k !== 13) return 'rd';
+  return 'th';
+}
+
 // 4. Liabilities / EMI
 async function checkLiabilities(
   uid: string,
@@ -720,45 +869,104 @@ async function checkLiabilities(
   if (!settings.emiReminders) return;
   const liabilities = await fetchCol<any>(uid, 'liabilities', opts);
   const today = new Date();
+  const todayDate = today.getDate();
 
   for (const l of liabilities) {
-    if (l.status === 'paid' || l.status === 'returned') continue;
-    if (!l.emiAmount || l.emiAmount <= 0) {
-      opts?.results?.push(`SKIPPED (liability): uid=${uid} liability=${l.id} — no emiAmount set, skipping.`);
+    if (l.status === 'paid' || l.status === 'returned' || l.status === 'paused') continue;
+    if ((l.outstanding ?? 0) <= 0) {
+      opts?.results?.push(`SKIPPED (liability): uid=${uid} liability=${l.id} — outstanding<=0, skipping.`);
       continue;
     }
 
     let fired = false;
+    const emiAmountStr = l.emiAmount ? fmt(l.emiAmount) : 'your EMI amount';
 
-    // EMI-day reminder (1st of month nudge)
-    if (today.getDate() === 1) {
-      fired = true;
-      await sendToUser(uid, devices, {
-        key:        `emi_monthly:${l.id}:${currentMonthKey()}`,
-        title:      `💸 EMI Due This Month`,
-        body:       `${l.name} — EMI of ${fmt(l.emiAmount)}. Outstanding: ${fmt(l.outstanding ?? 0)}.`,
-        clickUrl:   '/liabilities',
-        notifType:  'liability_emi',
-        severity:   'medium',
-        entityId:   l.id,
-        actionLabel: 'View Liabilities',
-        tag:        `emi_${l.id}`,
-      }, opts);
+    // 4a. EMI-day reminders based on emiDay (T-3, T-1, T=today)
+    if (typeof l.emiDay === 'number' && l.emiDay >= 1 && l.emiDay <= 31) {
+      const daysToEMI = _daysToNextDayOfMonth(todayDate, l.emiDay, today);
+      const suffix = _daySuffix(l.emiDay);
+
+      if (daysToEMI === 0) {
+        fired = true;
+        await sendToUser(uid, devices, {
+          key:        `emi_today:${l.id}:${todayStr()}`,
+          title:      `💸 EMI Due Today: ${l.name}`,
+          body:       `${l.name} — ${emiAmountStr} is due today (${l.emiDay}${suffix} of every month). Outstanding: ${fmt(l.outstanding ?? 0)}.`,
+          clickUrl:   '/liabilities',
+          notifType:  'liability_emi',
+          severity:   'high',
+          entityId:   l.id,
+          actionLabel: 'View Liabilities',
+          tag:        `emi_${l.id}`,
+        }, opts);
+      } else if (daysToEMI === 1) {
+        fired = true;
+        await sendToUser(uid, devices, {
+          key:        `emi_1d:${l.id}:${todayStr()}`,
+          title:      `💸 EMI Tomorrow: ${l.name}`,
+          body:       `${emiAmountStr} for "${l.name}" is due tomorrow (${l.emiDay}${suffix}).`,
+          clickUrl:   '/liabilities',
+          notifType:  'liability_emi',
+          severity:   'medium',
+          entityId:   l.id,
+          actionLabel: 'View Liabilities',
+          tag:        `emi_${l.id}`,
+        }, opts);
+      } else if (daysToEMI === 3) {
+        fired = true;
+        await sendToUser(uid, devices, {
+          key:        `emi_3d:${l.id}:${todayStr()}`,
+          title:      `⏰ EMI in 3 Days — ${l.name}`,
+          body:       `Keep ${emiAmountStr} ready for "${l.name}" on ${l.emiDay}${suffix}.`,
+          clickUrl:   '/liabilities',
+          notifType:  'liability_emi',
+          severity:   'low',
+          entityId:   l.id,
+          actionLabel: 'View Liabilities',
+          tag:        `emi_${l.id}`,
+        }, opts);
+      }
     }
 
-    // End-date approaching
+    // 4b. End-date final repayment — T within (1..3) days, today, and up to T+14 OVERDUE
     if (l.endDate) {
       const days = daysDiff(l.endDate);
-      if (days === 3 || days === 1 || days === 0) {
+      if (days === 0) {
         fired = true;
-        const label = days === 0 ? 'Today' : `in ${days} day${days > 1 ? 's' : ''}`;
         await sendToUser(uid, devices, {
-          key:        `liab_end_${days}d:${l.id}:${todayStr()}`,
-          title:      `🔴 Final Loan Payment ${label}`,
-          body:       `${l.name} — final payment of ${fmt(l.outstanding ?? 0)} due ${label}.`,
+          key:        `liab_end_today:${l.id}:${todayStr()}`,
+          title:      `🔴 FINAL Due Today — ${l.name}`,
+          body:       `Final payment of ${fmt(l.outstanding ?? 0)} for "${l.name}" is DUE TODAY. Close this liability!`,
           clickUrl:   '/liabilities',
           notifType:  'liability_due',
-          severity:   days === 0 ? 'critical' : 'high',
+          severity:   'critical',
+          entityId:   l.id,
+          actionLabel: 'Pay Now',
+          tag:        `liab_${l.id}`,
+        }, opts);
+      } else if (days > 0 && days <= 3) {
+        fired = true;
+        await sendToUser(uid, devices, {
+          key:        `liab_end_${days}d:${l.id}:${todayStr()}`,
+          title:      `⏰ Final Payment in ${days}d — ${l.name}`,
+          body:       `${fmt(l.outstanding ?? 0)} remaining on "${l.name}" — closes on ${l.endDate}.`,
+          clickUrl:   '/liabilities',
+          notifType:  'liability_due',
+          severity:   'medium',
+          entityId:   l.id,
+          actionLabel: 'View Liabilities',
+          tag:        `liab_${l.id}`,
+        }, opts);
+      } else if (days < 0 && days >= -14) {
+        fired = true;
+        const absDays = Math.abs(days);
+        await sendToUser(uid, devices, {
+          key:        `liab_end_overdue_${absDays}d:${l.id}:${todayStr()}`,
+          title:      `⚠️ OVERDUE ${absDays}d — ${l.name}`,
+          body:       `Final payment of ${fmt(l.outstanding ?? 0)} was due ${absDays} day${absDays === 1 ? '' : 's'} ago. Credit score impact risk — pay immediately.`,
+          clickUrl:   '/liabilities',
+          notifType:  'liability_overdue',
+          severity:   'critical',
           entityId:   l.id,
           actionLabel: 'Pay Now',
           tag:        `liab_${l.id}`,
@@ -767,14 +975,14 @@ async function checkLiabilities(
     }
 
     if (!fired) {
-      const line = `uid=${uid} liability=${l.id} name="${l.name}" endDate=${l.endDate ?? 'none'} — matches no liability rule today (monthly nudge only fires on the 1st; end-date rule only fires at exactly 3, 1, or 0 days left).`;
+      const line = `uid=${uid} liability=${l.id} name="${l.name}" emiDay=${l.emiDay ?? 'none'} endDate=${l.endDate ?? 'none'} — no EMI-day rule (0/1/3 days until next EMI day) and no end-date rule (0–3d left, or overdue ≤14d) matched today.`;
       logger.info(`[pushNotif] ${line}`);
       opts?.results?.push(`NO MATCH (liability): ${line}`);
     }
   }
 }
 
-// 5. SIP reminder — 5th of month
+// 5. SIP reminder — first 7 days of month (nudge early for monthly budget) + allocation health check
 async function checkSIP(
   uid: string,
   devices: NotifDevice[],
@@ -783,29 +991,61 @@ async function checkSIP(
 ): Promise<void> {
   if (!settings.sipReminders) return;
   const today = new Date();
-  if (today.getDate() !== 5 && !opts?.force) {
-    opts?.results?.push(`NO MATCH (sip): uid=${uid} — SIP reminder only fires on the 5th of the month (today is the ${today.getDate()}).`);
-    return;
-  }
+  const todayDay = today.getDate();
 
   const sipPlans = await fetchCol<any>(uid, 'sipPlans', opts);
-  const budgetDoc = sipPlans.find((s) => s.type === 'budget');
-  if (!budgetDoc?.budget || budgetDoc.budget <= 0) {
-    opts?.results?.push(`NO MATCH (sip): uid=${uid} — no sipPlans doc with type='budget' and budget>0 found.`);
-    return;
+  const budgetDoc = sipPlans.find((s: any) => s && s.type === 'budget');
+  const instruments = sipPlans.filter((s: any) => s && s.type === 'instrument');
+  const budgetAmt = budgetDoc?.budget || 0;
+  const totalPct = instruments.reduce((sum: number, i: any) => sum + (i.percentage || 0), 0);
+  let fired = false;
+
+  // 5a. Monthly SIP nudge (first 7 days of month) — only if budget set
+  if (budgetAmt > 0 && todayDay <= 7) {
+    fired = true;
+    await sendToUser(uid, devices, {
+      key:        `sip_monthly:${currentMonthKey()}:${uid}`,
+      title:      `📅 SIP Time — Invest This Month!`,
+      body:       `Your planned SIP budget is ${fmt(budgetAmt)} across ${instruments.length} instrument${instruments.length === 1 ? '' : 's'}. Execute your orders early in the month for better rupee-cost averaging.`,
+      clickUrl:   '/investments',
+      notifType:  'sip_reminder',
+      severity:   'low',
+      entityId:   `sip_${uid}`,
+      actionLabel: 'Open SIP Plan',
+      tag:        'sip_monthly',
+    }, opts);
+  } else if (budgetAmt > 0 && todayDay > 7 && !opts?.force) {
+    opts?.results?.push(`NO MATCH (sip): uid=${uid} — SIP monthly nudge only fires the first 7 days of the month (today is day ${todayDay}).`);
+  } else if (!budgetAmt || budgetAmt <= 0) {
+    opts?.results?.push(`NO MATCH (sip): uid=${uid} — no sipPlans doc with type='budget' and budget>0 found for monthly nudge.`);
   }
 
-  await sendToUser(uid, devices, {
-    key:        `sip_monthly:${currentMonthKey()}:${uid}`,
-    title:      `📅 Monthly SIP Reminder`,
-    body:       `Your monthly SIP budget is ${fmt(budgetDoc.budget)}. Have you invested this month?`,
-    clickUrl:   '/investments',
-    notifType:  'sip_reminder',
-    severity:   'low',
-    entityId:   `sip_${uid}`,
-    actionLabel: 'View SIP Plan',
-    tag:        'sip_monthly',
-  }, opts);
+  // 5b. Allocation mismatch warning — whenever sum of instrument % != 100%
+  if (budgetAmt > 0 && instruments.length > 0 && (totalPct < 95 || totalPct > 100)) {
+    fired = true;
+    const allocKey = `sip_alloc:${currentMonthKey()}:${Math.round(totalPct)}`;
+    const over = totalPct > 100;
+    const bodySuffix = over
+      ? `That is over 100% of your budget — trim some allocations.`
+      : `${(100 - totalPct).toFixed(0)}% of ${fmt(budgetAmt)} is still unallocated.`;
+    await sendToUser(uid, devices, {
+      key:        allocKey,
+      title:      over ? `🧭 SIP Over-Allocated!` : `🧭 SIP Not Fully Allocated`,
+      body:       `Your instrument allocation sums to ${totalPct.toFixed(0)}%. ${bodySuffix}`,
+      clickUrl:   '/investments',
+      notifType:  'sip_allocation_mismatch',
+      severity:   over ? 'high' : 'medium',
+      entityId:   `sip_alloc_${uid}`,
+      actionLabel: 'Fix Allocation',
+      tag:        'sip_allocation',
+    }, opts);
+  } else if (budgetAmt > 0 && instruments.length > 0) {
+    opts?.results?.push(`INFO (sip): uid=${uid} — allocation = ${totalPct.toFixed(0)}% (within 95-100% healthy band, no warning needed).`);
+  }
+
+  if (!fired && !opts?.results?.some((r) => r.startsWith('NO MATCH (sip)'))) {
+    opts?.results?.push(`NO MATCH (sip): uid=${uid} — no SIP rule fired today (monthly nudge 1-7 if budget>0; allocation warning when sum% outside 95-100%).`);
+  }
 }
 
 // 6. Lending overdue
@@ -824,32 +1064,65 @@ async function checkLending(
       continue;
     }
     const days = daysDiff(b.nextDueDate);
+    if (days < -30) {
+      opts?.results?.push(`NO MATCH (lending): uid=${uid} borrower=${b.id} — ${Math.abs(days)}d past due (>30d past due threshold, no longer notifying).`);
+      continue;
+    }
     let fired = false;
+    const nameStr = b.name ?? 'the borrower';
 
-    if (days === 3) {
+    if (days === 7) {
       fired = true;
       await sendToUser(uid, devices, {
-        key:        `lending_due_3d:${b.id}:${todayStr()}`,
-        title:      `🤝 Lending Due in 3 Days`,
-        body:       `Payment from ${b.name} is due in 3 days.`,
+        key:        `lending_due_7d:${b.id}:${todayStr()}`,
+        title:      `🤝 Lending Due in a Week — ${nameStr}`,
+        body:       `${nameStr} — payment due on ${b.nextDueDate}.`,
         clickUrl:   '/liabilities',
         notifType:  'lending_due',
-        severity:   'medium',
+        severity:   'low',
         entityId:   b.id,
         actionLabel: 'View Lending',
         tag:        `lending_${b.id}`,
       }, opts);
     }
-    if (days <= 0 && days >= -3) {
+    if (days === 3) {
       fired = true;
-      const label = days === 0 ? 'today' : `${Math.abs(days)} day(s) ago`;
       await sendToUser(uid, devices, {
-        key:        `lending_overdue_${Math.abs(days)}d:${b.id}:${todayStr()}`,
-        title:      `❗ Lending Overdue`,
-        body:       `Payment from ${b.name} was due ${label}. Follow up!`,
+        key:        `lending_due_3d:${b.id}:${todayStr()}`,
+        title:      `🤝 3 Days Until ${nameStr} Payment`,
+        body:       `Remind ${nameStr} about the payment on ${b.nextDueDate}.`,
+        clickUrl:   '/liabilities',
+        notifType:  'lending_due',
+        severity:   'low',
+        entityId:   b.id,
+        actionLabel: 'View Lending',
+        tag:        `lending_${b.id}`,
+      }, opts);
+    }
+    if (days === 0) {
+      fired = true;
+      await sendToUser(uid, devices, {
+        key:        `lending_due_today:${b.id}:${todayStr()}`,
+        title:      `🤝 Collect Today: ${nameStr}`,
+        body:       `Payment from ${nameStr} is due today (${b.nextDueDate}). Follow up!`,
+        clickUrl:   '/liabilities',
+        notifType:  'lending_due',
+        severity:   'high',
+        entityId:   b.id,
+        actionLabel: 'View Lending',
+        tag:        `lending_${b.id}`,
+      }, opts);
+    }
+    if (days < 0 && [-1, -3, -7, -14, -21].includes(days)) {
+      fired = true;
+      const absDays = Math.abs(days);
+      await sendToUser(uid, devices, {
+        key:        `lending_overdue_${absDays}d:${b.id}:${todayStr()}`,
+        title:      absDays >= 7 ? `❗ OVERDUE ${absDays}d: ${nameStr}` : `❗ Lending Overdue`,
+        body:       `${nameStr}'s payment is ${absDays} day${absDays === 1 ? '' : 's'} overdue (was due ${b.nextDueDate}). Collect immediately.`,
         clickUrl:   '/liabilities',
         notifType:  'lending_overdue',
-        severity:   'high',
+        severity:   absDays >= 7 ? 'high' : 'medium',
         entityId:   b.id,
         actionLabel: 'View Lending',
         tag:        `lending_${b.id}`,
@@ -857,14 +1130,170 @@ async function checkLending(
     }
 
     if (!fired) {
-      const line = `uid=${uid} borrower=${b.id} name="${b.name}" nextDueDate=${b.nextDueDate} daysUntilDue=${days} — matches no lending rule today (due reminder only fires at exactly 3 days out; overdue only fires from 0 to -3 days).`;
+      const line = `uid=${uid} borrower=${b.id} name="${nameStr}" nextDueDate=${b.nextDueDate} daysUntilDue=${days} — no rule matched today (due reminders fire at exactly 7/3/0d; overdue fires on -1/-3/-7/-14/-21d).`;
       logger.info(`[pushNotif] ${line}`);
       opts?.results?.push(`NO MATCH (lending): ${line}`);
     }
   }
 }
 
-// 7. Subscription / trial
+// 7. Investment maturity — bonds / fixed deposits (matured, 7d, 30d warnings)
+async function checkInvestments(
+  uid: string,
+  devices: NotifDevice[],
+  settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
+): Promise<void> {
+  if (!settings.investmentAlerts) {
+    logger.info(`[pushNotif] uid=${uid} — investmentAlerts is OFF in notificationSettings, skipping investment maturity checks.`);
+    return;
+  }
+  const investments = await fetchCol<any>(uid, 'investments', opts);
+  logger.info(`[pushNotif] uid=${uid} — evaluating ${investments.length} investment(s) for maturity.`);
+
+  for (const inv of investments) {
+    if (inv.type !== 'bond' && inv.type !== 'fixed_deposit') continue;
+    if (!inv.maturityDate) continue;
+
+    const days = daysDiff(inv.maturityDate);
+    const invested = inv.investedAmount || 0;
+    const rate = inv.interestRate || 0;
+    const duration = inv.durationMonths || 0;
+    const profit = invested * (rate / 100) * (duration / 12);
+    const expectedPayout = invested + profit;
+    let fired = false;
+    const invName = inv.name || 'Your Investment';
+
+    if (days <= 0) {
+      // Matured — push a single notification per maturity date
+      fired = true;
+      await sendToUser(uid, devices, {
+        key:        `inv_matured:${inv.id}:${inv.maturityDate}`,
+        title:      `🎉 Investment Matured: ${invName}`,
+        body:       `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${invName}" matured on ${inv.maturityDate}. Expected payout ~${fmt(expectedPayout)} (invested ${fmt(invested)} + profit ${fmt(profit)}). Book your profit in the app.`,
+        clickUrl:   '/investments',
+        notifType:  'investment_matured',
+        severity:   'info',
+        entityId:   inv.id,
+        actionLabel: 'View Profits',
+        tag:        `inv_${inv.id}`,
+      }, opts);
+    } else if (days === 7) {
+      fired = true;
+      await sendToUser(uid, devices, {
+        key:        `inv_mat_upcoming_7d:${inv.id}:${todayStr()}`,
+        title:      `⏰ Investment Maturing in 7 Days`,
+        body:       `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${invName}" matures in 7 days (${inv.maturityDate}). Expected payout ~${fmt(expectedPayout)}.`,
+        clickUrl:   '/investments',
+        notifType:  'investment_maturity_upcoming',
+        severity:   'low',
+        entityId:   inv.id,
+        actionLabel: 'View Investment',
+        tag:        `inv_${inv.id}`,
+      }, opts);
+    } else if (days === 30) {
+      fired = true;
+      await sendToUser(uid, devices, {
+        key:        `inv_mat_upcoming_30d:${inv.id}:${todayStr()}`,
+        title:      `⏳ 30 Days Until Maturity — ${invName}`,
+        body:       `"${invName}" (${inv.type === 'bond' ? 'Bond' : 'FD'}) matures in a month. Expected payout ~${fmt(expectedPayout)}.`,
+        clickUrl:   '/investments',
+        notifType:  'investment_maturity_upcoming',
+        severity:   'low',
+        entityId:   inv.id,
+        actionLabel: 'View Investment',
+        tag:        `inv_${inv.id}`,
+      }, opts);
+    }
+
+    if (!fired) {
+      const line = `uid=${uid} inv=${inv.id} name="${invName}" type=${inv.type} maturityDate=${inv.maturityDate} daysUntilMaturity=${days} — maturity push only fires on exactly 30/7 days left or days<=0 (matured).`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (investment): ${line}`);
+    }
+  }
+}
+
+// 8. Pending Payments (receivables — buyers who owe us)
+async function checkPendingPayments(
+  uid: string,
+  devices: NotifDevice[],
+  settings: NotifSettings,
+  opts?: { force?: boolean; results?: string[] },
+): Promise<void> {
+  if (!settings.paymentReminders) {
+    logger.info(`[pushNotif] uid=${uid} — paymentReminders is OFF, skipping pending-payment (receivable) checks.`);
+    return;
+  }
+  const pending = await fetchCol<any>(uid, 'pendingPayments', opts);
+  logger.info(`[pushNotif] uid=${uid} — evaluating ${pending.length} pending payment(s) (receivables).`);
+
+  for (const p of pending) {
+    if (p.status !== 'pending' || !p.expectedPaymentDate) {
+      opts?.results?.push(`SKIPPED (pendingPayment): uid=${uid} pp=${p.id} — status!==pending or expectedPaymentDate missing.`);
+      continue;
+    }
+    const days = daysDiff(p.expectedPaymentDate);
+    if (days < -30) {
+      opts?.results?.push(`NO MATCH (pendingPayment): uid=${uid} pp=${p.id} — ${Math.abs(days)}d past due (>30d threshold, no longer notifying).`);
+      continue;
+    }
+    const amtStr = fmt(p.amount);
+    const buyer = p.buyerName ?? 'the buyer';
+    let fired = false;
+    let fireKey = '';
+    let title = '';
+    let body = '';
+    let severity: 'info' | 'low' | 'medium' | 'high' | 'critical' = 'low';
+
+    if (days === 0) {
+      fireKey = `pp_today:${p.id}:${todayStr()}`;
+      title = `🔴 Receive Today: ${fmt(p.amount)} from ${buyer}`;
+      body = `${buyer} owes ${amtStr} for "${p.itemDescription ?? 'item'}" — expected TODAY. Follow up!`;
+      severity = 'high';
+      fired = true;
+    } else if (days === 1) {
+      fireKey = `pp_1d:${p.id}:${todayStr()}`;
+      title = `⏰ Payment Tomorrow: ${buyer}`;
+      body = `Expect ${amtStr} from ${buyer} tomorrow (${p.expectedPaymentDate}) for "${p.itemDescription ?? 'item'}".`;
+      severity = 'medium';
+      fired = true;
+    } else if (days === 5) {
+      fireKey = `pp_5d:${p.id}:${todayStr()}`;
+      title = `💰 Incoming in 5d — ${buyer}`;
+      body = `${amtStr} receivable on ${p.expectedPaymentDate} from ${buyer} for "${p.itemDescription ?? 'item'}".`;
+      severity = 'low';
+      fired = true;
+    } else if (days < 0 && [-1, -3, -7, -14, -21].includes(days)) {
+      const absDays = Math.abs(days);
+      fireKey = `pp_overdue_${absDays}d:${p.id}:${todayStr()}`;
+      title = absDays >= 7 ? `⚠️ OVERDUE ${absDays}d: ${buyer}` : `⚠️ OVERDUE: ${buyer}`;
+      body = `${amtStr} was due ${absDays} day${absDays === 1 ? '' : 's'} ago from ${buyer} (${p.expectedPaymentDate}) for "${p.itemDescription ?? 'item'}". Follow up urgently.`;
+      severity = absDays >= 7 ? 'high' : 'medium';
+      fired = true;
+    }
+
+    if (fired && fireKey) {
+      await sendToUser(uid, devices, {
+        key:        fireKey,
+        title,
+        body,
+        clickUrl:   '/liabilities?section=pending-payments',
+        notifType:  days < 0 ? 'pending_payment_overdue' : 'pending_payment_due',
+        severity,
+        entityId:   p.id,
+        actionLabel: 'Pending Payments',
+        tag:        `pp_${p.id}`,
+      }, opts);
+    } else {
+      const line = `uid=${uid} pp=${p.id} buyer="${buyer}" expected=${p.expectedPaymentDate} daysUntilDue=${days} — due reminders only fire on exactly 5/1/0d; overdue fires on -1/-3/-7/-14/-21d.`;
+      logger.info(`[pushNotif] ${line}`);
+      opts?.results?.push(`NO MATCH (pendingPayment): ${line}`);
+    }
+  }
+}
+
+// 9. Subscription / trial
 async function checkSubscription(
   uid: string,
   devices: NotifDevice[],
@@ -956,6 +1385,50 @@ async function checkSubscription(
   }
 }
 
+// ── On-demand dedup-reset callable ─────────────────────────────────────────────
+// Deletes ALL pushSent dedup records for the currently signed-in user ONLY.
+// Use this when you want the 30-minute SCHEDULER (not the test callable, which
+// already supports {force:true}) to re-fire pushes that "already sent today".
+export const clearNotificationDedup = onCall(
+  { region },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError('unauthenticated', 'You must be signed in to clear your own notification dedup.');
+    }
+    const db = getDb();
+    const col = db.collection('users').doc(uid).collection('pushSent');
+
+    // Stream all docs in chunks and delete each one (batched for safety).
+    // 500 is the maximum writes per Firestore WriteBatch.
+    const BATCH_SIZE = 500;
+    let deleted = 0;
+    let cursor: any = undefined;
+
+    while (true) {
+      let q: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = col.limit(BATCH_SIZE);
+      if (cursor) q = q.startAfter(cursor);
+      const snap = await q.get();
+      if (snap.empty) break;
+
+      const batch = db.batch();
+      for (const doc of snap.docs) batch.delete(doc.ref);
+      await batch.commit();
+
+      deleted += snap.docs.length;
+      cursor = snap.docs[snap.docs.length - 1];
+      if (snap.docs.length < BATCH_SIZE) break;
+    }
+
+    return {
+      ok: true,
+      uid,
+      deleted,
+      message: `Deleted ${deleted} pushSent dedup record(s) for uid=${uid}. The scheduler on its next run will now re-fire any push condition that matches your data.`,
+    };
+  },
+);
+
 // ── On-demand test callable ───────────────────────────────────────────────────
 // Lets you (signed in as yourself) trigger the exact same rule engine
 // instantly, for just your own account, and get a plain-English report back —
@@ -1043,6 +1516,8 @@ export const testPushNotifications = onCall(
       checkLiabilities(uid, enabledDevices, settings, opts),
       checkSIP(uid, enabledDevices, settings, opts),
       checkLending(uid, enabledDevices, settings, opts),
+      checkInvestments(uid, enabledDevices, settings, opts),
+      checkPendingPayments(uid, enabledDevices, settings, opts),
       checkSubscription(uid, enabledDevices, settings, opts),
     ]);
 
@@ -1126,6 +1601,8 @@ export const processScheduledNotifications = onSchedule(
           checkLiabilities(uid, devices, settings),
           checkSIP(uid, devices, settings),
           checkLending(uid, devices, settings),
+          checkInvestments(uid, devices, settings),
+          checkPendingPayments(uid, devices, settings),
           checkSubscription(uid, devices, settings),
         ]);
 
