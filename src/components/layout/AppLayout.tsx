@@ -1,6 +1,7 @@
 // src/components/layout/AppLayout.tsx
 import {
   FiChevronRight,
+  FiDownload,
   FiGrid,
   FiLogOut,
   FiSearch,
@@ -19,6 +20,7 @@ import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { NotificationPermissionBanner } from '../notifications/NotificationPermissionBanner';
+import { InstallAppModal } from '../InstallAppModal';
 import { TrialBanner } from '../subscription/TrialBanner';
 import { UpgradeModal } from '../subscription/UpgradeModal';
 import { ThemeToggle } from './ThemeToggle';
@@ -76,6 +78,7 @@ export function AppLayout() {
   }, [isLocked]);
 
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -180,6 +183,14 @@ export function AppLayout() {
             <span>Settings</span>
           </NavLink>
           <button
+            onClick={() => setInstallOpen(true)}
+            title='Install Fintrackly as an app'
+            className='flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors'
+          >
+            <FiDownload className='h-4 w-4 shrink-0' />
+            <span>Install App</span>
+          </button>
+          <button
             onClick={() => setLogoutOpen(true)}
             title='Sign out of your account'
             className='flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-colors'
@@ -245,6 +256,13 @@ export function AppLayout() {
           >
             <FiSettings className='h-4 w-4 text-slate-500 dark:text-slate-400' />
           </NavLink>
+          <button
+            onClick={() => setInstallOpen(true)}
+            title='Install App'
+            className='flex items-center justify-center rounded-xl w-10 h-10 text-emerald-500 hover:bg-emerald-500/10 transition-colors mx-auto'
+          >
+            <FiDownload className='h-4 w-4' />
+          </button>
           <button
             onClick={() => setLogoutOpen(true)}
             title='Logout'
@@ -405,6 +423,7 @@ export function AppLayout() {
       <PWAInstallBanner />
       <NotificationPermissionBanner />
       <UpgradeModal />
+      <InstallAppModal open={installOpen} onClose={() => setInstallOpen(false)} />
       <FeedbackModal />
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />

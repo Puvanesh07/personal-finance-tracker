@@ -23,7 +23,6 @@ import {
   FiDatabase,
   FiDownload,
   FiEdit2,
-  FiExternalLink,
   FiLogOut,
   FiMail,
   FiSave,
@@ -37,6 +36,7 @@ import { useEffect, useState } from 'react';
 
 import EncryptionSettings from './EncryptionSettings';
 import { EssentialsSettings } from '../../components/settings/EssentialsSettings';
+import { InstallAppModal } from '../../components/InstallAppModal';
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
 import { NotificationSettings } from '../../components/notifications/NotificationSettings';
@@ -275,50 +275,33 @@ function ProfileTab() {
 
 function AppSecurityTab() {
   const { uid } = usePortfolioStore();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [installPrompted, setInstallPrompted] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true,
+  );
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches)
-      setIsInstalled(true);
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler as EventListener);
-    window.addEventListener('appinstalled', () => setIsInstalled(true));
-    return () =>
-      window.removeEventListener(
-        'beforeinstallprompt',
-        handler as EventListener,
-      );
+    const handler = () => setIsInstalled(true);
+    window.addEventListener('appinstalled', handler);
+    return () => window.removeEventListener('appinstalled', handler);
   }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setIsInstalled(true);
-    setDeferredPrompt(null);
-    setInstallPrompted(true);
-  };
-
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isAndroid = /android/i.test(navigator.userAgent);
 
   return (
     <div className='flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500'>
-      {/* Install App */}
-      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-6'>
+
+      {/* ── Install App card ── */}
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-6'>
         <div className='flex items-center gap-3 mb-4'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-800'>
-            <FiSmartphone className='h-4 w-4 text-slate-600 dark:text-slate-700 dark:text-slate-300' />
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20'>
+            <FiSmartphone className='h-4 w-4 text-emerald-500' />
           </div>
           <div>
-            <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>Install App</h2>
-            <p className='text-xs text-slate-900 dark:text-slate-500'>
-              Add to home screen for native-like experience
+            <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>
+              Install App
+            </h2>
+            <p className='text-xs text-slate-500 dark:text-slate-400'>
+              Add Fintrackly to your home screen for instant access. Opens like a native app with no browser tabs.
             </p>
           </div>
         </div>
@@ -330,89 +313,50 @@ function AppSecurityTab() {
               <p className='text-sm font-bold text-emerald-700 dark:text-emerald-300'>
                 App Installed ✓
               </p>
-              <p className='text-xs text-emerald-400/70 mt-0.5'>
-                FinTrackly is running as a native app.
+              <p className='text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-0.5'>
+                Fintrackly is running as an installed app.
               </p>
             </div>
           </div>
-        ) : deferredPrompt ? (
-          <button
-            onClick={handleInstall}
-            className='flex cursor-pointer w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3.5 text-sm font-bold text-white shadow-lg hover:from-emerald-500 hover:to-emerald-600 transition-all'
-          >
-            <FiDownload className='h-4 w-4' />
-            Install FinTrackly
-          </button>
         ) : (
-          <div className='flex flex-col gap-3'>
-            <div className='flex items-start gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 py-3'>
-              <span className='text-lg shrink-0'>🤖</span>
-              <div>
-                <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
-                  Android / Chrome
+          <>
+            {/* Step hints — always visible */}
+            <div className='flex flex-col gap-2 mb-4'>
+              <div className='flex items-start gap-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-3'>
+                <span className='flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-0.5'>1</span>
+                <p className='text-xs text-slate-600 dark:text-slate-300'>
+                  Open the <strong className='text-slate-900 dark:text-slate-100'>⋮ browser menu</strong>
                 </p>
-                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
-                  Tap the <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>⋮ menu</strong> →{' '}
-                  <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>
-                    "Add to Home screen"
-                  </strong>
-                </p>
-                {isAndroid && (
-                  <button
-                    onClick={() => window.open(window.location.href, '_blank')}
-                    className='mt-2 flex cursor-pointer items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
-                  >
-                    Open in Chrome <FiExternalLink className='h-3 w-3' />
-                  </button>
-                )}
               </div>
-            </div>
-            <div className='flex items-start gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 py-3'>
-              <span className='text-lg shrink-0'>🍎</span>
-              <div>
-                <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
-                  iPhone / Safari
-                </p>
-                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
-                  Tap <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>Share ⬆</strong> →{' '}
-                  <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>
-                    "Add to Home Screen"
-                  </strong>
-                </p>
-                {isIOS && (
-                  <button
-                    onClick={() => window.open(window.location.href, '_blank')}
-                    className='mt-2 flex cursor-pointer items-center gap-1 text-xs font-bold text-emerald-400 hover:text-emerald-300'
-                  >
-                    Open in Safari <FiExternalLink className='h-3 w-3' />
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className='flex items-start gap-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 px-4 py-3'>
-              <span className='text-lg shrink-0'>💻</span>
-              <div>
-                <p className='text-xs font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
-                  Desktop Chrome / Edge
-                </p>
-                <p className='text-xs text-slate-500 dark:text-slate-400 mt-0.5'>
-                  Click{' '}
-                  <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>⊕ install icon</strong> in
-                  the address bar
+              <div className='flex items-start gap-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-3'>
+                <span className='flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-0.5'>2</span>
+                <p className='text-xs text-slate-600 dark:text-slate-300'>
+                  Choose <strong className='text-slate-900 dark:text-slate-100'>Install app</strong> or{' '}
+                  <strong className='text-slate-900 dark:text-slate-100'>Add to Home Screen</strong>
                 </p>
               </div>
             </div>
-          </div>
-        )}
-        {installPrompted && !isInstalled && (
-          <p className='mt-3 text-xs text-slate-900 dark:text-slate-500 text-center'>
-            Prompt dismissed — refresh the page to try again.
-          </p>
+
+            <div className='flex items-center gap-1.5 mb-5 text-[11px] text-slate-400 dark:text-slate-500'>
+              <span className='h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse' />
+              Prompt ready ✓
+            </div>
+
+            <button
+              onClick={() => setInstallOpen(true)}
+              className='flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-3 text-sm font-bold text-white transition-colors shadow-md shadow-emerald-500/15'
+            >
+              <FiDownload className='h-4 w-4' />
+              Install Fintrackly
+            </button>
+          </>
         )}
       </div>
 
-      {/* Encryption */}
+      {/* ── Encryption ── */}
       <EncryptionSettings uid={uid} />
+
+      <InstallAppModal open={installOpen} onClose={() => setInstallOpen(false)} />
     </div>
   );
 }
