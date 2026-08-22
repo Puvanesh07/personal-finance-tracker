@@ -18,6 +18,7 @@ import { FeedbackModal } from './FeedbackModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { NotificationPermissionBanner } from '../notifications/NotificationPermissionBanner';
 import { TrialBanner } from '../subscription/TrialBanner';
 import { UpgradeModal } from '../subscription/UpgradeModal';
 import { ThemeToggle } from './ThemeToggle';
@@ -402,6 +403,7 @@ export function AppLayout() {
       </Modal>
 
       <PWAInstallBanner />
+      <NotificationPermissionBanner />
       <UpgradeModal />
       <FeedbackModal />
 

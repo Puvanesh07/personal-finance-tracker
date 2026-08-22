@@ -4,6 +4,9 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
+
+// ── Push notifications scheduler ──────────────────────────────────────────────
+export { processScheduledNotifications } from './pushNotifications';
 import {
   buildTrialFields,
   createSubscriptionNotification,

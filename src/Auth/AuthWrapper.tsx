@@ -20,6 +20,7 @@ import { usePortfolioStore } from '../store/portfolioStore';
 import { useAgriStore } from '../store/agricultureStore';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { useNotificationStore } from '../store/notificationStore';
+import { silentReRegisterIfGranted, listenForegroundMessages } from '../services/fcmService';
 
 export default function AuthWrapper({
   children,
@@ -70,6 +71,26 @@ export default function AuthWrapper({
       });
       void useAgriStore.getState().hydrate(user.uid);
       void useAttendanceStore.getState().hydrate(user.uid);
+
+      // ── FCM: silently re-register if permission already granted ──────────
+      // This refreshes the token and updates lastSeenAt on each login.
+      // If permission is 'default', the NotificationPermissionBanner handles asking.
+      void silentReRegisterIfGranted(user.uid);
+
+      // ── FCM: listen for foreground messages and relay to in-app bell ──────
+      // When the app is open, FCM does not auto-show a native notification.
+      // We convert the payload into an in-app notification instead.
+      listenForegroundMessages(({ title, body, clickUrl, data }) => {
+        useNotificationStore.getState().addNotification({
+          type: (data?.notifType as any) ?? 'info',
+          title,
+          message: body,
+          entityId: data?.entityId ?? `push_${Date.now()}`,
+          severity: (data?.severity as any) ?? 'info',
+          actionLabel: data?.actionLabel ?? 'View',
+          actionPath: clickUrl,
+        });
+      });
 
       // Fire a welcome notification once per user, ever.
       // Uses the store's oncePerPeriod('once') guard so it never repeats

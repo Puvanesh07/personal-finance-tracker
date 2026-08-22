@@ -69,6 +69,24 @@ service cloud.firestore {
             || isPremiumGrantedBackfill()
             || isOwnerSelfPremiumGrant());
 
+      // ── Notification devices — client registers/updates its own FCM token ──
+      match /notificationDevices/{deviceId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Notification settings — per-category toggles + quiet hours ─────────
+      match /notificationSettings/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ── Push sent dedup records — written by Cloud Function only ───────────
+      // Client can read (for debug/UI), but cannot create/update/delete.
+      match /pushSent/{key} {
+        allow read: if isOwner(userId);
+        allow write: if false;  // Cloud Function uses Admin SDK (bypasses rules)
+      }
+
+      // ── All other user subcollections ──────────────────────────────────────
       match /{collection}/{document=**} {
         allow read, write: if isOwner(userId);
       }

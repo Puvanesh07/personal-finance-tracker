@@ -16,6 +16,7 @@ import {
 } from '../../components/settings/DataManagement';
 import {
   FiAlertOctagon,
+  FiBell,
   FiCheckCircle,
   FiCloud,
   FiCreditCard,
@@ -38,6 +39,7 @@ import EncryptionSettings from './EncryptionSettings';
 import { EssentialsSettings } from '../../components/settings/EssentialsSettings';
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
+import { NotificationSettings } from '../../components/notifications/NotificationSettings';
 import { SubscriptionStatusCard } from '../../components/subscription/SubscriptionStatusCard';
 import { TrialUsagePanel } from '../../components/subscription/TrialUsagePanel';
 import { auth } from '../../services/firebase';
@@ -51,6 +53,7 @@ type TabId =
   | 'data'
   | 'app'
   | 'essentials'
+  | 'notifications'
   | 'integrations'
   | 'danger';
 
@@ -65,6 +68,7 @@ const TABS: {
   { id: 'data', label: 'Export / Import', icon: FiDatabase },
   { id: 'app', label: 'App & Security', icon: FiSmartphone },
   { id: 'essentials', label: 'Essentials', icon: FiShield },
+  { id: 'notifications', label: 'Notifications', icon: FiBell },
   { id: 'integrations', label: 'Integrations', icon: FiCloud },
   {
     id: 'danger',
@@ -458,6 +462,20 @@ export function SettingsPage() {
         return <AppSecurityTab />;
       case 'essentials':
         return <EssentialsSettings />;
+      case 'notifications':
+        return (
+          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+            <div className='mb-5'>
+              <h2 className='flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-slate-100'>
+                <FiBell className='text-emerald-400' /> Notifications
+              </h2>
+              <p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
+                Control push alerts for payments, insurance, goals, EMIs, and more.
+              </p>
+            </div>
+            <NotificationSettings />
+          </div>
+        );
       case 'integrations':
         return (
           <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>

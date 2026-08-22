@@ -27,6 +27,43 @@ function createTransporter() {
 }
 const FROM_NAME = 'FinTrackly Reports';
 
+// ── Zero-data check ───────────────────────────────────────────────────────────
+// Returns true if the user has at least one record in ANY collection.
+// If false, we skip sending the report email entirely.
+function hasAnyData(allData) {
+  return [
+    allData.investments,
+    allData.cashflows,
+    allData.liabilities,
+    allData.pendingPayments,
+    allData.trackedPayments,
+    allData.accounts,
+    allData.goals,
+    allData.goalContributions,
+    allData.soldTrades,
+    allData.insurancePolicies,
+    allData.insurancePayments,
+    allData.credentials,
+    allData.sipPlans,
+    allData.networthSnapshots,
+    allData.snapshots,
+    allData.lendingBorrowers,
+    allData.lendingTransactions,
+    allData.agriFields,
+    allData.agriCropCycles,
+    allData.agriExpenses,
+    allData.agriLivestock,
+    allData.agriMilkRecords,
+    allData.agriCoconut,
+    allData.agriLivestockEvents,
+    allData.agriProduceSales,
+    allData.attEmployees,
+    allData.attRecords,
+    allData.attTransactions,
+    allData.attSalary,
+  ].some((col) => Array.isArray(col) && col.length > 0);
+}
+
 // ── Encryption (mirrors encryptionService.ts) ─────────────────────────────────
 const SALT = process.env.VITE_ENCRYPTION_SALT || 'default-finance-salt-v1';
 const _keyCache = new Map();
@@ -894,6 +931,19 @@ ${sections.join('')}
 }
 
 // ── Build full report HTML + collect all data ─────────────────────────────────
+/**
+ * Builds the monthly report HTML and collects all user data.
+ * 
+ * HTML RENDERING RULES (per-section conditional):
+ *  - Each section (Cashflow, Investments, Liabilities, etc.) is only rendered
+ *    in the HTML report if that collection has at least 1 record.
+ *  - If a user has NO data in Cashflow, the Cashflow section is excluded from HTML.
+ *  - If a user has NO data across ALL modules, main() skips sending the email entirely.
+ * 
+ * JSON BACKUP (always complete):
+ *  - The JSON backup attachment ALWAYS includes all collections, even empty arrays.
+ *  - This matches the exact format of Settings → Export JSON for 1:1 restore compatibility.
+ */
 async function buildReportAndData(uid) {
   const month = currentMonth();
   const monthLbl = currentMonthLabel();
@@ -997,6 +1047,13 @@ async function buildReportAndData(uid) {
     lendingBorrowers,
     lendingTransactions,
   };
+
+  // ── Pre-compute module presence flags (used by TOC + section guards) ─────────
+  const hasAgriData = !!(
+    agriFields.length || agriCropCycles.length || agriMilkRecords.length ||
+    agriCoconut.length || agriLivestockEvents.length || agriLivestock.length ||
+    agriProduceSales.length || agriExpenses.length
+  );
 
   // ── Derived: Investment calculations ────────────────────────────────────────
   const calcInvested = (i) =>
@@ -1123,21 +1180,23 @@ async function buildReportAndData(uid) {
       ),
     );
 
-    // Quick Navigation TOC
-    tocItems.push(['💰', 'Cashflow', '#22c55e']);
-    tocItems.push(['📈', 'Investments', '#3b82f6']);
-    tocItems.push(['💹', 'Profits', '#10b981']);
-    tocItems.push(['🏦', 'Liabilities', '#ef4444']);
-    tocItems.push(['📋', 'Payments', '#f97316']);
-    tocItems.push(['🏧', 'Accounts', '#a78bfa']);
-    tocItems.push(['🎯', 'Goals', '#f59e0b']);
-    tocItems.push(['🛡', 'Insurance', '#a78bfa']);
-    tocItems.push(['📅', 'SIP Plan', '#06b6d4']);
-    tocItems.push(['🤝', 'Lending', '#6366f1']);
-    tocItems.push(['🔐', 'Credentials', '#0ea5e9']);
-    tocItems.push(['📜', 'Net Worth', '#14b8a6']);
-    tocItems.push(['🌾', 'Agriculture', '#4ade80']);
-    tocItems.push(['👷', 'Workers', '#60a5fa']);
+    // Quick Navigation TOC — only include sections that have data
+    if (cashflows.length > 0)          tocItems.push(['💰', 'Cashflow',    '#22c55e']);
+    if (investments.length > 0)        tocItems.push(['📈', 'Investments', '#3b82f6']);
+    if (soldTrades.length > 0)         tocItems.push(['💹', 'Profits',     '#10b981']);
+    if (liabilities.length > 0)        tocItems.push(['🏦', 'Liabilities', '#ef4444']);
+    if (pendingPayments.length > 0)    tocItems.push(['📋', 'Payments',    '#f97316']);
+    if (trackedPayments.length > 0)    tocItems.push(['⏰', 'Dues',        '#f97316']);
+    if (accounts.length > 0)           tocItems.push(['🏧', 'Accounts',    '#a78bfa']);
+    if (goals.length > 0)              tocItems.push(['🎯', 'Goals',       '#f59e0b']);
+    if (insurancePolicies.length > 0)  tocItems.push(['🛡', 'Insurance',   '#a78bfa']);
+    if (sipPlanDocs.length > 0)        tocItems.push(['📅', 'SIP Plan',    '#06b6d4']);
+    if (lendingBorrowers.length > 0)   tocItems.push(['🤝', 'Lending',     '#6366f1']);
+    if (credentials.length > 0)        tocItems.push(['🔐', 'Credentials', '#0ea5e9']);
+    if (networthSnapshots.length > 0 || snapshots.length > 0)
+                                       tocItems.push(['📜', 'Net Worth',   '#14b8a6']);
+    if (hasAgriData)                   tocItems.push(['🌾', 'Agriculture', '#4ade80']);
+    if (attEmployees.length > 0)       tocItems.push(['👷', 'Workers',     '#60a5fa']);
 
     sections.push(
       `<div style="margin-bottom:28px">
@@ -1150,10 +1209,11 @@ async function buildReportAndData(uid) {
   // ═══════════════════════════════════════════════════════════════════════════
   // GROUP A — WEALTH & SAVINGS
   // ═══════════════════════════════════════════════════════════════════════════
-  sections.push(sectionGroup('Wealth, Income & Savings', '💰', '#22c55e'));
+  const hasGroupA = cashflows.length > 0 || investments.length > 0 || soldTrades.length > 0;
+  if (hasGroupA) sections.push(sectionGroup('Wealth, Income & Savings', '💰', '#22c55e'));
 
   // ── 1. Cashflow (Detailed) ──────────────────────────────────────────────────
-  {
+  if (cashflows.length > 0) {
     const catMap = {};
     mc.filter((c) => c.type === 'expense').forEach((c) => {
       catMap[c.category || 'Other'] =
@@ -1282,7 +1342,7 @@ async function buildReportAndData(uid) {
   }
 
   // ── 2. Investments (Holdings table + breakdown) ─────────────────────────────
-  {
+  if (investments.length > 0) {
     const pnlPct =
       totalInvested > 0 ? ((invPnl / totalInvested) * 100).toFixed(2) : '0';
     const stocks = investments.filter((i) => i.type === 'stock');
@@ -1460,7 +1520,8 @@ async function buildReportAndData(uid) {
   // ═══════════════════════════════════════════════════════════════════════════
   // GROUP B — OBLIGATIONS & DUES
   // ═══════════════════════════════════════════════════════════════════════════
-  sections.push(sectionGroup('Liabilities, Dues & Payments', '🏦', '#ef4444'));
+  const hasGroupB = liabilities.length > 0 || pendingPayments.length > 0 || trackedPayments.length > 0;
+  if (hasGroupB) sections.push(sectionGroup('Liabilities, Dues & Payments', '🏦', '#ef4444'));
 
   // ── 4. Liabilities ──────────────────────────────────────────────────────────
   if (liabilities.length > 0) {
@@ -1525,7 +1586,7 @@ async function buildReportAndData(uid) {
   }
 
   // ── 5. Pending Payments (Receivables) ───────────────────────────────────────
-  {
+  if (pendingPayments.length > 0) {
     const pending = pendingPayments.filter((p) => p.status !== 'received');
     const receivedThisMonth = pendingPayments.filter((p) =>
       (p.receivedAt || p.saleDate || '').startsWith(month) &&
@@ -1594,7 +1655,7 @@ async function buildReportAndData(uid) {
   }
 
   // ── 6. Tracked Payments (Payment Tracker / Dues) ────────────────────────────
-  {
+  if (trackedPayments.length > 0) {
     const unpaid = trackedPayments.filter((p) => p.status !== 'paid');
     const paidThisMonth = trackedPayments.filter((p) =>
       (p.paidAt || p.dueDate || '').startsWith(month) && p.status === 'paid',
@@ -1665,7 +1726,10 @@ async function buildReportAndData(uid) {
   // ═══════════════════════════════════════════════════════════════════════════
   // GROUP C — ACCOUNTS, GOALS, INSURANCE
   // ═══════════════════════════════════════════════════════════════════════════
-  sections.push(sectionGroup('Accounts, Goals & Protection', '🏧', '#a78bfa'));
+  const hasGroupC = accounts.length > 0 || goals.length > 0 || insurancePolicies.length > 0 || 
+                    sipPlanDocs.length > 0 || lendingBorrowers.length > 0 || credentials.length > 0 || 
+                    networthSnapshots.length > 0 || snapshots.length > 0;
+  if (hasGroupC) sections.push(sectionGroup('Accounts, Goals & Protection', '🏧', '#a78bfa'));
 
   // ── 7. Accounts (with type and opening bal) ─────────────────────────────────
   if (accounts.length > 0) {
@@ -2349,15 +2413,7 @@ async function buildReportAndData(uid) {
   // ═══════════════════════════════════════════════════════════════════════════
   // GROUP D — AGRICULTURE & FARM
   // ═══════════════════════════════════════════════════════════════════════════
-  const hasAgriData =
-    agriFields.length ||
-    agriCropCycles.length ||
-    agriMilkRecords.length ||
-    agriCoconut.length ||
-    agriLivestockEvents.length ||
-    agriLivestock.length ||
-    agriProduceSales.length ||
-    agriExpenses.length;
+  // hasAgriData is pre-computed above near allData
 
   if (hasAgriData) {
     sections.push(sectionGroup('Agriculture & Farm', '🌾', '#4ade80'));
@@ -2949,6 +3005,11 @@ async function main() {
       const { sections, allData, settingsDoc, monthLbl, overview } =
         await buildReportAndData(user.uid);
 
+      // In test mode, warn but still send so you can preview the empty state
+      if (!hasAnyData(allData)) {
+        console.log('  ⚠️  Warning: this user has no data — sending empty report preview anyway (test mode).');
+      }
+
       // Build attachments
       const attachments = [];
       let attachmentSummary = null;
@@ -3023,6 +3084,13 @@ async function main() {
     try {
       const { sections, allData, settingsDoc, monthLbl, overview } =
         await buildReportAndData(user.uid);
+
+      // ── Skip users with no data at all ─────────────────────────────────────
+      if (!hasAnyData(allData)) {
+        console.log(`  ↳ skipped (no data) → ${user.email}`);
+        continue;
+      }
+
       const attachments = [];
       let attachmentSummary = null;
 
