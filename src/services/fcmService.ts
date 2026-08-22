@@ -60,6 +60,31 @@ function isPWA(): boolean {
   );
 }
 
+// ── Dedicated FCM service worker registration ─────────────────────────────────
+// IMPORTANT: We do NOT use `navigator.serviceWorker.ready` here. This app also
+// runs vite-plugin-pwa, which registers its own Workbox service worker at the
+// root scope ("/") for offline caching. `serviceWorker.ready` resolves to
+// WHICHEVER worker is already controlling the page — on this app that's the
+// Workbox one, not firebase-messaging-sw.js. That worker has no `push` event
+// handling wired to Firebase, so background notifications silently never show,
+// even though the token is issued and saved successfully.
+//
+// To fix this we explicitly register firebase-messaging-sw.js on its own scope
+// (separate from "/"), so it doesn't collide with the Workbox worker, and pass
+// THAT registration into getToken().
+let _fcmSwRegistration: ServiceWorkerRegistration | null = null;
+
+async function getFcmServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
+  if (_fcmSwRegistration) return _fcmSwRegistration;
+
+  _fcmSwRegistration = await navigator.serviceWorker.register(
+    '/firebase-messaging-sw.js',
+    { scope: '/firebase-cloud-messaging-push-scope' },
+  );
+
+  return _fcmSwRegistration;
+}
+
 // ── Singleton messaging instance ──────────────────────────────────────────────
 let _messaging: Messaging | null = null;
 
@@ -115,8 +140,9 @@ export async function registerForPush(uid: string): Promise<PermissionState> {
       return 'denied';
     }
 
-    // Wait for the FCM service worker to be ready
-    const swReg = await navigator.serviceWorker.ready;
+    // Register (or reuse) the dedicated FCM service worker — NOT the app's
+    // general-purpose Workbox/PWA service worker.
+    const swReg = await getFcmServiceWorkerRegistration();
 
     const token = await getToken(messaging, {
       vapidKey,
@@ -150,7 +176,7 @@ export async function silentReRegisterIfGranted(uid: string): Promise<void> {
     const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY as string;
     if (!vapidKey || vapidKey === 'YOUR_VAPID_PUBLIC_KEY_HERE') return;
 
-    const swReg = await navigator.serviceWorker.ready;
+    const swReg = await getFcmServiceWorkerRegistration();
     const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
     if (token) await saveDeviceToFirestore(uid, token, true);
   } catch {
@@ -169,6 +195,10 @@ export async function unregisterDevice(uid: string): Promise<void> {
   try {
     await deleteDoc(doc(db, 'users', uid, 'notificationDevices', deviceId));
   } catch { /* ignore */ }
+
+  // Also drop the cached registration handle so a future registerForPush()
+  // call re-registers (and re-fetches) the FCM service worker cleanly.
+  _fcmSwRegistration = null;
 }
 
 /** Write / update the device document in Firestore. */
