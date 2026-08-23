@@ -375,36 +375,41 @@ async function sendToUser(
     critical: 'high',
   };
   const priority = severityToPriority[msg.severity ?? 'medium'];
+  const tagVal = msg.tag ?? msg.notifType;
 
+  // ── Minimal 100 % FCM-v1-compliant webpush payload ─────────────────────────
+  // Only title / body / icon live inside webpush.notification (fields that
+  // every spec version supports).  All behavioural flags and custom values
+  // are shipped as plain strings via webpush.data, and the service worker
+  // reconstructs the full NotificationOptions at display time.
+  // This completely avoids `messaging/invalid-argument` from FCM's strict
+  // reinterpretation of browser-native notification fields.
   const payloadFor = (device: NotifDevice) => ({
     token: device.token,
     notification: { title: msg.title, body: msg.body },
     webpush: {
       notification: {
-        title:   msg.title,
-        body:    msg.body,
-        icon:    '/icons/android-chrome-192x192.png',
-        badge:   '/icons/favicon-32x32.png',
-        image:   '/icons/apple-touch-icon.png',
-        tag:     msg.tag ?? msg.notifType,
-        renotify: true,
-        silent:  false,
-        vibrate: [100, 50, 200],
-        timestampMillis: Date.now(),
-        requireInteraction: msg.severity === 'critical',
-        actions: msg.actionLabel
-          ? [{ action: 'open', title: msg.actionLabel, icon: '/icons/favicon-32x32.png' }]
-          : [],
+        title: msg.title,
+        body:  msg.body,
+        icon:  '/icons/android-chrome-192x192.png',
       },
       data: {
-        clickUrl:    msg.clickUrl,
-        notifType:   msg.notifType,
-        severity:    msg.severity,
-        entityId:    msg.entityId,
-        actionLabel: msg.actionLabel ?? '',
-        tag:         msg.tag ?? msg.notifType,
-        title:       msg.title,
-        body:        msg.body,
+        title:            msg.title,
+        body:             msg.body,
+        clickUrl:         msg.clickUrl,
+        notifType:        msg.notifType,
+        severity:         msg.severity,
+        entityId:         msg.entityId,
+        actionLabel:      msg.actionLabel ?? '',
+        tag:              tagVal,
+        requireInteraction: msg.severity === 'critical' ? '1' : '0',
+        renotify:         '1',
+        silent:           '0',
+        vibrate:          '100,50,200',
+        timestamp:        String(Date.now()),
+        icon:             '/icons/android-chrome-192x192.png',
+        badge:            '/icons/favicon-32x32.png',
+        image:            '/icons/apple-touch-icon.png',
       },
       fcmOptions: {
         link: `https://fintrackly.web.app${msg.clickUrl}`,

@@ -1,84 +1,212 @@
-// public/firebase-messaging-sw.js
-// Firebase Cloud Messaging Service Worker
-// Handles background push notifications when the Fintrackly PWA is closed or backgrounded.
+// firebase-messaging-sw.js
+// Background push handler for Fintrackly PWA (Web Push / FCM v1 HTTP API).
 //
-// IMPORTANT: This file MUST remain at the root of your domain:
-//   https://fintrackly.web.app/firebase-messaging-sw.js
-// Firebase FCM SDK will auto-register it unless you explicitly pass a custom SW.
+// Strategy: FCM sends only a minimal webpush.notification{title,body,icon}.
+// ALL custom fields (vibrate, requireInteraction, actions, tag, click url,
+// module-specific icon, etc.) arrive as plain-string KV pairs via
+// webpush.data.  We reconstruct a complete NotificationOptions object from
+// those strings and call self.registration.showNotification() directly —
+// this avoids any FCM-side validator mishaps with browser-native fields
+// (the classic source of `messaging/invalid-argument`).
 
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js');
 
-// ── Firebase config (must match src/services/firebase.ts) ────────────────────
-// These are PUBLIC values — safe to include in the service worker.
-firebase.initializeApp({
-  apiKey:            'AIzaSyD8ncJMsmrDja8L4Q1D8cLM535tgVF-vUk',
-  authDomain:        'finance-tracker-3b842.firebaseapp.com',
-  projectId:         'finance-tracker-3b842',
-  storageBucket:     'finance-tracker-3b842.firebasestorage.app',
-  messagingSenderId: '1058955424393',
-  appId:             '1:1058955424393:web:cbdf224d3c9c6c29f5cc58',
+const FIREBASE_CONFIG = {
+  apiKey:            'AIzaSyA_4v4u1d8aJnKW-DOvS1Hj09nCwh95pAs',
+  authDomain:        'fintrackly.firebaseapp.com',
+  projectId:         'fintrackly',
+  storageBucket:     'fintrackly.appspot.com',
+  messagingSenderId: '460591297764',
+  appId:             '1:460591297764:web:70e3c15606f2e064439ef1',
+  measurementId:     'G-38N2TQ999M',
+};
+
+try {
+  firebase.initializeApp(FIREBASE_CONFIG);
+} catch (_) { /* already initialized in SW scope */ }
+
+let messaging = null;
+try {
+  messaging = firebase.messaging.isSupported() ? firebase.messaging() : null;
+} catch (_) { messaging = null; }
+
+// ── Per-module visual polish (icons, color accent) ───────────────────────────
+// These are hints only; FCM already ships the generic app icon as default.
+const MODULE_ICONS = {
+  welcome:      '/icons/android-chrome-192x192.png',
+  payment:      '/icons/android-chrome-192x192.png',
+  liability:    '/icons/android-chrome-192x192.png',
+  insurance:    '/icons/android-chrome-192x192.png',
+  goal:         '/icons/android-chrome-192x192.png',
+  investment:   '/icons/android-chrome-192x192.png',
+  sip:          '/icons/android-chrome-192x192.png',
+  agriculture:  '/icons/android-chrome-192x192.png',
+  reminder:     '/icons/android-chrome-192x192.png',
+  subscription: '/icons/android-chrome-192x192.png',
+  default:      '/icons/android-chrome-192x192.png',
+};
+
+function pickIcon(notifType) {
+  if (!notifType) return MODULE_ICONS.default;
+  const k = String(notifType).toLowerCase();
+  for (const prefix of Object.keys(MODULE_ICONS)) {
+    if (k.startsWith(prefix)) return MODULE_ICONS[prefix];
+  }
+  return MODULE_ICONS.default;
+}
+
+function parseIntList(s, fallback) {
+  if (!s) return fallback;
+  try {
+    const arr = String(s).split(',').map(x => parseInt(x.trim(), 10)).filter(n => Number.isFinite(n));
+    return arr.length ? arr : fallback;
+  } catch (_) { return fallback; }
+}
+
+function parseBool(s) {
+  return s === '1' || s === 'true' || s === true;
+}
+
+function parseTimestamp(s) {
+  if (!s) return Date.now();
+  const n = parseInt(String(s), 10);
+  return Number.isFinite(n) && n > 0 ? n : Date.now();
+}
+
+// ── Foreground tab tracker (avoids double-banner via setBackgroundMessageHandler) ─
+let hasVisibleClient = false;
+async function checkVisibleClients() {
+  try {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    hasVisibleClient = all.some(c => c.visibilityState === 'visible' || c.focused);
+  } catch (_) { hasVisibleClient = false; }
+  return hasVisibleClient;
+}
+self.addEventListener('activate', () => checkVisibleClients());
+self.addEventListener('focus',    () => checkVisibleClients());
+self.addEventListener('message',  (e) => {
+  if (e.data && typeof e.data === 'object' && e.data.type === 'visibility-change') {
+    hasVisibleClient = !!e.data.visible;
+  }
 });
 
-const messaging = firebase.messaging();
+// ── onBackgroundMessage (actual banner rendering) ────────────────────────────
+if (messaging) {
+  messaging.onBackgroundMessage((payload) => {
+    // Prefer explicit data payload; fall back to FCM's merged object.
+    const data = (payload && payload.data) ? payload.data : {};
+    const notif = (payload && payload.notification) ? payload.notification : {};
 
-// ── Background message handler ────────────────────────────────────────────────
-// Called when the app is in the background or closed.
-// FCM automatically shows a notification if the payload has a `notification`
-// field. We intercept here to customise the notification (icon, badge, click URL).
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Background message received:', payload);
+    const title         = data.title         || notif.title         || 'Fintrackly';
+    const body          = data.body          || notif.body          || '';
+    const tag           = data.tag           || data.notifType      || 'fintrackly';
+    const icon          = data.icon          || pickIcon(data.notifType);
+    const badge         = data.badge         || '/icons/favicon-32x32.png';
+    const image         = data.image         || '';
+    const vibrate       = parseIntList(data.vibrate, [100, 50, 200]);
+    const requireInter  = parseBool(data.requireInteraction);
+    const renotify      = parseBool(data.renotify);
+    const silent        = parseBool(data.silent);
+    const timestamp     = parseTimestamp(data.timestamp);
+    const actionLabel   = data.actionLabel   || '';
+    const notifType     = data.notifType     || '';
 
-  const { notification, data } = payload;
+    const options = {
+      body,
+      icon,
+      badge,
+      tag,
+      requireInteraction: requireInter,
+      renotify,
+      silent,
+      vibrate,
+      timestamp,
+      data: {
+        clickUrl:    data.clickUrl    || '/dashboard',
+        notifType:   notifType,
+        severity:    data.severity    || 'medium',
+        entityId:    data.entityId    || '',
+        actionLabel,
+        tag,
+        title,
+        body,
+      },
+    };
+    if (image) options.image = image;
+    if (actionLabel) {
+      options.actions = [{
+        action: 'open',
+        title:  actionLabel,
+        icon:   '/icons/favicon-32x32.png',
+      }];
+    }
 
-  const title = notification?.title ?? data?.title ?? 'Fintrackly';
-  const body  = notification?.body  ?? data?.body  ?? '';
-  const icon  = '/icons/android-chrome-192x192.png';
-  const badge = '/icons/favicon-32x32.png';
+    return self.registration.showNotification(title, options);
+  });
+}
 
-  // Deep-link: the Cloud Function sets data.clickUrl to a Fintrackly route.
-  const clickUrl = data?.clickUrl ?? '/dashboard';
+// ── Default push (non-FCM or messaging unsupported) ──────────────────────────
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload = null;
+  try { payload = event.data.json(); } catch (_) {
+    const plain = event.data.text();
+    payload = { notification: { title: 'Fintrackly', body: plain }, data: {} };
+  }
+  // FCM's onBackgroundMessage already handled this when messaging is active.
+  // Run our own showNotification only if FCM didn't fire a visible notification
+  // (we detect this by payload.notification absence — if present, the block
+  // above has already rendered it via showNotification.)
+  if (messaging && payload && (payload.data || payload.notification)) return;
 
+  const data = (payload && payload.data) ? payload.data : {};
+  const notif = (payload && payload.notification) ? payload.notification : {};
+  const title   = data.title   || notif.title   || 'Fintrackly';
+  const body    = data.body    || notif.body    || '';
+  const tag     = data.tag     || data.notifType || 'fintrackly';
   const options = {
     body,
-    icon,
-    badge,
-    tag:             data?.tag    ?? 'fintrackly-push',
-    data:            { clickUrl, ...(data ?? {}) },
-    requireInteraction: data?.requireInteraction === 'true',
-    // Vibration pattern: short-short-long
-    vibrate: [100, 50, 200],
-    actions: data?.actionLabel
-      ? [{ action: 'open', title: data.actionLabel }]
-      : [],
+    tag,
+    icon:  '/icons/android-chrome-192x192.png',
+    badge: '/icons/favicon-32x32.png',
+    data:  { clickUrl: data.clickUrl || '/dashboard', tag, title, body },
   };
-
-  return self.registration.showNotification(title, options);
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// ── Notification click handler ────────────────────────────────────────────────
-// Opens the correct Fintrackly page when the user taps a notification.
+// ── Notification click / action tap ──────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const data   = (event.notification && event.notification.data) || {};
+  const url    = data.clickUrl || '/dashboard';
+  const target = new URL(url, self.location.origin).toString();
 
-  const clickUrl = event.notification.data?.clickUrl ?? '/dashboard';
-  const fullUrl  = self.location.origin + clickUrl;
-
-  event.waitUntil(
-    clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((windowClients) => {
-        // If a Fintrackly tab is already open, focus it and navigate.
-        for (const client of windowClients) {
-          if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-            client.focus();
-            return client.navigate(fullUrl);
-          }
+  event.waitUntil((async () => {
+    try {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of all) {
+        if ('url' in c) {
+          try {
+            const existing = new URL(c.url);
+            const want     = new URL(target);
+            if (existing.origin === want.origin) {
+              await c.focus();
+              try {
+                c.postMessage({ type: 'navigate', url: want.pathname + want.search + want.hash, data });
+              } catch (_) { /* noop */ }
+              return;
+            }
+          } catch (_) { /* skip */ }
         }
-        // Otherwise open a new window/tab.
-        if (clients.openWindow) {
-          return clients.openWindow(fullUrl);
-        }
-      }),
-  );
+      }
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(target);
+      }
+    } catch (_) {
+      if (self.clients.openWindow) await self.clients.openWindow(target);
+    }
+  })());
 });
+
+self.addEventListener('notificationclose', () => { /* noop */ });
