@@ -28,7 +28,6 @@ import { PWAInstallBanner } from '../PWAInstallBanner';
 import { auth } from '../../services/firebase';
 import { signOut } from 'firebase/auth';
 import { useAppHotkeys } from '../../hooks/useAppHotkeys';
-import { useLiabilityReminders } from '../../hooks/useLiabilityReminders';
 import { useNotificationEngine } from '../../hooks/useNotificationEngine';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -50,7 +49,6 @@ function iconOnlyLinkClass(isActive: boolean, accent: string, bg: string) {
 }
 
 export function AppLayout() {
-  useLiabilityReminders();
   useNotificationEngine();
   useOfflineSync();
 
