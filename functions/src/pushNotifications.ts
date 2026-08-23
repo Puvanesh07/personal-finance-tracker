@@ -349,47 +349,78 @@ function renderHtmlEmail(msg: PushMessage): string {
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>${msg.title}</title>
   </head>
-  <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f8fafc;">
-      <tr><td align="center" style="padding:32px 16px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+  <body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;">
+      <tr><td align="center" style="padding:28px 14px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="620" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 25px -10px rgba(0,0,0,0.35);">
+          <!-- HEADER -->
           <tr>
-            <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);padding:24px 28px;">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="font-size:28px;line-height:1;">${section.emoji}</div>
-                <div>
-                  <div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#c7d2fe;margin-bottom:4px;">${section.label}</div>
-                  <div style="font-size:20px;font-weight:700;color:#ffffff;">FinTrackly — Reminder</div>
+            <td style="background:#ffffff;border-bottom:3px solid ${badgeColor};padding:20px 28px 18px 28px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:48px;height:48px;border-radius:12px;background:${badgeColor};display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;color:#ffffff;box-shadow:0 4px 12px -3px ${badgeColor};">${section.emoji}</div>
+                    <div>
+                      <div style="font-size:11px;letter-spacing:0.09em;text-transform:uppercase;font-weight:800;color:${badgeColor};margin-bottom:3px;">${section.label}</div>
+                      <div style="font-size:13px;font-weight:600;color:#475569;">FinTrackly · Personal Finance Reminder</div>
+                    </div>
+                  </div>
+                </td>
+                <td align="right">
+                  <span style="display:inline-block;padding:5px 11px;border-radius:999px;color:#ffffff;font-weight:800;font-size:10.5px;letter-spacing:0.06em;background:${badgeColor};">
+                    ${(msg.severity || 'medium').toUpperCase()}
+                  </span>
+                </td>
+              </tr></table>
+            </td>
+          </tr>
+
+          <!-- BODY -->
+          <tr>
+            <td style="padding:26px 32px 22px 32px;background:#ffffff;">
+              <!-- HERO HEADLINE + BODY -->
+              <h1 style="margin:0 0 12px 0;font-size:23px;line-height:1.25;font-weight:800;color:#0f172a;letter-spacing:-0.01em;">
+                ${msg.title}
+              </h1>
+              <p style="margin:0 0 22px 0;font-size:16px;line-height:1.6;color:#1e293b;">
+                ${msg.body}
+              </p>
+
+              <!-- DIVIDER -->
+              <div style="height:1px;background:#e2e8f0;margin:6px 0 20px 0;"></div>
+
+              <!-- CTA BUTTON -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+                <td align="left">
+                  <a href="${clickUrl}" target="_blank" rel="noopener noreferrer"
+                     style="display:inline-block;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px;color:#ffffff;text-decoration:none;letter-spacing:0.01em;background:${badgeColor};box-shadow:0 6px 14px -5px ${badgeColor};">
+                    ${actionLabel} →
+                  </a>
+                </td>
+              </tr></table>
+
+              <!-- SUBTEXT UNDER CTA -->
+              <p style="margin:18px 0 0 0;font-size:12.5px;line-height:1.6;color:#334155;">
+                This reminder was generated automatically by your FinTrackly account. You can disable individual reminder
+                categories, enable quiet hours, or stop all emails any time from <strong>Settings → Notifications</strong>
+                inside FinTrackly.
+              </p>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="padding:16px 32px 20px 32px;background:#f1f5f9;border-top:1px solid #e2e8f0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div style="font-size:11.5px;color:#64748b;line-height:1.5;">
+                  <strong style="color:#334155;">FinTrackly</strong> · Your personal finance companion
+                </div>
+                <div style="font-size:11.5px;color:#64748b;">
+                  Sent to <strong style="color:#334155;">your inbox</strong>
                 </div>
               </div>
             </td>
           </tr>
-          <tr><td style="padding:28px 28px 8px 28px;">
-            <span style="display:inline-block;padding:4px 10px;border-radius:999px;color:#ffffff;font-weight:600;font-size:11px;letter-spacing:0.04em;background:${badgeColor};margin-bottom:14px;">
-              Severity: ${(msg.severity || 'medium').toUpperCase()}
-            </span>
-            <h1 style="margin:0 0 10px 0;font-size:22px;line-height:1.3;color:#0f172a;">${msg.title}</h1>
-            <p style="margin:0;font-size:16px;line-height:1.55;color:#334155;">${msg.body}</p>
-          </td></tr>
-          <tr><td style="padding:18px 28px 28px 28px;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-              <td style="border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);">
-                <a href="${clickUrl}" target="_blank" rel="noopener noreferrer"
-                   style="display:inline-block;padding:12px 22px;font-weight:600;font-size:15px;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">
-                  ${actionLabel} →
-                </a>
-              </td>
-            </tr></table>
-            <div style="margin-top:22px;font-size:12px;line-height:1.5;color:#64748b;">
-              This reminder was generated by your FinTrackly account because one of your tracked items
-              (payments, insurance, goals, liabilities, investments, subscriptions, etc.) matched a scheduled
-              rule condition today. You can disable individual reminder categories, enable quiet hours, or stop
-              all emails from Settings → Notifications inside FinTrackly.
-            </div>
-            <div style="margin-top:14px;font-size:11px;color:#94a3b8;">
-              Dedup key: ${msg.key}
-            </div>
-          </td></tr>
         </table>
       </td></tr>
     </table>
@@ -408,8 +439,6 @@ function renderPlainEmail(msg: PushMessage): string {
     msg.body,
     '',
     `Open: ${clickUrl}`,
-    '',
-    `(Dedup key: ${msg.key})`,
   ].join('\n');
 }
 
