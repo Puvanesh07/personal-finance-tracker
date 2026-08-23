@@ -313,7 +313,11 @@ export function NotificationSettings() {
           </p>
         </div>
         <div className='px-4'>
-          <ToggleRow icon='💳' label='Payment Reminders'
+          <ToggleRow icon='�' label='Enable All Reminders'
+            description='Master switch — turn OFF to stop all emails. Individual categories below depend on this.'
+            checked={cfg.pushEnabled}
+            onChange={(v) => update('pushEnabled', v)} />
+          <ToggleRow icon='�💳' label='Payment Reminders'
             description='Payment tracker dues, overdue alerts'
             checked={cfg.paymentReminders}
             onChange={(v) => update('paymentReminders', v)}
