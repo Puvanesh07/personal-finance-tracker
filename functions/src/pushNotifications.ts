@@ -419,88 +419,19 @@ async function sendToUser(
         Urgency: priority === 'high' ? 'high' : 'normal',
       },
     },
-    // iOS Safari PWA Web Push & APNs
-    // Without this explicit block, FCM *translates* the generic
-    // notification{} → APNs but only intermittently for Web Push tokens
-    // registered via Safari iOS 16.4+ (PWA Add to Home Screen). The symptom
-    // is exactly what the user sees: admin.messaging().send() returns HTTP
-    // 200 + tokens count "SENT (2/2)", but iPhone Notification Center shows
-    // only 0–1 of the dozen scheduled banner alerts.
-    apns: {
-      headers: {
-        'apns-priority': priority === 'high' ? '10' : '5',
-        'apns-push-type': 'alert',
-        'apns-topic': 'app.fintrackly.web.push',
-      },
-      payload: {
-        aps: {
-          alert: {
-            title: msg.title,
-            subtitle: 'from Fintrackly',
-            body: msg.body,
-            ...(msg.actionLabel ? { 'action-loc-key': msg.actionLabel } : {}),
-          },
-          sound: msg.severity === 'critical'
-            ? { critical: true, name: 'default', volume: 1.0 }
-            : 'default',
-          badge: 1,
-          'thread-id': msg.tag ?? msg.notifType,
-          'content-available': 1,
-          'mutable-content': 1,
-          category: msg.actionLabel ? 'FINTrackly_CATEGORY_ACTION' : 'FINTrackly_CATEGORY_DEFAULT',
-        },
-        clickUrl:   msg.clickUrl,
-        notifType:  msg.notifType,
-        severity:   msg.severity,
-        entityId:   msg.entityId,
-        actionLabel: msg.actionLabel ?? '',
-        tag:        msg.tag ?? msg.notifType,
-      },
-      fcmOptions: {
-        imageUrl: 'https://fintrackly.web.app/icons/apple-touch-icon.png',
-      },
-    },
-    // Android PWA via Chrome / Android Web Layer via TWA / Play Services
-    // FCM auto-routes Chrome Android Push tokens through Play Services; the
-    // block below guarantees: (1) a notification channel per-severity so the
-    // user can turn high/critical back on if they got muted; (2) heads-up
-    // pop-up on high priority instead of silent status bar only.
-    android: {
-      priority,
-      ttl: priority === 'high' ? 2 * 60 * 60 : 24 * 60 * 60, // 2h high vs 24h normal
-      notification: {
-        title: msg.title,
-        body: msg.body,
-        icon: 'drawable/ic_stat_name',
-        color: '#0F766E', // teal-700 — matches Fintrackly brand
-        sound: 'default',
-        defaultSound: true,
-        defaultVibrateTimings: true,
-        defaultLightSettings: true,
-        sticky: false,
-        eventTimestamp: new Date(),
-        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-        channelId:
-          msg.severity === 'critical' ? 'fintrackly_critical'
-          : msg.severity === 'high'  ? 'fintrackly_high'
-          : 'fintrackly_default',
-        tag: msg.tag ?? msg.notifType,
-        imageUrl: 'https://fintrackly.web.app/icons/android-chrome-192x192.png',
-        ...(msg.actionLabel ? {
-          actions: [
-            { title: msg.actionLabel, action: 'open', icon: 'drawable/ic_stat_name' },
-          ],
-        } : {}),
-      },
-      data: {
-        clickUrl:   msg.clickUrl,
-        notifType:  msg.notifType,
-        severity:   msg.severity,
-        entityId:   msg.entityId,
-        actionLabel: msg.actionLabel ?? '',
-        tag:        msg.tag ?? msg.notifType,
-      },
-    },
+    // NOTE: The `android` and `apns` platform blocks are intentionally
+    // OMITTED here for PWA / Web Push tokens.  In FCM v1 Admin SDK, any
+    // platform-specific fields that are valid *only for native
+    // Android/iOS app tokens* (e.g. `clickAction: FLUTTER_NOTIFICATION_CLICK`,
+    // fake `apns-topic`, `eventTimestamp: new Date()` etc.) cause a blanket
+    // `messaging/invalid-argument` rejection *even for valid webpush
+    // tokens* because the Admin SDK pre-validates the whole Message object
+    // against the union of platform schemas before it even looks at the
+    // token type.  FCM's own automatic platform translation of the generic
+    // `notification{}` block is sufficient for PWA/Web tokens on both
+    // Android Chrome and Safari iOS — and the service worker (see
+    // firebase-messaging-sw.js) enriches the banner with vibrate/actions/
+    // requireInteraction/etc. at display time from webpush.data strings.
   });
 
   let sentCount = 0;
