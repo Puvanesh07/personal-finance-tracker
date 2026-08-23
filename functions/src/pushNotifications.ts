@@ -359,7 +359,8 @@ function renderHtmlEmail(msg: PushMessage): string {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
                 <td>
                   <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:48px;height:48px;border-radius:12px;background:${badgeColor};display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1;color:#ffffff;box-shadow:0 4px 12px -3px ${badgeColor};">${section.emoji}</div>
+                   <!-- AFTER -->
+                    <div style="width:36px;height:36px;border-radius:10px;background:${badgeColor}1A;border:1px solid ${badgeColor}33;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;color:${badgeColor};box-shadow:none;">${section.emoji}</div>
                     <div>
                       <div style="font-size:11px;letter-spacing:0.09em;text-transform:uppercase;font-weight:800;color:${badgeColor};margin-bottom:3px;">${section.label}</div>
                       <div style="font-size:13px;font-weight:600;color:#475569;">FinTrackly · Personal Finance Reminder</div>
