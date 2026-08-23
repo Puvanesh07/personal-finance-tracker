@@ -503,6 +503,43 @@ export async function payWithUpiApp(params: {
   return submitRazorpayPayment(params.keyId, baseData, intentMap[params.app]);
 }
 
+export interface TestPushNotificationsResult {
+  ok: boolean;
+  reason?: string;
+  deviceCount?: number;
+  userEmail?: string;
+  settings?: Record<string, unknown>;
+  results?: string[];
+}
+
+export async function testPushNotifications(options?: {
+  force?: boolean;
+}): Promise<TestPushNotificationsResult> {
+  const fn = httpsCallable<
+    { force?: boolean },
+    TestPushNotificationsResult
+  >(functions, 'testPushNotifications', { timeout: 120000 });
+  const res = await fn({ force: options?.force ?? false });
+  return res.data;
+}
+
+export interface ClearNotificationDedupResult {
+  ok: boolean;
+  uid: string;
+  deleted: number;
+  message: string;
+}
+
+export async function clearNotificationDedup(): Promise<ClearNotificationDedupResult> {
+  const fn = httpsCallable<void, ClearNotificationDedupResult>(
+    functions,
+    'clearNotificationDedup',
+    { timeout: 60000 },
+  );
+  const res = await fn();
+  return res.data;
+}
+
 export function loadRazorpayCustomScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.Razorpay) {

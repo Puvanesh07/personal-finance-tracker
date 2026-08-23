@@ -101,21 +101,80 @@
 import * as logger from 'firebase-functions/logger';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getMessaging } from 'firebase-admin/messaging';
 import { Timestamp } from 'firebase-admin/firestore';
 import { getDb } from './subscriptionUtils';
 import { decryptDoc, type FirestoreDoc } from './serverEncryption';
+import * as nodemailer from 'nodemailer';
 
 const region = 'asia-south1';
+
+// ── SMTP / Email transport (nodemailer) ─────────────────────────────────────
+// Configured via Firebase Secrets or env vars:
+//   SMTP_HOST       e.g. smtp.gmail.com
+//   SMTP_PORT       e.g. 465
+//   SMTP_SECURE     "true" for TLS on port 465, "false" for STARTTLS on 587
+//   SMTP_USER       e.g. you@gmail.com  (or full address for other providers)
+//   SMTP_PASS       e.g. gmail "App Password" (16 chars, NOT your regular password)
+//   SMTP_FROM_NAME  e.g. "FinTrackly Reminders" (shown in inbox as sender name)
+//   SMTP_FROM_EMAIL e.g. you@gmail.com  (must match SMTP_USER for Gmail)
+//
+// If any required SMTP_* variable is missing, sendEmailToUser gracefully falls
+// back to just logging the payload — no crash, so the rest of the engine still
+// works and you can see what WOULD have been emailed in the function logs.
+
+let _mailer: nodemailer.Transporter | null = null;
+
+function getMailer(): { ok: true; transporter: nodemailer.Transporter; from: string } | { ok: false; reason: string } {
+  if (_mailer) {
+    const from = _buildFromAddress();
+    return { ok: true, transporter: _mailer, from };
+  }
+  const host = process.env.SMTP_HOST;
+  const portStr = process.env.SMTP_PORT ?? '465';
+  const secure = (process.env.SMTP_SECURE ?? 'true').toLowerCase() !== 'false';
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const port = Number(portStr);
+
+  if (!host || !user || !pass || !Number.isFinite(port)) {
+    return {
+      ok: false,
+      reason: `SMTP env vars missing. Need SMTP_HOST="${host ?? ''}" SMTP_USER="${user ?? ''}" SMTP_PORT="${portStr}" SMTP_PASS=***. Emails disabled; payloads logged instead.`,
+    };
+  }
+
+  try {
+    _mailer = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+    } as nodemailer.TransportOptions);
+    const from = _buildFromAddress();
+    return { ok: true, transporter: _mailer, from };
+  } catch (err: any) {
+    return { ok: false, reason: `Failed to create nodemailer transport: ${err?.message ?? String(err)}` };
+  }
+}
+
+function _buildFromAddress(): string {
+  const name = process.env.SMTP_FROM_NAME ?? 'FinTrackly Reminders';
+  const email = process.env.SMTP_FROM_EMAIL ?? process.env.SMTP_USER ?? 'no-reply@fintrackly.local';
+  // "Display Name <address@domain.tld>" — RFC 2822 format
+  return `${name} <${email}>`;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface NotifDevice {
-  id:       string;   // Firestore doc id under notificationDevices — needed
-                       // so sendToUser can record strikes / delete the doc.
-  token:    string;
-  enabled:  boolean;
-  platform: string;
+  id:       string;   // Firestore doc id under notificationDevices — no longer
+                       // strictly needed for email, but kept for backwards compat.
+  token:    string;   // FCM token (legacy — ignored by new email path)
+  enabled:  boolean;  // Still respected: if all devices are disabled -> skip
+  platform: string;   // Informational only
+  // New (email mode): the destination email for this user. If empty string
+  // here, sendToUser falls back to looking up users/{uid}.email via a DB read.
+  email?:   string;
 }
 
 interface NotifSettings {
@@ -165,10 +224,6 @@ function todayStr(): string {
 
 function currentMonthKey(): string {
   return new Date().toISOString().slice(0, 7);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -238,127 +293,204 @@ async function markSent(uid: string, key: string, status: 'sent' | 'failed' = 's
     .set(record, { merge: true });
 }
 
-// ── Stale-token bookkeeping ─────────────────────────────────────────────────
+// ── Email rendering + send helpers ──────────────────────────────────────────
+// Legacy Note: The old FCM push path is gone. Every rule category now calls
+// sendToUser exactly as before (same function signature, same 40 call sites).
+// sendToUser now:
+//   1. Resolves the destination email (from devices[].email or users/{uid}.email)
+//   2. Runs dedup via shouldSend (unchanged — still uses pushSent, 7-day window)
+//   3. Renders a pretty HTML email body + plain-text fallback
+//   4. Sends via nodemailer SMTP (uses getMailer at top of this file)
+//   5. Writes status='sent' | 'failed' to pushSent (same as before; retries on failure)
 
-const STALE_FAIL_THRESHOLD = 3; // must fail on this many SEPARATE calendar days
+const EMAIL_CLICK_BASE = 'https://fintrackly.web.app';
 
-/** Reset a device's strike count after a successful send. */
-async function recordDeviceSuccess(uid: string, deviceDocId: string): Promise<void> {
-  const db = getDb();
-  await db
-    .collection('users').doc(uid)
-    .collection('notificationDevices').doc(deviceDocId)
-    .set({ failCount: 0, failDates: [], lastSuccessAt: Timestamp.now() }, { merge: true });
+function severityToBadgeColor(severity: string): string {
+  switch (severity) {
+    case 'critical': return '#dc2626'; // red-600
+    case 'high':     return '#ea580c'; // orange-600
+    case 'medium':   return '#ca8a04'; // yellow-600
+    case 'low':      return '#16a34a'; // green-600
+    case 'info':     return '#2563eb'; // blue-600
+    default:         return '#475569'; // slate-600
+  }
 }
 
-/**
- * Records a failed send against a device doc for TODAY's date only (repeat
- * failures on the same day only count once, so a single noisy burst of
- * concurrent sends can't itself cross the threshold). Returns true if the
- * device has now failed on STALE_FAIL_THRESHOLD or more separate days and
- * should be deleted.
- */
-async function recordDeviceFailure(uid: string, deviceDocId: string): Promise<boolean> {
-  const db = getDb();
-  const ref = db
-    .collection('users').doc(uid)
-    .collection('notificationDevices').doc(deviceDocId);
-
-  const snap = await ref.get();
-  if (!snap.exists) return false; // already gone, nothing to do
-
-  const data = snap.data()!;
-  const prevFailDates: string[] = Array.isArray(data.failDates) ? data.failDates : [];
-  const today = todayStr();
-
-  const failDates = prevFailDates.includes(today)
-    ? prevFailDates
-    : [...prevFailDates, today].slice(-10); // keep at most the last 10 fail-days
-
-  await ref.set(
-    { failCount: failDates.length, failDates, lastFailedAt: Timestamp.now() },
-    { merge: true },
-  );
-
-  return failDates.length >= STALE_FAIL_THRESHOLD;
+function notifTypeToSectionHeader(notifType: string): { label: string; emoji: string } {
+  const t = String(notifType ?? '').toLowerCase();
+  if (t.startsWith('payment_tracker_overdue')) return { label: 'Payment Overdue', emoji: '🚨' };
+  if (t.startsWith('payment'))                return { label: 'Payment Reminder', emoji: '💳' };
+  if (t.startsWith('insurance_expired'))      return { label: 'Insurance Expired', emoji: '🛡️' };
+  if (t.startsWith('insurance'))              return { label: 'Insurance Renewal', emoji: '🛡️' };
+  if (t.startsWith('liability') || t.startsWith('emi')) return { label: 'EMI / Liability', emoji: '🏦' };
+  if (t.startsWith('goal_achieved'))          return { label: 'Goal Achieved 🎉', emoji: '🎯' };
+  if (t.startsWith('goal'))                   return { label: 'Goal Reminder', emoji: '🎯' };
+  if (t.startsWith('sip'))                    return { label: 'SIP Reminder', emoji: '📈' };
+  if (t.startsWith('lending'))                return { label: 'Lending / Borrowing', emoji: '🤝' };
+  if (t.startsWith('investment'))             return { label: 'Investment Maturity', emoji: '💹' };
+  if (t.startsWith('subscription_expired'))   return { label: 'Subscription Expired', emoji: '⚠️' };
+  if (t.startsWith('subscription'))           return { label: 'Subscription / Trial', emoji: '✨' };
+  if (t.startsWith('receivable'))             return { label: 'Pending Receivable', emoji: '🪙' };
+  if (t.startsWith('pending'))                return { label: 'Pending Payment', emoji: '🪙' };
+  return { label: 'Reminder', emoji: '🔔' };
 }
 
-// ── Per-token send serialization ────────────────────────────────────────────
-// All 7 rule categories run in parallel per user (see Promise.all below), so
-// if more than one matches, they'd otherwise all call messaging.send() to the
-// SAME token within the same millisecond. Queuing sends to a given token and
-// staggering them slightly avoids hammering a single (possibly still-
-// propagating) token with a burst of simultaneous requests.
+function renderHtmlEmail(msg: PushMessage): string {
+  const section = notifTypeToSectionHeader(msg.notifType);
+  const badgeColor = severityToBadgeColor(msg.severity);
+  const clickUrl = new URL(msg.clickUrl || '/dashboard', EMAIL_CLICK_BASE).toString();
+  const actionLabel = msg.actionLabel || 'Open FinTrackly';
 
-const _tokenSendQueue = new Map<string, Promise<unknown>>();
-
-function withTokenLock<T>(token: string, fn: () => Promise<T>): Promise<T> {
-  const prev = _tokenSendQueue.get(token) ?? Promise.resolve();
-  const next = prev.catch(() => undefined).then(async () => {
-    const result = await fn();
-    await sleep(150); // small stagger before the next queued send on this token
-    return result;
-  });
-  _tokenSendQueue.set(token, next);
-  return next;
+  return `
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>${msg.title}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f8fafc;">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);padding:24px 28px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="font-size:28px;line-height:1;">${section.emoji}</div>
+                <div>
+                  <div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#c7d2fe;margin-bottom:4px;">${section.label}</div>
+                  <div style="font-size:20px;font-weight:700;color:#ffffff;">FinTrackly — Reminder</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr><td style="padding:28px 28px 8px 28px;">
+            <span style="display:inline-block;padding:4px 10px;border-radius:999px;color:#ffffff;font-weight:600;font-size:11px;letter-spacing:0.04em;background:${badgeColor};margin-bottom:14px;">
+              Severity: ${(msg.severity || 'medium').toUpperCase()}
+            </span>
+            <h1 style="margin:0 0 10px 0;font-size:22px;line-height:1.3;color:#0f172a;">${msg.title}</h1>
+            <p style="margin:0;font-size:16px;line-height:1.55;color:#334155;">${msg.body}</p>
+          </td></tr>
+          <tr><td style="padding:18px 28px 28px 28px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
+              <td style="border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);">
+                <a href="${clickUrl}" target="_blank" rel="noopener noreferrer"
+                   style="display:inline-block;padding:12px 22px;font-weight:600;font-size:15px;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">
+                  ${actionLabel} →
+                </a>
+              </td>
+            </tr></table>
+            <div style="margin-top:22px;font-size:12px;line-height:1.5;color:#64748b;">
+              This reminder was generated by your FinTrackly account because one of your tracked items
+              (payments, insurance, goals, liabilities, investments, subscriptions, etc.) matched a scheduled
+              rule condition today. You can disable individual reminder categories, enable quiet hours, or stop
+              all emails from Settings → Notifications inside FinTrackly.
+            </div>
+            <div style="margin-top:14px;font-size:11px;color:#94a3b8;">
+              Dedup key: ${msg.key}
+            </div>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
 }
 
-type SendOutcome = 'sent' | 'stale' | 'error';
+function renderPlainEmail(msg: PushMessage): string {
+  const section = notifTypeToSectionHeader(msg.notifType);
+  const clickUrl = new URL(msg.clickUrl || '/dashboard', EMAIL_CLICK_BASE).toString();
+  return [
+    `${section.emoji} ${section.label} — FinTrackly`,
+    `Severity: ${(msg.severity ?? 'medium').toUpperCase()}`,
+    '',
+    msg.title,
+    msg.body,
+    '',
+    `Open: ${clickUrl}`,
+    '',
+    `(Dedup key: ${msg.key})`,
+  ].join('\n');
+}
 
-/**
- * Sends one FCM message to one token. On "not-registered" /
- * "invalid-registration-token", waits briefly and retries ONCE before
- * concluding the token is actually stale — a just-created subscription can
- * bounce with this exact error while it's still propagating.
- */
-async function sendWithRetry(
-  token: string,
-  payload: Parameters<ReturnType<typeof getMessaging>['send']>[0],
-): Promise<{ outcome: SendOutcome; errCode?: string }> {
-  const messaging = getMessaging();
+async function resolveRecipientEmail(uid: string, devices: NotifDevice[]): Promise<string | null> {
+  // 1. Prefer any explicitly-provided email on the NotifDevice[] list (set by caller)
+  const fromDeviceList = devices.find((d) => d.enabled && d.email && d.email.includes('@'))?.email;
+  if (fromDeviceList) return fromDeviceList.trim().toLowerCase();
 
-  const attempt = async (): Promise<{ outcome: SendOutcome; errCode?: string }> => {
-    try {
-      await messaging.send(payload);
-      return { outcome: 'sent' };
-    } catch (err: any) {
-      const code = err?.errorInfo?.code ?? err?.code;
-      return { outcome: 'error', errCode: code };
+  // 2. Fall back to Firestore users/{uid}.email (written by auth / initializeTrialIfMissing)
+  try {
+    const db = getDb();
+    const snap = await db.collection('users').doc(uid).get();
+    if (snap.exists) {
+      const raw = (snap.data() ?? {}) as { email?: unknown };
+      if (typeof raw.email === 'string' && raw.email.includes('@')) {
+        return raw.email.trim().toLowerCase();
+      }
     }
-  };
+  } catch (err) {
+    logger.warn(`[pushNotif] resolveRecipientEmail: failed to read users/${uid}.email — ${err instanceof Error ? err.message : String(err)}`);
+  }
 
-  const isStaleCode = (code?: string) =>
-    code === 'messaging/registration-token-not-registered' ||
-    code === 'messaging/invalid-registration-token';
-
-  const first = await attempt();
-  if (first.outcome === 'sent') return first;
-  if (!isStaleCode(first.errCode)) return first; // real error, don't retry
-
-  // Possibly just propagation lag — wait and try exactly once more.
-  await sleep(1_500);
-  const second = await attempt();
-  if (second.outcome === 'sent') return second;
-  if (isStaleCode(second.errCode)) return { outcome: 'stale', errCode: second.errCode };
-  return second;
+  // 3. Nothing usable
+  return null;
 }
 
-/** Send an FCM message to all enabled devices for a user. */
+type SendOutcome = 'sent' | 'error';
+
+async function sendOneEmail(
+  to: string,
+  from: string,
+  transporter: nodemailer.Transporter,
+  msg: PushMessage,
+): Promise<{ outcome: SendOutcome; errCode?: string }> {
+  try {
+    await transporter.sendMail({
+      from,
+      to,
+      subject: msg.title,
+      text: renderPlainEmail(msg),
+      html: renderHtmlEmail(msg),
+      headers: {
+        'X-Fintrackly-Notif-Type': msg.notifType ?? 'unknown',
+        'X-Fintrackly-Notif-Key': msg.key,
+        'X-Fintrackly-Notif-Severity': msg.severity ?? 'medium',
+      },
+    });
+    return { outcome: 'sent' };
+  } catch (err: any) {
+    const code = err?.code ?? err?.responseCode ?? err?.name ?? 'unknown';
+    return { outcome: 'error', errCode: String(code) };
+  }
+}
+
+/** Send an EMAIL reminder to the user's registered email address. */
 async function sendToUser(
   uid: string,
   devices: NotifDevice[],
   msg: PushMessage,
   opts?: { force?: boolean; results?: string[] },
 ): Promise<void> {
-  const enabled = devices.filter((d) => d.enabled && d.token);
-  if (!enabled.length) {
-    const line = `uid=${uid} key=${msg.key} — no enabled devices with a token, skipping.`;
+  // At least one "enabled" entry required (same check as before — but we don't
+  // require a token anymore; enabled + email OR enabled flag on any entry works).
+  const anyEnabled = devices.some((d) => d.enabled);
+  if (!anyEnabled) {
+    const line = `uid=${uid} key=${msg.key} — no enabled devices with notifications ON, skipping.`;
     logger.info(`[pushNotif] ${line}`);
-    opts?.results?.push(`SKIPPED (no devices): ${line}`);
+    opts?.results?.push(`SKIPPED (all disabled): ${line}`);
     return;
   }
 
-  // Check dedup
+  // Resolve destination email
+  const to = await resolveRecipientEmail(uid, devices);
+  if (!to) {
+    const line = `uid=${uid} key=${msg.key} — no email address found (no email on device list AND no users/${uid}.email field set). Skipping.`;
+    logger.warn(`[pushNotif] ${line}`);
+    opts?.results?.push(`SKIPPED (no email): ${line}`);
+    return;
+  }
+
+  // Dedup (same keys, same 7d rule as before — prevents duplicate emails)
   const ok = await shouldSend(uid, msg.key, opts?.force);
   if (!ok) {
     const line = `uid=${uid} key=${msg.key} — already sent within the last 7 days (dedup), skipping.`;
@@ -367,125 +499,29 @@ async function sendToUser(
     return;
   }
 
-  const severityToPriority: Record<string, 'normal' | 'high'> = {
-    info:    'normal',
-    low:     'normal',
-    medium:  'normal',
-    high:    'high',
-    critical: 'high',
-  };
-  const priority = severityToPriority[msg.severity ?? 'medium'];
-  const tagVal = msg.tag ?? msg.notifType;
+  // Get SMTP transporter. If SMTP env vars are missing, we still write to logs
+  // AND to results so the payload is visible for debugging — but we don't mark
+  // 'sent' in dedup so the next scheduler run will try again after you set them.
+  const mailer = getMailer();
+  if (!mailer.ok) {
+    const line = `uid=${uid} key=${msg.key} — NOT emailed (SMTP disabled). ${mailer.reason} Would send to=${to} subject="${msg.title}" body="${msg.body.slice(0, 120)}"`;
+    logger.warn(`[pushNotif] ${line}`);
+    opts?.results?.push(`SKIPPED (SMTP not configured): ${line}`);
+    return;
+  }
 
-  // ── Minimal 100 % FCM-v1-compliant webpush payload ─────────────────────────
-  // Only title / body / icon live inside webpush.notification (fields that
-  // every spec version supports).  All behavioural flags and custom values
-  // are shipped as plain strings via webpush.data, and the service worker
-  // reconstructs the full NotificationOptions at display time.
-  // This completely avoids `messaging/invalid-argument` from FCM's strict
-  // reinterpretation of browser-native notification fields.
-  const payloadFor = (device: NotifDevice) => ({
-    token: device.token,
-    notification: { title: msg.title, body: msg.body },
-    webpush: {
-      notification: {
-        title: msg.title,
-        body:  msg.body,
-        icon:  '/icons/android-chrome-192x192.png',
-      },
-      data: {
-        title:            msg.title,
-        body:             msg.body,
-        clickUrl:         msg.clickUrl,
-        notifType:        msg.notifType,
-        severity:         msg.severity,
-        entityId:         msg.entityId,
-        actionLabel:      msg.actionLabel ?? '',
-        tag:              tagVal,
-        requireInteraction: msg.severity === 'critical' ? '1' : '0',
-        renotify:         '1',
-        silent:           '0',
-        vibrate:          '100,50,200',
-        timestamp:        String(Date.now()),
-        icon:             '/icons/android-chrome-192x192.png',
-        badge:            '/icons/favicon-32x32.png',
-        image:            '/icons/apple-touch-icon.png',
-      },
-      fcmOptions: {
-        link: `https://fintrackly.web.app${msg.clickUrl}`,
-        analyticsLabel: msg.notifType,
-      },
-      headers: {
-        Urgency: priority === 'high' ? 'high' : 'normal',
-      },
-    },
-    // NOTE: The `android` and `apns` platform blocks are intentionally
-    // OMITTED here for PWA / Web Push tokens.  In FCM v1 Admin SDK, any
-    // platform-specific fields that are valid *only for native
-    // Android/iOS app tokens* (e.g. `clickAction: FLUTTER_NOTIFICATION_CLICK`,
-    // fake `apns-topic`, `eventTimestamp: new Date()` etc.) cause a blanket
-    // `messaging/invalid-argument` rejection *even for valid webpush
-    // tokens* because the Admin SDK pre-validates the whole Message object
-    // against the union of platform schemas before it even looks at the
-    // token type.  FCM's own automatic platform translation of the generic
-    // `notification{}` block is sufficient for PWA/Web tokens on both
-    // Android Chrome and Safari iOS — and the service worker (see
-    // firebase-messaging-sw.js) enriches the banner with vibrate/actions/
-    // requireInteraction/etc. at display time from webpush.data strings.
-  });
+  const { outcome, errCode } = await sendOneEmail(to, mailer.from, mailer.transporter, msg);
 
-  let sentCount = 0;
-
-  const sends = enabled.map((device) =>
-    // Serialize + stagger sends that share the same token, instead of firing
-    // every category's send to this token at the same instant.
-    withTokenLock(device.token, async () => {
-      const { outcome, errCode } = await sendWithRetry(device.token, payloadFor(device));
-
-      if (outcome === 'sent') {
-        sentCount++;
-        await recordDeviceSuccess(uid, device.id);
-        return;
-      }
-
-      if (outcome === 'stale') {
-        const shouldDelete = await recordDeviceFailure(uid, device.id);
-        if (shouldDelete) {
-          const db = getDb();
-          await db
-            .collection('users').doc(uid)
-            .collection('notificationDevices').doc(device.id)
-            .delete();
-          const line = `Token for uid=${uid} device=${device.id} failed on ${STALE_FAIL_THRESHOLD}+ separate days — removed.`;
-          logger.warn(`[pushNotif] ${line}`);
-          opts?.results?.push(`CLEANED (stale token removed): ${line}`);
-        } else {
-          const line = `uid=${uid} device=${device.id} — token bounced as not-registered (recorded as a strike for today; not yet removed, may just be propagation lag on a new token).`;
-          logger.warn(`[pushNotif] ${line}`);
-          opts?.results?.push(`ERROR (stale token, strike recorded): ${line}`);
-        }
-        return;
-      }
-
-      // outcome === 'error': a real send failure unrelated to token validity
-      const line = `Send error uid=${uid} device=${device.id}: ${errCode ?? 'unknown'}`;
-      logger.error(`[pushNotif] ${line}`);
-      opts?.results?.push(`ERROR (FCM send failed): ${line}`);
-    }),
-  );
-
-  await Promise.all(sends);
-
-  if (sentCount > 0) {
+  if (outcome === 'sent') {
     await markSent(uid, msg.key, 'sent');
-    const sentLine = `Sent "${msg.title}" → uid=${uid} (${sentCount}/${enabled.length} device(s))`;
+    const sentLine = `Sent EMAIL "${msg.title}" → uid=${uid} (${to})`;
     logger.info(`[pushNotif] ${sentLine}`);
     opts?.results?.push(`SENT: ${sentLine}`);
   } else {
     await markSent(uid, msg.key, 'failed');
-    const line = `uid=${uid} key=${msg.key} — all ${enabled.length} device send attempt(s) failed. Written status='failed' to pushSent (24h cooldown before next retry).`;
-    logger.warn(`[pushNotif] ${line}`);
-    opts?.results?.push(`FAILED (no device succeeded): ${line}`);
+    const line = `Email send FAILED uid=${uid} to=${to}: ${errCode ?? 'unknown'} (written status='failed' to pushSent; 24h cooldown before retry)`;
+    logger.error(`[pushNotif] ${line}`);
+    opts?.results?.push(`FAILED (email error): ${line}`);
   }
 }
 
@@ -1412,15 +1448,46 @@ export const testPushNotifications = onCall(
     const devices: NotifDevice[] = devicesSnap.docs.map(
       (d) => ({ id: d.id, ...(d.data() as Omit<NotifDevice, 'id'>) }),
     );
-    const enabledDevices = devices.filter((d) => d.enabled && d.token);
+
+    // Email mode: we no longer require a token. "Enabled" is enough.
+    // If ANY device row has enabled=true OR there are 0 rows, we still want to
+    // allow the run (the user may have never set up FCM tokens but has an
+    // email set). Build a synthetic "enabledDevices" list that contains at
+    // least one row with the user's email — so 40+ call sites don't change.
+    const userSnap = await db.collection('users').doc(uid).get();
+    const userEmail: string | undefined =
+      userSnap.exists && typeof (userSnap.data() ?? {}).email === 'string'
+        ? ((userSnap.data() ?? {}).email as string)
+        : undefined;
+
+    const enabledDevices: NotifDevice[] = (() => {
+      const enabled = devices.filter((d) => d.enabled);
+      if (enabled.length) return enabled;
+      // No FCM-enabled device rows at all -> inject a synthetic one so the
+      // rule engine continues working with email delivery only.
+      return [{
+        id: 'email-fallback',
+        token: '',
+        enabled: true,
+        platform: 'email',
+        email: userEmail,
+      }];
+    })();
 
     if (!enabledDevices.length) {
       return {
         ok: false,
-        reason: 'No enabled device with a token found under notificationDevices for this account. Enable push from Settings on the device first.',
+        reason: 'No enabled reminder rows for this account. Enable reminder categories in Settings first.',
         deviceCount: devices.length,
+        userEmail,
         results: [],
       };
+    }
+    // If no email was found anywhere, warn explicitly so the test result is clear.
+    if (!userEmail && !enabledDevices.some((d) => d.email && d.email.includes('@'))) {
+      results.push(
+        'WARNING: No email address found on your user profile. Go to Profile or sign in via email provider. Without an email, reminders cannot be delivered (FCM push is retired).',
+      );
     }
 
     const settingsSnap = await db
@@ -1515,16 +1582,48 @@ export const processScheduledNotifications = onSchedule(
       const uid = userDoc.id;
 
       try {
-        // 1. Load devices
+        // 0. Read user email (from users/{uid}.email — written by auth / init)
+        const userData = userDoc.data() ?? {};
+        const userEmailRaw = (userData as { email?: unknown }).email;
+        const userEmail: string | undefined =
+          typeof userEmailRaw === 'string' && userEmailRaw.includes('@')
+            ? userEmailRaw.trim().toLowerCase()
+            : undefined;
+
+        // 1. Load legacy FCM devices (for enabled flag only; tokens now ignored)
         const devicesSnap = await db
           .collection('users').doc(uid)
           .collection('notificationDevices').get();
 
-        const devices: NotifDevice[] = devicesSnap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as Omit<NotifDevice, 'id'>) }))
-          .filter((d) => d.enabled && d.token);
+        const rawDevices: NotifDevice[] = devicesSnap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as Omit<NotifDevice, 'id'>) }));
 
-        if (!devices.length) { skipped++; continue; }
+        // Inject email fallback device (same pattern as testPushNotifications)
+        // so rule checks work for users who never set up FCM at all.
+        const enabledDevices: NotifDevice[] = (() => {
+          const withFlags = rawDevices.filter((d) => d.enabled);
+          if (withFlags.length) {
+            // Pass the email through to the first enabled entry for speed.
+            if (!withFlags[0].email && userEmail) withFlags[0].email = userEmail;
+            return withFlags;
+          }
+          return [{
+            id: 'email-fallback',
+            token: '',
+            enabled: true,
+            platform: 'email',
+            email: userEmail,
+          }];
+        })();
+
+        if (!enabledDevices.length) { skipped++; continue; }
+        // If no email on profile and none from device list -> still skip
+        const hasAnyEmail = enabledDevices.some((d) => d.email && d.email.includes('@')) || !!userEmail;
+        if (!hasAnyEmail) {
+          logger.warn(`[pushNotif] uid=${uid} — no email on user profile, skipping (set users/${uid}.email to receive reminders).`);
+          skipped++;
+          continue;
+        }
 
         // 2. Load notification settings
         const settingsSnap = await db
@@ -1554,15 +1653,15 @@ export const processScheduledNotifications = onSchedule(
 
         // 4. Run all rule checks in parallel
         await Promise.all([
-          checkPayments(uid, devices, settings),
-          checkInsurance(uid, devices, settings),
-          checkGoals(uid, devices, settings),
-          checkLiabilities(uid, devices, settings),
-          checkSIP(uid, devices, settings),
-          checkLending(uid, devices, settings),
-          checkInvestments(uid, devices, settings),
-          checkPendingPayments(uid, devices, settings),
-          checkSubscription(uid, devices, settings),
+          checkPayments(uid, enabledDevices, settings),
+          checkInsurance(uid, enabledDevices, settings),
+          checkGoals(uid, enabledDevices, settings),
+          checkLiabilities(uid, enabledDevices, settings),
+          checkSIP(uid, enabledDevices, settings),
+          checkLending(uid, enabledDevices, settings),
+          checkInvestments(uid, enabledDevices, settings),
+          checkPendingPayments(uid, enabledDevices, settings),
+          checkSubscription(uid, enabledDevices, settings),
         ]);
 
         sent++;

@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { FiBell, FiBellOff, FiInfo, FiRefreshCw, FiSave } from 'react-icons/fi';
+import { FiBell, FiBellOff, FiInfo, FiRefreshCw, FiSave, FiPlay, FiTrash2, FiZap } from 'react-icons/fi';
 import { db, auth } from '../../services/firebase';
 import {
   getNotificationPermission,
@@ -19,6 +19,11 @@ import {
   unregisterDevice,
 } from '../../services/fcmService';
 import toast from 'react-hot-toast';
+import {
+  testPushNotifications,
+  clearNotificationDedup,
+  type TestPushNotificationsResult,
+} from '../../services/subscriptionService';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -126,6 +131,10 @@ export function NotificationSettings() {
   const [permState, setPermState] = useState(getNotificationPermission());
   const supported = isPushSupported();
 
+  const [testing, setTesting] = useState(false);
+  const [clearingDedup, setClearingDedup] = useState(false);
+  const [lastTestResult, setLastTestResult] = useState<TestPushNotificationsResult | null>(null);
+
   useEffect(() => {
     if (!uid) { setLoading(false); return; }
     loadSettings(uid).then((s) => { setCfg(s); setLoading(false); });
@@ -145,6 +154,52 @@ export function NotificationSettings() {
       toast.error('Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestAll = async (force: boolean) => {
+    if (!uid) return;
+    setTesting(true);
+    setLastTestResult(null);
+    const toastId = toast.loading(force ? 'Running force-testing reminders (bypassing dedup)…' : 'Testing all reminder rules…');
+    try {
+      const res = await testPushNotifications({ force });
+      setLastTestResult(res);
+      toast.dismiss(toastId);
+      if (res.ok) {
+        const sentCount = (res.results ?? []).filter((r) => r.startsWith('SENT:')).length;
+        const failCount = (res.results ?? []).filter((r) => r.startsWith('FAILED')).length;
+        const skipCount = (res.results ?? []).filter((r) => r.startsWith('SKIPPED:')).length;
+        const noMatchCount = (res.results ?? []).filter((r) => r.startsWith('NO MATCH:')).length;
+        toast.success(
+          `Test complete — sent=${sentCount}  failed=${failCount}  skipped=${skipCount}  no-match=${noMatchCount}`,
+          { duration: 6000 },
+        );
+      } else {
+        toast.error(res.reason || 'Test failed.');
+      }
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      const msg = err?.message || String(err || 'Unknown error');
+      toast.error(`Test failed: ${msg.slice(0, 140)}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleClearDedup = async () => {
+    if (!uid) return;
+    setClearingDedup(true);
+    const toastId = toast.loading('Clearing reminder history (next scheduler run will re-fire)…');
+    try {
+      const res = await clearNotificationDedup();
+      toast.dismiss(toastId);
+      toast.success(res.message || `Deleted ${res.deleted} record(s).`, { duration: 5000 });
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.error(err?.message || 'Failed to clear dedup.');
+    } finally {
+      setClearingDedup(false);
     }
   };
 
@@ -365,6 +420,115 @@ export function NotificationSettings() {
         <FiSave className='h-4 w-4' />
         {saving ? 'Saving…' : 'Save Settings'}
       </button>
+
+      {/* ── Test Tools ────────────────────────────────────────────────── */}
+      <div className='rounded-xl border border-indigo-400/30 bg-indigo-50/60 dark:border-indigo-500/20 dark:bg-indigo-900/10 p-5 space-y-4'>
+        <div className='flex items-start gap-3'>
+          <div className='h-9 w-9 shrink-0 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center'>
+            <FiZap className='h-4 w-4 text-indigo-500' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='text-sm font-bold text-indigo-800 dark:text-indigo-300'>
+              Email &amp; Reminder Test Tools
+            </p>
+            <p className='text-[11.5px] text-indigo-700/80 dark:text-indigo-400/80 mt-0.5'>
+              Run the reminder engine instantly for your own account. No need to wait for the 30-minute scheduler.
+              If you have NO matching data in a module, no email is sent (that is expected — see "NO MATCH" lines below).
+            </p>
+          </div>
+        </div>
+
+        <div className='flex flex-col sm:flex-row gap-3'>
+          <button
+            type='button'
+            onClick={() => handleTestAll(false)}
+            disabled={testing}
+            className='flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 px-4 py-2.5 text-xs font-bold text-white transition-colors flex-1'
+          >
+            <FiPlay className='h-3.5 w-3.5' />
+            {testing ? 'Running…' : 'Test All Reminders'}
+          </button>
+          <button
+            type='button'
+            onClick={() => handleTestAll(true)}
+            disabled={testing}
+            className='flex items-center justify-center gap-2 rounded-lg border border-indigo-400/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10 disabled:opacity-60 px-4 py-2.5 text-xs font-bold transition-colors flex-1'
+            title='Bypass "already sent today" dedup. Use this when clicking Test twice on the same day.'
+          >
+            <FiZap className='h-3.5 w-3.5' />
+            Force Retest (Skip Dedup)
+          </button>
+          <button
+            type='button'
+            onClick={handleClearDedup}
+            disabled={clearingDedup}
+            className='flex items-center justify-center gap-2 rounded-lg border border-amber-400/60 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 disabled:opacity-60 px-4 py-2.5 text-xs font-bold transition-colors flex-1'
+            title='Delete all "already sent" records so the 30-minute scheduler fires them again.'
+          >
+            <FiTrash2 className='h-3.5 w-3.5' />
+            {clearingDedup ? 'Clearing…' : 'Reset Scheduler Dedup'}
+          </button>
+        </div>
+
+        {lastTestResult && (
+          <div className='rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white dark:bg-slate-900/60 overflow-hidden'>
+            <div className='flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/70 dark:border-slate-700'>
+              <div className='flex items-center gap-2 min-w-0'>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                    lastTestResult.ok
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400'
+                      : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400'
+                  }`}
+                >
+                  {lastTestResult.ok ? 'OK' : 'STOPPED'}
+                </span>
+                <p className='text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate'>
+                  {lastTestResult.ok
+                    ? `Results: ${(lastTestResult.results ?? []).length} line(s)${
+                        lastTestResult.userEmail ? ` · email=${lastTestResult.userEmail}` : ''
+                      }`
+                    : lastTestResult.reason || 'No details'}
+                </p>
+              </div>
+            </div>
+            {lastTestResult.results && lastTestResult.results.length > 0 && (
+              <div className='max-h-80 overflow-auto divide-y divide-slate-100 dark:divide-slate-800/60'>
+                {lastTestResult.results.map((line, i) => {
+                  const isSent = line.startsWith('SENT:');
+                  const isFailed = line.startsWith('FAILED');
+                  const isSkipped = line.startsWith('SKIPPED:');
+                  const isNoMatch = line.startsWith('NO MATCH:');
+                  const isInfo = line.startsWith('INFO (');
+                  const isError = line.startsWith('ERROR (');
+                  return (
+                    <div
+                      key={i}
+                      className={`px-4 py-2 text-[11px] leading-relaxed font-mono break-all ${
+                        isSent
+                          ? 'bg-emerald-50/60 text-emerald-800 dark:bg-emerald-500/5 dark:text-emerald-300'
+                          : isFailed
+                          ? 'bg-rose-50/60 text-rose-800 dark:bg-rose-500/5 dark:text-rose-300'
+                          : isSkipped
+                          ? 'bg-amber-50/60 text-amber-800 dark:bg-amber-500/5 dark:text-amber-300'
+                          : isNoMatch
+                          ? 'text-slate-600 dark:text-slate-400'
+                          : isError
+                          ? 'bg-rose-100 text-rose-900 dark:bg-rose-500/10 dark:text-rose-300'
+                          : isInfo
+                          ? 'bg-sky-50/50 text-sky-800 dark:bg-sky-500/5 dark:text-sky-300'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {line}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

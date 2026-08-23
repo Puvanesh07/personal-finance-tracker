@@ -6,7 +6,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // ── Push notifications scheduler ──────────────────────────────────────────────
-export { processScheduledNotifications, testPushNotifications } from './pushNotifications';
+export { processScheduledNotifications, testPushNotifications, clearNotificationDedup } from './pushNotifications';
 // ── AI Agent (Groq proxy) ────────────────────────────────────────────────────
 export { generateFinanceAI } from './groqFunction';
 import {
