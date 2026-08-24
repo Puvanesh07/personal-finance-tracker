@@ -48,11 +48,12 @@ import { db } from '../services/firebase';
 import { saveAs } from 'file-saver';
 
 export type BackupPayload = {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
   createdAt: string;
   investments: Investment[];
   liabilities: Liability[];
   cashflows: CashflowEntry[];
+  ledgerEntries?: any[];
   goals: Goal[];
   goalContributions?: GoalContribution[];
   credentials?: Credential[]; // ← NEW
@@ -144,13 +145,14 @@ export async function exportFullBackup(uid: string) {
     soldTrades,
     pendingPayments,
     trackedPayments,
+    ledgerEntries,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
     fetchSub<Liability>(uid, 'liabilities'),
     fetchSub<CashflowEntry>(uid, 'cashflows'),
     fetchSub<Goal>(uid, 'goals'),
     fetchSub<GoalContribution>(uid, 'goalContributions'),
-    fetchSub<Credential>(uid, 'credentials'), // ← NEW
+    fetchSub<Credential>(uid, 'credentials'),
     fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
     fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
     fetchSub<Account>(uid, 'accounts'),
@@ -174,6 +176,7 @@ export async function exportFullBackup(uid: string) {
     fetchSub<any>(uid, 'soldTrades'),
     fetchSub<PendingPayment>(uid, 'pendingPayments'),
     fetchSub<TrackedPayment>(uid, 'trackedPayments'),
+    fetchSub<any>(uid, 'ledgerEntries'),
   ]);
 
   const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -182,11 +185,12 @@ export async function exportFullBackup(uid: string) {
     : null;
 
   const payload: BackupPayload = {
-    version: 10,
+    version: 11,
     createdAt: new Date().toISOString(),
     investments,
     liabilities,
     cashflows,
+    ledgerEntries,
     goals,
     goalContributions,
     credentials, // ← NEW
@@ -229,7 +233,7 @@ export async function importFullBackup(jsonText: string, uid: string) {
   if (!uid) throw new Error('User context missing. Please log in again.');
 
   const parsed = JSON.parse(jsonText) as BackupPayload;
-  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const supportedVersions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   if (!parsed || !supportedVersions.includes(parsed.version as number)) {
     throw new Error('Unsupported backup format.');
   }
@@ -238,6 +242,7 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'investments', parsed.investments ?? []),
     batchSet(uid, 'liabilities', parsed.liabilities ?? []),
     batchSet(uid, 'cashflows', parsed.cashflows ?? []),
+    batchSet(uid, 'ledgerEntries', parsed.ledgerEntries ?? []),
     batchSet(uid, 'goals', parsed.goals ?? []),
     batchSet(uid, 'goalContributions', parsed.goalContributions ?? []),
     batchSet(uid, 'credentials', parsed.credentials ?? []), // ← NEW

@@ -6,7 +6,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // ── Push notifications scheduler ──────────────────────────────────────────────
-export { processScheduledNotifications, testPushNotifications, clearNotificationDedup } from './pushNotifications';
+export { processScheduledNotifications } from './pushNotifications';
 // ── AI Agent (Groq proxy) ────────────────────────────────────────────────────
 export { generateFinanceAI } from './groqFunction';
 import {
@@ -535,12 +535,15 @@ export const restorePurchase = onCall(
     };
   },
 );
+ 
 
 export const expireSubscriptions = onSchedule(
   {
-    schedule: 'every 24 hours',
+    schedule: 'every 24 hours', 
     region,
     timeZone: 'Asia/Kolkata',
+    timeoutSeconds: 540, // Increased timeout to prevent failing on busy days
+    memory: '256MiB',    // Explicit memory limit
   },
   async () => {
     const now = Timestamp.now();
@@ -551,29 +554,49 @@ export const expireSubscriptions = onSchedule(
       .get();
 
     logger.info(`expireSubscriptions: found ${snapshot.size} users`);
+    
+    if (snapshot.empty) return;
 
-    for (const docSnap of snapshot.docs) {
+    // Create an array to hold all the background tasks
+    const updatePromises = snapshot.docs.map(async (docSnap) => {
       const uid = docSnap.id;
       const data = docSnap.data();
-      if (data.premiumGranted === true) continue;
-      if (data.plan === 'lifetime') continue;
-      if (!data.expiresAt) continue;
 
-      await docSnap.ref.set(
-        {
-          subscriptionStatus: 'expired',
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true },
-      );
+      // Guard clauses (skip if lifetime, premium granted, or no expiry)
+      if (data.premiumGranted === true) return;
+      if (data.plan === 'lifetime') return;
+      if (!data.expiresAt) return;
 
-      await createSubscriptionNotification(uid, {
-        title: 'Trial expired',
-        message:
-          'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
-        type: 'warning',
-      });
-    }
+      try {
+        // 1. Update the database document
+        const dbUpdate = docSnap.ref.set(
+          {
+            subscriptionStatus: 'expired',
+            updatedAt: Timestamp.now(),
+          },
+          { merge: true }
+        );
+
+        // 2. Send the notification
+        const notificationUpdate = createSubscriptionNotification(uid, {
+          title: 'Subscription expired', // generalized in case they are on a paid plan, not just a trial
+          message: 'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
+          type: 'warning',
+        });
+
+        // Run both operations for this specific user at the exact same time
+        await Promise.all([dbUpdate, notificationUpdate]);
+        
+      } catch (error) {
+        // If one user fails, log it, but don't crash the whole function for the other users
+        logger.error(`Failed to expire subscription for uid: ${uid}`, error);
+      }
+    });
+
+    // Execute ALL user updates simultaneously
+    await Promise.all(updatePromises);
+    
+    logger.info('expireSubscriptions: Finished processing all users.');
   },
 );
 
@@ -582,6 +605,8 @@ export const deleteExpiredUsers = onSchedule(
     schedule: 'every 24 hours',
     region,
     timeZone: 'Asia/Kolkata',
+    timeoutSeconds: 540, // Increased to 9 minutes to allow large deletions
+    memory: '256MiB',    // Explicitly set memory
   },
   async () => {
     const now = Timestamp.now();
@@ -595,6 +620,7 @@ export const deleteExpiredUsers = onSchedule(
 
     for (const docSnap of snapshot.docs) {
       if (docSnap.data().premiumGranted === true) continue;
+      
       const uid = docSnap.id;
       try {
         await deleteAllUserData(uid);

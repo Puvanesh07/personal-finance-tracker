@@ -84,13 +84,14 @@ const AVATAR_COLORS = [
 const avatarColor = (i: number) => AVATAR_COLORS[i % AVATAR_COLORS.length];
 
 // ── Mini components ──────────────────────────────────────────────────────────
-function Avatar({ name, index }: { name: string; index: number }) {
+function Avatar({ name, index }: { name?: string; index: number }) {
+  const initial = (name || '?').slice(0, 2).toUpperCase();
   return (
     <div
       className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white'
       style={{ background: avatarColor(index) }}
     >
-      {name.slice(0, 2).toUpperCase()}
+      {initial}
     </div>
   );
 }

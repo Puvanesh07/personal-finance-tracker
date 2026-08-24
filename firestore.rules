@@ -6,6 +6,11 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    function isValidUserDoc(userId) {
+      return isOwner(userId)
+        && (!('userId' in request.resource.data) || request.resource.data.userId == userId);
+    }
+
     function isValidTrialCreate() {
       return request.resource.data.plan == 'trial'
         && request.resource.data.subscriptionStatus == 'active'
@@ -71,25 +76,65 @@ service cloud.firestore {
 
       // ── Notification devices — client registers/updates its own FCM token ──
       match /notificationDevices/{deviceId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow create, update, delete: if isValidUserDoc(userId);
       }
 
       // ── Notification settings — per-category toggles + quiet hours ─────────
       match /notificationSettings/{docId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow create, update, delete: if isValidUserDoc(userId);
       }
 
       // ── Push sent dedup records — written by Cloud Function only ───────────
-      // Client can read (for debug/UI), but cannot create/update/delete.
       match /pushSent/{key} {
         allow read: if isOwner(userId);
         allow write: if false;  // Cloud Function uses Admin SDK (bypasses rules)
       }
 
-      // ── All other user subcollections ──────────────────────────────────────
-      match /{collection}/{document=**} {
-        allow read, write: if isOwner(userId);
-      }
+      // ── Explicit User Subcollections ────────────────────────────────────────
+      match /investments/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /snapshots/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /liabilities/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /pendingPayments/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /trackedPayments/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /cashflows/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /goals/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /goalContributions/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /credentials/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /networthSnapshots/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /insights/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /accounts/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /soldTrades/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /insurancePolicies/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /insurancePayments/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /lendingBorrowers/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /lendingTransactions/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /sipPlans/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /settings/{docId} { allow read, write: if isOwner(userId); }
+
+      // Agriculture subcollections
+      match /agriFields/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriCropCycles/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriExpenses/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriLivestock/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriMilkRecords/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriCoconut/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriLivestockEvents/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /agriProduceSales/{docId} { allow read, write: if isValidUserDoc(userId); }
+
+      // Attendance / Workforce subcollections
+      match /attEmployees/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /attRecords/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /attTransactions/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /attSalary/{docId} { allow read, write: if isValidUserDoc(userId); }
+
+      // Core Financial Ledger & Domain Subcollections
+      match /ledgerEntries/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /costCenters/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /payrollPeriods/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /receivables/{docId} { allow read, write: if isValidUserDoc(userId); }
+      match /notificationJobs/{docId} { allow read, write: if isValidUserDoc(userId); }
     }
 
     match /notifications/{userId}/items/{itemId} {

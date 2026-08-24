@@ -38,6 +38,11 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 import { useThemeStore } from '../../store/themeStore';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 
+import {
+  calculateTotalIncome,
+  calculateTotalExpenses,
+} from '../../services/financialMetricsEngine';
+
 // ─── Reusable UI Components ──────────────────────────────────────────────────
 
 function StatRow({
@@ -182,12 +187,8 @@ export function ReportsPage() {
     () => portStore.cashflows.filter((c) => isWithinTimeframe(c.date)),
     [portStore.cashflows, timeframe],
   );
-  const tfIncome = filteredCashflows
-    .filter((c) => c.type === 'income')
-    .reduce((a, c) => a + c.amount, 0);
-  const tfExpense = filteredCashflows
-    .filter((c) => c.type === 'expense')
-    .reduce((a, c) => a + c.amount, 0);
+  const tfIncome = calculateTotalIncome(filteredCashflows);
+  const tfExpense = calculateTotalExpenses(filteredCashflows);
 
   const incomeByCategory = useMemo(() => {
     const map: Record<string, number> = {};

@@ -74,8 +74,11 @@ export function calcEmployeeSalary(
     (r) => r.employeeId === empId && r.date.startsWith(month),
   );
   const daysWorked = recs.filter((r) => r.present).length;
-  const baseSalary = daysWorked * emp.dailyWage;
+  const baseSalary = recs
+    .filter((r) => r.present)
+    .reduce((sum, r) => sum + (r.wageSnapshot ?? r.wage ?? emp.dailyWage), 0);
   const extraWork = recs.reduce((s, r) => s + (r.extraWork ?? 0), 0);
+
   const totalSalary = baseSalary + extraWork;
   const advance = transactions
     .filter(

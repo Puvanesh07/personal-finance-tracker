@@ -14,6 +14,7 @@ import {
   DangerZone,
   ExportImport,
 } from '../../components/settings/DataManagement';
+import { DummyDataLoader } from '../../components/settings/DummyDataLoader';
 import {
   FiAlertOctagon,
   FiBell,
@@ -30,6 +31,7 @@ import {
   FiShield,
   FiSmartphone,
   FiUser,
+  FiTool,
 } from 'react-icons/fi';
 import { signOut, updateProfile } from 'firebase/auth';
 import { useEffect, useState } from 'react';
@@ -44,6 +46,7 @@ import { SubscriptionStatusCard } from '../../components/subscription/Subscripti
 import { TrialUsagePanel } from '../../components/subscription/TrialUsagePanel';
 import { auth } from '../../services/firebase';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { OWNER_EMAIL } from '../../utils/subscriptionUtils';
 
 // ─── Tab config ─────────────────────────────────────────────────────────────
 
@@ -55,7 +58,8 @@ type TabId =
   | 'essentials'
   | 'notifications'
   | 'integrations'
-  | 'danger';
+  | 'danger'
+  | 'admin';
 
 const TABS: {
   id: TabId;
@@ -70,6 +74,12 @@ const TABS: {
   { id: 'essentials', label: 'Essentials', icon: FiShield },
   { id: 'notifications', label: 'Notifications', icon: FiBell },
   { id: 'integrations', label: 'Integrations', icon: FiCloud },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: FiTool,
+    color: 'text-amber-400',
+  },
   {
     id: 'danger',
     label: 'Danger Zone',
@@ -383,7 +393,11 @@ function DangerZoneTab() {
 // ─── Main SettingsPage ────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const currentUserEmail = auth.currentUser?.email?.trim().toLowerCase() ?? '';
+  const isAdmin = currentUserEmail === OWNER_EMAIL;
   const [activeTab, setActiveTab] = useState<TabId>('profile');
+
+  const visibleTabs = TABS.filter((t) => t.id !== 'admin' || isAdmin);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -437,6 +451,21 @@ export function SettingsPage() {
         );
       case 'danger':
         return <DangerZoneTab />;
+      case 'admin':
+        return (
+          <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>
+            <div className='mb-5 flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4'>
+              <FiTool className='h-5 w-5 shrink-0 text-amber-400' />
+              <div>
+                <p className='text-sm font-bold text-amber-300'>Admin Panel</p>
+                <p className='text-xs text-amber-400/70 mt-0.5'>
+                  Admin-only testing and data management tools.
+                </p>
+              </div>
+            </div>
+            <DummyDataLoader />
+          </div>
+        );
     }
   };
 
@@ -459,7 +488,7 @@ export function SettingsPage() {
       <div className='flex flex-col md:flex-row gap-6'>
         {/* ── MOBILE / TABLET: Horizontal scrollable pills ── */}
         <div className='md:hidden flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none'>
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -483,7 +512,7 @@ export function SettingsPage() {
 
         {/* ── DESKTOP: Vertical sidebar tabs ── */}
         <aside className='hidden md:flex flex-col gap-1 w-52 shrink-0'>
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (

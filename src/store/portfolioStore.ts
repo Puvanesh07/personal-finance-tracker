@@ -20,6 +20,7 @@ import type {
   PortfolioSnapshot,
   SoldTrade,
 } from '../types/investmentTypes';
+import type { LedgerEntry } from '../types/ledgerTypes';
 import {
   collection,
   deleteDoc,
@@ -42,6 +43,12 @@ import { db } from '../services/firebase';
 import { calculateNetWorth, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { nextDueDate } from '../utils/paymentTracker';
+import {
+  deleteLedgerEntry,
+  getDeterministicLedgerId,
+  saveLedgerEntry,
+} from '../services/ledgerService';
+import { runIdempotentLedgerMigration } from '../services/migrationService';
 import {
   checkFeatureLimit,
   checkCanCreateTransactions,
@@ -117,6 +124,7 @@ type PortfolioState = {
   pendingPayments: PendingPayment[];
   trackedPayments: TrackedPayment[];
   cashflows: CashflowEntry[];
+  ledgerEntries: LedgerEntry[];
   goals: Goal[];
   goalContributions: GoalContribution[];
   credentials: Credential[];
@@ -286,6 +294,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   pendingPayments: [],
   trackedPayments: [],
   cashflows: [],
+  ledgerEntries: [],
   goals: [],
   goalContributions: [],
   credentials: [],
@@ -308,6 +317,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
     set({ uid });
     try {
+      // Run background migration if required for legacy records
+      void runIdempotentLedgerMigration(uid).catch((err) =>
+        console.error('[PortfolioStore] ledger migration failed:', err),
+      );
+
       // Phase 1: dashboard-critical only — show UI as soon as this completes
       const [
         investments,
@@ -316,6 +330,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         cashflows,
         goals,
         accounts,
+        ledgerEntries,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
@@ -323,6 +338,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
         fetchSub<Account>(uid, 'accounts'),
+        fetchSub<LedgerEntry>(uid, 'ledgerEntries'),
       ]);
 
       const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -346,6 +362,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           safeCompare(b.updatedAt, a.updatedAt),
         ),
         cashflows: cashflows.sort(
+          (a, b) =>
+            safeCompare(b.date, a.date) ||
+            safeCompare(b.updatedAt, a.updatedAt),
+        ),
+        ledgerEntries: ledgerEntries.sort(
           (a, b) =>
             safeCompare(b.date, a.date) ||
             safeCompare(b.updatedAt, a.updatedAt),
@@ -653,12 +674,30 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: now(),
     }) as PendingPayment;
     await saveDoc(uid, 'pendingPayments', updated);
+
+    let updatedLedgers = get().ledgerEntries;
+    if (updated.status === 'received' && updated.receivedAt) {
+      const ledgerItem = await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('receivable', updated.id),
+        type: 'income',
+        date: updated.receivedAt,
+        amount: updated.amount,
+        category: `Receivable - ${updated.buyerName}`,
+        module: 'personal',
+        sourceType: 'receivable',
+        sourceId: updated.id,
+        notes: updated.itemDescription,
+      });
+      updatedLedgers = [ledgerItem, ...updatedLedgers.filter((x) => x.id !== ledgerItem.id)];
+    }
+
     set((s) => ({
       pendingPayments: s.pendingPayments
         .map((x) => (x.id === id ? updated : x))
         .sort((a, b) =>
           safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
         ),
+      ledgerEntries: updatedLedgers.sort((a, b) => safeCompare(b.date, a.date)),
     }));
   },
 
@@ -666,8 +705,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'pendingPayments', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('receivable', id));
     set((s) => ({
       pendingPayments: s.pendingPayments.filter((x) => x.id !== id),
+      ledgerEntries: s.ledgerEntries.filter((x) => x.id !== getDeterministicLedgerId('receivable', id)),
     }));
   },
 
@@ -719,8 +760,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'trackedPayments', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('payment', id));
     set((s) => ({
       trackedPayments: s.trackedPayments.filter((x) => x.id !== id),
+      ledgerEntries: s.ledgerEntries.filter((x) => x.id !== getDeterministicLedgerId('payment', id)),
     }));
   },
 
@@ -729,7 +772,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     const existing = get().trackedPayments.find((x) => x.id === id);
     if (!existing) return;
-    const paidAt = new Date().toISOString().split('T')[0];
+    const paidAt = todayISO();
     const updated = clean({
       ...existing,
       status: 'paid' as const,
@@ -737,6 +780,19 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: now(),
     }) as TrackedPayment;
     await saveDoc(uid, 'trackedPayments', updated);
+
+    // Save ONE canonical ledger entry idempotently
+    const ledgerItem = await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('payment', existing.id),
+      type: 'expense',
+      date: paidAt,
+      amount: existing.amount,
+      category: existing.title || existing.paymentType || 'Payment',
+      module: 'payment',
+      sourceType: 'payment',
+      sourceId: existing.id,
+      notes: existing.notes,
+    });
 
     const nextDate =
       existing.recurrence !== 'none'
@@ -769,6 +825,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         .map((x) => (x.id === id ? updated : x))
         .concat(nextPayments)
         .sort((a, b) => safeCompare(a.dueDate, b.dueDate)),
+      ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
+        (a, b) => safeCompare(b.date, a.date),
+      ),
     }));
   },
 
@@ -785,9 +844,26 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       userId: uid,
     }) as CashflowEntry;
     await saveDoc(uid, 'cashflows', withMeta);
+
+    const ledgerItem = await saveLedgerEntry(uid, {
+      id: `ledger_cf_${withMeta.id}`,
+      type: withMeta.type,
+      date: withMeta.date,
+      amount: withMeta.amount,
+      category: withMeta.category,
+      accountId: withMeta.accountId,
+      module: 'personal',
+      sourceType: 'manual',
+      sourceId: withMeta.id,
+      notes: withMeta.notes,
+    });
+
     set((s) => ({
       cashflows: [withMeta, ...s.cashflows].sort((a, b) =>
         safeCompare(b.date, a.date),
+      ),
+      ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
+        (a, b) => safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -804,8 +880,23 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: now(),
     }) as CashflowEntry;
     await saveDoc(uid, 'cashflows', updated);
+
+    const ledgerItem = await saveLedgerEntry(uid, {
+      id: `ledger_cf_${updated.id}`,
+      type: updated.type,
+      date: updated.date,
+      amount: updated.amount,
+      category: updated.category,
+      accountId: updated.accountId,
+      module: 'personal',
+      sourceType: 'manual',
+      sourceId: updated.id,
+      notes: updated.notes,
+    });
+
     set((s) => ({
       cashflows: s.cashflows.map((x) => (x.id === id ? updated : x)),
+      ledgerEntries: s.ledgerEntries.map((x) => (x.id === ledgerItem.id ? ledgerItem : x)),
     }));
   },
 
@@ -813,7 +904,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'cashflows', id));
-    set((s) => ({ cashflows: s.cashflows.filter((x) => x.id !== id) }));
+    await deleteLedgerEntry(uid, `ledger_cf_${id}`);
+    set((s) => ({
+      cashflows: s.cashflows.filter((x) => x.id !== id),
+      ledgerEntries: s.ledgerEntries.filter((x) => x.id !== `ledger_cf_${id}`),
+    }));
   },
 
   addGoal: async (goal) => {
@@ -1285,7 +1380,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const date = todayISO();
     if (get()._lastSnapshotDate === date) return;
     const { totalValue } = summarizePortfolio(get().investments);
-    const existing = get().snapshots.find((x) => x.date === date);
+    const deterministicId = `snap_${date}`;
+    const existing = get().snapshots.find((x) => x.date === date || x.id === deterministicId);
     if (existing) {
       const updated: PortfolioSnapshot = { ...existing, totalValue };
       await saveDoc(uid, 'snapshots', updated);
@@ -1296,7 +1392,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       return;
     }
     const snap = clean({
-      id: createId('snap'),
+      id: deterministicId,
       date,
       totalValue,
       userId: uid,
@@ -1322,9 +1418,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       get().investments,
       get().liabilities,
     );
+    const date = todayISO();
     const t = now();
+    const deterministicId = label?.trim() ? createId('nws') : `networthSnapshot_${date}`;
     const snap: NetWorthSnapshot = {
-      id: createId('nws'),
+      id: deterministicId,
       createdAt: t,
       totalAssets,
       totalLiabilities,
@@ -1333,7 +1431,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       ...(label?.trim() ? { label: label.trim() } : {}),
     };
     await saveDoc(uid, 'networthSnapshots', snap);
-    set((s) => ({ networthSnapshots: [snap, ...s.networthSnapshots] }));
+    set((s) => ({
+      networthSnapshots: [
+        snap,
+        ...s.networthSnapshots.filter((x) => x.id !== snap.id),
+      ],
+    }));
   },
 
   saveInsightSnapshot: async (data) => {
@@ -1366,6 +1469,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'pendingPayments',
       'trackedPayments',
       'cashflows',
+      'ledgerEntries',
       'goals',
       'goalContributions',
       'credentials',
@@ -1391,6 +1495,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'attRecords',
       'attTransactions',
       'attSalary',
+      'notificationJobs',
     ];
 
     try {
@@ -1416,6 +1521,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         pendingPayments: [],
         trackedPayments: [],
         cashflows: [],
+        ledgerEntries: [],
         goals: [],
         goalContributions: [],
         credentials: [],
@@ -1457,6 +1563,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       pendingPayments: [],
       trackedPayments: [],
       cashflows: [],
+      ledgerEntries: [],
       goals: [],
       goalContributions: [],
       credentials: [],

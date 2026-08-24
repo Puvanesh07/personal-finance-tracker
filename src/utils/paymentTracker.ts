@@ -4,12 +4,15 @@ import type {
   TrackedPayment,
 } from '../types/investmentTypes';
 import {
-  differenceInDays,
   endOfMonth,
   isSameMonth,
   parseISO,
   startOfMonth,
 } from 'date-fns';
+import {
+  getDaysUntil,
+  getNextRecurringDate,
+} from '../services/dateService';
 
 export const PAYMENT_TYPE_OPTIONS: {
   value: PaymentTrackerType;
@@ -39,7 +42,7 @@ export function paymentTypePlaceholder(type: PaymentTrackerType): string {
 }
 
 export function daysUntilDue(dueDate: string): number {
-  return differenceInDays(parseISO(dueDate), new Date());
+  return getDaysUntil(dueDate);
 }
 
 export function buildPaymentReminderMessage(
@@ -113,12 +116,6 @@ export function nextDueDate(
   current: string,
   recurrence: PaymentRecurrence,
 ): string | null {
-  if (recurrence === 'none') return null;
-  const d = parseISO(current);
-  if (recurrence === 'monthly') {
-    d.setMonth(d.getMonth() + 1);
-  } else {
-    d.setFullYear(d.getFullYear() + 1);
-  }
-  return d.toISOString().split('T')[0];
+  return getNextRecurringDate(current, recurrence);
 }
+

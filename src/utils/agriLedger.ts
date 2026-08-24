@@ -7,6 +7,9 @@ import type {
   ProduceSaleLot,
 } from '../types/investmentTypes';
 
+const safeCompare = (a: string | undefined, b: string | undefined) =>
+  (a || '').localeCompare(b || '');
+
 const EXPENSE_LABELS: Record<string, string> = {
   seeds: 'Seeds',
   fertilizer: 'Fertilizer',
@@ -198,7 +201,7 @@ export function buildFarmLedger(data: AgriLedgerData): FarmLedgerEntry[] {
     }
   });
 
-  return entries.sort((a, b) => b.date.localeCompare(a.date));
+  return entries.sort((a, b) => safeCompare(b.date, a.date));
 }
 
 export function groupLedgerByDay(entries: FarmLedgerEntry[]): DayLedgerGroup[] {
@@ -225,7 +228,7 @@ export function groupLedgerByDay(entries: FarmLedgerEntry[]): DayLedgerGroup[] {
         net: income - expense,
       };
     })
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => safeCompare(b.date, a.date));
 }
 
 export function uniquePlantations(entries: FarmLedgerEntry[]): string[] {

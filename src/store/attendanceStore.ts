@@ -16,6 +16,7 @@ import {
   doc,
   getDocs,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { create } from 'zustand';
@@ -44,6 +45,9 @@ function clean<T extends object>(obj: T): T {
 }
 
 const now = () => new Date().toISOString();
+
+const safeCompare = (a: string | undefined, b: string | undefined) =>
+  (a || '').localeCompare(b || '');
 
 async function fetchSub<T>(uid: string, c: string): Promise<T[]> {
   const snap = await getDocs(col(uid, c));
@@ -144,13 +148,13 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       set({
         uid,
         ready: true,
-        employees: employees.sort((a, b) => a.name.localeCompare(b.name)),
+        employees: employees.sort((a, b) => safeCompare(a.name, b.name)),
         attendanceRecords: attendanceRecords.sort((a, b) =>
-          b.date.localeCompare(a.date),
+          safeCompare(b.date, a.date),
         ),
-        transactions: transactions.sort((a, b) => b.date.localeCompare(a.date)),
+        transactions: transactions.sort((a, b) => safeCompare(b.date, a.date)),
         salaryRecords: salaryRecords.sort((a, b) =>
-          b.month.localeCompare(a.month),
+          safeCompare(b.month, a.month),
         ),
       });
     } catch (err) {
@@ -195,7 +199,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     await setDoc(docRef(uid, 'attEmployees', raw.id), raw);
     set((s) => ({
       employees: [...s.employees, raw].sort((a, b) =>
-        a.name.localeCompare(b.name),
+        safeCompare(a.name, b.name),
       ),
     }));
   },
@@ -215,7 +219,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     set((s) => ({
       employees: s.employees
         .map((x) => (x.id === id ? raw : x))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) => safeCompare(a.name, b.name)),
     }));
   },
 
@@ -231,9 +235,12 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   addAttendanceRecord: async (r) => {
     const uid = get().uid;
     if (!uid) return;
+    const emp = get().employees.find((e) => e.id === r.employeeId);
+    const wageSnapshot = r.wageSnapshot ?? r.wage ?? emp?.dailyWage ?? 0;
     const t = now();
     const raw: AttendanceRecord = clean({
       ...r,
+      wageSnapshot,
       id: attId('att'),
       userId: uid,
       createdAt: t,
@@ -242,7 +249,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     await setDoc(docRef(uid, 'attRecords', raw.id), raw);
     set((s) => ({
       attendanceRecords: [raw, ...s.attendanceRecords].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -279,21 +286,31 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     const t = now();
-    const raws: AttendanceRecord[] = records.map((r) =>
-      clean({
+    const employeesMap = new Map(get().employees.map((e) => [e.id, e]));
+    const raws: AttendanceRecord[] = records.map((r) => {
+      const emp = employeesMap.get(r.employeeId);
+      const wageSnapshot = r.wageSnapshot ?? r.wage ?? emp?.dailyWage ?? 0;
+      return clean({
         ...r,
+        wageSnapshot,
         id: attId('att'),
         userId: uid,
         createdAt: t,
         updatedAt: t,
-      }),
-    );
-    await Promise.all(
-      raws.map((raw) => setDoc(docRef(uid, 'attRecords', raw.id), raw)),
-    );
+      });
+    });
+
+    for (let i = 0; i < raws.length; i += 499) {
+      const batch = writeBatch(db);
+      raws.slice(i, i + 499).forEach((raw) => {
+        batch.set(docRef(uid, 'attRecords', raw.id), raw);
+      });
+      await batch.commit();
+    }
+
     set((s) => ({
       attendanceRecords: [...raws, ...s.attendanceRecords].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -314,7 +331,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     await setDoc(docRef(uid, 'attTransactions', raw.id), raw);
     set((s) => ({
       transactions: [raw, ...s.transactions].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -361,7 +378,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     await setDoc(docRef(uid, 'attSalary', raw.id), raw);
     set((st) => ({
       salaryRecords: [raw, ...st.salaryRecords].sort((a, b) =>
-        b.month.localeCompare(a.month),
+        safeCompare(b.month, a.month),
       ),
     }));
     return raw.id;
@@ -454,13 +471,13 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     ]);
 
     set({
-      employees: employees.sort((a, b) => a.name.localeCompare(b.name)),
+      employees: employees.sort((a, b) => safeCompare(a.name, b.name)),
       attendanceRecords: attendanceRecords.sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
-      transactions: transactions.sort((a, b) => b.date.localeCompare(a.date)),
+      transactions: transactions.sort((a, b) => safeCompare(b.date, a.date)),
       salaryRecords: salaryRecords.sort((a, b) =>
-        b.month.localeCompare(a.month),
+        safeCompare(b.month, a.month),
       ),
     });
   },

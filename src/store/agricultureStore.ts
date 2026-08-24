@@ -20,6 +20,11 @@ import {
 import { create } from 'zustand';
 import { db } from '../services/firebase';
 import {
+  deleteLedgerEntry,
+  getDeterministicLedgerId,
+  saveLedgerEntry,
+} from '../services/ledgerService';
+import {
   checkCanCreateTransactions,
   checkFeatureLimit,
   trialLimitMessage,
@@ -42,6 +47,9 @@ function blockIfAgriLimited(currentTotalAgriRecords: number): boolean {
   }
   return false;
 }
+
+const safeCompare = (a: string | undefined, b: string | undefined) =>
+  (a || '').localeCompare(b || '');
 
 /** Sum of all agri sub-collection records in state — used for limit checks. */
 function totalAgriRecords(s: {
@@ -197,19 +205,19 @@ export const useAgriStore = create<AgriState>((set, get) => ({
         uid,
         ready: true,
         hydrateError: null,
-        fields: fields.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        fields: fields.sort((a, b) => safeCompare(b.createdAt, a.createdAt)),
         cropCycles: cropCycles.sort((a, b) =>
-          b.startDate.localeCompare(a.startDate),
+          safeCompare(b.startDate, a.startDate),
         ),
-        agriExpenses: agriExpenses.sort((a, b) => b.date.localeCompare(a.date)),
-        milkRecords: milkRecords.sort((a, b) => b.date.localeCompare(a.date)),
+        agriExpenses: agriExpenses.sort((a, b) => safeCompare(b.date, a.date)),
+        milkRecords: milkRecords.sort((a, b) => safeCompare(b.date, a.date)),
         coconutRecords: coconutRecords.sort((a, b) =>
-          b.date.localeCompare(a.date),
+          safeCompare(b.date, a.date),
         ),
         livestockEvents: livestockEvents.sort((a, b) =>
-          b.date.localeCompare(a.date),
+          safeCompare(b.date, a.date),
         ),
-        produceSales: produceSales.sort((a, b) => b.date.localeCompare(a.date)),
+        produceSales: produceSales.sort((a, b) => safeCompare(b.date, a.date)),
       });
     } catch (err) {
       console.error('[AgriStore] hydrate failed:', err);
@@ -327,9 +335,24 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: t,
     });
     await setDoc(agriDoc(uid, 'agriExpenses', raw.id), raw);
+
+    await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('agriculture_expense', raw.id),
+      type: 'expense',
+      date: raw.date,
+      amount: raw.amount,
+      category: `Agri ${raw.category}`,
+      accountId: raw.accountId,
+      module: 'agriculture',
+      sourceType: 'agriculture_expense',
+      sourceId: raw.id,
+      costCenterId: raw.cropCycleId,
+      notes: raw.notes,
+    });
+
     set((s) => ({
       agriExpenses: [raw, ...s.agriExpenses].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
     return raw.id;
@@ -341,6 +364,21 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     if (!ex) return;
     const raw: AgriExpense = clean({ ...ex, ...patch, id, updatedAt: now() });
     await setDoc(agriDoc(uid, 'agriExpenses', id), raw);
+
+    await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('agriculture_expense', raw.id),
+      type: 'expense',
+      date: raw.date,
+      amount: raw.amount,
+      category: `Agri ${raw.category}`,
+      accountId: raw.accountId,
+      module: 'agriculture',
+      sourceType: 'agriculture_expense',
+      sourceId: raw.id,
+      costCenterId: raw.cropCycleId,
+      notes: raw.notes,
+    });
+
     set((s) => ({
       agriExpenses: s.agriExpenses.map((x) => (x.id === id ? raw : x)),
     }));
@@ -349,6 +387,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(agriDoc(uid, 'agriExpenses', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('agriculture_expense', id));
     set((s) => ({ agriExpenses: s.agriExpenses.filter((x) => x.id !== id) }));
   },
 
@@ -367,9 +406,23 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: t,
     });
     await setDoc(agriDoc(uid, 'agriMilkRecords', raw.id), raw);
+
+    await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('dairy_sale', raw.id),
+      type: 'income',
+      date: raw.date,
+      amount: raw.liters * raw.pricePerLiter,
+      category: 'Dairy Milk Sale',
+      accountId: raw.accountId,
+      module: 'agriculture',
+      sourceType: 'dairy_sale',
+      sourceId: raw.id,
+      notes: `Dairy ${raw.session ?? ''} ${raw.liters}L x ₹${raw.pricePerLiter}`,
+    });
+
     set((s) => ({
       milkRecords: [raw, ...s.milkRecords].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
     return raw.id;
@@ -381,6 +434,20 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     if (!ex) return;
     const raw: MilkRecord = clean({ ...ex, ...patch, id, updatedAt: now() });
     await setDoc(agriDoc(uid, 'agriMilkRecords', id), raw);
+
+    await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('dairy_sale', raw.id),
+      type: 'income',
+      date: raw.date,
+      amount: raw.liters * raw.pricePerLiter,
+      category: 'Dairy Milk Sale',
+      accountId: raw.accountId,
+      module: 'agriculture',
+      sourceType: 'dairy_sale',
+      sourceId: raw.id,
+      notes: `Dairy ${raw.session ?? ''} ${raw.liters}L x ₹${raw.pricePerLiter}`,
+    });
+
     set((s) => ({
       milkRecords: s.milkRecords.map((x) => (x.id === id ? raw : x)),
     }));
@@ -389,6 +456,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(agriDoc(uid, 'agriMilkRecords', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('dairy_sale', id));
     set((s) => ({ milkRecords: s.milkRecords.filter((x) => x.id !== id) }));
   },
 
@@ -407,9 +475,39 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: t,
     });
     await setDoc(agriDoc(uid, 'agriCoconut', raw.id), raw);
+
+    if (raw.harvestIncome > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('coconut_income', raw.id),
+        type: 'income',
+        date: raw.date,
+        amount: raw.harvestIncome,
+        category: 'Coconut Harvest Income',
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'coconut_income',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+    }
+    if (raw.investmentAmount > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('coconut_expense', raw.id),
+        type: 'expense',
+        date: raw.date,
+        amount: raw.investmentAmount,
+        category: 'Coconut Investment Expense',
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'coconut_expense',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+    }
+
     set((s) => ({
       coconutRecords: [raw, ...s.coconutRecords].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
     return raw.id;
@@ -421,6 +519,40 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     if (!ex) return;
     const raw: CoconutRecord = clean({ ...ex, ...patch, id, updatedAt: now() });
     await setDoc(agriDoc(uid, 'agriCoconut', id), raw);
+
+    if (raw.harvestIncome > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('coconut_income', raw.id),
+        type: 'income',
+        date: raw.date,
+        amount: raw.harvestIncome,
+        category: 'Coconut Harvest Income',
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'coconut_income',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+    } else {
+      await deleteLedgerEntry(uid, getDeterministicLedgerId('coconut_income', raw.id));
+    }
+    if (raw.investmentAmount > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('coconut_expense', raw.id),
+        type: 'expense',
+        date: raw.date,
+        amount: raw.investmentAmount,
+        category: 'Coconut Investment Expense',
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'coconut_expense',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+    } else {
+      await deleteLedgerEntry(uid, getDeterministicLedgerId('coconut_expense', raw.id));
+    }
+
     set((s) => ({
       coconutRecords: s.coconutRecords.map((x) => (x.id === id ? raw : x)),
     }));
@@ -429,6 +561,8 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(agriDoc(uid, 'agriCoconut', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('coconut_income', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('coconut_expense', id));
     set((s) => ({
       coconutRecords: s.coconutRecords.filter((x) => x.id !== id),
     }));
@@ -449,9 +583,38 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: t,
     });
     await setDoc(agriDoc(uid, 'agriLivestockEvents', raw.id), raw);
+
+    if (raw.eventType === 'sale' && (raw.price ?? 0) > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('livestock', `${raw.id}_sale`),
+        type: 'income',
+        date: raw.date,
+        amount: raw.price!,
+        category: `Livestock Sale - ${raw.animalType}`,
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'livestock',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+    } else if (raw.eventType === 'purchase' && (raw.price ?? 0) > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('livestock', `${raw.id}_purchase`),
+        type: 'expense',
+        date: raw.date,
+        amount: raw.price!,
+        category: `Livestock Purchase - ${raw.animalType}`,
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'livestock',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+    }
+
     set((s) => ({
       livestockEvents: [raw, ...s.livestockEvents].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -467,6 +630,37 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: now(),
     });
     await setDoc(agriDoc(uid, 'agriLivestockEvents', id), raw);
+
+    if (raw.eventType === 'sale' && (raw.price ?? 0) > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('livestock', `${raw.id}_sale`),
+        type: 'income',
+        date: raw.date,
+        amount: raw.price!,
+        category: `Livestock Sale - ${raw.animalType}`,
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'livestock',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+      await deleteLedgerEntry(uid, getDeterministicLedgerId('livestock', `${raw.id}_purchase`));
+    } else if (raw.eventType === 'purchase' && (raw.price ?? 0) > 0) {
+      await saveLedgerEntry(uid, {
+        id: getDeterministicLedgerId('livestock', `${raw.id}_purchase`),
+        type: 'expense',
+        date: raw.date,
+        amount: raw.price!,
+        category: `Livestock Purchase - ${raw.animalType}`,
+        accountId: raw.accountId,
+        module: 'agriculture',
+        sourceType: 'livestock',
+        sourceId: raw.id,
+        notes: raw.notes,
+      });
+      await deleteLedgerEntry(uid, getDeterministicLedgerId('livestock', `${raw.id}_sale`));
+    }
+
     set((s) => ({
       livestockEvents: s.livestockEvents.map((x) => (x.id === id ? raw : x)),
     }));
@@ -475,6 +669,8 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(agriDoc(uid, 'agriLivestockEvents', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('livestock', `${id}_sale`));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('livestock', `${id}_purchase`));
     set((s) => ({
       livestockEvents: s.livestockEvents.filter((x) => x.id !== id),
     }));
@@ -495,9 +691,23 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: t,
     });
     await setDoc(agriDoc(uid, 'agriProduceSales', raw.id), raw);
+
+    await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('agriculture_sale', raw.id),
+      type: 'income',
+      date: raw.date,
+      amount: raw.totalAmount,
+      category: `Crop Sale - ${raw.produceName}`,
+      accountId: raw.accountId,
+      module: 'agriculture',
+      sourceType: 'agriculture_sale',
+      sourceId: raw.id,
+      notes: raw.notes,
+    });
+
     set((s) => ({
       produceSales: [raw, ...s.produceSales].sort((a, b) =>
-        b.date.localeCompare(a.date),
+        safeCompare(b.date, a.date),
       ),
     }));
     return raw.id;
@@ -514,6 +724,20 @@ export const useAgriStore = create<AgriState>((set, get) => ({
       updatedAt: now(),
     });
     await setDoc(agriDoc(uid, 'agriProduceSales', id), raw);
+
+    await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('agriculture_sale', raw.id),
+      type: 'income',
+      date: raw.date,
+      amount: raw.totalAmount,
+      category: `Crop Sale - ${raw.produceName}`,
+      accountId: raw.accountId,
+      module: 'agriculture',
+      sourceType: 'agriculture_sale',
+      sourceId: raw.id,
+      notes: raw.notes,
+    });
+
     set((s) => ({
       produceSales: s.produceSales.map((x) => (x.id === id ? raw : x)),
     }));
@@ -522,6 +746,7 @@ export const useAgriStore = create<AgriState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(agriDoc(uid, 'agriProduceSales', id));
+    await deleteLedgerEntry(uid, getDeterministicLedgerId('agriculture_sale', id));
     set((s) => ({
       produceSales: s.produceSales.filter((x) => x.id !== id),
     }));

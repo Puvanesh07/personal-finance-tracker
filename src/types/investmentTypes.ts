@@ -601,6 +601,8 @@ export type AttendanceRecord = {
   date: string;
   present: boolean;
   wage: number;
+  wageSnapshot?: number;
+  costCenterId?: string;
   extraWork?: number;
   extraWorkNote?: string;
   note?: string;

@@ -1,17 +1,21 @@
-import { format, isValid, parseISO } from 'date-fns'
-import type { ISODateString } from '../types/investmentTypes'
+import type { ISODateString } from '../types/investmentTypes';
+import {
+  formatBusinessDateLabel,
+  parseBusinessDate,
+  todayBusinessDate,
+} from '../services/dateService';
 
 export function todayISO(): ISODateString {
-  return format(new Date(), 'yyyy-MM-dd')
+  return todayBusinessDate();
 }
 
 export function safeParseISO(date: string): Date | undefined {
-  const d = parseISO(date)
-  return isValid(d) ? d : undefined
+  const parsed = parseBusinessDate(date);
+  return parsed ?? undefined;
 }
 
 export function formatISODateLabel(date: ISODateString) {
-  const d = safeParseISO(date)
-  return d ? format(d, 'dd MMM yyyy') : date
+  return formatBusinessDateLabel(date);
 }
+
 
