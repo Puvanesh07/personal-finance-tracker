@@ -1,8 +1,8 @@
 /**
  * src/services/aiAgentContextBuilder.ts
  *
- * Builds the structured context object expected by the `generateFinanceAI`
- * Firebase callable (functions/lib/ai/financeContext.js).
+ * Builds the structured context object passed to the direct Groq client
+ * (src/services/ai/aiService.ts → groqService.ts).
  *
  * Required shape:
  *   {
@@ -49,7 +49,7 @@ function invPL(inv: Investment): { invested: number; current: number; pl: number
 
 // ─── Main builder ──────────────────────────────────────────────────────────────
 
-/** Build the full context object to pass to `generateFinanceAI`. */
+/** Build the full context object to pass to `generateFinancialAI`. */
 export function buildAgentContext(): Record<string, unknown> {
   const {
     investments,

@@ -8,7 +8,6 @@ import { Timestamp } from 'firebase-admin/firestore';
 // ── Push notifications scheduler ──────────────────────────────────────────────
 export { processScheduledNotifications } from './pushNotifications';
 // ── AI Agent (Groq proxy) ────────────────────────────────────────────────────
-export { generateFinanceAI } from './groqFunction';
 import {
   buildTrialFields,
   createSubscriptionNotification,

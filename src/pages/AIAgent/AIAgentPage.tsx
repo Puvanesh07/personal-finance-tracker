@@ -27,7 +27,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-import { callGroqViaFunction } from '../../services/groqService';
+import { generateFinancialAI } from '../../services/ai/aiService';
 import { buildAgentContext, buildGeneralQuestionContext } from '../../services/aiAgentContextBuilder';
 import { routeQuestion } from '../../services/aiAgentRouter';
 import { fetchAgentResponse, generateFullReport } from '../../services/aiAgentDataFetcher';
@@ -620,7 +620,7 @@ export default function AIAgentPage() {
           return;
         }
         const context = buildAgentContext();
-        const result  = await callGroqViaFunction({ type: 'question', question, context });
+        const result  = await generateFinancialAI({ type: 'question', question, context });
         updateLastAssistant({ id: loadingId, textContent: result.text, source: 'hybrid', loading: false });
         setConvCtx({ lastIntent: route.intent, lastModule: route.intent.split('_')[0] });
         return;
@@ -628,7 +628,7 @@ export default function AIAgentPage() {
 
       // ── General financial education ─────────────────────────────────────
       const context = buildGeneralQuestionContext();
-      const result  = await callGroqViaFunction({ type: 'question', question, context });
+      const result  = await generateFinancialAI({ type: 'question', question, context });
       updateLastAssistant({ id: loadingId, textContent: result.text, source: 'groq', loading: false });
       setConvCtx({ lastModule: 'general' });
 
@@ -808,7 +808,7 @@ export default function AIAgentPage() {
               {/* Legend */}
               <div className='flex flex-wrap items-center gap-4 text-[10px] text-slate-400 dark:text-slate-500 mt-auto pb-2'>
                 <span className='flex items-center gap-1'><FiDatabase className='h-3 w-3 text-emerald-500' />Your data (instant)</span>
-                <span className='flex items-center gap-1'><FiCpu className='h-3 w-3 text-violet-500' />AI via secure Cloud Function</span>
+                <span className='flex items-center gap-1'><FiCpu className='h-3 w-3 text-violet-500' />AI via direct Groq</span>
                 <span className='flex items-center gap-1'><FiInfo className='h-3 w-3 text-sky-500' />App how-to guides</span>
               </div>
             </div>
@@ -884,7 +884,7 @@ export default function AIAgentPage() {
             </button>
           </div>
           <p className='mt-1 text-center text-[10px] text-slate-400 dark:text-slate-500'>
-            Data answers from Firebase · AI via secure server · Not personalized investment advice ·{' '}
+            Data answers from Firebase · AI via Groq · Not personalized investment advice ·{' '}
             <Link to='/settings' className='text-violet-500 hover:underline'>Settings</Link>
           </p>
         </div>
