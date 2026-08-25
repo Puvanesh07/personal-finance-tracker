@@ -14,16 +14,8 @@ import {
 } from 'date-fns';
 import type {
   Account,
-  AgriExpense,
-  AgriExpenseCategory,
-  AttendanceEmployee,
-  AttendanceRecord,
-  AttendanceTransaction,
   CashflowEntry,
-  CoconutRecord,
   Credential,
-  CropCycle,
-  Field,
   Goal,
   GoalContribution,
   InsurancePayment,
@@ -32,11 +24,7 @@ import type {
   LendingBorrower,
   LendingTransaction,
   Liability,
-  LivestockEvent,
-  MilkRecord,
   PendingPayment,
-  ProduceSaleLot,
-  SalaryRecord,
   TrackedPayment,
 } from '../types/investmentTypes';
 import type { LedgerEntry } from '../types/ledgerTypes';
@@ -197,10 +185,10 @@ function generateTrackedPayments(uid: string): TrackedPayment[] {
 function generatePendingPayments(uid: string): PendingPayment[] {
   const today = todayStr();
   return [
-    { id: genId('pp'), buyerName: 'Rajesh Kumar', buyerPhone: '9876543210', itemDescription: 'Tomato Sale - Harvest batch 3', amount: 25000, saleDate: past(5), expectedPaymentDate: future(5), status: 'pending', createdAt: past(5), updatedAt: today, userId: uid },
-    { id: genId('pp'), buyerName: 'Vijay Exports', buyerPhone: '8765432109', itemDescription: 'Coconut Delivery - 500 kg', amount: 18000, saleDate: past(3), expectedPaymentDate: future(17), status: 'pending', createdAt: past(3), updatedAt: today, userId: uid },
-    { id: genId('pp'), buyerName: 'Mohan Dairy', buyerPhone: '7654321098', itemDescription: 'Milk Credit Payment - July', amount: 42000, saleDate: past(30), expectedPaymentDate: past(5), status: 'pending', createdAt: past(30), updatedAt: today, userId: uid },
-    { id: genId('pp'), buyerName: 'Suresh Agricoop', buyerPhone: '6543210987', itemDescription: 'Paddy Sale - Harvest', amount: 65000, saleDate: past(15), expectedPaymentDate: past(3), status: 'received', receivedAt: past(2), createdAt: past(15), updatedAt: today, userId: uid },
+    { id: genId('pp'), buyerName: 'Rajesh Kumar', buyerPhone: '9876543210', itemDescription: 'Consulting Services', amount: 25000, saleDate: past(5), expectedPaymentDate: future(5), status: 'pending', createdAt: past(5), updatedAt: today, userId: uid },
+    { id: genId('pp'), buyerName: 'Vijay Exports', buyerPhone: '8765432109', itemDescription: 'Product Delivery - 500 units', amount: 18000, saleDate: past(3), expectedPaymentDate: future(17), status: 'pending', createdAt: past(3), updatedAt: today, userId: uid },
+    { id: genId('pp'), buyerName: 'Mohan Dairy', buyerPhone: '7654321098', itemDescription: 'Service Payment - July', amount: 42000, saleDate: past(30), expectedPaymentDate: past(5), status: 'pending', createdAt: past(30), updatedAt: today, userId: uid },
+    { id: genId('pp'), buyerName: 'Suresh Kumar', buyerPhone: '6543210987', itemDescription: 'Wholesale Order', amount: 65000, saleDate: past(15), expectedPaymentDate: past(3), status: 'received', receivedAt: past(2), createdAt: past(15), updatedAt: today, userId: uid },
     { id: genId('pp'), buyerName: 'Priya Traders', buyerPhone: '5432109876', itemDescription: 'Pepper Sale - Premium Quality', amount: 35000, saleDate: past(7), expectedPaymentDate: future(23), status: 'pending', createdAt: past(7), updatedAt: today, userId: uid },
   ];
 }
@@ -220,7 +208,7 @@ function generateCashflows(): CashflowEntry[] {
       type: isIncome ? 'income' : 'expense',
       date: d,
       category: isIncome
-        ? ['Salary', 'Dividend', 'Interest', 'Agriculture Sale', 'Rental', 'Bonus'][Math.floor(Math.random() * 6)]
+        ? ['Salary', 'Dividend', 'Interest', 'Rental', 'Bonus'][Math.floor(Math.random() * 5)]
         : ['Rent', 'Groceries', 'Utilities', 'Insurance', 'EMI', 'Fuel', 'Education', 'Healthcare', 'Entertainment', 'Shopping'][Math.floor(Math.random() * 10)],
       amount,
       notes: isIncome ? 'Auto-synced' : undefined,
@@ -328,170 +316,6 @@ function generateCredentials(uid: string): Credential[] {
   ];
 }
 
-function generateFields(): Omit<Field, 'id' | 'createdAt' | 'updatedAt' | 'userId'>[] {
-  return [
-    { name: 'Tomato Field - North', areAcres: 2.5, location: 'North Boundary', soilType: 'Clay Loam' },
-    { name: 'Coconut Block - East', areAcres: 1.8, location: 'Eastern Edge', soilType: 'Sandy Loam' },
-    { name: 'Dairy Unit', areAcres: 0.5, location: 'Near House', soilType: 'Red Soil' },
-    { name: 'Sugarcane Field', areAcres: 3.0, location: 'West Side', soilType: 'Alluvial' },
-    { name: 'Vegetable Garden', areAcres: 0.3, location: 'Backyard', soilType: 'Loamy' },
-  ];
-}
-
-/** Deterministic IDs shared across all agri generators so cross-references work. */
-const FLD = { tomato: 'fld_tomato', coconut: 'fld_coconut', dairy: 'fld_dairy', sugarcane: 'fld_sugarcane', veg: 'fld_veg' };
-const CRP = { tomato1: 'crp_tomato_summer', tomato2: 'crp_tomato_monsoon', sugarcane: 'crp_sugarcane', fodder: 'crp_fodder' };
-
-function generateCropCycles(uid: string): CropCycle[] {
-  const today = todayStr();
-  return [
-    { id: CRP.tomato1, fieldId: FLD.tomato, fieldName: 'Tomato Field - North', cropName: 'Tomato', season: 'summer', startDate: pastMonth(3), expectedHarvestDate: past(10), actualHarvestDate: past(8), investedAmount: 45000, harvestIncome: 120000, quantityKg: 5000, createdAt: past(90), updatedAt: today, userId: uid },
-    { id: CRP.tomato2, fieldId: FLD.tomato, fieldName: 'Tomato Field - North', cropName: 'Tomato', season: 'monsoon', startDate: past(15), expectedHarvestDate: future(75), actualHarvestDate: undefined, investedAmount: 38000, harvestIncome: 0, quantityKg: 0, createdAt: past(15), updatedAt: today, userId: uid },
-    { id: CRP.sugarcane, fieldId: FLD.sugarcane, fieldName: 'Sugarcane Field', cropName: 'Sugarcane', season: 'winter', startDate: pastMonth(6), expectedHarvestDate: future(120), actualHarvestDate: undefined, investedAmount: 60000, harvestIncome: 0, quantityKg: 0, createdAt: past(180), updatedAt: today, userId: uid },
-    { id: CRP.fodder, fieldId: FLD.dairy, fieldName: 'Dairy Unit', cropName: 'Fodder', season: 'summer', startDate: pastMonth(2), expectedHarvestDate: past(30), actualHarvestDate: past(25), investedAmount: 8000, harvestIncome: 0, quantityKg: 2000, createdAt: past(60), updatedAt: today, userId: uid },
-  ];
-}
-
-function generateAgriExpenses(uid: string): AgriExpense[] {
-  const today = todayStr();
-  const cat: AgriExpenseCategory[] = ['seeds', 'fertilizer', 'pesticides', 'labor', 'irrigation', 'tractor_fuel', 'equipment_repair', 'feed', 'veterinary', 'medicine', 'shed', 'other'];
-  const cropIds = [CRP.tomato1, CRP.tomato2, CRP.sugarcane, CRP.fodder];
-  const cropNames = ['Tomato', 'Tomato', 'Sugarcane', 'Fodder'];
-  const amounts = [500, 2000, 3500, 8000, 12000, 15000, 25000, 45000, 60000];
-  const items: AgriExpense[] = [];
-  for (let i = 0; i < 40; i++) {
-    const d = past(Math.floor(Math.random() * 180));
-    const j = i % cropIds.length;
-    items.push({
-      id: genId('aex'), cropCycleId: cropIds[j], cropName: cropNames[j],
-      category: cat[i % cat.length], amount: amounts[Math.floor(Math.random() * amounts.length)],
-      date: d, createdAt: d, updatedAt: today, userId: uid,
-    });
-  }
-  return items;
-}
-
-function generateMilkRecords(uid: string): MilkRecord[] {
-  const today = todayStr();
-  const items: MilkRecord[] = [];
-  for (let i = 0; i < 30; i++) {
-    const d = past(Math.floor(Math.random() * 60));
-    items.push({
-      id: genId('mlk'), date: d, session: i % 2 === 0 ? 'morning' : 'evening',
-      liters: [10, 12, 15, 18, 20, 22][Math.floor(Math.random() * 6)],
-      pricePerLiter: 55, soldTo: 'Mohan Dairy', createdAt: d, updatedAt: today, userId: uid,
-    });
-  }
-  return items;
-}
-
-function generateCoconutRecords(uid: string): CoconutRecord[] {
-  const today = todayStr();
-  return [
-    { id: genId('coc'), date: past(10), numberOfTrees: 80, totalCoconuts: 1200, sellMethod: 'by_count', pricePerCoconut: 25, harvestIncome: 30000, investmentAmount: 5000, durationMonths: 12, createdAt: past(30), updatedAt: today, userId: uid },
-    { id: genId('coc'), date: past(40), numberOfTrees: 80, totalCoconuts: 1500, sellMethod: 'by_count', pricePerCoconut: 24, harvestIncome: 36000, investmentAmount: 4000, durationMonths: 12, createdAt: past(60), updatedAt: today, userId: uid },
-    { id: genId('coc'), date: past(70), numberOfTrees: 80, totalCoconuts: 1800, sellMethod: 'by_count', pricePerCoconut: 26, harvestIncome: 46800, investmentAmount: 6000, durationMonths: 12, createdAt: past(90), updatedAt: today, userId: uid },
-  ];
-}
-
-function generateLivestockEvents(uid: string): LivestockEvent[] {
-  const today = todayStr();
-  return [
-    { id: genId('lve'), animalType: 'cow', eventType: 'existing', count: 5, price: 120000, date: past(365), createdAt: past(365), updatedAt: today, userId: uid },
-    { id: genId('lve'), animalType: 'cow', eventType: 'purchase', count: 2, price: 90000, date: past(60), createdAt: past(60), updatedAt: today, userId: uid },
-    { id: genId('lve'), animalType: 'buffalo', eventType: 'purchase', count: 1, price: 75000, date: past(90), createdAt: past(90), updatedAt: today, userId: uid },
-    { id: genId('lve'), animalType: 'cow', eventType: 'sale', count: 1, price: 95000, date: past(15), createdAt: past(15), updatedAt: today, userId: uid },
-    { id: genId('lve'), animalType: 'cow', eventType: 'birth', count: 1, price: 0, date: past(20), createdAt: past(20), updatedAt: today, userId: uid },
-  ];
-}
-
-function generateProduceSales(uid: string): ProduceSaleLot[] {
-  const today = todayStr();
-  return [
-    { id: genId('prd'), produceName: 'Tomato', category: 'Vegetable', unit: 'kg', quantity: 500, pricePerUnit: 24, totalAmount: 12000, date: past(8), createdAt: past(8), updatedAt: today, userId: uid },
-    { id: genId('prd'), produceName: 'Tomato', category: 'Vegetable', unit: 'kg', quantity: 800, pricePerUnit: 22, totalAmount: 17600, date: past(15), createdAt: past(15), updatedAt: today, userId: uid },
-    { id: genId('prd'), produceName: 'Green Chilli', category: 'Vegetable', unit: 'kg', quantity: 200, pricePerUnit: 80, totalAmount: 16000, date: past(20), createdAt: past(20), updatedAt: today, userId: uid },
-    { id: genId('prd'), produceName: 'Sugarcane', category: 'Crop', unit: 'quintal', quantity: 10, pricePerUnit: 3500, totalAmount: 35000, date: past(25), createdAt: past(25), updatedAt: today, userId: uid },
-  ];
-}
-
-/** Shared deterministic employee IDs used by attendance generators. */
-const EMP = { ravi: 'emp_ravi', suresh: 'emp_suresh', karthik: 'emp_karthik', mohan: 'emp_mohan', ganesh: 'emp_ganesh' };
-
-function generateEmployees(): Omit<AttendanceEmployee, 'id' | 'createdAt' | 'updatedAt' | 'userId'>[] {
-  return [
-    { name: 'Ravi', phone: '9876543210', dailyWage: 700, notes: 'Permanent worker', plantationLabel: 'Tomato Field' },
-    { name: 'Suresh', phone: '8765432109', dailyWage: 650, notes: 'Permanent worker', plantationLabel: 'Coconut Block' },
-    { name: 'Karthik', phone: '7654321098', dailyWage: 800, notes: 'Skilled labor', plantationLabel: 'Dairy Unit' },
-    { name: 'Mohan', phone: '6543210987', dailyWage: 600, notes: 'Part-time', plantationLabel: 'Sugarcane Field' },
-    { name: 'Ganesh', phone: '5432109876', dailyWage: 750, notes: 'Supervisor', plantationLabel: 'Tomato Field' },
-  ];
-}
-
-function generateAttendanceRecords(uid: string): AttendanceRecord[] {
-  const today = todayStr();
-  const records: AttendanceRecord[] = [];
-  const employees = generateEmployees();
-  for (const emp of employees) {
-    for (let i = 0; i < 60; i++) {
-      const d = subDays(now(), i);
-      if (d.getDay() === 0) continue; // skip Sundays
-      const present = Math.random() > 0.1;
-      const wageSnapshot = emp.dailyWage;
-      records.push({
-        id: genId('att'), employeeId: EMP[emp.name.toLowerCase() as keyof typeof EMP], date: format(d, 'yyyy-MM-dd'),
-        present, wage: present ? wageSnapshot : 0, wageSnapshot,
-        userId: uid, createdAt: format(d, 'yyyy-MM-dd'), updatedAt: today,
-      });
-    }
-  }
-  return records;
-}
-
-function generateAttendanceTransactions(uid: string): AttendanceTransaction[] {
-  const today = todayStr();
-  const items: AttendanceTransaction[] = [];
-  for (let i = 0; i < 20; i++) {
-    const empKeys = ['ravi', 'suresh', 'karthik', 'mohan', 'ganesh'];
-    items.push({
-      id: genId('txn'), employeeId: EMP[empKeys[i % 5] as keyof typeof EMP],
-      type: i % 3 === 0 ? 'advance' : 'deduction',
-      amount: [2000, 3000, 5000, 1500, 4000][i % 5],
-      date: past(Math.floor(Math.random() * 60)),
-      createdAt: past(Math.floor(Math.random() * 60)), updatedAt: today, userId: uid,
-    });
-  }
-  return items;
-}
-
-function generateSalaryRecords(uid: string): SalaryRecord[] {
-  const today = todayStr();
-  const items: SalaryRecord[] = [];
-  const empKeys = ['ravi', 'suresh', 'karthik', 'mohan', 'ganesh'] as const;
-  for (let m = 0; m < 3; m++) {
-    const month = format(subMonths(now(), m), 'yyyy-MM');
-    for (let e = 0; e < 5; e++) {
-      const dailyWage = [700, 650, 800, 600, 750][e];
-      const daysWorked = 22 - Math.floor(Math.random() * 3);
-      const baseSalary = dailyWage * daysWorked;
-      const extraWork = Math.floor(Math.random() * 3000);
-      const advance = [0, 2000, 3000, 0, 1500][e];
-      const deductions = [0, 0, 500, 0, 0][e];
-      const totalSalary = baseSalary + extraWork;
-      const finalSalary = totalSalary - advance - deductions;
-      const paid = m === 0;
-      const paidAmount = paid ? finalSalary : 0;
-      items.push({
-        id: genId('sal'), employeeId: EMP[empKeys[e] as keyof typeof EMP], month,
-        daysWorked, baseSalary, extraWork, totalSalary, advance,
-        deductions, finalSalary, paidAmount, paymentStatus: paid ? 'paid' : 'unpaid',
-        createdAt: format(subMonths(now(), m), 'yyyy-MM-dd'), updatedAt: today, userId: uid,
-      });
-    }
-  }
-  return items;
-}
-
 // ─── Firestore Writer ─────────────────────────────────────────────────────────
 
 const userDoc = (uid: string, col: string, id: string) => doc(db, 'users', uid, col, id);
@@ -591,70 +415,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   await batchWrite(uid, 'credentials', credentials);
   counts['credentials'] = credentials.length;
 
-  // 14. Agriculture - Fields (use deterministic IDs)
-  const fields = generateFields().slice(0, 4);
-  const fieldIds = [FLD.tomato, FLD.coconut, FLD.dairy, FLD.sugarcane];
-  const fieldDocs = fields.map((f, i) => ({
-    id: fieldIds[i], ...f, createdAt: past(365), updatedAt: today, userId: uid,
-  }));
-  await batchWrite(uid, 'agriFields', fieldDocs);
-  counts['agriFields'] = fieldDocs.length;
-
-  // 15. Agriculture - Crop Cycles (no slice so all cross-references stay valid)
-  const cropCycles = generateCropCycles(uid);
-  await batchWrite(uid, 'agriCropCycles', cropCycles);
-  counts['agriCropCycles'] = cropCycles.length;
-
-  // 16. Agriculture - Expenses
-  const agriExpenses = generateAgriExpenses(uid).slice(0, 5);
-  await batchWrite(uid, 'agriExpenses', agriExpenses);
-  counts['agriExpenses'] = agriExpenses.length;
-
-  // 17. Agriculture - Milk Records
-  const milkRecords = generateMilkRecords(uid).slice(0, 4);
-  await batchWrite(uid, 'agriMilkRecords', milkRecords);
-  counts['agriMilkRecords'] = milkRecords.length;
-
-  // 18. Agriculture - Coconut Records
-  const coconutRecords = generateCoconutRecords(uid).slice(0, 1);
-  await batchWrite(uid, 'agriCoconut', coconutRecords);
-  counts['agriCoconut'] = coconutRecords.length;
-
-  // 19. Agriculture - Livestock Events
-  const livestockEvents = generateLivestockEvents(uid).slice(0, 2);
-  await batchWrite(uid, 'agriLivestockEvents', livestockEvents);
-  counts['agriLivestockEvents'] = livestockEvents.length;
-
-  // 20. Agriculture - Produce Sales
-  const produceSales = generateProduceSales(uid).slice(0, 2);
-  await batchWrite(uid, 'agriProduceSales', produceSales);
-  counts['agriProduceSales'] = produceSales.length;
-
-  // 21. Attendance - Employees (use deterministic IDs so records/transactions/salary can reference them)
-  const employees = generateEmployees();
-  const empKeys = ['ravi', 'suresh', 'karthik', 'mohan', 'ganesh'] as const;
-  const empDocs = employees.map((e, i) => ({
-    id: EMP[empKeys[i]], ...e, createdAt: past(365), updatedAt: today, userId: uid,
-  }));
-  await batchWrite(uid, 'attEmployees', empDocs);
-  counts['attEmployees'] = empDocs.length;
-
-  // 22. Attendance - Records
-  const attRecords = generateAttendanceRecords(uid).slice(0, 10);
-  await batchWrite(uid, 'attRecords', attRecords);
-  counts['attRecords'] = attRecords.length;
-
-  // 23. Attendance - Transactions
-  const attTransactions = generateAttendanceTransactions(uid).slice(0, 3);
-  await batchWrite(uid, 'attTransactions', attTransactions);
-  counts['attTransactions'] = attTransactions.length;
-
-  // 24. Attendance - Salary Records
-  const salaryRecords = generateSalaryRecords(uid).slice(0, 3);
-  await batchWrite(uid, 'attSalary', salaryRecords);
-  counts['attSalary'] = salaryRecords.length;
-
-  // 25. Portfolio Snapshots
+  // 14. Portfolio Snapshots
   const snapshots = [];
   for (let i = 0; i < 5; i++) {
     snapshots.push({
@@ -667,7 +428,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   await batchWrite(uid, 'snapshots', snapshots);
   counts['snapshots'] = snapshots.length;
 
-  // 26. Net Worth Snapshots
+  // 15. Net Worth Snapshots
   const nwSnapshots = [];
   for (let i = 0; i < 3; i++) {
     nwSnapshots.push({
@@ -682,7 +443,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   await batchWrite(uid, 'networthSnapshots', nwSnapshots);
   counts['networthSnapshots'] = nwSnapshots.length;
 
-  // 27. Ledger Entries
+  // 16. Ledger Entries
   const ledgerEntries: LedgerEntry[] = [];
 
   for (const cf of cashflowDocs.slice(0, 7)) {
@@ -691,31 +452,6 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
       category: cf.category, accountId: cf.accountId, module: 'personal',
       sourceType: 'manual', sourceId: cf.id, userId: uid,
       createdAt: cf.createdAt, updatedAt: today,
-    });
-  }
-
-  for (const ae of agriExpenses.slice(0, 3)) {
-    ledgerEntries.push({
-      id: `ledger_agriculture_expense_${ae.id}`, type: 'expense', date: ae.date, amount: ae.amount,
-      category: `Agri ${ae.category}`, module: 'agriculture', sourceType: 'agriculture_expense',
-      sourceId: ae.id, userId: uid, createdAt: ae.createdAt, updatedAt: today,
-    });
-  }
-
-  for (const ps of produceSales.slice(0, 1)) {
-    ledgerEntries.push({
-      id: `ledger_agriculture_sale_${ps.id}`, type: 'income', date: ps.date, amount: ps.totalAmount,
-      category: `Crop Sale - ${ps.produceName}`, module: 'agriculture', sourceType: 'agriculture_sale',
-      sourceId: ps.id, userId: uid, createdAt: ps.createdAt, updatedAt: today,
-    });
-  }
-
-  for (const mr of milkRecords.slice(0, 1)) {
-    ledgerEntries.push({
-      id: `ledger_dairy_sale_${mr.id}`, type: 'income', date: mr.date,
-      amount: mr.liters * mr.pricePerLiter, category: 'Dairy Milk Sale',
-      module: 'agriculture', sourceType: 'dairy_sale', sourceId: mr.id,
-      userId: uid, createdAt: mr.createdAt, updatedAt: today,
     });
   }
 
@@ -743,20 +479,9 @@ export function getDummyDataPreview(): Record<string, number> {
   counts['lendingBorrowers'] = 2;
   counts['lendingTransactions'] = 3;
   counts['credentials'] = 2;
-  counts['agriFields'] = 4;
-  counts['agriCropCycles'] = 4;
-  counts['agriExpenses'] = 5;
-  counts['agriMilkRecords'] = 4;
-  counts['agriCoconut'] = 1;
-  counts['agriLivestockEvents'] = 2;
-  counts['agriProduceSales'] = 2;
-  counts['attEmployees'] = 5;
-  counts['attRecords'] = 10;
-  counts['attTransactions'] = 3;
-  counts['attSalary'] = 3;
   counts['snapshots'] = 5;
   counts['networthSnapshots'] = 3;
-  counts['ledgerEntries'] = 17;
+  counts['ledgerEntries'] = 7;
   counts['grandTotal'] = Object.values(counts).reduce((a, b) => a + b, 0);
   return counts;
 }

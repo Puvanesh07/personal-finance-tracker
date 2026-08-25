@@ -9,8 +9,6 @@ import { auth } from '../../services/firebase';
 import { OWNER_EMAIL } from '../../utils/subscriptionUtils';
 import { loadDummyData, getDummyDataPreview } from '../../services/dummyDataService';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { useAgriStore } from '../../store/agricultureStore';
-import { useAttendanceStore } from '../../store/attendanceStore';
 import {
   FiCheckCircle, FiLoader, FiAlertCircle, FiDatabase, FiRefreshCw,
 } from 'react-icons/fi';
@@ -25,9 +23,8 @@ export function DummyDataLoader() {
   const [progress, setProgress] = useState<string>('');
   const [result, setResult] = useState<{ success: boolean; message: string; counts: Record<string, number> } | null>(null);
 
-  const hydrateAll = usePortfolioStore((s) => s.hydrate);
-  const hydrateAgri = useAgriStore((s) => s.hydrate);
-  const hydrateAttendance = useAttendanceStore((s) => s.hydrate);
+   const hydrateAll = usePortfolioStore((s) => s.hydrate);
+
 
   const preview = getDummyDataPreview();
 
@@ -44,16 +41,15 @@ export function DummyDataLoader() {
     try {
       setProgress('Generating accounts & investments...');
       setProgress('Generating liabilities & payments...');
-      setProgress('Generating agriculture & attendance data...');
+      setProgress('Generating data...');
       setProgress('Writing to Firestore...');
 
       const res = await loadDummyData(uid);
       setResult(res);
 
       setProgress('Refreshing local stores...');
-      await hydrateAll(uid, { force: true });
-      await hydrateAgri(uid, { force: true });
-      await hydrateAttendance(uid, { force: true });
+       await hydrateAll(uid, { force: true });
+
 
       toast.success(res.message);
     } catch (err) {

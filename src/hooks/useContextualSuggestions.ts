@@ -10,7 +10,6 @@
 
 import { useMemo } from 'react';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
 
 export interface Suggestion {
   emoji: string;
@@ -32,7 +31,6 @@ export function useContextualSuggestions(): Suggestion[] {
     accounts,
     lendingBorrowers,
   } = usePortfolioStore.getState();
-  const { cropCycles } = useAgriStore.getState();
 
   return useMemo(() => {
     const suggestions: Suggestion[] = [];
@@ -108,17 +106,6 @@ export function useContextualSuggestions(): Suggestion[] {
       suggestions.push({ emoji: '🛡️', label: 'Insurance coverage', question: 'What is my total insurance coverage?' });
     }
 
-    // ── Agriculture / Lending fallbacks ───────────────────────────────────
-    if (suggestions.length < 6) {
-      if (cropCycles.length) {
-        suggestions.push({ emoji: '🌾', label: 'Best crop', question: 'Which of my crops is generating the highest profit?' });
-      } else if (lendingBorrowers.filter((b) => b.status === 'active').length) {
-        suggestions.push({ emoji: '🤝', label: 'Outstanding lending', question: 'How much of my lending money is still outstanding?' });
-      } else {
-        suggestions.push({ emoji: '🧠', label: 'Financial overview', question: 'Give me an overview of my current financial situation' });
-      }
-    }
-
     // ── General finance if still short ────────────────────────────────────
     const generals: Suggestion[] = [
       { emoji: '💡', label: 'What is P&L?',             question: 'What is unrealized P&L?' },
@@ -137,6 +124,6 @@ export function useContextualSuggestions(): Suggestion[] {
   }, [
     investments, liabilities, cashflows, goals,
     trackedPayments, insurancePolicies, accounts,
-    lendingBorrowers, cropCycles,
+    lendingBorrowers,
   ]);
 }

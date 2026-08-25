@@ -25,8 +25,6 @@ import { Modal } from '../ui/Modal';
 import { auth } from '../../services/firebase';
 import { deleteUser } from 'firebase/auth';
 import toast from 'react-hot-toast';
-import { useAgriStore } from '../../store/agricultureStore';
-import { useAttendanceStore } from '../../store/attendanceStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useSubscription } from '../../context/SubscriptionContext';
 
@@ -54,11 +52,8 @@ export function ExportImport() {
   const navigate = useNavigate();
   const state = usePortfolioStore();
   const { hydrate, uid } = state;
-  const { hasPremiumAccess } = useSubscription();
-  const agriState = useAgriStore();
-  const agriHydrate = agriState.hydrate;
-  const attState = useAttendanceStore();
-  const attHydrate = attState.hydrate;
+   const { hasPremiumAccess } = useSubscription();
+
 
   const importRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,20 +61,7 @@ export function ExportImport() {
   const [previewData, setPreviewData] = useState<Record<string, number>>({});
   const [pendingFile, setPendingFile] = useState<string | null>(null);
 
-  const agriRecordsCount =
-    (agriState.fields?.length ?? 0) +
-    (agriState.cropCycles?.length ?? 0) +
-    (agriState.agriExpenses?.length ?? 0) +
-    (agriState.livestockEvents?.length ?? 0) +
-    (agriState.milkRecords?.length ?? 0) +
-    (agriState.coconutRecords?.length ?? 0) +
-    (agriState.produceSales?.length ?? 0);
 
-  const attRecordsCount =
-    (attState.employees?.length ?? 0) +
-    (attState.attendanceRecords?.length ?? 0) +
-    (attState.transactions?.length ?? 0) +
-    (attState.salaryRecords?.length ?? 0);
 
   const exportSummary: Record<string, number> = {
     Investments: state.investments?.length ?? 0,
@@ -96,11 +78,9 @@ export function ExportImport() {
     'Insurance Payments': (state as any).insurancePayments?.length ?? 0,
     'SIP Plans': state.sipPlans?.length ?? 0,
     'Lending Records':
-      (state.lendingBorrowers?.length ?? 0) +
-      (state.lendingTransactions?.length ?? 0),
-    'Agri Records': agriRecordsCount,
-    'Attendance Records': attRecordsCount,
-  };
+       (state.lendingBorrowers?.length ?? 0) +
+       (state.lendingTransactions?.length ?? 0),
+   };
 
   const totalRecords = Object.values(exportSummary).reduce((s, n) => s + n, 0);
 
@@ -113,12 +93,7 @@ export function ExportImport() {
       toast.error('Nothing to export — add some data first.');
       return;
     }
-    exportAllSectionsAsCSV(state, agriState, {
-      employees: attState.employees,
-      attendanceRecords: attState.attendanceRecords,
-      transactions: attState.transactions,
-      salaryRecords: attState.salaryRecords,
-    });
+    exportAllSectionsAsCSV(state);
     toast.success('All sections exported as separate CSV files.');
   };
 
@@ -133,12 +108,8 @@ export function ExportImport() {
     }
     setBusy(true);
     try {
-      await exportAllCSVAsZip(state, agriState, {
-        employees: attState.employees,
-        attendanceRecords: attState.attendanceRecords,
-        transactions: attState.transactions,
-        salaryRecords: attState.salaryRecords,
-      });
+      await exportAllCSVAsZip(state);
+
       toast.success('All data exported as a single ZIP file.');
     } catch (err: any) {
       toast.error(err.message || 'ZIP export failed.');
@@ -175,19 +146,6 @@ export function ExportImport() {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
-      const importedAgriCount =
-        (parsed.agriFields?.length ?? 0) +
-        (parsed.agriCropCycles?.length ?? 0) +
-        (parsed.agriExpenses?.length ?? 0) +
-        (parsed.agriLivestockEvents?.length ?? 0) +
-        (parsed.agriMilkRecords?.length ?? 0) +
-        (parsed.agriCoconut?.length ?? 0) +
-        (parsed.agriProduceSales?.length ?? 0);
-      const importedAttCount =
-        (parsed.attEmployees?.length ?? 0) +
-        (parsed.attRecords?.length ?? 0) +
-        (parsed.attTransactions?.length ?? 0) +
-        (parsed.attSalary?.length ?? 0);
 
       const counts: Record<string, number> = {
         Investments: parsed.investments?.length ?? 0,
@@ -206,8 +164,6 @@ export function ExportImport() {
         'Lending Records':
           (parsed.lendingBorrowers?.length ?? 0) +
           (parsed.lendingTransactions?.length ?? 0),
-        'Agri Records': importedAgriCount,
-        'Attendance Records': importedAttCount,
       };
 
       setPreviewData(counts);
@@ -231,8 +187,6 @@ export function ExportImport() {
       // than leaving the page stuck on a loading skeleton.
       await Promise.all([
         hydrate(uid, { force: true }),
-        agriHydrate(uid, { force: true }),
-        attHydrate(uid, { force: true }),
       ]);
       setPreviewOpen(false);
       setPendingFile(null);
@@ -463,10 +417,7 @@ export function ExportImport() {
 export function DangerZone() {
   const state = usePortfolioStore();
   const { clearAllData } = state;
-  const agriState = useAgriStore();
-  const agriClear = agriState.clearAll;
-  const attState = useAttendanceStore();
-  const attClear = attState.clearAll;
+
 
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -479,8 +430,6 @@ export function DangerZone() {
     setBusy(true);
     try {
       await clearAllData();
-      agriClear();
-      attClear();
       try {
         localStorage.removeItem(SIP_STORAGE_KEY);
       } catch {}
@@ -499,8 +448,6 @@ export function DangerZone() {
     setBusy(true);
     try {
       await clearAllData();
-      agriClear();
-      attClear();
       try {
         localStorage.removeItem(SIP_STORAGE_KEY);
       } catch {}

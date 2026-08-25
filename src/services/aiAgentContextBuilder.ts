@@ -15,7 +15,6 @@
  *     insurance?:   [...],
  *     accounts?:    [...],
  *     lending?:     { ... },
- *     agriculture?: { ... },
  *   }
  *
  * The server-side `compactFinanceContext` selects which modules to send to
@@ -25,7 +24,6 @@
 
 import { calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
 import type { Investment, StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,8 +64,6 @@ export function buildAgentContext(): Record<string, unknown> {
     lendingTransactions,
     essentials,
   } = usePortfolioStore.getState();
-
-  const { fields, cropCycles, agriExpenses, produceSales } = useAgriStore.getState();
 
   const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
   const avgIncome  = monthlyAvg(cashflows, 'income');
@@ -255,16 +251,6 @@ export function buildAgentContext(): Record<string, unknown> {
     }),
   } : null;
 
-  // ── Agriculture ──────────────────────────────────────────────────────────
-  const agriCtx = (fields.length + cropCycles.length) > 0 ? {
-    fieldCount:     fields.length,
-    cropCycleCount: cropCycles.length,
-    totalHarvestIncome: cropCycles.reduce((a, c) => a + (c.harvestIncome ?? 0), 0),
-    totalInvested:      cropCycles.reduce((a, c) => a + (c.investedAmount ?? 0), 0),
-    totalExpenses:      agriExpenses.reduce((a, e) => a + e.amount, 0),
-    totalSales:         produceSales.reduce((a, s) => a + ((s as unknown as { totalAmount?: number }).totalAmount ?? 0), 0),
-  } : null;
-
   // ── Emergency fund ───────────────────────────────────────────────────────
   const emergencyFundCtx = (essentials.emergencyFundTarget || essentials.emergencyFundCurrent)
     ? {
@@ -288,8 +274,6 @@ export function buildAgentContext(): Record<string, unknown> {
     ...(accountsCtx     ? { accounts:      accountsCtx     } : {}),
     ...(emergencyFundCtx? { emergencyFund: emergencyFundCtx} : {}),
     lending:     lendingCtx  ?? null,
-    agriculture: agriCtx     ?? null,
-    labour:      null, // attendance/labour module not yet wired here
   };
 }
 
@@ -307,3 +291,4 @@ export function buildGeneralQuestionContext(): Record<string, unknown> {
     },
   };
 }
+

@@ -210,9 +210,7 @@ export function trialLimitMessage(feature: TrialFeatureKey): string {
     liabilities: 'liability',
     credentials: 'credential',
     accounts: 'account',
-    agriculture: 'agriculture record',
     goals: 'goal',
-    attendance: 'employee',
   };
   return `Trial limit reached: ${limit} ${labels[feature]}${limit === 1 ? '' : 's'} allowed during the free trial. Upgrade to add more.`;
 }

@@ -41,7 +41,6 @@ const MODULE_ICONS = {
   goal:         '/icons/android-chrome-192x192.png',
   investment:   '/icons/android-chrome-192x192.png',
   sip:          '/icons/android-chrome-192x192.png',
-  agriculture:  '/icons/android-chrome-192x192.png',
   reminder:     '/icons/android-chrome-192x192.png',
   subscription: '/icons/android-chrome-192x192.png',
   default:      '/icons/android-chrome-192x192.png',

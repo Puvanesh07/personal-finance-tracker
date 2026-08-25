@@ -16,7 +16,6 @@
 import { formatINR, formatNumber } from '../utils/format';
 import { calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
 import type { StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
 import type {
   AgentResponse,
@@ -843,83 +842,6 @@ export function getAccountsSummary(): AgentResponse {
   };
 }
 
-// ─── AGRICULTURE ─────────────────────────────────────────────────────────────
-
-export function getAgriculture(): AgentResponse {
-  const { fields, cropCycles, agriExpenses, produceSales } = useAgriStore.getState();
-  if (!fields.length && !cropCycles.length) return emptyResponse('No agriculture data found.', 'Add records in the Agriculture module.');
-
-  const totalHarvest  = cropCycles.reduce((a, c) => a + (c.harvestIncome ?? 0), 0);
-  const totalInvested = cropCycles.reduce((a, c) => a + (c.investedAmount ?? 0), 0);
-  const totalExpenses = agriExpenses.reduce((a, e) => a + e.amount, 0);
-  const totalSales    = produceSales.reduce((a, s) => a + ((s as unknown as { totalAmount?: number }).totalAmount ?? 0), 0);
-  const netProfit     = totalHarvest + totalSales - totalInvested - totalExpenses;
-
-  return {
-    kind: 'stat_grid',
-    title: 'Agriculture Overview',
-    emoji: '🌾',
-    stats: [
-      { label: 'Fields',          value: `${fields.length}` },
-      { label: 'Crop Cycles',     value: `${cropCycles.length}` },
-      { label: 'Harvest Income',  value: formatINR(totalHarvest),  severity: 'good' },
-      { label: 'Produce Sales',   value: formatINR(totalSales),    severity: 'good' },
-      { label: 'Total Invested',  value: formatINR(totalInvested), severity: 'neutral' },
-      { label: 'Other Expenses',  value: formatINR(totalExpenses), severity: 'neutral' },
-      { label: 'Net Profit',      value: `${plSign(netProfit)}${formatINR(netProfit)}`, severity: plSeverity(netProfit) },
-    ],
-    footer: 'From your FinTrackly Agriculture data.',
-  };
-}
-
-export function getAgricultureBestCrop(): AgentResponse {
-  const { cropCycles } = useAgriStore.getState();
-  if (!cropCycles.length) return emptyResponse('No crop cycles recorded.');
-  const withProfit = cropCycles.map((c) => ({ ...c, profit: (c.harvestIncome ?? 0) - (c.investedAmount ?? 0) })).sort((a, b) => b.profit - a.profit);
-  const top = withProfit[0];
-  return {
-    kind: 'card',
-    title: 'Best Performing Crop',
-    emoji: '🌾',
-    badge: `${plSign(top.profit)}${formatINR(top.profit)}`,
-    badgeSeverity: plSeverity(top.profit),
-    stats: [
-      { label: 'Crop',           value: top.cropName },
-      { label: 'Season',         value: top.season },
-      { label: 'Invested',       value: formatINR(top.investedAmount ?? 0) },
-      { label: 'Harvest Income', value: formatINR(top.harvestIncome ?? 0), severity: 'good' },
-      { label: 'Profit',         value: `${plSign(top.profit)}${formatINR(top.profit)}`, severity: plSeverity(top.profit) },
-    ],
-    footer: 'From your FinTrackly Agriculture data.',
-    linkTo: '/agriculture',
-  };
-}
-
-export function getAgricultureActiveCrops(): AgentResponse {
-  const { cropCycles } = useAgriStore.getState();
-  const today  = todayISO();
-  const active = cropCycles.filter((c) => !c.actualHarvestDate || c.actualHarvestDate > today);
-  if (!active.length) return { kind: 'empty', emoji: '🌾', message: 'No active crop cycles. All crops have been harvested.' };
-
-  const items: CardItem[] = active.map((c) => ({
-    emoji: '🌱',
-    title: c.cropName,
-    subtitle: `${c.fieldName ?? c.fieldId} · ${c.season} · Harvest: ${c.expectedHarvestDate}`,
-    value: formatINR(c.investedAmount ?? 0),
-    severity: 'neutral',
-    linkTo: '/agriculture',
-  }));
-
-  return {
-    kind: 'list_card',
-    title: 'Active Crop Cycles',
-    emoji: '🌱',
-    summary: `${active.length} crop(s) currently growing`,
-    items,
-    footer: 'From your FinTrackly Agriculture data.',
-  };
-}
-
 // ─── LENDING ─────────────────────────────────────────────────────────────────
 
 function lendingStats() {
@@ -983,3 +905,4 @@ export function getLendingOutstanding(): AgentResponse {
     footer: 'From your FinTrackly Lending data.',
   };
 }
+

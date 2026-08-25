@@ -17,8 +17,6 @@ import {
 } from './authBootstrap';
 import { googleSignInErrorMessage } from './googleSignIn';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
-import { useAttendanceStore } from '../store/attendanceStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { silentReRegisterIfGranted, listenForegroundMessages } from '../services/fcmService';
 
@@ -33,8 +31,6 @@ export default function AuthWrapper({
 
   const hydrate = usePortfolioStore((s) => s.hydrate);
   const resetSession = usePortfolioStore((s) => s.resetSession);
-  const clearAgri = useAgriStore((s) => s.clearAll);
-  const clearAttendance = useAttendanceStore((s) => s.clearAll);
   const setNotifScope = useNotificationStore((s) => s.setScope);
   const clearNotifScope = useNotificationStore((s) => s.clearScope);
 
@@ -69,8 +65,6 @@ export default function AuthWrapper({
           'Some data failed to load. Check your connection and refresh.',
         );
       });
-      void useAgriStore.getState().hydrate(user.uid);
-      void useAttendanceStore.getState().hydrate(user.uid);
 
       // ── FCM: silently re-register if permission already granted ──────────
       // This refreshes the token and updates lastSeenAt on each login.
@@ -101,7 +95,7 @@ export default function AuthWrapper({
           type: 'welcome',
           title: 'Welcome to Fintrackly! 👋',
           message:
-            'Your personal finance journey starts here. Track your net worth, investments, expenses, liabilities, insurance, goals, agriculture, and more — all in one place.',
+            'Your personal finance journey starts here. Track your net worth, investments, expenses, liabilities, insurance, goals, and more — all in one place.',
           entityId: `welcome_${user.uid}`,
           periodKey: 'once',
           severity: 'info',
@@ -115,8 +109,6 @@ export default function AuthWrapper({
       if (cancelled || !authReady.current) return;
       activeUid.current = null;
       resetSession();
-      clearAgri();
-      clearAttendance();
       clearNotifScope();
       hasNavigated.current = false;
       setAuthState('logged-out');

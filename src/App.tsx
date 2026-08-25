@@ -2,7 +2,6 @@
 
 import {
   AccountsSkeleton,
-  AgricultureSkeleton,
   AIAgentSkeleton,
   CashflowSkeleton,
   DashboardSkeleton,
@@ -80,16 +79,6 @@ const ReportsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('./pages/Settings/SettingsPage').then((m) => ({
     default: m.SettingsPage,
-  })),
-);
-const AgriculturePage = lazy(() =>
-  import('./pages/Agriculture/AgriculturePage').then((m) => ({
-    default: m.AgriculturePage,
-  })),
-);
-const AttendancePage = lazy(() =>
-  import('./pages/Agriculture/AttendancePage').then((m) => ({
-    default: m.AttendancePage,
   })),
 );
 const ProfitsPage = lazy(() =>
@@ -316,22 +305,6 @@ export default function App() {
               element={
                 <Suspense fallback={<SettingsSkeleton />}>
                   <PaymentFailurePage />
-                </Suspense>
-              }
-            />
-            <Route
-              path='/agriculture'
-              element={
-                <Suspense fallback={<AgricultureSkeleton />}>
-                  <AgriculturePage />
-                </Suspense>
-              }
-            />
-            <Route
-              path='/attendance'
-              element={
-                <Suspense fallback={<AgricultureSkeleton />}>
-                  <AttendancePage />
                 </Suspense>
               }
             />

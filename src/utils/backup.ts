@@ -2,16 +2,9 @@
 
 import type {
   Account,
-  AgriExpense,
-  AttendanceEmployee,
-  AttendanceRecord,
-  AttendanceTransaction,
   CashflowEntry,
-  CoconutRecord,
   Credential,
-  CropCycle,
   EssentialsConfig,
-  Field,
   Goal,
   GoalContribution,
   InsurancePayment,
@@ -21,14 +14,9 @@ import type {
   Liability,
   PendingPayment,
   TrackedPayment,
-  Livestock,
-  LivestockEvent,
-  MilkRecord,
   NetWorthSnapshot,
   NotionConfig,
   PortfolioSnapshot,
-  ProduceSaleLot,
-  SalaryRecord,
 } from '../types/investmentTypes';
 import {
   collection,
@@ -62,18 +50,6 @@ export type BackupPayload = {
   accounts: Account[];
   notion: NotionConfig;
   essentials: EssentialsConfig;
-  agriFields?: Field[];
-  agriCropCycles?: CropCycle[];
-  agriExpenses?: AgriExpense[];
-  agriLivestock?: Livestock[];
-  agriMilkRecords?: MilkRecord[];
-  agriCoconut?: CoconutRecord[];
-  agriLivestockEvents?: LivestockEvent[];
-  agriProduceSales?: ProduceSaleLot[];
-  attEmployees?: AttendanceEmployee[];
-  attRecords?: AttendanceRecord[];
-  attTransactions?: AttendanceTransaction[];
-  attSalary?: SalaryRecord[];
   insurancePolicies?: any[];
   insurancePayments?: InsurancePayment[];
   lendingBorrowers?: LendingBorrower[];
@@ -125,18 +101,6 @@ export async function exportFullBackup(uid: string) {
     snapshots,
     networthSnapshots,
     accounts,
-    agriFields,
-    agriCropCycles,
-    agriExpenses,
-    agriLivestock,
-    agriMilkRecords,
-    agriCoconut,
-    agriLivestockEvents,
-    agriProduceSales,
-    attEmployees,
-    attRecords,
-    attTransactions,
-    attSalary,
     insurancePolicies,
     insurancePayments,
     lendingBorrowers,
@@ -156,18 +120,6 @@ export async function exportFullBackup(uid: string) {
     fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
     fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
     fetchSub<Account>(uid, 'accounts'),
-    fetchSub<Field>(uid, 'agriFields'),
-    fetchSub<CropCycle>(uid, 'agriCropCycles'),
-    fetchSub<AgriExpense>(uid, 'agriExpenses'),
-    fetchSub<Livestock>(uid, 'agriLivestock'),
-    fetchSub<MilkRecord>(uid, 'agriMilkRecords'),
-    fetchSub<CoconutRecord>(uid, 'agriCoconut'),
-    fetchSub<LivestockEvent>(uid, 'agriLivestockEvents'),
-    fetchSub<ProduceSaleLot>(uid, 'agriProduceSales'),
-    fetchSub<AttendanceEmployee>(uid, 'attEmployees'),
-    fetchSub<AttendanceRecord>(uid, 'attRecords'),
-    fetchSub<AttendanceTransaction>(uid, 'attTransactions'),
-    fetchSub<SalaryRecord>(uid, 'attSalary'),
     fetchSub<any>(uid, 'insurancePolicies'),
     fetchSub<InsurancePayment>(uid, 'insurancePayments'),
     fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
@@ -199,18 +151,6 @@ export async function exportFullBackup(uid: string) {
     accounts,
     notion: settings?.notion ?? { enabled: false },
     essentials: settings?.essentials ?? {},
-    agriFields,
-    agriCropCycles,
-    agriExpenses,
-    agriLivestock,
-    agriMilkRecords,
-    agriCoconut,
-    agriLivestockEvents,
-    agriProduceSales,
-    attEmployees,
-    attRecords,
-    attTransactions,
-    attSalary,
     insurancePolicies,
     insurancePayments,
     lendingBorrowers,
@@ -249,18 +189,6 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'snapshots', parsed.snapshots ?? []),
     batchSet(uid, 'networthSnapshots', parsed.networthSnapshots ?? []),
     batchSet(uid, 'accounts', parsed.accounts ?? []),
-    batchSet(uid, 'agriFields', parsed.agriFields ?? []),
-    batchSet(uid, 'agriCropCycles', parsed.agriCropCycles ?? []),
-    batchSet(uid, 'agriExpenses', parsed.agriExpenses ?? []),
-    batchSet(uid, 'agriLivestock', parsed.agriLivestock ?? []),
-    batchSet(uid, 'agriMilkRecords', parsed.agriMilkRecords ?? []),
-    batchSet(uid, 'agriCoconut', parsed.agriCoconut ?? []),
-    batchSet(uid, 'agriLivestockEvents', parsed.agriLivestockEvents ?? []),
-    batchSet(uid, 'agriProduceSales', parsed.agriProduceSales ?? []),
-    batchSet(uid, 'attEmployees', parsed.attEmployees ?? []),
-    batchSet(uid, 'attRecords', parsed.attRecords ?? []),
-    batchSet(uid, 'attTransactions', parsed.attTransactions ?? []),
-    batchSet(uid, 'attSalary', parsed.attSalary ?? []),
     batchSet(uid, 'insurancePolicies', parsed.insurancePolicies ?? []),
     batchSet(uid, 'insurancePayments', parsed.insurancePayments ?? []),
     batchSet(uid, 'lendingBorrowers', parsed.lendingBorrowers ?? []),

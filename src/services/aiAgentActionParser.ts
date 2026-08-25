@@ -209,7 +209,6 @@ const EXPENSE_CATEGORIES: [RegExp, string][] = [
   [/\bcharity\b|donation|donate/i, 'Charity'],
   [/\bwedding\b|marriage|function/i, 'Wedding'],
   [/\bsalary.*advance\b/i, 'Salary Advance'],
-  [/\bfarm\b|agricultur\b|crop\b|fertil\b/i, 'Agriculture'],
   [/\blend\b|lent\b|given to\b|borrow/i, 'Lending'],
 ];
 
@@ -223,7 +222,6 @@ const INCOME_CATEGORIES: [RegExp, string][] = [
   [/\brefund\b/i, 'Refund'],
   [/\bgift\b|received.*gift|gift.*received/i, 'Gift'],
   [/\bbonus\b/i, 'Bonus'],
-  [/\bharvest\b|crop.*income\b/i, 'Agriculture Income'],
   [/\brepay(ment)?\b|returned.*loan|loan.*returned\b/i, 'Loan Repayment'],
 ];
 

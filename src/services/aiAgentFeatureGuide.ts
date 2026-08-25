@@ -187,35 +187,6 @@ Go to **Sidebar → Insurance**.
 - Add all policies so the AI Agent can show your total coverage in one place.`,
   },
 
-  // ── Agriculture ───────────────────────────────────────────────────────────
-  {
-    keywords: ['add agriculture', 'add crop', 'add field', 'add farm',
-               'add crop cycle', 'add harvest', 'add farm expense',
-               'how to add crop', 'how to add agriculture', 'log crop',
-               'record crop', 'new crop cycle', 'add livestock'],
-    answer: `## 🌾 How to Add Agriculture Records in FinTrackly
-
-Go to **Sidebar → Agriculture**.
-
-### Adding a Field
-1. Tap **Fields → + Add Field**.
-2. Enter: Field Name, Area (acres), Location, Soil Type.
-
-### Adding a Crop Cycle
-1. Tap **Crop Cycles → + Add Cycle**.
-2. Fill in: Field, Crop Name, Season, Start Date, Expected Harvest Date, Investment Amount.
-3. After harvest: update **Actual Harvest Date** and **Harvest Income**.
-
-### Adding an Expense
-1. Tap **Expenses → + Add**.
-2. Choose Category: Seeds / Fertilizer / Pesticides / Labour / Irrigation / Other.
-3. Enter Amount, Date, and optionally link to a crop cycle.
-
-### Tips
-- Link expenses to crop cycles for per-crop profitability analysis.
-- Update harvest income after each crop to see your net profit.`,
-  },
-
   // ── Lending ───────────────────────────────────────────────────────────────
   {
     keywords: ['add lending', 'add borrower', 'add loan given', 'lend money',
@@ -266,32 +237,6 @@ Go to **Sidebar → Accounts**.
 - Add both savings and credit accounts to see your full financial picture.`,
   },
 
-  // ── Attendance / Labour ───────────────────────────────────────────────────
-  {
-    keywords: ['add employee', 'add attendance', 'add labour', 'add labor',
-               'add worker', 'record attendance', 'mark attendance',
-               'how to add employee', 'add salary', 'log attendance'],
-    answer: `## 👷 How to Add Labour / Attendance Records in FinTrackly
-
-Go to **Sidebar → Attendance**.
-
-### Adding an Employee
-1. Tap **+ Add Employee**.
-2. Enter: Name, Daily Wage or Monthly Salary, Role (optional).
-
-### Marking Attendance
-1. Open an employee → tap **Mark Attendance**.
-2. Select the date and status: Present / Absent / Half Day.
-
-### Recording a Payment
-1. Open an employee → tap **+ Payment**.
-2. Enter Amount and Date to record wages paid.
-
-### Tips
-- Use the attendance summary to calculate total wages owed vs paid.
-- Useful for farm workers, daily labourers, and household staff.`,
-  },
-
   // ── Snapshots ────────────────────────────────────────────────────────────
   {
     keywords: ['take snapshot', 'add snapshot', 'create snapshot', 'save snapshot',
@@ -330,8 +275,6 @@ FinTrackly is a complete personal finance tracker. Here's what each module does:
 | **Liabilities** | Loans, credit card debt |
 | **Insurance** | Policies, premiums, renewals |
 | **Goals** | Financial targets and progress tracking |
-| **Agriculture** | Crops, fields, harvest income, farm expenses |
-| **Attendance** | Employee attendance and wage tracking |
 | **Lending** | Money you've lent to others |
 | **Insights** | Financial health score, FIRE projection |
 | **AI Agent** | Ask questions about your own data |

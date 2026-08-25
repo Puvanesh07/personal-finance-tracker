@@ -2824,30 +2824,6 @@ export const NSE_STOCK_DB: Record<string, StockInfo> = {
     cap: 'Small Cap',
   },
 
-  // ══════════════════════════════════════════════════════════════════
-  // AGRICULTURE & AGRI-INPUTS
-  // ══════════════════════════════════════════════════════════════════
-  KAVERI: {
-    sector: 'Consumer Discretionary',
-    industry: 'Seeds',
-    cap: 'Mid Cap',
-  },
-  MAHSCOOTERS: {
-    sector: 'Consumer Discretionary',
-    industry: 'Automobile',
-    cap: 'Mid Cap',
-  },
-  ADVENZYMES: { sector: 'Healthcare', industry: 'Enzymes', cap: 'Mid Cap' },
-  NATH: {
-    sector: 'Consumer Discretionary',
-    industry: 'Seeds',
-    cap: 'Small Cap',
-  },
-  GLOBALAGRI: {
-    sector: 'Consumer Discretionary',
-    industry: 'Agri Products',
-    cap: 'Small Cap',
-  },
   KRBL: {
     sector: 'Fast Moving Consumer Goods',
     industry: 'Food Products',

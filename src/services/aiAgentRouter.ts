@@ -67,9 +67,6 @@ const FINTRACKLY_TOPICS = [
   'payment', 'due date', 'recurring', 'chit fund', 'reminder',
   'insur', 'coverage', 'premium', 'policy', 'nominee', 'renewal',
   'goal', 'target amount', 'financial goal', 'retirement', 'fire',
-  'agricultur', 'farm', 'crop', 'harvest', 'field', 'livestock',
-  'milk', 'produce', 'fertilizer', 'cultivation',
-  'labour', 'labor', 'attendance', 'employee', 'salary', 'wage',
   'lending', 'lend', 'borrow', 'borrower',
   'financial', 'finance', 'money', 'rupee', 'inr', 'tax',
   'inflation', 'compounding', 'emergency fund', 'fintrackly',
@@ -96,8 +93,6 @@ const PERSONAL_SIGNALS = [
   'overdue payment', 'paid this',
   'my insur', 'my policy', 'my policies', 'my coverage', 'my premium',
   'my goal', 'my target', 'my financial goal',
-  'my agriculture', 'my farm', 'my crop', 'my field', 'my harvest',
-  'my livestock', 'my produce',
   'my lending', 'my borrower', 'money i lent', 'money i have lent',
   'my financial', 'my current', 'my overall', 'my situation',
   'my health', 'my risk', 'my focus',
@@ -613,49 +608,6 @@ const INTENT_DEFS: IntentDef[] = [
       pos('cash.*position|available cash|cash on hand', 18),
       pos('cash', 8),
       neg('cashflow|cash flow', 5),
-    ],
-  },
-
-  // ── AGRICULTURE ─────────────────────────────────────────────────────────────
-  {
-    id: 'agriculture',
-    rules: [
-      pos('agricultur|farming|farm', 15),
-      pos('crop|harvest|field|livestock|milk|produce', 12),
-      pos('fertiliz|pesticide|cultivation', 10),
-    ],
-  },
-  {
-    id: 'agriculture_best_crop',
-    rules: [
-      pos('best.*crop|highest.*profit.*crop|most.*profit.*crop', 22),
-      pos('crop.*profit|profit.*crop|which.*crop.*best', 18),
-      pos('agricultur|crop', 5),
-    ],
-  },
-  {
-    id: 'agriculture_active_crops',
-    rules: [
-      pos('active.*crop|current.*crop|ongoing.*crop|growing.*crop', 22),
-      pos('crop.*in progress|which.*crop.*now|currently.*growing', 18),
-      pos('agricultur|crop', 5),
-    ],
-  },
-  {
-    id: 'agriculture_next_harvest',
-    rules: [
-      pos('next.*harvest|closest.*harvest|soonest.*harvest|when.*harvest', 22),
-      pos('harvest.*soon|upcoming.*harvest', 18),
-      pos('agricultur|crop|harvest', 5),
-    ],
-  },
-  {
-    id: 'agriculture_expenses',
-    rules: [
-      pos('farm.*expense|agri.*expense|fertiliz.*expense|cost.*farm', 22),
-      pos('spent.*farm|farming.*cost|agri.*cost', 18),
-      pos('fertiliz|pesticide|irrigation', 14),
-      pos('agricultur|farm', 5),
     ],
   },
 

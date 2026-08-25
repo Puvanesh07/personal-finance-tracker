@@ -27,12 +27,6 @@ import {
   calculateNetWorth,
   summarizePortfolio,
 } from '../../utils/calculations';
-import { useAgriStore } from '../../store/agricultureStore';
-import { useAttendanceStore } from '../../store/attendanceStore';
-import {
-  useEnsureAgriHydrated,
-  useEnsureAttendanceHydrated,
-} from '../../hooks/useDeferredStoreHydration';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -120,11 +114,7 @@ function SectionCard({
 // ─── Main Reports Page ───────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  useEnsureAgriHydrated(); // triggers hydration; return value not needed here
-  useEnsureAttendanceHydrated();
   const portStore = usePortfolioStore();
-  const agriStore = useAgriStore();
-  const attStore = useAttendanceStore();
   const themeMode = useThemeStore((s) => s.mode);
 
   const [timeframe, setTimeframe] = useState<'all' | 'ytd' | 'month'>('all');
@@ -234,64 +224,6 @@ export function ReportsPage() {
     };
   }, [portStore.lendingTransactions, portStore.lendingBorrowers, timeframe]);
 
-  // ── 4. Agriculture & Produce (Time Filtered)
-  const agriStats = useMemo(() => {
-    const crops = agriStore.cropCycles.filter((c) =>
-      isWithinTimeframe(c.actualHarvestDate || c.expectedHarvestDate),
-    );
-    const milk = agriStore.milkRecords.filter((m) => isWithinTimeframe(m.date));
-    const coconut = agriStore.coconutRecords.filter((c) =>
-      isWithinTimeframe(c.date),
-    );
-    const livestock = agriStore.livestockEvents.filter((l) =>
-      isWithinTimeframe(l.date),
-    );
-    const expenses = agriStore.agriExpenses.filter((e) =>
-      isWithinTimeframe(e.date),
-    );
-    const produce = agriStore.produceSales.filter((p) =>
-      isWithinTimeframe(p.date),
-    ); // Includes Produce Sales!
-
-    const cropInc = crops.reduce((s, c) => s + (c.harvestIncome || 0), 0);
-    const milkInc = milk.reduce((s, m) => s + m.liters * m.pricePerLiter, 0);
-    const cocoInc = coconut.reduce((s, c) => s + (c.harvestIncome || 0), 0);
-    const liveInc = livestock
-      .filter((l) => l.eventType === 'sale')
-      .reduce((s, l) => s + (l.price || 0), 0);
-    const produceInc = produce.reduce((s, p) => s + (p.totalAmount || 0), 0);
-
-    const cropExp = crops.reduce((s, c) => s + (c.investedAmount || 0), 0);
-    const cocoExp = coconut.reduce((s, c) => s + (c.investmentAmount || 0), 0);
-    const liveExp = livestock
-      .filter((l) => l.eventType === 'purchase')
-      .reduce((s, l) => s + (l.price || 0), 0);
-    const farmExp = expenses.reduce((s, e) => s + (e.amount || 0), 0);
-
-    const totalInc = cropInc + milkInc + cocoInc + liveInc + produceInc;
-    const totalExp = cropExp + cocoExp + liveExp + farmExp;
-
-    return { totalInc, totalExp, netProfit: totalInc - totalExp, produceInc };
-  }, [agriStore, timeframe]);
-
-  // ── 5. Labor & Attendance (Time Filtered)
-  const attStats = useMemo(() => {
-    const records = attStore.attendanceRecords.filter((r) =>
-      isWithinTimeframe(r.date),
-    );
-    const advances = attStore.transactions.filter(
-      (t) => t.type === 'advance' && isWithinTimeframe(t.date),
-    );
-
-    const wages = records.reduce(
-      (s, r) => s + (r.present ? (r.wage || 0) + (r.extraWork || 0) : 0),
-      0,
-    );
-    const advTotal = advances.reduce((s, t) => s + (t.amount || 0), 0);
-    const days = records.filter((r) => r.present).length;
-
-    return { wages, advTotal, days };
-  }, [attStore, timeframe]);
 
   const totalAssets = netWorthAssets;
 
@@ -386,7 +318,7 @@ export function ReportsPage() {
             ))}
           </div>
           <button
-            onClick={() => exportAllSectionsAsCSV(portStore, agriStore)}
+            onClick={() => exportAllSectionsAsCSV(portStore)}
             className='flex items-center cursor-pointer gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors'
           >
             <FiDownload className='h-4 w-4' /> Export CSV
@@ -622,54 +554,6 @@ export function ReportsPage() {
           )}
         </SectionCard>
 
-        {/* ── Agriculture & Produce (Advanced) ── */}
-        <SectionCard
-          icon={<span className='text-lg'>🌾</span>}
-          title={`Agriculture & Farming (${timeframe.toUpperCase()})`}
-          color='bg-green-500/10'
-          to='/agriculture'
-          fullWidth
-        >
-          <div className='flex-1 w-full space-y-2'>
-            <StatRow
-              label='Total Farm Revenue'
-              value={formatINR(agriStats.totalInc)}
-              positive={agriStats.totalInc > 0}
-            />
-            <StatRow
-              label='Farm Expenses & Investments'
-              value={formatINR(agriStats.totalExp)}
-            />
-            <StatRow
-              label='Net Farm Profit'
-              value={`${agriStats.netProfit >= 0 ? '+' : ''}${formatINR(agriStats.netProfit)}`}
-              positive={agriStats.netProfit >= 0}
-              accent
-            />
-            <StatRow
-              label='Produce Sales Contribution'
-              value={formatINR(agriStats.produceInc)}
-              positive={agriStats.produceInc > 0}
-            />
-          </div>
-          <div className='flex-1 w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-center'>
-            <div className='flex items-center gap-3 mb-2 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
-              <span className='w-3 h-3 rounded-full bg-emerald-500'></span>{' '}
-              Crops & Produce
-            </div>
-            <div className='flex items-center gap-3 mb-2 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
-              <span className='w-3 h-3 rounded-full bg-blue-500'></span> Dairy &
-              Milk
-            </div>
-            <div className='flex items-center gap-3 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300'>
-              <span className='w-3 h-3 rounded-full bg-amber-500'></span>{' '}
-              Coconut & Livestock
-            </div>
-            <p className='text-xs text-slate-900 dark:text-slate-500 mt-4 italic'>
-              Revenue from these streams auto-factors into your Net Worth.
-            </p>
-          </div>
-        </SectionCard>
 
         {/* ── Lending & Financing ── */}
         <SectionCard
@@ -698,28 +582,6 @@ export function ReportsPage() {
           />
         </SectionCard>
 
-        {/* ── Labor & Attendance ── */}
-        <SectionCard
-          icon={<span className='text-lg'>👷</span>}
-          title={`Labor & Attendance (${timeframe.toUpperCase()})`}
-          color='bg-sky-500/10'
-          to='/agriculture'
-        >
-          <StatRow
-            label='Active Workforce'
-            value={`${attStore.employees.length} workers`}
-          />
-          <StatRow label='Days Logged' value={`${attStats.days} shifts`} />
-          <StatRow
-            label='Total Wages Generated'
-            value={formatINR(attStats.wages)}
-          />
-          <StatRow
-            label='Advances Provided'
-            value={formatINR(attStats.advTotal)}
-            accent
-          />
-        </SectionCard>
 
         {/* ── Investments ── */}
         <SectionCard

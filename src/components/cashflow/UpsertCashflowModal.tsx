@@ -84,7 +84,7 @@ export const DEFAULT_INCOME_CATEGORIES = [
   { key: 'Capital Gains', icon: '📈' },
   { key: 'Pension', icon: '👴' },
   { key: 'Refund', icon: '↩️' },
-  { key: 'Agriculture Income', icon: '🌾' },
+
   { key: 'Gift', icon: '🎀' },
   { key: 'Lottery / Prize', icon: '🏆' },
   { key: 'Other Income', icon: '💰' },

@@ -100,17 +100,6 @@ export const USER_SUBCOLLECTIONS = [
   'sipPlans',
   'networthSnapshots',
   'insights',
-  'agriFields',
-  'agriCropCycles',
-  'agriExpenses',
-  'agriMilkRecords',
-  'agriCoconut',
-  'agriLivestockEvents',
-  'agriProduceSales',
-  'attEmployees',
-  'attRecords',
-  'attTransactions',
-  'attSalary',
   'settings',
 ];
 

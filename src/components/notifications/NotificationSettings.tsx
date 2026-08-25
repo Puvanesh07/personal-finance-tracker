@@ -31,10 +31,8 @@ export interface NotificationSettingsConfig {
   lendingReminders:       boolean;
   sipReminders:           boolean;
   subscriptionAlerts:     boolean;
-  investmentAlerts:       boolean;
-  agricultureReminders:   boolean;
-  attendanceReminders:    boolean;
-  weeklyDigest:           boolean;
+   investmentAlerts:       boolean;
+   weeklyDigest:           boolean;
   monthlyReport:          boolean;
   quietHoursEnabled:      boolean;
   quietHoursStart:        string;  // "HH:MM" 24h
@@ -50,10 +48,8 @@ const DEFAULT_SETTINGS: NotificationSettingsConfig = {
   lendingReminders:       true,
   sipReminders:           true,
   subscriptionAlerts:     true,
-  investmentAlerts:       true,
-  agricultureReminders:   false,
-  attendanceReminders:    false,
-  weeklyDigest:           true,
+   investmentAlerts:       true,
+   weeklyDigest:           true,
   monthlyReport:          true,
   quietHoursEnabled:      true,
   quietHoursStart:        '22:00',
@@ -302,16 +298,8 @@ export function NotificationSettings() {
             checked={cfg.subscriptionAlerts}
             onChange={(v) => update('subscriptionAlerts', v)}
             disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='🌾' label='Agriculture Reminders'
-            description='Crop cycles, harvest, livestock events'
-            checked={cfg.agricultureReminders}
-            onChange={(v) => update('agricultureReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='👷' label='Attendance Reminders'
-            description='Salary due, advance tracking'
-            checked={cfg.attendanceReminders}
-            onChange={(v) => update('attendanceReminders', v)}
-            disabled={!cfg.pushEnabled} />
+
+
           <ToggleRow icon='📊' label='Monthly Report Email'
             description='Email digest on 1st of each month'
             checked={cfg.monthlyReport}

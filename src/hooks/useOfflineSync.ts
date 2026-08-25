@@ -2,8 +2,6 @@ import { useEffect, useRef } from 'react';
 
 import { auth } from '../services/firebase';
 import toast from 'react-hot-toast';
-import { useAgriStore } from '../store/agricultureStore';
-import { useAttendanceStore } from '../store/attendanceStore';
 import { usePortfolioStore } from '../store/portfolioStore';
 
 export function useOfflineSync() {
@@ -23,19 +21,6 @@ export function useOfflineSync() {
       if (!user) return { ok: true };
       const hydrate = usePortfolioStore.getState().hydrate;
       const promises: Promise<void>[] = [hydrate(user.uid)];
-
-      const agriUid = useAgriStore.getState().uid;
-      const attUid = useAttendanceStore.getState().uid;
-      if (agriUid) {
-        promises.push(
-          useAgriStore.getState().hydrate(user.uid, { force: true }),
-        );
-      }
-      if (attUid) {
-        promises.push(
-          useAttendanceStore.getState().hydrate(user.uid, { force: true }),
-        );
-      }
 
       const results = await Promise.allSettled(promises);
       return { ok: !results.some((r) => r.status === 'rejected') };

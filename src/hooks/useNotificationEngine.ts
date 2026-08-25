@@ -36,7 +36,6 @@ import {
   type NotifType,
 } from '../store/notificationStore';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
 import { useSubscriptionOptional } from '../context/SubscriptionContext';
 import {
   buildPaymentReminderMessage,
@@ -106,9 +105,6 @@ export function useNotificationEngine() {
   const essentials = usePortfolioStore((s) => s.essentials);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const accounts = usePortfolioStore((s) => s.accounts);
-  const agriFields = useAgriStore((s) => s.fields);
-  const agriReady = useAgriStore((s) => s.ready);
-  const agriUid = useAgriStore((s) => s.uid);
   const ready = usePortfolioStore((s) => s.ready);
   const storeUid = usePortfolioStore((s) => s.uid);
 
@@ -145,7 +141,6 @@ export function useNotificationEngine() {
     essentials,
     cashflows,
     accounts,
-    agriFields,
     addNotif,
     addSoldTrade,
     deleteInvestment,
@@ -172,7 +167,6 @@ export function useNotificationEngine() {
     essentials,
     cashflows,
     accounts,
-    agriFields,
     addNotif,
     addSoldTrade,
     deleteInvestment,
@@ -195,7 +189,6 @@ export function useNotificationEngine() {
     // "fired" for today on zero data → when real data arrives later that
     // same day, the user never sees them.
     if (!ready || !storeUid || storeUid !== notifUid) return;
-    if (agriUid && agriUid !== storeUid) return;
     // Also wait for subscription context to resolve so trial/plan state is accurate
     if (subLoading) return;
 
@@ -1017,7 +1010,6 @@ export function useNotificationEngine() {
       (d.liabilities?.length ?? 0) +
       (d.goals?.length ?? 0) +
       (d.accounts?.length ?? 0) +
-      (d.agriFields?.length ?? 0) +
       (d.trackedPayments?.length ?? 0) +
       (d.policies?.length ?? 0);
     if (anyData === 0) {
@@ -1227,8 +1219,6 @@ export function useNotificationEngine() {
     ready,
     storeUid,
     notifUid,
-    agriReady,
-    agriUid,
     subLoading,
     isTrial,
     trialDaysRemaining,
@@ -1248,6 +1238,5 @@ export function useNotificationEngine() {
     networthSnapshots.length,
     cashflows.length,
     accounts.length,
-    agriFields.length,
   ]);
 }

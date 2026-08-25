@@ -72,7 +72,7 @@ function genId() {
 
 const SCOPE_MESSAGE =
   "I'm FinTrackly's AI assistant. I can help with:\n\n" +
-  '- **Your data** — portfolio, cashflow, payments, goals, liabilities, insurance, accounts, agriculture, lending\n' +
+   '- **Your data** — portfolio, cashflow, payments, goals, liabilities, insurance, accounts, lending\n' +
   '- **App help** — how to add/edit/delete anything in FinTrackly\n' +
   '- **Financial education** — concepts, ratios, strategies (via AI)\n\n' +
   'Try: *"What is my net worth?"* or *"How do I add a payment?"*';

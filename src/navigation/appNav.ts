@@ -9,7 +9,6 @@ import {
   FiDollarSign,
   FiFlag,
   FiBell,
-  FiUsers,
   FiHome,
   FiLock,
   FiSettings,
@@ -19,7 +18,6 @@ import {
 } from 'react-icons/fi';
 import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
-import { GiWheat } from 'react-icons/gi';
 
 export type AppNavItem = {
   to: string;
@@ -104,20 +102,6 @@ export const NAV_GROUPS: AppNavGroup[] = [
         label: 'Credentials',
         accent: 'text-fuchsia-400',
         bg: 'bg-fuchsia-500/10',
-      },
-      {
-        to: '/agriculture',
-        icon: GiWheat,
-        label: 'Agriculture',
-        accent: 'text-lime-400',
-        bg: 'bg-lime-500/10',
-      },
-      {
-        to: '/attendance',
-        icon: FiUsers,
-        label: 'Attendance',
-        accent: 'text-orange-400',
-        bg: 'bg-orange-500/10',
       },
     ],
   },

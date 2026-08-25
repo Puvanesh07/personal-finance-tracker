@@ -17,14 +17,12 @@ import {
 import { isSameMonth, parseISO } from 'date-fns';
 import { useMemo, useState } from 'react';
 
-import { GiWheat } from 'react-icons/gi';
 import { SnapshotsSkeleton } from '../../components/loader/skeletons';
 import { formatINR } from '../../utils/format';
 import {
   calculateNetWorth,
   summarizePortfolio,
 } from '../../utils/calculations';
-import { useAgriStore } from '../../store/agricultureStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 // ── Mini stat for snapshot card ───────────────────────────────────────────
@@ -70,10 +68,7 @@ function SectionIcon({ type }: { type: string }) {
       icon: <FiFlag className='h-3.5 w-3.5 text-amber-400' />,
       bg: 'bg-amber-500/10',
     },
-    agriculture: {
-      icon: <GiWheat className='h-3.5 w-3.5 text-green-400' />,
-      bg: 'bg-green-500/10',
-    },
+
   };
   const { icon, bg } = map[type] ?? map.investments;
   return (
@@ -96,7 +91,6 @@ export function SnapshotsPage() {
   const goals = usePortfolioStore((s) => s.goals);
   const insurancePolicies = usePortfolioStore((s) => s.insurancePolicies) || [];
 
-  const agriState = useAgriStore();
 
   const [label, setLabel] = useState('');
   const [taking, setTaking] = useState(false);
@@ -132,33 +126,7 @@ export function SnapshotsPage() {
   const monthExpense = thisMonthCf
     .filter((c) => c.type === 'expense')
     .reduce((a, c) => a + c.amount, 0);
-  const agriNetProfit = useMemo(() => {
-    const inc =
-      (agriState.cropCycles || []).reduce(
-        (a, c) => a + (c.harvestIncome || 0),
-        0,
-      ) +
-      (agriState.milkRecords || []).reduce(
-        (a, m) => a + m.liters * m.pricePerLiter,
-        0,
-      ) +
-      (agriState.coconutRecords || []).reduce(
-        (a, c) => a + (c.harvestIncome || 0),
-        0,
-      ) +
-      (agriState.produceSales || []).reduce(
-        (a, p) => a + (p.totalAmount || 0),
-        0,
-      ) +
-      (agriState.livestockEvents || [])
-        .filter((e) => e.eventType === 'sale')
-        .reduce((a, e) => a + (e.price ?? 0), 0);
-    const exp = (agriState.agriExpenses || []).reduce(
-      (a, e) => a + e.amount,
-      0,
-    );
-    return inc - exp;
-  }, [agriState]);
+
   const totalInsuranceCoverage = insurancePolicies.reduce(
     (a, p) => a + p.coverageAmount,
     0,
@@ -252,7 +220,7 @@ export function SnapshotsPage() {
               A snapshot is like a{' '}
               <strong className='text-slate-900 dark:text-slate-800 dark:text-slate-200'>financial photograph</strong> —
               it records your complete financial position right now: your
-              investments, cash, debts, goals, insurance, and farm income all
+              investments, cash, debts, goals, insurance, and income all
               frozen at this exact moment.
             </p>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed'>
@@ -297,11 +265,6 @@ export function SnapshotsPage() {
                 section: 'insurance',
                 label: 'Coverage',
                 value: formatINR(totalInsuranceCoverage),
-              },
-              {
-                section: 'agriculture',
-                label: 'Farm Profit',
-                value: `${agriNetProfit >= 0 ? '+' : ''}${formatINR(agriNetProfit)}`,
               },
             ].map((item) => (
               <div

@@ -2,7 +2,6 @@ import type {
   Account,
   CashflowEntry,
   Credential,
-  CropCycle,
   Goal,
   Investment,
   InsurancePayment,
@@ -96,19 +95,6 @@ export function buildCredentialSecurityInsights(credentials: Credential[]) {
   }).length;
   const score = Math.max(0, 100 - weak * 8 - reused * 12 - stale * 4);
   return { weak, reused, stale, score };
-}
-
-export function buildAgriYieldInsights(cropCycles: CropCycle[], agriExpenseTotal: number) {
-  const harvested = cropCycles.filter((c) => c.harvestIncome > 0);
-  const totalKg = harvested.reduce((s, c) => s + (c.quantityKg || 0), 0);
-  const totalIncome = harvested.reduce((s, c) => s + c.harvestIncome, 0);
-  const totalInvest = harvested.reduce((s, c) => s + c.investedAmount, 0) + agriExpenseTotal;
-  const margin = totalIncome - totalInvest;
-  const marginPerKg = totalKg > 0 ? margin / totalKg : 0;
-  const bestCrop = harvested
-    .map((c) => ({ name: c.cropName, profit: c.harvestIncome - c.investedAmount }))
-    .sort((a, b) => b.profit - a.profit)[0];
-  return { totalKg, totalIncome, totalInvest, margin, marginPerKg, bestCrop };
 }
 
 export function buildInsuranceInsights(

@@ -35,17 +35,6 @@ const COLLECTIONS = [
   'snapshots',
   'networthSnapshots',
   'insights',
-  'agriFields',
-  'agriCropCycles',
-  'agriExpenses',
-  'agriLivestock',
-  'agriMilkRecords',
-  'agriCoconut',
-  'agriLivestockEvents',
-  'attEmployees',
-  'attRecords',
-  'attTransactions',
-  'attSalary',
 ];
 
 // ─── Key cache ────────────────────────────────────────────────────────────────

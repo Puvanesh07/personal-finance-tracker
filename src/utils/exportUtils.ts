@@ -194,8 +194,6 @@ export type CsvAttachment = { filename: string; content: string };
 
 export function buildAllCSVBlobs(
   state: any,
-  agriState?: any,
-  attState?: any,
 ): CsvAttachment[] {
   const attachments: CsvAttachment[] = [];
   const accounts: Account[] = state.accounts ?? [];
@@ -471,196 +469,7 @@ export function buildAllCSVBlobs(
     });
   }
 
-  // ── Agriculture ──────────────────────────────────────────────────────────
-  if (agriState) {
-    if (agriState.fields?.length) {
-      attachments.push({
-        filename: 'agri-fields.csv',
-        content: toCSVString(
-          agriState.fields.map((f: any) => ({
-            Name: f.name,
-            'Area (Acres)': f.areAcres,
-            Location: f.location ?? '',
-            'Soil Type': f.soilType ?? '',
-            'Created At': f.createdAt,
-          })),
-        ),
-      });
-    }
-    if (agriState.cropCycles?.length) {
-      attachments.push({
-        filename: 'agri-crops.csv',
-        content: toCSVString(
-          agriState.cropCycles.map((c: any) => ({
-            'Crop Name': c.cropName,
-            Field: c.fieldName ?? c.fieldId ?? '',
-            Season: c.season,
-            'Start Date': c.startDate,
-            'Harvest Date': c.actualHarvestDate ?? c.expectedHarvestDate ?? '',
-            'Invested Amount': c.investedAmount,
-            'Harvest Income': c.harvestIncome,
-            'Profit/Loss': c.harvestIncome - c.investedAmount,
-            Notes: c.notes ?? '',
-          })),
-        ),
-      });
-    }
-    if (agriState.agriExpenses?.length) {
-      attachments.push({
-        filename: 'agri-expenses.csv',
-        content: toCSVString(
-          agriState.agriExpenses.map((e: any) => ({
-            Date: e.date,
-            Category: e.category,
-            'Amount (₹)': e.amount,
-            Notes: e.notes ?? '',
-          })),
-        ),
-      });
-    }
-    if (agriState.milkRecords?.length) {
-      attachments.push({
-        filename: 'agri-milk.csv',
-        content: toCSVString(
-          agriState.milkRecords.map((m: any) => ({
-            Date: m.date,
-            Session: m.session ?? 'morning',
-            Liters: m.liters,
-            'Price/Liter': m.pricePerLiter,
-            Income: m.liters * m.pricePerLiter,
-            'Sold To': m.soldTo ?? '',
-          })),
-        ),
-      });
-    }
-    if (agriState.coconutRecords?.length) {
-      attachments.push({
-        filename: 'agri-coconut.csv',
-        content: toCSVString(
-          agriState.coconutRecords.map((c: any) => ({
-            Date: c.date,
-            Trees: c.numberOfTrees,
-            'Total Coconuts': c.totalCoconuts,
-            'Sell Method': c.sellMethod,
-            'Price/Coconut': c.pricePerCoconut ?? '',
-            'Total Tons': c.totalTons ?? '',
-            'Price/Ton': c.pricePerTon ?? '',
-            'Harvest Income': c.harvestIncome,
-            Investment: c.investmentAmount,
-            Profit: c.harvestIncome - c.investmentAmount,
-            Notes: c.notes ?? '',
-          })),
-        ),
-      });
-    }
-    if (agriState.produceSales?.length) {
-      attachments.push({
-        filename: 'agri-produce-sales.csv',
-        content: toCSVString(
-          agriState.produceSales.map((p: any) => ({
-            Date: p.date,
-            'Produce Name': p.produceName,
-            Category: p.category,
-            Unit: p.unit,
-            Quantity: p.quantity,
-            'Price/Unit': p.pricePerUnit,
-            'Commission (₹)': p.commissionAmount ?? 0,
-            'Total Amount (₹)': p.totalAmount,
-            'Sold To': p.soldTo ?? '',
-            Notes: p.notes ?? '',
-          })),
-        ),
-      });
-    }
-    if (agriState.livestockEvents?.length) {
-      attachments.push({
-        filename: 'agri-livestock-events.csv',
-        content: toCSVString(
-          agriState.livestockEvents.map((e: any) => ({
-            Date: e.date,
-            Animal: e.animalType,
-            'Event Type': e.eventType,
-            Count: e.count,
-            'Price (₹)': e.price ?? '',
-            Notes: e.notes ?? '',
-          })),
-        ),
-      });
-    }
-  }
-
-  // ── Attendance ────────────────────────────────────────────────────────────
-  if (attState?.employees?.length) {
-    const empMap: Record<string, string> = {};
-    attState.employees.forEach((e: any) => {
-      empMap[e.id] = e.name;
-    });
-
-    attachments.push({
-      filename: 'attendance-workers.csv',
-      content: toCSVString(
-        attState.employees.map((e: any) => ({
-          Name: e.name,
-          Phone: e.phone ?? '',
-          'Daily Wage (₹)': e.dailyWage,
-          Notes: e.notes ?? '',
-          'Created At': e.createdAt,
-        })),
-      ),
-    });
-
-    if (attState.attendanceRecords?.length) {
-      attachments.push({
-        filename: 'attendance-records.csv',
-        content: toCSVString(
-          attState.attendanceRecords.map((r: any) => ({
-            Date: r.date,
-            Worker: empMap[r.employeeId] ?? r.employeeId,
-            Present: r.present ? 'Yes' : 'No',
-            'Daily Wage (₹)': r.wage,
-            'Extra Work (₹)': r.extraWork ?? 0,
-            'Total (₹)': r.present ? r.wage + (r.extraWork ?? 0) : 0,
-            Note: r.note ?? '',
-          })),
-        ),
-      });
-    }
-
-    if (attState.transactions?.length) {
-      attachments.push({
-        filename: 'attendance-advances-deductions.csv',
-        content: toCSVString(
-          attState.transactions.map((t: any) => ({
-            Date: t.date,
-            Worker: empMap[t.employeeId] ?? t.employeeId,
-            Type: t.type,
-            'Amount (₹)': t.amount,
-            Note: t.note ?? '',
-          })),
-        ),
-      });
-    }
-
-    if (attState.salaryRecords?.length) {
-      attachments.push({
-        filename: 'attendance-salary.csv',
-        content: toCSVString(
-          attState.salaryRecords.map((s: any) => ({
-            Month: s.month,
-            Worker: empMap[s.employeeId] ?? s.employeeId,
-            'Days Worked': s.daysWorked,
-            'Base Salary (₹)': s.baseSalary,
-            'Extra Work (₹)': s.extraWork,
-            'Total Salary (₹)': s.totalSalary,
-            'Advance (₹)': s.advance,
-            'Deductions (₹)': s.deductions,
-            'Net Payable (₹)': s.netPayable ?? s.finalSalary,
-            Status: s.paymentStatus,
-          })),
-        ),
-      });
-    }
-  }
+  // ── Lending / Financier ───────────────────────────────────────────────────
 
   return attachments;
 }
@@ -669,10 +478,8 @@ export function buildAllCSVBlobs(
 
 export function exportAllSectionsAsCSV(
   state: any,
-  agriState?: any,
-  attState?: any,
 ) {
-  const attachments = buildAllCSVBlobs(state, agriState, attState);
+  const attachments = buildAllCSVBlobs(state);
   attachments.forEach(({ filename, content }) => {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, filename);
@@ -683,11 +490,9 @@ export function exportAllSectionsAsCSV(
 
 export async function exportAllCSVAsZip(
   state: any,
-  agriState?: any,
-  attState?: any,
   filename?: string,
 ): Promise<void> {
-  const attachments = buildAllCSVBlobs(state, agriState, attState);
+  const attachments = buildAllCSVBlobs(state);
   if (!attachments.length) return;
 
   const JSZip = (await import('jszip')).default;
@@ -698,28 +503,6 @@ export async function exportAllCSVAsZip(
   const blob = await zip.generateAsync({ type: 'blob' });
   const dateStr = new Date().toISOString().split('T')[0];
   saveAs(blob, filename ?? `fintrackly-data-${dateStr}.zip`);
-}
-
-// ── Attendance CSV export (legacy standalone) ──────────────────────────────
-
-export function exportAttendanceCSV(attState: {
-  employees: any[];
-  attendanceRecords: any[];
-  transactions: any[];
-  salaryRecords: any[];
-}) {
-  const { employees, attendanceRecords, transactions, salaryRecords } =
-    attState;
-  const blobs = buildAllCSVBlobs({}, undefined, {
-    employees,
-    attendanceRecords,
-    transactions,
-    salaryRecords,
-  });
-  blobs.forEach(({ filename, content }) => {
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, filename);
-  });
 }
 
 // ── Portfolio Excel export ───────────────────────────────────────────────────

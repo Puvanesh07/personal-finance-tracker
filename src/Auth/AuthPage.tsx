@@ -42,7 +42,6 @@ import {
 import { FcGoogle } from 'react-icons/fc';
 import { SiNotion } from 'react-icons/si';
 import { BsBank2 } from 'react-icons/bs';
-import { GiWheat } from 'react-icons/gi';
 
 // ── Animation Variants ────────────────────────────────────────────────────────
 
@@ -245,20 +244,6 @@ const features = [
       'Add, edit & delete accounts anytime',
     ],
   },
-  {
-    icon: <GiWheat />,
-    color: '#84cc16',
-    glow: 'rgba(132,204,22,0.25)',
-    label: 'Agriculture',
-    desc: 'A dedicated farm management module for Indian farmers. Track crop cycles, farm expenses, livestock, daily milk records, and coconut harvest — with P&L analytics per season.',
-    bullets: [
-      'Crop cycle tracking with season & P&L',
-      'Farm expense categories (seeds, labor, fuel…)',
-      'Livestock register with events log',
-      'Daily milk production & sales records',
-      'Coconut harvest & selling tracker',
-    ],
-  },
 ];
 
 const glassBase: React.CSSProperties = {
@@ -444,7 +429,7 @@ export default function AuthPage() {
                   color: '#f8fafc',
                 }}
               >
-                India's free personal
+                India's only personal
                 <br />
                 <span
                   style={{
@@ -1097,8 +1082,7 @@ export default function AuthPage() {
                   style={{ color: 'rgba(226,232,240,0.48)' }}
                 >
                   Join Indian investors who track stocks, mutual funds, SIPs,
-                  crypto, gold, FDs, PPF and expenses on Fintrackly — free,
-                  forever.
+                  crypto, gold, FDs, PPF and expenses on Fintrackly
                 </p>
                 <div className='flex flex-wrap items-center justify-center gap-3'>
                   <motion.button

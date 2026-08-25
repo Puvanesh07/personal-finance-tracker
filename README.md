@@ -156,7 +156,7 @@ Each sync push creates new pages in the target Notion database (no deduplication
 - **Wipe**: One-click full data delete from Settings (removes all Firestore documents for the user).
 - **NSE stock metadata**: 500+ NSE symbols with sector and market-cap classification are bundled in `src/data/nseStockdata.ts` — no external API needed for the allocation charts# FinTrackly — Personal Finance Tracker
 
-React + TypeScript + Tailwind CSS personal portfolio dashboard with Firebase auth and cloud persistence (Firestore). Built for Indian investors with 14 fully live modules including a dedicated Agriculture / Farm management tracker.
+React + TypeScript + Tailwind CSS personal portfolio dashboard with Firebase auth and cloud persistence (Firestore).
 
 ## Stack
 
@@ -258,19 +258,6 @@ VITE_FIREBASE_APP_ID=...
 - Donut chart showing distribution across accounts
 - Bar chart comparing balances side by side
 - Full add / edit / delete support
-
-### Agriculture (`/agriculture`)
-
-A standalone farm management module with 6 tabs:
-
-| Tab           | What it tracks                                                                                            |
-| ------------- | --------------------------------------------------------------------------------------------------------- |
-| **Overview**  | Season-wise income, expenses, and net profit charts                                                       |
-| **Crops**     | Crop cycles — sowing date, harvest, yield, P&L per season                                                 |
-| **Expenses**  | Farm costs across 12 categories (seeds, fertilizer, labor, tractor fuel, irrigation, veterinary, etc.)    |
-| **Livestock** | Animal register (cow, buffalo, goat, sheep, poultry) with events log (purchase, sale, vaccination, death) |
-| **Milk**      | Daily milk production and sales records per animal                                                        |
-| **Coconut**   | Harvest batch tracking with selling method and price per nut                                              |
 
 ---
 

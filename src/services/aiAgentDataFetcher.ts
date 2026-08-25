@@ -13,7 +13,6 @@ import {
   investedValue,
 } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
 import type { StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
 
 export interface AgentDataResult {
@@ -1455,144 +1454,6 @@ function fetchAccountsCash(): AgentDataResult {
   return { answer: lines.join('\n') };
 }
 
-// ─── AGRICULTURE fetchers ─────────────────────────────────────────────────────
-
-function fetchAgricultureData(): AgentDataResult {
-  const { fields, cropCycles, agriExpenses, produceSales } = useAgriStore.getState();
-  if (!fields.length && !cropCycles.length) return noData('Agriculture');
-  const totalHarvest  = cropCycles.reduce((a, c) => a + (c.harvestIncome ?? 0), 0);
-  const totalInvested = cropCycles.reduce((a, c) => a + (c.investedAmount ?? 0), 0);
-  const totalExpenses = agriExpenses.reduce((a, e) => a + e.amount, 0);
-  const totalSales    = produceSales.reduce((a, s) => a + ((s as unknown as { totalAmount?: number }).totalAmount ?? 0), 0);
-  const netProfit     = totalHarvest + totalSales - totalInvested - totalExpenses;
-  const lines         = [
-    `## 🌾 Agriculture Overview`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Fields** | ${fields.length} |`,
-    `| **Crop Cycles** | ${cropCycles.length} |`,
-    `| **Harvest Income** | ${formatINR(totalHarvest)} |`,
-    `| **Produce Sales** | ${formatINR(totalSales)} |`,
-    `| **Invested** | ${formatINR(totalInvested)} |`,
-    `| **Other Expenses** | ${formatINR(totalExpenses)} |`,
-    `| **Net Profit** | **${plSign(netProfit)}${formatINR(netProfit)}** |`,
-    ``, `*From your FinTrackly Agriculture data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchAgricultureBestCrop(): AgentDataResult {
-  const { cropCycles } = useAgriStore.getState();
-  if (!cropCycles.length) return noData('Agriculture');
-  const withProfit = cropCycles.map((c) => ({
-    ...c,
-    profit: (c.harvestIncome ?? 0) - (c.investedAmount ?? 0),
-  })).sort((a, b) => b.profit - a.profit);
-  const top  = withProfit[0];
-  const lines = [
-    `## 🌾 Best Performing Crop`,
-    ``,
-    `**${top.cropName}** (${top.fieldName ?? top.fieldId})`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Season** | ${top.season} |`,
-    `| **Invested** | ${formatINR(top.investedAmount ?? 0)} |`,
-    `| **Harvest Income** | ${formatINR(top.harvestIncome ?? 0)} |`,
-    `| **Profit** | **${plSign(top.profit)}${formatINR(top.profit)}** |`,
-    top.actualHarvestDate ? `| **Harvested** | ${top.actualHarvestDate} |` : '',
-    ``,
-    `All crops by profit:`,
-    ...withProfit.map((c) => `- **${c.cropName}**: ${plSign(c.profit)}${formatINR(c.profit)}`),
-    ``, `*From your FinTrackly Agriculture data.*`,
-  ];
-  return { answer: lines.filter((l) => l !== '').join('\n') };
-}
-
-function fetchAgricultureHighestExpenseCrop(): AgentDataResult {
-  const { cropCycles, agriExpenses } = useAgriStore.getState();
-  if (!cropCycles.length) return noData('Agriculture');
-  const withExpense = cropCycles.map((c) => {
-    const cycleExpenses = agriExpenses.filter((e) => e.cropCycleId === c.id).reduce((a, e) => a + e.amount, 0);
-    return { ...c, totalExpense: (c.investedAmount ?? 0) + cycleExpenses };
-  }).sort((a, b) => b.totalExpense - a.totalExpense);
-  const top  = withExpense[0];
-  const lines = [
-    `## 💸 Crop with Highest Expenses`,
-    ``,
-    `**${top.cropName}** — Total cost: **${formatINR(top.totalExpense)}**`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Investment** | ${formatINR(top.investedAmount ?? 0)} |`,
-    `| **Additional Expenses** | ${formatINR(top.totalExpense - (top.investedAmount ?? 0))} |`,
-    `| **Harvest Income** | ${formatINR(top.harvestIncome ?? 0)} |`,
-    ``,
-    `All crops by cost:`,
-    ...withExpense.map((c) => `- **${c.cropName}**: ${formatINR(c.totalExpense)}`),
-    ``, `*From your FinTrackly Agriculture data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchAgricultureActiveCrops(): AgentDataResult {
-  const { cropCycles } = useAgriStore.getState();
-  const today  = new Date().toISOString().slice(0, 10);
-  const active = cropCycles.filter((c) => !c.actualHarvestDate || c.actualHarvestDate > today);
-  if (!active.length) return { answer: '📭 No active crop cycles found. All crops have been harvested.' };
-  const lines = [
-    `## 🌱 Active Crop Cycles`,
-    ``,
-    `| Crop | Field | Season | Expected Harvest | Invested |`, `|---|---|---|---|---|`,
-    ...active.map((c) => `| **${c.cropName}** | ${c.fieldName ?? c.fieldId} | ${c.season} | ${c.expectedHarvestDate} | ${formatINR(c.investedAmount ?? 0)} |`),
-    ``,
-    `**${active.length}** active crop cycle(s).`,
-    ``, `*From your FinTrackly Agriculture data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchAgricultureNextHarvest(): AgentDataResult {
-  const { cropCycles } = useAgriStore.getState();
-  const today  = new Date().toISOString().slice(0, 10);
-  const active = cropCycles
-    .filter((c) => c.expectedHarvestDate && c.expectedHarvestDate >= today && !c.actualHarvestDate)
-    .sort((a, b) => a.expectedHarvestDate.localeCompare(b.expectedHarvestDate));
-  if (!active.length) return { answer: '📭 No upcoming harvests found.' };
-  const next  = active[0];
-  const lines = [
-    `## 🌾 Closest to Harvest`,
-    ``,
-    `**${next.cropName}** — Expected: **${next.expectedHarvestDate}**`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Field** | ${next.fieldName ?? next.fieldId} |`,
-    `| **Season** | ${next.season} |`,
-    `| **Invested** | ${formatINR(next.investedAmount ?? 0)} |`,
-    ``,
-    active.length > 1 ? `All upcoming harvests:` : '',
-    ...active.map((c) => `- **${c.cropName}**: ${c.expectedHarvestDate}`),
-    ``, `*From your FinTrackly Agriculture data.*`,
-  ];
-  return { answer: lines.filter((l) => l !== '').join('\n') };
-}
-
-function fetchAgricultureExpenses(): AgentDataResult {
-  const { agriExpenses } = useAgriStore.getState();
-  if (!agriExpenses.length) return noData('Agriculture expenses');
-  const total   = agriExpenses.reduce((a, e) => a + e.amount, 0);
-  const catMap  = agriExpenses.reduce((acc, e) => { acc[e.category] = (acc[e.category] ?? 0) + e.amount; return acc; }, {} as Record<string, number>);
-  const sorted  = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-  const lines   = [
-    `## 💸 Agriculture Expenses Breakdown`,
-    ``,
-    `**Total: ${formatINR(total)}** across ${agriExpenses.length} entries`,
-    ``,
-    `| Category | Amount | Share |`, `|---|---|---|`,
-    ...sorted.map(([cat, amt]) => `| **${cat}** | ${formatINR(amt)} | ${pct(amt, total)} |`),
-    ``, `*From your FinTrackly Agriculture data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
 // ─── LENDING fetchers ─────────────────────────────────────────────────────────
 
 function getLendingStats() {
@@ -1898,7 +1759,6 @@ export function generateFullReport(): string {
     investments, liabilities, cashflows, goals, accounts,
     trackedPayments, insurancePolicies, lendingBorrowers,
   } = usePortfolioStore.getState();
-  const { fields, cropCycles } = useAgriStore.getState();
   const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
   const avgIncome  = monthlyAvg(cashflows, 'income');
   const avgExpense = monthlyAvg(cashflows, 'expense');
@@ -1926,8 +1786,6 @@ export function generateFullReport(): string {
   if (accounts.length)              sections.push(fetchAccountsData().answer, ``);
   if (lendingBorrowers.filter((b) => b.status === 'active').length)
                                     sections.push(fetchLendingData().answer, ``);
-  if (fields.length || cropCycles.length)
-                                    sections.push(fetchAgricultureData().answer, ``);
 
   return sections.length > 1
     ? sections.join('\n')
@@ -2015,14 +1873,6 @@ export function fetchPersonalData(
     case 'accounts_distribution': return fetchAccountsDistribution();
     case 'accounts_cash':         return fetchAccountsCash();
 
-    // Agriculture
-    case 'agriculture':                        return fetchAgricultureData();
-    case 'agriculture_best_crop':              return fetchAgricultureBestCrop();
-    case 'agriculture_highest_expense_crop':   return fetchAgricultureHighestExpenseCrop();
-    case 'agriculture_active_crops':           return fetchAgricultureActiveCrops();
-    case 'agriculture_next_harvest':           return fetchAgricultureNextHarvest();
-    case 'agriculture_expenses':               return fetchAgricultureExpenses();
-
     // Lending
     case 'lending':                    return fetchLendingData();
     case 'lending_total':              return fetchLendingTotal();
@@ -2078,9 +1928,6 @@ import {
   getGoalClosestToCompletion,
   getGoalsOnTrack,
   getAccountsSummary,
-  getAgriculture,
-  getAgricultureBestCrop,
-  getAgricultureActiveCrops,
   getLendingSummary,
   getLendingOutstanding,
 } from './aiAgentTools';
@@ -2171,14 +2018,6 @@ export function fetchAgentResponse(
     case 'accounts_distribution': return getAccountsSummary();
     case 'accounts_cash':         return getAccountsSummary();
 
-    // Agriculture
-    case 'agriculture':                      return getAgriculture();
-    case 'agriculture_best_crop':            return getAgricultureBestCrop();
-    case 'agriculture_highest_expense_crop': return getAgriculture();
-    case 'agriculture_active_crops':         return getAgricultureActiveCrops();
-    case 'agriculture_next_harvest':         return getAgricultureActiveCrops();
-    case 'agriculture_expenses':             return getAgriculture();
-
     // Lending
     case 'lending':                    return getLendingSummary();
     case 'lending_total':              return getLendingSummary();
@@ -2198,3 +2037,4 @@ export function fetchAgentResponse(
     }
   }
 }
+

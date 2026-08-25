@@ -89,9 +89,7 @@ export type TrialFeatureKey =
   | 'liabilities'
   | 'credentials'
   | 'accounts'
-  | 'agriculture'
-  | 'goals'
-  | 'attendance';
+  | 'goals';
 
 export const TRIAL_FEATURE_LIMITS: Record<TrialFeatureKey, number> = {
   investments: 5,
@@ -101,9 +99,7 @@ export const TRIAL_FEATURE_LIMITS: Record<TrialFeatureKey, number> = {
   liabilities: 1,
   credentials: 1,
   accounts:    1,
-  agriculture: 1,
   goals:       1,
-  attendance:  1,
 };
 
 /** Display labels for each feature key (used in UI) */
@@ -115,9 +111,7 @@ export const TRIAL_FEATURE_LABELS: Record<TrialFeatureKey, string> = {
   liabilities: 'Liabilities',
   credentials: 'Credentials',
   accounts:    'Accounts',
-  agriculture: 'Agriculture',
   goals:       'Goals',
-  attendance:  'Attendance',
 };
 
 /** Emoji icon for each feature key (used in progress UI) */
@@ -129,9 +123,7 @@ export const TRIAL_FEATURE_ICONS: Record<TrialFeatureKey, string> = {
   liabilities: '💳',
   credentials: '🔐',
   accounts:    '🏦',
-  agriculture: '🌾',
   goals:       '🎯',
-  attendance:  '👥',
 };
 
 export type PremiumFeature =

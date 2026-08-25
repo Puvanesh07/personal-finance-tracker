@@ -5,8 +5,6 @@
 
 import { useMemo } from 'react';
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useAgriStore } from '../store/agricultureStore';
-import { useAttendanceStore } from '../store/attendanceStore';
 import { useSubscription } from '../context/SubscriptionContext';
 import {
   TRIAL_FEATURE_LIMITS,
@@ -40,29 +38,6 @@ export interface TrialLimitsResult {
   anyAtLimit: boolean;
 }
 
-// Agriculture count = total records across all agri sub-collections
-function useAgriCount() {
-  const fields = useAgriStore((s) => s.fields);
-  const cropCycles = useAgriStore((s) => s.cropCycles);
-  const agriExpenses = useAgriStore((s) => s.agriExpenses);
-  const milkRecords = useAgriStore((s) => s.milkRecords);
-  const coconutRecords = useAgriStore((s) => s.coconutRecords);
-  const livestockEvents = useAgriStore((s) => s.livestockEvents);
-  const produceSales = useAgriStore((s) => s.produceSales);
-  // For trial enforcement we track "fields" as the primary agri record
-  // (each crop setup = one field). Using fields.length is the simplest
-  // unit that maps 1-to-1 with "starting to use Agriculture".
-  return (
-    fields.length +
-    cropCycles.length +
-    agriExpenses.length +
-    milkRecords.length +
-    coconutRecords.length +
-    livestockEvents.length +
-    produceSales.length
-  );
-}
-
 const DISPLAY_ORDER: TrialFeatureKey[] = [
   'investments',
   'cashflows',
@@ -71,9 +46,7 @@ const DISPLAY_ORDER: TrialFeatureKey[] = [
   'liabilities',
   'credentials',
   'accounts',
-  'agriculture',
   'goals',
-  'attendance',
 ];
 
 export function useTrialLimits(): TrialLimitsResult {
@@ -90,8 +63,6 @@ export function useTrialLimits(): TrialLimitsResult {
   const credentials = usePortfolioStore((s) => s.credentials.length);
   const accounts = usePortfolioStore((s) => s.accounts.length);
   const goals = usePortfolioStore((s) => s.goals.length);
-  const employees = useAttendanceStore((s) => s.employees.length);
-  const agriCount = useAgriCount();
 
   // Payments = tracked + pending (both "payment" features share the same limit)
   const payments = trackedPayments + pendingPayments;
@@ -106,9 +77,7 @@ export function useTrialLimits(): TrialLimitsResult {
     liabilities,
     credentials,
     accounts,
-    agriculture: agriCount,
     goals,
-    attendance: employees,
   };
 
   const usage = useMemo<Record<TrialFeatureKey, FeatureUsage>>(() => {
@@ -139,9 +108,7 @@ export function useTrialLimits(): TrialLimitsResult {
     liabilities,
     credentials,
     accounts,
-    agriCount,
     goals,
-    employees,
   ]);
 
   const usageList = DISPLAY_ORDER.map((k) => usage[k]);

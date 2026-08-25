@@ -284,7 +284,7 @@ export function PWAInstallBanner() {
 
               <div className='mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5'>
                 <p className='text-xs text-emerald-300 text-center leading-relaxed'>
-                  🌟 Track your stocks, farm income & net worth — right from
+                  🌟 Track your stocks, investments & net worth — right from
                   your home screen!
                 </p>
               </div>

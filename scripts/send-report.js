@@ -49,18 +49,6 @@ function hasAnyData(allData) {
     allData.snapshots,
     allData.lendingBorrowers,
     allData.lendingTransactions,
-    allData.agriFields,
-    allData.agriCropCycles,
-    allData.agriExpenses,
-    allData.agriLivestock,
-    allData.agriMilkRecords,
-    allData.agriCoconut,
-    allData.agriLivestockEvents,
-    allData.agriProduceSales,
-    allData.attEmployees,
-    allData.attRecords,
-    allData.attTransactions,
-    allData.attSalary,
   ].some((col) => Array.isArray(col) && col.length > 0);
 }
 
@@ -181,18 +169,8 @@ function buildBackupJSON(collections, settingsDoc) {
     snapshots = [],
     networthSnapshots = [],
     accounts = [],
-    agriFields = [],
-    agriCropCycles = [],
-    agriExpenses = [],
-    agriLivestock = [],
-    agriMilkRecords = [],
-    agriCoconut = [],
-    agriLivestockEvents = [],
-    agriProduceSales = [],
-    attEmployees = [],
-    attRecords = [],
-    attTransactions = [],
-    attSalary = [],
+    notion: settingsDoc?.notion ?? { enabled: false },
+    essentials: settingsDoc?.essentials ?? {},
     insurancePolicies = [],
     insurancePayments = [],
     lendingBorrowers = [],
@@ -217,18 +195,6 @@ function buildBackupJSON(collections, settingsDoc) {
     accounts,
     notion: settingsDoc?.notion ?? { enabled: false },
     essentials: settingsDoc?.essentials ?? {},
-    agriFields,
-    agriCropCycles,
-    agriExpenses,
-    agriLivestock,
-    agriMilkRecords,
-    agriCoconut,
-    agriLivestockEvents,
-    agriProduceSales,
-    attEmployees,
-    attRecords,
-    attTransactions,
-    attSalary,
     insurancePolicies,
     insurancePayments,
     lendingBorrowers,
@@ -275,18 +241,6 @@ function buildCSVAttachments(allData) {
     sipPlans = [],
     lendingBorrowers = [],
     lendingTransactions = [],
-    agriFields = [],
-    agriCropCycles = [],
-    agriExpenses = [],
-    agriLivestock = [],
-    agriMilkRecords = [],
-    agriCoconut = [],
-    agriLivestockEvents = [],
-    agriProduceSales = [],
-    attEmployees = [],
-    attRecords = [],
-    attTransactions = [],
-    attSalary = [],
     snapshots = [],
     networthSnapshots = [],
   } = allData;
@@ -295,10 +249,6 @@ function buildCSVAttachments(allData) {
   const accountMap = {};
   accounts.forEach((a) => {
     accountMap[a.id] = a.name;
-  });
-  const empMap = {};
-  attEmployees.forEach((e) => {
-    empMap[e.id] = e.name;
   });
   const bMap = {};
   lendingBorrowers.forEach((b) => {
@@ -598,194 +548,6 @@ function buildCSVAttachments(allData) {
     });
   }
 
-  // Agriculture
-  if (agriFields.length) {
-    files.push({
-      name: 'agri-fields.csv',
-      csv: toCSV(
-        agriFields.map((f) => ({
-          Name: f.name,
-          'Area (Acres)': f.areAcres,
-          Location: f.location ?? '',
-          'Soil Type': f.soilType ?? '',
-        })),
-      ),
-    });
-  }
-  if (agriLivestock.length) {
-    files.push({
-      name: 'agri-livestock.csv',
-      csv: toCSV(
-        agriLivestock.map((l) => ({
-          Type: l.type,
-          Name: l.name ?? '',
-          Count: l.count,
-          'Purchase Cost': l.purchaseCost,
-          'Current Value': l.currentValue,
-          'Purchase Date': l.purchaseDate,
-        })),
-      ),
-    });
-  }
-  if (agriCropCycles.length) {
-    files.push({
-      name: 'agri-crops.csv',
-      csv: toCSV(
-        agriCropCycles.map((c) => ({
-          'Crop Name': c.cropName,
-          Field: c.fieldName ?? '',
-          Season: c.season,
-          'Start Date': c.startDate,
-          'Harvest Date': c.actualHarvestDate ?? c.expectedHarvestDate ?? '',
-          'Invested Amount': c.investedAmount,
-          'Harvest Income': c.harvestIncome,
-          'Profit/Loss': (c.harvestIncome || 0) - (c.investedAmount || 0),
-          Notes: c.notes ?? '',
-        })),
-      ),
-    });
-  }
-  if (agriExpenses.length) {
-    files.push({
-      name: 'agri-expenses.csv',
-      csv: toCSV(
-        agriExpenses.map((e) => ({
-          Date: e.date,
-          Category: e.category,
-          Crop: e.cropName ?? '',
-          Amount: e.amount,
-          Notes: e.notes ?? '',
-        })),
-      ),
-    });
-  }
-  if (agriMilkRecords.length) {
-    files.push({
-      name: 'agri-milk.csv',
-      csv: toCSV(
-        agriMilkRecords.map((m) => ({
-          Date: m.date,
-          Session: m.session ?? '',
-          Liters: m.liters,
-          'Price/Liter': m.pricePerLiter,
-          Income: (m.liters || 0) * (m.pricePerLiter || 0),
-          'Sold To': m.soldTo ?? '',
-        })),
-      ),
-    });
-  }
-  if (agriCoconut.length) {
-    files.push({
-      name: 'agri-coconut.csv',
-      csv: toCSV(
-        agriCoconut.map((c) => ({
-          Date: c.date,
-          Trees: c.numberOfTrees,
-          'Total Coconuts': c.totalCoconuts,
-          'Sell Method': c.sellMethod,
-          'Price/Coconut': c.pricePerCoconut ?? '',
-          Income: c.harvestIncome,
-          Investment: c.investmentAmount,
-          Profit: (c.harvestIncome || 0) - (c.investmentAmount || 0),
-          Notes: c.notes ?? '',
-        })),
-      ),
-    });
-  }
-  if (agriProduceSales.length) {
-    files.push({
-      name: 'agri-produce-sales.csv',
-      csv: toCSV(
-        agriProduceSales.map((p) => ({
-          Date: p.date,
-          'Produce Name': p.produceName,
-          Category: p.category,
-          Unit: p.unit,
-          Quantity: p.quantity,
-          'Price/Unit': p.pricePerUnit,
-          Commission: p.commissionAmount ?? 0,
-          'Total Amount': p.totalAmount,
-          'Sold To': p.soldTo ?? '',
-          Notes: p.notes ?? '',
-        })),
-      ),
-    });
-  }
-  if (agriLivestockEvents.length) {
-    files.push({
-      name: 'agri-livestock-events.csv',
-      csv: toCSV(
-        agriLivestockEvents.map((e) => ({
-          Date: e.date,
-          Animal: e.animalType,
-          'Event Type': e.eventType,
-          Count: e.count,
-          Price: e.price ?? '',
-          Notes: e.notes ?? '',
-        })),
-      ),
-    });
-  }
-
-  // Attendance
-  if (attEmployees.length) {
-    files.push({
-      name: 'attendance-workers.csv',
-      csv: toCSV(
-        attEmployees.map((e) => ({
-          Name: e.name,
-          Phone: e.phone ?? '',
-          'Daily Wage (₹)': e.dailyWage,
-          Notes: e.notes ?? '',
-        })),
-      ),
-    });
-  }
-  if (attRecords.length) {
-    files.push({
-      name: 'attendance-records.csv',
-      csv: toCSV(
-        attRecords.map((r) => ({
-          Date: r.date,
-          Worker: empMap[r.employeeId] ?? r.employeeId,
-          Present: r.present ? 'Yes' : 'No',
-          'Daily Wage (₹)': r.wage,
-          'Extra Work (₹)': r.extraWork ?? 0,
-          'Total (₹)': r.present ? (r.wage || 0) + (r.extraWork || 0) : 0,
-          Note: r.note ?? '',
-        })),
-      ),
-    });
-  }
-  if (attTransactions.length) {
-    files.push({
-      name: 'attendance-advances.csv',
-      csv: toCSV(
-        attTransactions.map((t) => ({
-          Date: t.date,
-          Worker: empMap[t.employeeId] ?? t.employeeId,
-          Type: t.type,
-          'Amount (₹)': t.amount,
-          Note: t.note ?? '',
-        })),
-      ),
-    });
-  }
-  if (attSalary.length) {
-    files.push({
-      name: 'attendance-salary.csv',
-      csv: toCSV(
-        attSalary.map((s) => ({
-          Month: s.month,
-          Worker: empMap[s.employeeId] ?? s.employeeId,
-          'Days Worked': s.daysWorked,
-          'Net Payable (₹)': s.netPayable ?? s.finalSalary,
-          Status: s.paymentStatus,
-        })),
-      ),
-    });
-  }
-
   return files;
 }
 
@@ -906,7 +668,7 @@ function emailTemplate(sections, monthLbl, attachmentSummary, overview) {
 <div style="font-size:42px;margin-bottom:10px">📊</div>
 <h1 style="color:#f8fafc;font-size:24px;margin:0 0 6px;font-weight:700;letter-spacing:-0.3px">FinTrackly Monthly Report</h1>
 <p style="color:#64748b;font-size:14px;margin:0;font-weight:500">${monthLbl}</p>
-<div style="margin-top:14px;color:#94a3b8;font-size:12px">Comprehensive overview of your finances, farm &amp; workforce</div>
+<div style="margin-top:14px;color:#94a3b8;font-size:12px">Comprehensive overview of your finances</div>
 </div>
 </div>
 
@@ -965,18 +727,6 @@ async function buildReportAndData(uid) {
     credentials,
     snapshots,
     networthSnapshots,
-    agriFields,
-    agriCropCycles,
-    agriExpenses,
-    agriLivestock,
-    agriMilkRecords,
-    agriLivestockEvents,
-    agriCoconut,
-    agriProduceSales,
-    attEmployees,
-    attRecords,
-    attTransactions,
-    attSalary,
     insurancePolicies,
     insurancePayments,
     sipPlanDocs,
@@ -996,18 +746,6 @@ async function buildReportAndData(uid) {
     fetchCol(uid, 'credentials'),
     fetchCol(uid, 'snapshots'),
     fetchCol(uid, 'networthSnapshots'),
-    fetchCol(uid, 'agriFields'),
-    fetchCol(uid, 'agriCropCycles'),
-    fetchCol(uid, 'agriExpenses'),
-    fetchCol(uid, 'agriLivestock'),
-    fetchCol(uid, 'agriMilkRecords'),
-    fetchCol(uid, 'agriLivestockEvents'),
-    fetchCol(uid, 'agriCoconut'),
-    fetchCol(uid, 'agriProduceSales'),
-    fetchCol(uid, 'attEmployees'),
-    fetchCol(uid, 'attRecords'),
-    fetchCol(uid, 'attTransactions'),
-    fetchCol(uid, 'attSalary'),
     fetchCol(uid, 'insurancePolicies'),
     fetchCol(uid, 'insurancePayments'),
     fetchCol(uid, 'sipPlans'),
@@ -1029,31 +767,12 @@ async function buildReportAndData(uid) {
     credentials,
     snapshots,
     networthSnapshots,
-    agriFields,
-    agriCropCycles,
-    agriExpenses,
-    agriLivestock,
-    agriMilkRecords,
-    agriLivestockEvents,
-    agriCoconut,
-    agriProduceSales,
-    attEmployees,
-    attRecords,
-    attTransactions,
-    attSalary,
     insurancePolicies,
     insurancePayments,
     sipPlans: sipPlanDocs,
     lendingBorrowers,
     lendingTransactions,
   };
-
-  // ── Pre-compute module presence flags (used by TOC + section guards) ─────────
-  const hasAgriData = !!(
-    agriFields.length || agriCropCycles.length || agriMilkRecords.length ||
-    agriCoconut.length || agriLivestockEvents.length || agriLivestock.length ||
-    agriProduceSales.length || agriExpenses.length
-  );
 
   // ── Derived: Investment calculations ────────────────────────────────────────
   const calcInvested = (i) =>
@@ -1195,8 +914,6 @@ async function buildReportAndData(uid) {
     if (credentials.length > 0)        tocItems.push(['🔐', 'Credentials', '#0ea5e9']);
     if (networthSnapshots.length > 0 || snapshots.length > 0)
                                        tocItems.push(['📜', 'Net Worth',   '#14b8a6']);
-    if (hasAgriData)                   tocItems.push(['🌾', 'Agriculture', '#4ade80']);
-    if (attEmployees.length > 0)       tocItems.push(['👷', 'Workers',     '#60a5fa']);
 
     sections.push(
       `<div style="margin-bottom:28px">
@@ -2411,530 +2128,13 @@ async function buildReportAndData(uid) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // GROUP D — AGRICULTURE & FARM
-  // ═══════════════════════════════════════════════════════════════════════════
-  // hasAgriData is pre-computed above near allData
-
-  if (hasAgriData) {
-    sections.push(sectionGroup('Agriculture & Farm', '🌾', '#4ade80'));
-
-    const agriRows = [];
-    let cropIncomeMonth = 0;
-    let produceIncomeMonth = 0;
-    let milkIncomeMonth = 0;
-    let coconutIncomeMonth = 0;
-    let farmExpMonth = 0;
-
-    if (agriFields.length > 0) {
-      const totalAcres = agriFields.reduce((s, f) => s + (f.areAcres || 0), 0);
-      agriRows.push([
-        'Total Fields',
-        `${agriFields.length} (${totalAcres.toFixed(1)} acres)`,
-        '#4ade80',
-      ]);
-    }
-
-    if (agriLivestock.length > 0) {
-      const totalLivestock = agriLivestock.reduce((s, l) => s + (l.count || 0), 0);
-      const liveValue = agriLivestock.reduce(
-        (s, l) => s + (l.currentValue || 0),
-        0,
-      );
-      agriRows.push([
-        'Livestock Count',
-        `${totalLivestock} animals`,
-        '#f59e0b',
-      ]);
-      agriRows.push(['Livestock Value', fmt(liveValue), '#a78bfa']);
-
-      // Livestock detail table
-      const liveRows = agriLivestock.slice(0, 8).map((l) =>
-        dataRow(
-          [
-            l.type?.toUpperCase() || '—',
-            esc(l.name || 'Herd').slice(0, 18),
-            `${l.count || 0}`,
-            fmt(l.currentValue || 0),
-          ],
-          ['left', 'left', 'right', 'right'],
-          ['#22c55e', '#cbd5e1', '#f59e0b', '#a78bfa'],
-        ),
-      );
-      const liveTable = dataTable(
-        ['Type', 'Name/Herd', 'Count', 'Value'],
-        liveRows,
-        ['left', 'left', 'right', 'right'],
-      );
-      sections.push(
-        section(
-          `🐄 Livestock Inventory (${agriLivestock.length})`,
-          '#22c55e',
-          `<div>${liveTable}</div>`,
-        ),
-      );
-    }
-
-    if (agriCropCycles.length > 0) {
-      const activeCrops = agriCropCycles.filter((c) => !c.actualHarvestDate);
-      const harvestedCrops = agriCropCycles.filter(
-        (c) => !!c.actualHarvestDate,
-      );
-      const totalCropIncome = harvestedCrops.reduce(
-        (s, c) => s + (c.harvestIncome || 0),
-        0,
-      );
-      cropIncomeMonth = harvestedCrops
-        .filter((c) =>
-          (c.actualHarvestDate || c.expectedHarvestDate || '').startsWith(month),
-        )
-        .reduce((s, c) => s + (c.harvestIncome || 0), 0);
-      const totalCropInvested = agriCropCycles.reduce(
-        (s, c) => s + (c.investedAmount || 0),
-        0,
-      );
-      agriRows.push(['Active Crop Cycles', `${activeCrops.length}`, '#4ade80']);
-      agriRows.push([
-        'Harvested Cycles',
-        `${harvestedCrops.length}`,
-        '#64748b',
-      ]);
-      agriRows.push(['Total Crop Income', fmt(totalCropIncome), '#22c55e']);
-      if (cropIncomeMonth > 0)
-        agriRows.push([
-          `Crop Income — ${monthLbl}`,
-          fmt(cropIncomeMonth),
-          '#22c55e',
-        ]);
-      agriRows.push([
-        'Total Crop Investment',
-        fmt(totalCropInvested),
-        '#ef4444',
-      ]);
-      agriRows.push([
-        'Crop Net Profit',
-        fmt(totalCropIncome - totalCropInvested),
-        totalCropIncome - totalCropInvested >= 0 ? '#22c55e' : '#ef4444',
-      ]);
-
-      // Crops table
-      const cropRows = agriCropCycles.slice(0, 8).map((c) => {
-        const isHarvested = !!c.actualHarvestDate;
-        return dataRow(
-          [
-            esc(c.cropName || 'Crop'),
-            esc(c.fieldName || '—').slice(0, 14),
-            shortDate(c.startDate),
-            isHarvested ? `✅ ${shortDate(c.actualHarvestDate)}` : `🌱 ${shortDate(c.expectedHarvestDate)}`,
-            fmt(c.investedAmount || 0),
-            isHarvested ? fmt(c.harvestIncome || 0) : '—',
-            isHarvested
-              ? `${(c.harvestIncome || 0) - (c.investedAmount || 0) >= 0 ? '+' : ''}${fmt((c.harvestIncome || 0) - (c.investedAmount || 0))}`
-              : '🌱 Growing',
-          ],
-          ['left', 'left', 'left', 'left', 'right', 'right', 'right'],
-          [
-            '#cbd5e1',
-            '#64748b',
-            '#94a3b8',
-            isHarvested ? '#22c55e' : '#f59e0b',
-            '#ef4444',
-            isHarvested ? '#22c55e' : '#64748b',
-            isHarvested
-              ? (c.harvestIncome || 0) - (c.investedAmount || 0) >= 0
-                ? '#22c55e'
-                : '#ef4444'
-              : '#f59e0b',
-          ],
-        );
-      });
-      const cropTable = dataTable(
-        ['Crop', 'Field', 'Planted', 'Harvest', 'Invested', 'Income', 'P&L'],
-        cropRows,
-        ['left', 'left', 'left', 'left', 'right', 'right', 'right'],
-      );
-      sections.push(
-        section(
-          `🌱 Crop Cycles (${activeCrops.length} active · ${harvestedCrops.length} harvested)`,
-          '#4ade80',
-          `<div>${cropTable}</div>`,
-        ),
-      );
-    }
-
-    if (agriExpenses.length > 0) {
-      const allFarmExp = agriExpenses.reduce((s, e) => s + (e.amount || 0), 0);
-      farmExpMonth = agriExpenses
-        .filter((e) => (e.date || '').startsWith(month))
-        .reduce((s, e) => s + (e.amount || 0), 0);
-      agriRows.push(['Farm Expenses (all time)', fmt(allFarmExp), '#ef4444']);
-      if (farmExpMonth > 0)
-        agriRows.push([
-          `Farm Expenses — ${monthLbl}`,
-          fmt(farmExpMonth),
-          '#ef4444',
-        ]);
-    }
-
-    if (agriMilkRecords.length > 0) {
-      const milkMonth = agriMilkRecords.filter((m) =>
-        (m.date || '').startsWith(month),
-      );
-      const milkLiters = milkMonth.reduce((s, m) => s + (m.liters || 0), 0);
-      milkIncomeMonth = milkMonth.reduce(
-        (s, m) => s + (m.liters || 0) * (m.pricePerLiter || 0),
-        0,
-      );
-      const allMilkLiters = agriMilkRecords.reduce(
-        (s, m) => s + (m.liters || 0),
-        0,
-      );
-      const allMilkInc = agriMilkRecords.reduce(
-        (s, m) => s + (m.liters || 0) * (m.pricePerLiter || 0),
-        0,
-      );
-      if (milkLiters > 0)
-        agriRows.push([
-          `Milk — ${monthLbl} (${milkLiters.toFixed(1)} L)`,
-          fmt(milkIncomeMonth),
-          '#14b8a6',
-        ]);
-      agriRows.push([
-        `Milk All Time (${allMilkLiters.toFixed(0)} L)`,
-        fmt(allMilkInc),
-        '#64748b',
-      ]);
-    }
-
-    if (agriCoconut.length > 0) {
-      const cocIncome = agriCoconut.reduce(
-        (s, c) => s + (c.harvestIncome || 0),
-        0,
-      );
-      const totalCoconuts = agriCoconut.reduce(
-        (s, c) => s + (c.totalCoconuts || 0),
-        0,
-      );
-      const cocInvestment = agriCoconut.reduce(
-        (s, c) => s + (c.investmentAmount || 0),
-        0,
-      );
-      coconutIncomeMonth = agriCoconut
-        .filter((c) => (c.date || '').startsWith(month))
-        .reduce((s, c) => s + (c.harvestIncome || 0), 0);
-      agriRows.push([
-        `Coconut Harvests (${totalCoconuts.toLocaleString()} nuts)`,
-        fmt(cocIncome),
-        '#f59e0b',
-      ]);
-      if (coconutIncomeMonth > 0)
-        agriRows.push([
-          `Coconut — ${monthLbl}`,
-          fmt(coconutIncomeMonth),
-          '#f59e0b',
-        ]);
-      if (cocInvestment > 0) {
-        agriRows.push(['Coconut Investment', fmt(cocInvestment), '#ef4444']);
-        agriRows.push([
-          'Coconut Net',
-          fmt(cocIncome - cocInvestment),
-          cocIncome - cocInvestment >= 0 ? '#22c55e' : '#ef4444',
-        ]);
-      }
-    }
-
-    if (agriProduceSales.length > 0) {
-      const produceMonth = agriProduceSales.filter((p) =>
-        (p.date || '').startsWith(month),
-      );
-      produceIncomeMonth = produceMonth.reduce(
-        (s, p) => s + (p.totalAmount || 0),
-        0,
-      );
-      const allProduceInc = agriProduceSales.reduce(
-        (s, p) => s + (p.totalAmount || 0),
-        0,
-      );
-      if (produceIncomeMonth > 0)
-        agriRows.push([
-          `Produce Sales — ${monthLbl}`,
-          fmt(produceIncomeMonth),
-          '#22c55e',
-        ]);
-      agriRows.push([
-        'Produce Sales (all time)',
-        fmt(allProduceInc),
-        '#64748b',
-      ]);
-
-      // Produce table
-      const produceRows = [...agriProduceSales]
-        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-        .slice(0, 8)
-        .map((p) =>
-          dataRow(
-            [
-              shortDate(p.date),
-              esc(p.produceName || 'Produce').slice(0, 18),
-              `${p.quantity || 0} ${p.unit || ''}`,
-              fmt(p.totalAmount || 0),
-              esc(p.soldTo || '—').slice(0, 14),
-            ],
-            ['left', 'left', 'right', 'right', 'left'],
-            ['#94a3b8', '#cbd5e1', '#f59e0b', '#22c55e', '#64748b'],
-          ),
-        );
-      const produceTable = dataTable(
-        ['Date', 'Produce', 'Qty', 'Amount', 'Sold To'],
-        produceRows,
-        ['left', 'left', 'right', 'right', 'left'],
-      );
-      sections.push(
-        section(
-          `🥬 Produce Sales (${agriProduceSales.length} lots)`,
-          '#22c55e',
-          `<div>${produceTable}</div>`,
-        ),
-      );
-    }
-
-    if (agriLivestockEvents.length > 0) {
-      const types = [
-        'goat',
-        'cow',
-        'buffalo',
-        'sheep',
-        'poultry',
-        'pig',
-        'other',
-      ];
-      const counts = {};
-      types.forEach((type) => {
-        const cnt = agriLivestockEvents
-          .filter((e) => e.animalType === type)
-          .reduce((n, e) => {
-            if (['purchase', 'birth', 'existing'].includes(e.eventType))
-              return n + (e.count || 0);
-            if (['sale', 'death'].includes(e.eventType))
-              return n - (e.count || 0);
-            return n;
-          }, 0);
-        if (cnt > 0) counts[type] = cnt;
-      });
-      const total = Object.values(counts).reduce((s, n) => s + n, 0);
-      if (total > 0) {
-        agriRows.push(['Total Livestock (Events)', `${total} animals`, '#94a3b8']);
-        Object.entries(counts).forEach(([type, cnt]) =>
-          agriRows.push([
-            `  ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-            `${cnt}`,
-            '#64748b',
-          ]),
-        );
-      }
-    }
-
-    // Month total farm income
-    const farmIncomeMonth =
-      cropIncomeMonth + produceIncomeMonth + milkIncomeMonth + coconutIncomeMonth;
-    if (farmIncomeMonth > 0 || farmExpMonth > 0) {
-      agriRows.unshift([
-        '',
-        '',
-        '#00000000',
-      ]);
-      agriRows.unshift([
-        `Net Farm — ${monthLbl}`,
-        farmIncomeMonth - farmExpMonth >= 0
-          ? `+${fmt(farmIncomeMonth - farmExpMonth)}`
-          : `-${fmt(farmExpMonth - farmIncomeMonth)}`,
-        farmIncomeMonth - farmExpMonth >= 0 ? '#22c55e' : '#ef4444',
-      ]);
-      if (farmIncomeMonth > 0)
-        agriRows.unshift([
-          `Farm Income — ${monthLbl}`,
-          fmt(farmIncomeMonth),
-          '#22c55e',
-        ]);
-    }
-
-    if (agriRows.length > 0)
-      sections.push(
-        section(
-          '🌾 Agriculture — Summary',
-          '#4ade80',
-          `<table style="width:100%;border-collapse:collapse">${tableRows(agriRows)}</table>`,
-          'agriculture',
-        ),
-      );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GROUP E — WORKFORCE / ATTENDANCE
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (attEmployees.length > 0) {
-    sections.push(sectionGroup('Farm Workers & Attendance', '👷', '#60a5fa'));
-
-    const monthAtt = attRecords.filter((r) => (r.date || '').startsWith(month));
-    const present = monthAtt.filter((r) => r.present).length;
-    const absent = monthAtt.filter((r) => !r.present).length;
-    const wages = monthAtt.reduce(
-      (s, r) => s + (r.present ? (r.wage || 0) + (r.extraWork || 0) : 0),
-      0,
-    );
-    const advances = attTransactions
-      .filter((t) => t.type === 'advance' && (t.date || '').startsWith(month))
-      .reduce((s, t) => s + (t.amount || 0), 0);
-    const allAdv = attTransactions
-      .filter((t) => t.type === 'advance')
-      .reduce((s, t) => s + (t.amount || 0), 0);
-    const unpaid = attSalary.filter(
-      (s) => s.month === month && s.paymentStatus !== 'paid',
-    );
-    const empMap = {};
-    attEmployees.forEach((e) => {
-      empMap[e.id] = e.name;
-    });
-
-    // Per-worker attendance table
-    const workerRows = attEmployees.slice(0, 10).map((emp) => {
-      const empAtt = monthAtt.filter((r) => r.employeeId === emp.id);
-      const empPresent = empAtt.filter((r) => r.present).length;
-      const empAbsent = empAtt.filter((r) => !r.present).length;
-      const empWages = empAtt.reduce(
-        (s, r) => s + (r.present ? (r.wage || 0) + (r.extraWork || 0) : 0),
-        0,
-      );
-      const empAdv = attTransactions
-        .filter(
-          (t) =>
-            t.employeeId === emp.id &&
-            t.type === 'advance' &&
-            (t.date || '').startsWith(month),
-        )
-        .reduce((s, t) => s + (t.amount || 0), 0);
-      return dataRow(
-        [
-          esc(emp.name || 'Worker'),
-          `${empPresent}d`,
-          `${empAbsent}d`,
-          fmt(empWages),
-          empAdv > 0 ? fmt(empAdv) : '—',
-          emp.phone ? esc(emp.phone).slice(0, 12) : '—',
-        ],
-        ['left', 'right', 'right', 'right', 'right', 'left'],
-        [
-          '#cbd5e1',
-          '#22c55e',
-          '#ef4444',
-          '#e2e8f0',
-          '#f59e0b',
-          '#64748b',
-        ],
-      );
-    });
-    const wTable = dataTable(
-      ['Worker', 'Present', 'Absent', 'Wages', 'Advance', 'Phone'],
-      workerRows,
-      ['left', 'right', 'right', 'right', 'right', 'left'],
-    );
-
-    // Salary / Payment summary table
-    const salaryRows = attSalary
-      .filter((s) => s.month === month)
-      .slice(0, 8)
-      .map((s) => {
-        const payStatus =
-          s.paymentStatus === 'paid'
-            ? '✅ Paid'
-            : s.paymentStatus === 'partially_paid'
-              ? '🟡 Partial'
-              : '🔴 Unpaid';
-        const payColor =
-          s.paymentStatus === 'paid'
-            ? '#22c55e'
-            : s.paymentStatus === 'partially_paid'
-              ? '#f59e0b'
-              : '#ef4444';
-        return dataRow(
-          [
-            esc(empMap[s.employeeId] || 'Worker'),
-            `${s.daysWorked || 0}d`,
-            fmt(s.baseSalary || 0),
-            fmt(s.extraWork || 0),
-            s.advance ? `-${fmt(s.advance)}` : '—',
-            fmt(s.netPayable || s.finalSalary || 0),
-            payStatus,
-          ],
-          ['left', 'right', 'right', 'right', 'right', 'right', 'center'],
-          [
-            '#cbd5e1',
-            '#94a3b8',
-            '#e2e8f0',
-            '#22c55e',
-            '#f59e0b',
-            payColor,
-            payColor,
-          ],
-        );
-      });
-    const sTableRows = salaryRows.length
-      ? salaryRows
-      : [noRecords('No salary records for this month yet')];
-    const sTable = dataTable(
-      ['Worker', 'Days', 'Base', 'Extra', 'Advance', 'Net Payable', 'Status'],
-      sTableRows,
-      ['left', 'right', 'right', 'right', 'right', 'right', 'center'],
-    );
-
-    const summary = [
-      ['Total Workers', `${attEmployees.length}`, '#e2e8f0'],
-      ['Days Present This Month', `${present}`, '#22c55e'],
-      ['Days Absent This Month', `${absent}`, '#ef4444'],
-      ['Wages Earned — This Month', fmt(wages), '#22c55e'],
-    ];
-    if (advances > 0)
-      summary.push(['Advances Given — This Month', fmt(advances), '#f59e0b']);
-    if (allAdv > 0)
-      summary.push(['Total Advances (all time)', fmt(allAdv), '#64748b']);
-    if (unpaid.length > 0) {
-      summary.push([
-        `⚠ Pending Salary (${monthLbl})`,
-        `${unpaid.length} worker(s)`,
-        '#ef4444',
-      ]);
-      const unpaidAmt = unpaid.reduce(
-        (s, u) => s + (u.netPayable || u.finalSalary || 0),
-        0,
-      );
-      summary.push(['Pending Salary Amount', fmt(unpaidAmt), '#f59e0b']);
-    }
-
-    sections.push(
-      section(
-        `👷 Farm Workers — ${monthLbl}`,
-        '#60a5fa',
-        `<table style="width:100%;border-collapse:collapse;margin-bottom:18px">${tableRows(summary)}</table>` +
-          `<div style="margin-bottom:18px">
-            <div style="color:#64748b;font-size:12px;font-weight:600;margin-bottom:6px">📋 Attendance This Month</div>
-            ${wTable}
-          </div>` +
-          `<div>
-            <div style="color:#64748b;font-size:12px;font-weight:600;margin-bottom:6px">💰 Salary Summary — ${monthLbl}</div>
-            ${sTable}
-          </div>`,
-        'workers',
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
   // Empty state
   // ═══════════════════════════════════════════════════════════════════════════
   if (sections.length <= 3) {
     // Nothing beyond header/TCC rendered
     sections.push(`<div style="text-align:center;padding:30px 16px"><div style="font-size:38px;margin-bottom:14px">👋</div>
       <p style="color:#94a3b8;font-size:15px;margin:0 0 6px;font-weight:500">Your FinTrackly account is active.</p>
-      <p style="color:#64748b;font-size:13px;margin:0">Start adding investments, cashflows, goals, and farm records to see your comprehensive monthly summary here.</p></div>`);
+      <p style="color:#64748b;font-size:13px;margin:0">Start adding investments, cashflows, goals, and other records to see your comprehensive monthly summary here.</p></div>`);
   }
 
   // Build overview section content

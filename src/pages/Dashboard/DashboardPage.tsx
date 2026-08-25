@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { AllocationCharts } from '../../components/dashboard/AllocationCharts';
 import { DashboardAccountsSummary } from '../../components/dashboard/DashboardAccountsSummary';
-import { DashboardAgriSummary } from '../../components/dashboard/DashboardAgriSummary';
 import { DashboardCashflowSummary } from '../../components/dashboard/DashboardCashflowSummary';
 import { DashboardPaymentsSummary } from '../../components/dashboard/DashboardPaymentsSummary';
 import { DashboardSkeleton } from '../../components/loader/skeletons';
@@ -26,7 +25,6 @@ const MarketCapAllocationChart = lazy(() =>
 const QUICK_ACTIONS = [
   { label: 'Add Investment', icon: FiPlus, path: '/investments', color: 'emerald' },
   { label: 'Log Cashflow', icon: FiActivity, path: '/cashflow', color: 'teal' },
-  { label: 'Farm Entry', icon: FiHome, path: '/agriculture', color: 'amber' },
   { label: 'Set Goal', icon: FiTarget, path: '/goals', color: 'violet' },
 ] as const;
 
@@ -93,9 +91,6 @@ export function DashboardPage() {
         </div>
         <div className='min-w-0'>
           <DashboardPaymentsSummary />
-        </div>
-        <div className='min-w-0'>
-          <DashboardAgriSummary />
         </div>
       </section>
 
