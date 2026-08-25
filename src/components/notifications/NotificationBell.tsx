@@ -1,5 +1,6 @@
 // src/components/notifications/NotificationBell.tsx
 // Modern, professional notification panel for Fintrackly
+// Uses derived notifications from useDerivedNotifications hook.
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -21,12 +22,8 @@ import {
   useNotificationStore,
   type AppNotification,
 } from '../../store/notificationStore';
+import { useDerivedNotifications } from '../../hooks/useDerivedNotifications';
 import { useSubscription } from '../../context/SubscriptionContext';
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from '../../services/subscriptionService';
-import { auth } from '../../services/firebase';
 
 // ─── Severity accent bar ──────────────────────────────────────────────────────
 const SEVERITY_BAR: Record<string, string> = {
@@ -158,7 +155,7 @@ function NotifCard({
           </p>
         )}
 
-        {/* Footer row: category badge + severity + time + action */}
+        {/* Footer row: category badge + severity + time */}
         <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
           {/* Category pill */}
           <span className='rounded-full bg-slate-200/70 dark:bg-slate-700/60 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400'>
@@ -198,7 +195,7 @@ function NotifCard({
         )}
       </div>
 
-      {/* Dismiss (×) button — always visible on hover, always accessible */}
+      {/* Dismiss (×) button — always visible on hover */}
       <button
         type='button'
         onClick={onDismiss}
@@ -244,13 +241,18 @@ export function NotificationBell() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
-  const { notifications, markRead, markAllRead, dismiss } =
-    useNotificationStore();
   const { notifications: subscriptionNotifications } = useSubscription();
+  const derivedNotifications = useDerivedNotifications();
+  const markRead = useNotificationStore((s) => s.markRead);
+  const markAllRead = useNotificationStore((s) => s.markAllRead);
+  const dismiss = useNotificationStore((s) => s.dismiss);
+  const clearAll = useNotificationStore((s) => s.clearAll);
 
-  // ── Merge in-app + Firestore subscription notifications ──────────────────
+  // Merge derived + subscription notifications
   const mergedNotifications: AppNotification[] = [
-    // Firestore-backed subscription notifications mapped to AppNotification shape
+    // Derived in-app notifications
+    ...derivedNotifications,
+    // Subscription notifications from Firestore
     ...subscriptionNotifications.map(
       (n): AppNotification => ({
         id: `sub_${n.id}`,
@@ -273,8 +275,6 @@ export function NotificationBell() {
         severity: n.type === 'error' ? 'critical' : n.type === 'warning' ? 'high' : 'info',
       }),
     ),
-    // In-app notifications (not dismissed)
-    ...notifications.filter((n) => !n.dismissed),
   ]
     // Dedup by title+message+type (overlapping sources can produce the same thing)
     .filter((n, idx, arr) => {
@@ -298,28 +298,23 @@ export function NotificationBell() {
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleRead = (notif: AppNotification) => {
     if (notif.read) return;
-    if (notif.id.startsWith('sub_')) {
-      const uid = auth.currentUser?.uid;
-      if (uid) void markNotificationRead(uid, notif.id.replace('sub_', ''));
-      return;
-    }
+    if (notif.id.startsWith('sub_')) return; // Firestore notifs don't need client-side mark
     markRead(notif.id);
   };
 
   const handleDismiss = (notif: AppNotification, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (notif.id.startsWith('sub_')) return; // Firestore notifs can't be locally dismissed
+    if (notif.id.startsWith('sub_')) return;
     dismiss(notif.id);
   };
 
   const handleMarkAllRead = () => {
-    markAllRead();
-    const uid = auth.currentUser?.uid;
-    if (uid) void markAllNotificationsRead(uid);
+    const derivedIds = derivedNotifications.filter((n) => !n.read).map((n) => n.id);
+    if (derivedIds.length > 0) markAllRead(derivedIds);
   };
 
   const handleClearAll = () => {
-    useNotificationStore.getState().clearAll();
+    clearAll();
   };
 
   // ── Close on outside click / Escape ──────────────────────────────────────
@@ -427,7 +422,7 @@ export function NotificationBell() {
               </div>
 
               <div className='flex shrink-0 items-center gap-1'>
-                {/* Mark all as read — clearly labelled, distinct from close */}
+                {/* Mark all as read */}
                 {unreadCount > 0 && (
                   <button
                     type='button'
@@ -441,7 +436,7 @@ export function NotificationBell() {
                   </button>
                 )}
 
-                {/* Close panel — visually distinct (slate, not emerald) */}
+                {/* Close panel */}
                 <button
                   type='button'
                   onClick={() => setOpen(false)}
@@ -492,20 +487,35 @@ export function NotificationBell() {
                   {mergedNotifications.length !== 1 ? 's' : ''}
                   {unreadCount > 0 ? ` · ${unreadCount} unread` : ' · all read'}
                 </p>
-                <button
-                  type='button'
-                  onClick={handleClearAll}
-                  className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-colors'
-                  title='Clear all notifications'
-                  aria-label='Clear all notifications'
-                >
-                  <FiTrash2 className='h-3 w-3' aria-hidden='true' />
-                  Clear all
-                </button>
+                <div className='flex items-center gap-2'>
+                  {/* View All Notifications */}
+                  <button
+                    type='button'
+                    onClick={() => {
+                      navigate('/notifications');
+                      setOpen(false);
+                    }}
+                    className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
+                  >
+                    View All
+                    <FiChevronRight className='h-3 w-3' />
+                  </button>
+                  {/* Clear All */}
+                  <button
+                    type='button'
+                    onClick={handleClearAll}
+                    className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-colors'
+                    title='Clear all notifications'
+                    aria-label='Clear all notifications'
+                  >
+                    <FiTrash2 className='h-3 w-3' aria-hidden='true' />
+                    Clear all
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* All-read confirmation row (only when list is non-empty but unread=0) */}
+            {/* All-read confirmation */}
             {hasAny && unreadCount === 0 && (
               <div className='shrink-0 border-t border-slate-100 dark:border-slate-800 px-4 py-2.5 flex items-center gap-2'>
                 <FiCheck

@@ -1191,4 +1191,29 @@ export function AIAgentSkeleton() {
   );
 }
 
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+export function NotificationsSkeleton() {
+  return (
+    <SkeletonPage>
+      <PageHeader color='#10b981' titleW={130} subtitleW={220} hasButton />
+      {Array(5)
+        .fill(0)
+        .map((_, i) => (
+          <Card key={i} delay={0.05 + i * 0.05}>
+            <Row justify='space-between'>
+              <Row gap={12} style={{ flex: 1, alignItems: 'flex-start' }}>
+                <Circle size={36} color={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#a78bfa'][i]} />
+                <Col gap={5} style={{ flex: 1 }}>
+                  <Bone w={180} h={14} />
+                  <Bone w='85%' h={11} />
+                  <Bone w={60} h={10} mt={6} />
+                </Col>
+              </Row>
+              <Bone w={50} h={16} r={10} />
+            </Row>
+          </Card>
+        ))}
+    </SkeletonPage>
+  );
+}
 

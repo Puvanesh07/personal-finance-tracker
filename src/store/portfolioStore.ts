@@ -1455,12 +1455,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
   clearAllData: async () => {
     const uid = get().uid;
-    // Also wipe the notification bucket for this user when full wipe is requested.
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { useNotificationStore } = require('./notificationStore');
-      useNotificationStore.getState().clearAll();
-    } catch { /* ignore */ }
     if (!uid) return;
 
     const subCollections = [
@@ -1533,15 +1527,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   },
 
   resetSession: () => {
-    // Also clear notification scope when portfolio session is reset.
-    // Import lazily to avoid circular import between stores.
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { useNotificationStore } = require('./notificationStore');
-      useNotificationStore.getState().clearScope();
-    } catch {
-      /* ignore runtime require issues */
-    }
     set({
       uid: null,
       ready: false,

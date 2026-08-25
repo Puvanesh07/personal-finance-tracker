@@ -9,6 +9,7 @@ import {
   InsightsSkeleton,
   InvestmentsSkeleton,
   LiabilitiesSkeleton,
+  NotificationsSkeleton,
   ProfitsSkeleton,
   ReportsSkeleton,
   SettingsSkeleton,
@@ -60,7 +61,7 @@ const CredentialsPage = lazy(() =>
   import('./pages/Credentials/CredentialsPage').then((m) => ({
     default: m.CredentialsPage,
   })),
-); // ← NEW
+);
 const InsightsPage = lazy(() => import('./pages/Insights/InsightsPage'));
 const AIAgentPage = lazy(() => import('./pages/AIAgent/AIAgentPage'));
 const ToolsPage = lazy(() =>
@@ -124,6 +125,11 @@ const FeedbackPage = lazy(() =>
 const ContactUsPage = lazy(() =>
   import('./pages/Support/ContactUsPage').then((m) => ({
     default: m.ContactUsPage,
+  })),
+);
+const NotificationsPage = lazy(() =>
+  import('./pages/Notifications/NotificationsPage').then((m) => ({
+    default: m.NotificationsPage,
   })),
 );
 
@@ -234,8 +240,7 @@ export default function App() {
                   <CredentialsPage />
                 </Suspense>
               }
-            />{' '}
-            {/* ← NEW */}
+            />
             <Route
               path='/insights'
               element={
@@ -273,6 +278,14 @@ export default function App() {
               element={
                 <Suspense fallback={<ReportsSkeleton />}>
                   <ReportsPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/notifications'
+              element={
+                <Suspense fallback={<NotificationsSkeleton />}>
+                  <NotificationsPage />
                 </Suspense>
               }
             />

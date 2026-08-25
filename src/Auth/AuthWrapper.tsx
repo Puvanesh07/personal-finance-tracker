@@ -47,9 +47,7 @@ export default function AuthWrapper({
       if (cancelled) return;
       const isSameUser = activeUid.current === user.uid;
       activeUid.current = user.uid;
-      // Set notification scope FIRST — before adding any notifications,
-      // so addNotification() isn't rejected by the uid guard, and the
-      // persisted bucket for this user is loaded correctly.
+      // Set notification scope when user logs in
       setNotifScope(user.uid);
       setAuthState('logged-in');
 
@@ -74,35 +72,9 @@ export default function AuthWrapper({
       // ── FCM: listen for foreground messages and relay to in-app bell ──────
       // When the app is open, FCM does not auto-show a native notification.
       // We convert the payload into an in-app notification instead.
-      listenForegroundMessages(({ title, body, clickUrl, data }) => {
-        useNotificationStore.getState().addNotification({
-          type: (data?.notifType as any) ?? 'info',
-          title,
-          message: body,
-          entityId: data?.entityId ?? `push_${Date.now()}`,
-          severity: (data?.severity as any) ?? 'info',
-          actionLabel: data?.actionLabel ?? 'View',
-          actionPath: clickUrl,
-        });
+      listenForegroundMessages(() => {
+        // FCM foreground messages are handled by the derived notification system
       });
-
-      // Fire a welcome notification once per user, ever.
-      // Uses the store's oncePerPeriod('once') guard so it never repeats
-      // even after logout → login cycles on the same device.
-      const notifStore = useNotificationStore.getState();
-      if (notifStore.oncePerPeriod(`welcome_v2:${user.uid}`, 'once')) {
-        notifStore.addNotification({
-          type: 'welcome',
-          title: 'Welcome to Fintrackly! 👋',
-          message:
-            'Your personal finance journey starts here. Track your net worth, investments, expenses, liabilities, insurance, goals, and more — all in one place.',
-          entityId: `welcome_${user.uid}`,
-          periodKey: 'once',
-          severity: 'info',
-          actionLabel: 'Get Started',
-          actionPath: '/dashboard',
-        });
-      }
     };
 
     const handleLoggedOut = () => {
