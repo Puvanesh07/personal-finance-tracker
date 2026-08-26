@@ -23,8 +23,8 @@ export interface GroqCallResult {
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.1-70b-versatile';
-const MODEL_FALLBACK = 'llama3-8b-8192';
+const MODEL = 'qwen/qwen3.6-27b';
+const MODEL_FALLBACK = 'qwen/qwen3.6-27b';
 const MAX_TOKENS = 1024;
 const TEMPERATURE = 0.35;
 
