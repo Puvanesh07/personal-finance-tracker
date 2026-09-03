@@ -19,6 +19,7 @@ import { FeedbackModal } from './FeedbackModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
+import { QuickAddFAB } from '../ui/QuickAddFAB';
 import { NotificationPermissionBanner } from '../notifications/NotificationPermissionBanner';
 import { InstallAppModal } from '../InstallAppModal';
 import { TrialBanner } from '../subscription/TrialBanner';
@@ -333,6 +334,8 @@ export function AppLayout() {
           </div>
         </div>
       </main>
+
+      <QuickAddFAB />
 
       <div
         className={`md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-y-2' : ''}`}

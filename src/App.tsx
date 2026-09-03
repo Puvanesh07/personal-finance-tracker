@@ -10,7 +10,6 @@ import {
   InvestmentsSkeleton,
   LiabilitiesSkeleton,
   NotificationsSkeleton,
-  ProfitsSkeleton,
   ReportsSkeleton,
   SettingsSkeleton,
   SnapshotsSkeleton,
@@ -33,8 +32,7 @@ const InvestmentsPage = lazy(() =>
   import('./pages/Investments/InvestmentsPage').then((m) => ({
     default: m.InvestmentsPage,
   })),
-);
-const LiabilitiesPage = lazy(() =>
+);const LiabilitiesPage = lazy(() =>
   import('./pages/Liabilities/LiabilitiesPage').then((m) => ({
     default: m.LiabilitiesPage,
   })),
@@ -80,11 +78,6 @@ const ReportsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('./pages/Settings/SettingsPage').then((m) => ({
     default: m.SettingsPage,
-  })),
-);
-const ProfitsPage = lazy(() =>
-  import('./pages/Profits/ProfitsPage').then((m) => ({
-    default: m.ProfitsPage,
   })),
 );
 const InsurancePage = lazy(() =>
@@ -186,14 +179,6 @@ export default function App() {
               element={
                 <Suspense fallback={<InvestmentsSkeleton />}>
                   <InvestmentsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path='/profits'
-              element={
-                <Suspense fallback={<ProfitsSkeleton />}>
-                  <ProfitsPage />
                 </Suspense>
               }
             />

@@ -104,7 +104,7 @@ export function CommandCenter() {
   const navigate = useNavigate();
   const {
     investments, liabilities, cashflows, goals, goalContributions,
-    essentials, networthSnapshots, trackedPayments,
+    essentials, networthSnapshots, trackedPayments, accounts,
   } = usePortfolioStore();
 
   const proactiveInsights = useProactiveInsights();
@@ -125,9 +125,20 @@ export function CommandCenter() {
   const thisMonthCF = cashflows.filter((e) => e.date.startsWith(thisMonth));
   const income    = thisMonthCF.filter((e) => e.type === 'income').reduce((a, e) => a + e.amount, 0);
   const expense   = thisMonthCF.filter((e) => e.type === 'expense').reduce((a, e) => a + e.amount, 0);
-  const investable = Math.max(0, income - expense);
+  const investable   = Math.max(0, income - expense);
+  const savingsRate  = income > 0 ? Math.round(((income - expense) / income) * 100) : 0;
 
-  // Net worth delta vs last snapshot
+  // Available cash (sum of bank account balances)
+  const availableCash = useMemo(
+    () => accounts.filter((a) => a.type === 'bank').reduce((s, a) => s + (a.balance ?? 0), 0),
+    [accounts],
+  );
+
+  // Recent activity — last 5 cashflow entries
+  const recentActivity = useMemo(
+    () => [...cashflows].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
+    [cashflows],
+  );
   const sorted    = [...networthSnapshots].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const prevSnap  = sorted[0];
   const nwDelta   = prevSnap ? netWorth - prevSnap.netWorth : 0;
@@ -207,12 +218,13 @@ export function CommandCenter() {
 
           {/* ── Cashflow ── */}
           <div className='px-5 py-3'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2'>Cashflow</p>
-            <div className='grid grid-cols-3 gap-2'>
+            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2'>This Month</p>
+            <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
               {[
-                { label: 'Income',     value: formatINR(income),     color: 'text-emerald-600 dark:text-emerald-400' },
-                { label: 'Expenses',   value: formatINR(expense),    color: 'text-rose-600 dark:text-rose-400' },
-                { label: 'Investable', value: formatINR(investable), color: 'text-violet-600 dark:text-violet-400' },
+                { label: 'Income',       value: formatINR(income),       color: 'text-emerald-600 dark:text-emerald-400' },
+                { label: 'Expenses',     value: formatINR(expense),      color: 'text-rose-600 dark:text-rose-400' },
+                { label: 'Savings',      value: formatINR(Math.max(0, income - expense)), color: investable > 0 ? 'text-violet-600 dark:text-violet-400' : 'text-slate-500' },
+                { label: 'Savings Rate', value: `${savingsRate}%`,       color: savingsRate >= 20 ? 'text-emerald-600 dark:text-emerald-400' : savingsRate >= 10 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400' },
               ].map(({ label, value, color }) => (
                 <div key={label} className='rounded-lg bg-slate-50 dark:bg-slate-800/40 px-3 py-2 text-center'>
                   <p className='text-[9px] font-bold uppercase tracking-wider text-slate-400'>{label}</p>
@@ -221,6 +233,21 @@ export function CommandCenter() {
               ))}
             </div>
           </div>
+
+          {/* ── Available Cash ── */}
+          {accounts.length > 0 && (
+            <div className='px-5 py-2'>
+              <div className='flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-700/30 px-4 py-2.5'>
+                <div className='flex items-center gap-2'>
+                  <span className='text-base'>🏦</span>
+                  <span className='text-xs font-semibold text-slate-600 dark:text-slate-300'>Available Cash</span>
+                </div>
+                <span className='text-base font-black tabular-nums text-emerald-700 dark:text-emerald-400'>
+                  {formatINR(availableCash)}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* ── Goals ── */}
           {activeGoals.length > 0 && (
@@ -279,6 +306,35 @@ export function CommandCenter() {
                     <span className='shrink-0 text-sm'>{ins.emoji}</span>
                     <span className='font-semibold truncate'>{ins.title}</span>
                   </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Recent Activity ── */}
+          {recentActivity.length > 0 && (
+            <div className='px-5 py-3'>
+              <div className='flex items-center justify-between mb-2'>
+                <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400'>Recent Activity</p>
+                <button type='button' onClick={() => navigate('/cashflow')}
+                  className='text-[10px] text-violet-500 hover:underline flex items-center gap-0.5'>
+                  All <FiArrowRight className='h-3 w-3' />
+                </button>
+              </div>
+              <div className='space-y-1'>
+                {recentActivity.map((e) => (
+                  <div key={e.id} className='flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors'>
+                    <div className='flex items-center gap-2 min-w-0'>
+                      <span className='text-sm shrink-0'>{e.type === 'income' ? '💰' : '💸'}</span>
+                      <span className='text-xs text-slate-600 dark:text-slate-400 truncate'>{e.category}</span>
+                    </div>
+                    <div className='flex items-center gap-2 shrink-0'>
+                      <span className={`text-xs font-bold tabular-nums ${e.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {e.type === 'income' ? '+' : '-'}{formatINR(e.amount)}
+                      </span>
+                      <span className='text-[9px] text-slate-400'>{e.date.slice(5)}</span>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

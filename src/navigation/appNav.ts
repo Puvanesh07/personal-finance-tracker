@@ -7,7 +7,6 @@ import {
   FiCamera,
   FiCreditCard,
   FiCpu,
-  FiDollarSign,
   FiFlag,
   FiBell,
   FiHome,
@@ -44,18 +43,18 @@ export const NAV_GROUPS: AppNavGroup[] = [
         bg: 'bg-sky-500/10',
       },
       {
+        to: '/cashflow',
+        icon: FiActivity,
+        label: 'Cashflow',
+        accent: 'text-teal-400',
+        bg: 'bg-teal-500/10',
+      },
+      {
         to: '/investments',
         icon: FiTrendingUp,
         label: 'Investments',
         accent: 'text-indigo-400',
         bg: 'bg-indigo-500/10',
-      },
-      {
-        to: '/profits',
-        icon: FiDollarSign,
-        label: 'Profits',
-        accent: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
       },
       {
         to: '/liabilities',
@@ -78,13 +77,7 @@ export const NAV_GROUPS: AppNavGroup[] = [
         accent: 'text-blue-400',
         bg: 'bg-blue-500/10',
       },
-      {
-        to: '/cashflow',
-        icon: FiActivity,
-        label: 'Cashflow',
-        accent: 'text-teal-400',
-        bg: 'bg-teal-500/10',
-      },
+      
       {
         to: '/accounts',
         icon: BsBank2,

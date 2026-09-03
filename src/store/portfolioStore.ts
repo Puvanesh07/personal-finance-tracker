@@ -794,6 +794,25 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       notes: existing.notes,
     });
 
+    // ── Also write a cashflow expense entry so it appears in Cashflow ────
+    const cfId = `cf_payment_${existing.id}`;
+    const cashflowItem = clean({
+      type: 'expense' as const,
+      date: paidAt,
+      category: existing.title || existing.paymentType || 'Payment',
+      amount: existing.amount,
+      notes: existing.notes,
+      id: cfId,
+      createdAt: now(),
+      updatedAt: now(),
+      userId: uid,
+    }) as import('../types/investmentTypes').CashflowEntry;
+    // Only add if not already present (idempotent)
+    const alreadyInCF = get().cashflows.some((c) => c.id === cfId);
+    if (!alreadyInCF) {
+      await saveDoc(uid, 'cashflows', cashflowItem);
+    }
+
     const nextDate =
       existing.recurrence !== 'none'
         ? nextDueDate(existing.dueDate, existing.recurrence)
@@ -828,6 +847,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
         (a, b) => safeCompare(b.date, a.date),
       ),
+      cashflows: alreadyInCF
+        ? s.cashflows
+        : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
     }));
   },
 
@@ -858,6 +880,19 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       notes: withMeta.notes,
     });
 
+    // ── Auto-update linked account balance ────────────────────────────────
+    let updatedAccounts = get().accounts;
+    if (withMeta.accountId) {
+      const account = updatedAccounts.find((a) => a.id === withMeta.accountId);
+      if (account) {
+        const delta     = withMeta.type === 'income' ? withMeta.amount : -withMeta.amount;
+        const newBal    = (account.balance ?? 0) + delta;
+        const patched   = clean({ ...account, balance: newBal, updatedAt: now() }) as typeof account;
+        await saveDoc(uid, 'accounts', patched);
+        updatedAccounts = updatedAccounts.map((a) => (a.id === account.id ? patched : a));
+      }
+    }
+
     set((s) => ({
       cashflows: [withMeta, ...s.cashflows].sort((a, b) =>
         safeCompare(b.date, a.date),
@@ -865,6 +900,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
         (a, b) => safeCompare(b.date, a.date),
       ),
+      accounts: updatedAccounts,
     }));
   },
 
@@ -1075,9 +1111,43 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
     }) as SoldTrade;
     await saveDoc(uid, 'soldTrades', raw);
+
+    // ── Auto-create cashflow income entry for sale proceeds ──────────────
+    const sellCashflow = clean({
+      type: 'income' as const,
+      date: trade.soldDate,
+      category: `Investment Sale — ${trade.investmentName ?? 'Asset'}`,
+      amount: trade.sellPrice * (trade.quantity ?? 1),
+      notes: `Sold ${trade.investmentName ?? 'investment'}. Profit: ₹${Math.round(profit * (trade.quantity ?? 1)).toLocaleString('en-IN')}`,
+      id: createId('cf'),
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as import('../types/investmentTypes').CashflowEntry;
+    await saveDoc(uid, 'cashflows', sellCashflow);
+
+    // ── Also write to ledgerEntries ───────────────────────────────────────
+    const ledgerItem = await saveLedgerEntry(uid, {
+      id: getDeterministicLedgerId('investment', raw.id),
+      type: 'income',
+      date: trade.soldDate,
+      amount: trade.sellPrice * (trade.quantity ?? 1),
+      category: `Investment Sale — ${trade.investmentName ?? 'Asset'}`,
+      module: 'investment',
+      sourceType: 'investment',
+      sourceId: raw.id,
+      notes: sellCashflow.notes,
+    });
+
     set((s) => ({
       soldTrades: [raw, ...s.soldTrades].sort((a, b) =>
         safeCompare(b.soldDate, a.soldDate),
+      ),
+      cashflows: [sellCashflow, ...s.cashflows].sort((a, b) =>
+        safeCompare(b.date, a.date),
+      ),
+      ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
+        (a, b) => safeCompare(b.date, a.date),
       ),
     }));
   },
