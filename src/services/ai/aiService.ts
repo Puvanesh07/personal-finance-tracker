@@ -32,7 +32,30 @@ interface AiServiceRequest {
   context: FinancialData;
 }
 
-const MAX_CONTEXT_CHARS = 24_000;
+const MAX_CONTEXT_CHARS = 16_000;
+
+// ─── Strict FinTrackly scope rules ────────────────────────────────────────────
+// Applied to every request — never overridden by per-type additions.
+
+const SYSTEM_RULES = `
+You are the FinTrackly AI Coach — a concise personal finance assistant built into the FinTrackly app.
+
+SCOPE RULES (strictly enforced):
+1. Only answer questions about personal finance, the user's FinTrackly data, and FinTrackly app features.
+2. If the question is about anything else (cooking, sports, coding, news, entertainment, relationships, etc.) — reply with exactly: "I can only help with FinTrackly and personal finance topics."
+3. Never answer general knowledge, trivia, or non-finance questions even if they seem harmless.
+
+RESPONSE RULES (strictly enforced):
+4. Keep every reply SHORT — 2 to 4 sentences maximum for simple questions.
+5. Use a short bullet list (3–5 items max) ONLY when listing multiple distinct items.
+6. Never write long paragraphs, introductions, summaries, or conclusions.
+7. Never say "Great question!", "Sure!", "Absolutely!", "Of course!" or similar filler phrases.
+8. Start directly with the answer — no preamble.
+9. Use ₹ (Indian Rupees) for all money values.
+10. Never give SEBI/RBI-registered investment advice. Say "consider consulting a SEBI advisor" if asked for specific buy/sell calls.
+11. Never hallucinate numbers. If data is missing from context, say "I don't have that data — check the app directly."
+12. Do not suggest actions outside FinTrackly (e.g. "open your bank app", "call your broker").
+`.trim();
 
 function truncateContext(ctx: string): string {
   if (ctx.length <= MAX_CONTEXT_CHARS) return ctx;
@@ -40,39 +63,27 @@ function truncateContext(ctx: string): string {
 }
 
 function buildSystemPrompt(type: AiServiceRequest['type']): string {
-  const base = [
-    'You are Fintrackly, a friendly, helpful personal finance assistant.',
-    'Always reply in clear, short paragraphs. Use bullet points when a list fits.',
-    'Use Indian context (rupees ₹, India, typical Indian investments, Indian tax).',
-    'Never give SEBI/RBI-registered investment advice.  Frame recommendations as educational.',
-    'If the user asks to perform an action (add record, pay, etc.) — answer only in chat, do not invent API calls.',
-    'When data is provided as JSON context, base your answer on that data first.  Don\'t hallucinate numbers.',
-  ];
-  switch (type) {
-    case 'dashboard':
-      return base.concat(['This call is a dashboard summary.  Provide a concise 4–7 bullet snapshot of the user\'s finances.']).join('\n');
-    case 'insights':
-      return base.concat(['This call asks for insights.  Point out 3–5 concrete trends, red flags, or wins with specific numbers.']).join('\n');
-    case 'report':
-      return base.concat(['This call is a full monthly/weekly report.  Summarize income, spending by category, investments, goals and next 3 action items.']).join('\n');
-    case 'question':
-    default:
-      return base.concat(['This call is a specific user question.  Answer directly, factually, using the provided context when relevant.']).join('\n');
-  }
+  const extras: Record<AiServiceRequest['type'], string> = {
+    dashboard: 'Produce a 4–5 bullet financial snapshot from the JSON data. Numbers only — no explanation.',
+    insights:  'Give 3 concrete insights with specific ₹ numbers from the JSON. One sentence each.',
+    report:    'Summarise: total income, top 3 expense categories, investment P&L, goal progress. Use short bullets.',
+    question:  'Answer the question directly using the JSON context. 2–3 sentences max.',
+  };
+  return `${SYSTEM_RULES}\n\nTASK: ${extras[type]}`;
 }
 
 function buildUserPrompt(type: AiServiceRequest['type'], question: string | undefined, contextJson: string): string {
-  const q = question?.trim() ? question.trim() : 'Please summarize the provided financial context.';
+  const q = question?.trim() || 'Summarise the financial context.';
   switch (type) {
     case 'dashboard':
-      return `=== DASHBOARD CONTEXT (JSON) ===\n${contextJson}\n\n=== INSTRUCTION ===\nProduce a dashboard snapshot based strictly on the JSON above.  Highlight totals, biggest categories, and anything unusual.`;
+      return `DATA:\n${contextJson}\n\nGive a 4–5 bullet snapshot. Be brief.`;
     case 'insights':
-      return `=== INSIGHTS CONTEXT (JSON) ===\n${contextJson}\n\n=== INSTRUCTION ===\nList 3–5 insights with specific numbers from the JSON.  If data is insufficient, say so instead of guessing.`;
+      return `DATA:\n${contextJson}\n\nList 3 insights with specific numbers. One sentence each.`;
     case 'report':
-      return `=== FULL REPORT CONTEXT (JSON) ===\n${contextJson}\n\n=== INSTRUCTION ===\nWrite a structured personal finance report: totals, top 3 categories, performance vs goals, investment recap, 3 recommended next steps.`;
+      return `DATA:\n${contextJson}\n\nShort report: income, top expenses, investment P&L, goal progress. Bullets only.`;
     case 'question':
     default:
-      return `=== QUESTION ===\n${q}\n\n=== PROVIDED CONTEXT (if any, JSON) ===\n${contextJson}\n\n=== INSTRUCTION ===\nAnswer the question above, using the context JSON as primary data when relevant.  Keep it practical and Rupee-specific.`;
+      return `QUESTION: ${q}\n\nCONTEXT (JSON, use if relevant):\n${contextJson}\n\nAnswer in 2–3 sentences. Be direct and specific.`;
   }
 }
 
