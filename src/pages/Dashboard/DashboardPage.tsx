@@ -15,6 +15,7 @@ import { GrowthChart } from '../../components/dashboard/GrowthChart';
 import { MaturityTimeline } from '../../components/dashboard/MaturityTimeline';
 import { SummaryCards } from '../../components/dashboard/SummaryCards';
 import { CommandCenter } from '../../components/dashboard/CommandCenter';
+import { CashflowForecastCard } from '../../components/dashboard/CashflowForecastCard';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 const MarketCapAllocationChart = lazy(() =>
@@ -124,6 +125,10 @@ export function DashboardPage() {
 
       <section className='pt-2 min-w-0'>
         <GrowthChart />
+      </section>
+
+      <section className='min-w-0'>
+        <CashflowForecastCard compact />
       </section>
 
       <section className='min-w-0'>

@@ -137,6 +137,9 @@ const FinancialCalendarPage = lazy(() =>
 const BudgetPage = lazy(() =>
   import('./pages/Budget/BudgetPage'),
 );
+const ForecastPage = lazy(() =>
+  import('./pages/Forecast/ForecastPage'),
+);
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -283,6 +286,14 @@ export default function App() {
               element={
                 <Suspense fallback={<ToolsSkeleton />}>
                   <BudgetPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/forecast'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <ForecastPage />
                 </Suspense>
               }
             />

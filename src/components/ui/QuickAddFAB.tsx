@@ -460,93 +460,7 @@ function InsuranceForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-// ── 6. Money Lent ─────────────────────────────────────────────────────────────
 
-function LentForm({ onDone }: { onDone: () => void }) {
-  const store               = usePortfolioStore.getState();
-  const lendingBorrowers    = usePortfolioStore((s) => s.lendingBorrowers);
-  const addLendingBorrower  = usePortfolioStore((s) => s.addLendingBorrower);
-  const addLendingTransaction = usePortfolioStore((s) => s.addLendingTransaction);
-
-  const [amount,    setAmount]    = useState('');
-  const [borrower,  setBorrower]  = useState('');
-  const [newName,   setNewName]   = useState('');
-  const [date,      setDate]      = useState(todayISO());
-  const [notes,     setNotes]     = useState('');
-  const [saving,    setSaving]    = useState(false);
-
-  const activeBorrowers = lendingBorrowers.filter((b) => b.status === 'active');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return;
-    setSaving(true);
-    try {
-      let borrowerId = borrower;
-      if (!borrowerId && newName.trim()) {
-        // Create new borrower first
-        await addLendingBorrower({ name: newName.trim(), status: 'active' } as any);
-        const updated = usePortfolioStore.getState().lendingBorrowers;
-        const created = updated.find((b) => b.name === newName.trim());
-        if (created) borrowerId = created.id;
-      }
-      if (!borrowerId) { toast.error('Please select or name a borrower.'); setSaving(false); return; }
-      await addLendingTransaction({
-        borrowerId,
-        type:   'principal_given',
-        amount: amt,
-        date,
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-      } as any);
-      toast.success('Lending recorded!');
-      onDone();
-    } catch {
-      toast.error('Failed to save. Try again.');
-    } finally {
-      setSaving(false);
-      void store;
-    }
-  };
-
-  return (
-    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
-      <div>
-        <label className={LABEL_CLS}>Amount Lent</label>
-        <AmountInput value={amount} onChange={setAmount} autoFocus />
-      </div>
-      {activeBorrowers.length > 0 ? (
-        <div>
-          <label className={LABEL_CLS}>Borrower</label>
-          <div className='relative'>
-            <select value={borrower} onChange={(e) => { setBorrower(e.target.value); setNewName(''); }} className={`${FIELD_CLS} appearance-none pr-9`}>
-              <option value=''>+ New person</option>
-              {activeBorrowers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
-          </div>
-        </div>
-      ) : null}
-      {(!borrower) && (
-        <div>
-          <label className={LABEL_CLS}>{activeBorrowers.length > 0 ? 'New Person Name' : 'Borrower Name'}</label>
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder='e.g. Ramesh…' className={FIELD_CLS} />
-        </div>
-      )}
-      <div className='grid grid-cols-2 gap-2'>
-        <div>
-          <label className={LABEL_CLS}>Date</label>
-          <input type='date' value={date} onChange={(e) => setDate(e.target.value)} className={FIELD_CLS} />
-        </div>
-        <div>
-          <label className={LABEL_CLS}>Notes (opt.)</label>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder='Purpose…' className={FIELD_CLS} />
-        </div>
-      </div>
-      <SaveBtn saving={saving} label='Record Lending' />
-    </form>
-  );
-}
 
 // ── 7. Investment (stock) ─────────────────────────────────────────────────────
 
@@ -660,7 +574,6 @@ const ACTIONS = [
   { id: 'goal',       emoji: '🎯', label: 'Goal',        bg: 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800', text: 'text-violet-700 dark:text-violet-300' },
   { id: 'liability',  emoji: '🏦', label: 'Loan',        bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800', text: 'text-orange-700 dark:text-orange-300' },
   { id: 'insurance',  emoji: '🛡️', label: 'Insurance',   bg: 'bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800',         text: 'text-sky-700 dark:text-sky-300' },
-  { id: 'lent',       emoji: '🤝', label: 'Money Lent',  bg: 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800',     text: 'text-teal-700 dark:text-teal-300' },
 ] as const;
 
 type ActionId = typeof ACTIONS[number]['id'];
@@ -759,7 +672,6 @@ export function QuickAddFAB() {
                 {active === 'goal'       && <GoalForm                       onDone={done} />}
                 {active === 'liability'  && <LiabilityForm                  onDone={done} />}
                 {active === 'insurance'  && <InsuranceForm                  onDone={done} />}
-                {active === 'lent'       && <LentForm                       onDone={done} />}
               </>
             )}
           </div>

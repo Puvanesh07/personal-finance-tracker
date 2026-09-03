@@ -19,7 +19,7 @@ import { FeedbackModal } from './FeedbackModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { QuickAddFAB } from '../ui/QuickAddFAB';
+
 import { NotificationPermissionBanner } from '../notifications/NotificationPermissionBanner';
 import { InstallAppModal } from '../InstallAppModal';
 import { TrialBanner } from '../subscription/TrialBanner';
@@ -31,6 +31,7 @@ import { signOut } from 'firebase/auth';
 import { useAppHotkeys } from '../../hooks/useAppHotkeys';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { useSubscription } from '../../context/SubscriptionContext';
+import AskAIButton from '../ui/AskAIButton';
 
 function desktopLinkClass(isActive: boolean, accent: string, bg: string) {
   const base =
@@ -335,7 +336,8 @@ export function AppLayout() {
         </div>
       </main>
 
-      <QuickAddFAB />
+
+      <AskAIButton />
 
       <div
         className={`md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-y-2' : ''}`}

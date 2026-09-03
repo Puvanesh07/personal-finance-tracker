@@ -1,36 +1,17 @@
-/**
- * src/pages/AIAgent/AIAgentPage.tsx
- *
- * FinTrackly AI Coach — redesigned conversational interface.
- *
- * Answer paths:
- *   OUT_OF_SCOPE    → static scope message
- *   FEATURE_GUIDE   → built-in how-to answer
- *   PERSONAL_DATA   → structured AgentResponse from store (no AI)
- *   PERSONAL_EXPLAIN→ store data → Groq explanation
- *   GENERAL         → Groq educational answer
- *   ACTION          → parse → confirm card → execute → store
- *
- * New features vs old:
- *   • Module quick-action pill strip (Add / Ask shortcuts per module)
- *   • Delete confirmation card (red, destructive styling, separate from regular confirm)
- *   • Multi-turn missing-field: after "incomplete" the next message auto-appends
- *     the original intent context so the follow-up completes the action
- *   • Redesigned bubbles — user pill right, assistant card left with icon strip
- *   • Timestamp on each bubble
- *   • Action result card with link-to navigation button
+﻿/**
+ * src/pages/AIAgent/AIAgentPage.tsx â€” Rewamped
+ * Three tabs: Chat | Brief | Search
+ * + AI Quick Add NLP bar, URL ?q= prefill from AskAIButton
  */
 
 import {
   FiCpu, FiRefreshCw, FiSend, FiZap, FiDatabase,
   FiFileText, FiTrash2, FiExternalLink, FiInfo,
-  FiPlus, FiSearch, FiAlertTriangle, FiCheckCircle,
-  FiChevronRight, FiX, FiEdit2,
+  FiSearch, FiAlertTriangle, FiCheckCircle,
+  FiX, FiEdit2, FiMessageSquare,
 } from 'react-icons/fi';
-import {
-  useCallback, useEffect, useRef, useState,
-} from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { generateFinancialAI } from '../../services/ai/aiService';
@@ -42,19 +23,19 @@ import { parseAction } from '../../services/aiAgentActionParser';
 import { executeAction } from '../../services/aiAgentActionExecutor';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { useProactiveInsights } from '../../hooks/useProactiveInsights';
 import { useContextualSuggestions } from '../../hooks/useContextualSuggestions';
 import { auth } from '../../services/firebase';
 import type { AgentResponse } from '../../services/aiAgentResponseTypes';
 import { severityColor, severityBg } from '../../services/aiAgentResponseTypes';
-import {
-  canIAfford,
-  detectAffordabilityQuestion,
-} from '../../utils/affordabilityEngine';
+import { canIAfford, detectAffordabilityQuestion } from '../../utils/affordabilityEngine';
+import { parseNaturalLanguageTransaction } from '../../utils/smartCategorize';
 import { calculateNetWorth } from '../../utils/calculations';
+import { formatINR } from '../../utils/format';
+import { BriefTab, SearchTab } from './AICoachPanels';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+type Tab = 'chat' | 'brief' | 'search';
 type MessageRole   = 'user' | 'assistant';
 type MessageSource = 'groq' | 'firebase' | 'hybrid' | 'scope' | 'report' | 'guide' | 'action';
 
@@ -68,7 +49,7 @@ interface Message {
   loading?: boolean;
   /** Route to navigate after an action succeeds */
   actionLinkTo?: string;
-  /** Affordability engine result — renders AffordabilityCard */
+  /** Affordability engine result â€” renders AffordabilityCard */
   affordabilityResult?: import('../../utils/affordabilityEngine').AffordabilityResult;
 }
 
@@ -90,15 +71,15 @@ function fmtTime(d: Date) {
 
 const SCOPE_MESSAGE =
   "I'm FinTrackly's AI Coach. Here's what I can do:\n\n" +
-  '- **Add records** — "Add ₹2500 electricity bill for Sep 15"\n' +
-  '- **Update** — "Update TCS price to ₹3800"\n' +
-  '- **Delete** — "Delete my home loan"\n' +
-  '- **Your data** — "What is my net worth?" · "Show my investments"\n' +
-  '- **App help** — "How do I add a goal?"\n' +
-  '- **Finance education** — "What is SIP?" · "Explain XIRR"\n\n' +
-  'Try one of the quick actions below ↓';
+  '- **Add records** â€” "Add â‚¹2500 electricity bill for Sep 15"\n' +
+  '- **Update** â€” "Update TCS price to â‚¹3800"\n' +
+  '- **Delete** â€” "Delete my home loan"\n' +
+  '- **Your data** â€” "What is my net worth?" Â· "Show my investments"\n' +
+  '- **App help** â€” "How do I add a goal?"\n' +
+  '- **Finance education** â€” "What is SIP?" Â· "Explain XIRR"\n\n' +
+  'Try one of the quick actions below â†“';
 
-// ─── Source badge ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Source badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SOURCE_CFG: Record<MessageSource, { label: string; cls: string }> = {
   groq:     { label: 'AI',           cls: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 border-violet-200/60 dark:border-violet-700/40' },
@@ -120,38 +101,9 @@ function SourceBadge({ source }: { source: MessageSource }) {
   );
 }
 
-// ─── Module quick-action strip ────────────────────────────────────────────────
 
-const MODULE_ACTIONS = [
-  { emoji: '💳', label: 'Add Payment',    question: 'Add payment' },
-  { emoji: '📈', label: 'Add Stock',      question: 'I bought stock' },
-  { emoji: '🎯', label: 'Add Goal',       question: 'Create a savings goal' },
-  { emoji: '🏦', label: 'Cash Flow',      question: 'Add expense' },
-  { emoji: '🛡️', label: 'Insurance',      question: 'Add insurance policy' },
-  { emoji: '💸', label: 'Add Liability',  question: 'Add a loan' },
-  { emoji: '🤝', label: 'Lending',        question: 'I lent money to someone' },
-  { emoji: '🔍', label: 'Net Worth',      question: 'What is my net worth?' },
-] as const;
 
-function QuickActions({ onSend, disabled }: { onSend: (q: string) => void; disabled: boolean }) {
-  return (
-    <div className='flex gap-1.5 overflow-x-auto pb-1 scrollbar-none'>
-      {MODULE_ACTIONS.map(({ emoji, label, question }) => (
-        <button
-          key={label}
-          onClick={() => onSend(question)}
-          disabled={disabled}
-          className='flex items-center gap-1.5 shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all disabled:opacity-40'
-        >
-          <span className='text-sm'>{emoji}</span>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ─── Structured response renderers ────────────────────────────────────────────
+// â”€â”€â”€ Structured response renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function StatGridCard({ resp }: { resp: Extract<AgentResponse, { kind: 'stat_grid' }> }) {
   return (
@@ -322,7 +274,7 @@ function EmptyCard({ resp }: { resp: Extract<AgentResponse, { kind: 'empty' }> }
   );
 }
 
-// ─── Action confirm card (standard + delete variant) ─────────────────────────
+// â”€â”€â”€ Action confirm card (standard + delete variant) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ActionConfirmCard({
   resp,
@@ -333,7 +285,7 @@ function ActionConfirmCard({
   onConfirm?: (payload: string) => void;
   onCancel?: () => void;
 }) {
-  // Detect delete action — use red destructive styling
+  // Detect delete action â€” use red destructive styling
   let payload: { kind?: string } = {};
   try { payload = JSON.parse(resp.actionPayload); } catch { /* */ }
   const isDelete = typeof payload.kind === 'string' && payload.kind.startsWith('delete_');
@@ -413,7 +365,7 @@ function ActionConfirmCard({
   );
 }
 
-// ─── Affordability result card ────────────────────────────────────────────────
+// â”€â”€â”€ Affordability result card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AffordabilityCard({ result }: { result: import('../../utils/affordabilityEngine').AffordabilityResult }) {
   const borderColor =
@@ -459,7 +411,7 @@ function AffordabilityCard({ result }: { result: import('../../utils/affordabili
             <span className='text-xs font-semibold text-slate-500 dark:text-slate-400 w-28 shrink-0'>{d.label}</span>
             <div className='flex items-center gap-2 text-xs font-mono'>
               <span className='text-slate-700 dark:text-slate-300'>{d.before}</span>
-              <span className='text-slate-400'>→</span>
+              <span className='text-slate-400'>â†’</span>
               <span className={impactColor[d.impact] ?? 'text-slate-700 dark:text-slate-300'}>{d.after}</span>
             </div>
             {d.note && (
@@ -472,8 +424,8 @@ function AffordabilityCard({ result }: { result: import('../../utils/affordabili
       {result.recommendedBudget && (
         <div className='px-4 py-2.5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800'>
           <p className='text-xs text-slate-600 dark:text-slate-400'>
-            💡 <strong>Recommended budget:</strong>{' '}
-            ₹{result.recommendedBudget.min.toLocaleString('en-IN')} – ₹{result.recommendedBudget.max.toLocaleString('en-IN')}
+            ðŸ’¡ <strong>Recommended budget:</strong>{' '}
+            â‚¹{result.recommendedBudget.min.toLocaleString('en-IN')} â€“ â‚¹{result.recommendedBudget.max.toLocaleString('en-IN')}
           </p>
         </div>
       )}
@@ -498,7 +450,7 @@ function StructuredRenderer({ resp, onConfirm, onCancel }: {
   }
 }
 
-// ─── Markdown renderer ────────────────────────────────────────────────────────
+// â”€â”€â”€ Markdown renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function MarkdownRenderer({ text }: { text: string }) {
   const lines = text.split('\n');
@@ -551,7 +503,7 @@ function inlineFmt(text: string): string {
     .replace(/`([^`]+)`/g,       '<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 py-0.5 font-mono text-[11px]">$1</code>');
 }
 
-// ─── Thinking animation ───────────────────────────────────────────────────────
+// â”€â”€â”€ Thinking animation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ThinkingBubble() {
   return (
@@ -565,62 +517,37 @@ function ThinkingBubble() {
   );
 }
 
-// ─── Proactive insight banner ─────────────────────────────────────────────────
+// â”€â”€â”€ Proactive insight banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function InsightBanner({
-  insight,
-  onAsk,
-}: {
-  insight: import('../../hooks/useProactiveInsights').ProactiveInsight;
-  onAsk: (q: string) => void;
-}) {
-  const navigate = useNavigate();
-  const sevCls: Record<import('../../hooks/useProactiveInsights').InsightSeverity, string> = {
-    danger:  'border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-900/10',
-    warning: 'border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-900/10',
-    good:    'border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/10',
-    info:    'border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-900/10',
-  };
-  const textCls: Record<import('../../hooks/useProactiveInsights').InsightSeverity, string> = {
-    danger: 'text-rose-700 dark:text-rose-400', warning: 'text-amber-700 dark:text-amber-400',
-    good: 'text-emerald-700 dark:text-emerald-400', info: 'text-blue-700 dark:text-blue-400',
-  };
-  return (
-    <button
-      onClick={() => onAsk(insight.question)}
-      className={`w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm ${sevCls[insight.severity]}`}
-    >
-      <span className='text-base shrink-0 mt-0.5'>{insight.emoji}</span>
-      <div className='min-w-0 flex-1'>
-        <p className={`text-xs font-bold ${textCls[insight.severity]}`}>{insight.title}</p>
-        <p className='text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate'>{insight.body}</p>
-      </div>
-      {insight.linkTo && (
-        <FiChevronRight
-          className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${textCls[insight.severity]}`}
-          onClick={(e) => { e.stopPropagation(); navigate(insight.linkTo!); }}
-        />
-      )}
-    </button>
-  );
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function AIAgentPage() {
-  const { ready } = usePortfolioStore();
-  const proactiveInsights = useProactiveInsights();
-  const suggestions       = useContextualSuggestions();
+  const [searchParams]                      = useSearchParams();
+  const { ready }                           = usePortfolioStore();
+  const suggestions                         = useContextualSuggestions();
 
-  const [messages,         setMessages]         = useState<Message[]>([]);
-  const [input,            setInput]            = useState('');
-  const [loading,          setLoading]          = useState(false);
-  const [generatingReport, setGeneratingReport] = useState(false);
-  const [convCtx,          setConvCtx]          = useState<ConversationContext>({});
-  const [pendingActionId,  setPendingActionId]  = useState<string | null>(null);
+  const [tab,             setTab]           = useState<Tab>('chat');
+  const [messages,        setMessages]      = useState<Message[]>([]);
+  const [input,           setInput]         = useState('');
+  const [loading,         setLoading]       = useState(false);
+  const [generatingReport,setGeneratingReport] = useState(false);
+  const [convCtx,         setConvCtx]       = useState<ConversationContext>({});
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+
+  // NLP Quick Add state
+  const [nlpInput,  setNlpInput]  = useState('');
+  const [nlpParsed, setNlpParsed] = useState<ReturnType<typeof parseNaturalLanguageTransaction> | null>(null);
+  const [nlpSaving, setNlpSaving] = useState(false);
 
   const inputRef  = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const navigate  = useNavigate();
+
+  // Pre-fill from ?q= (from AskAIButton on any module page)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) { setInput(q); setTab('chat'); setTimeout(() => inputRef.current?.focus(), 150); }
+  }, [searchParams]);
 
   // Enrich follow-up questions with conversation context
   const enrichQuestion = useCallback((q: string, ctx: ConversationContext): string => {
@@ -651,7 +578,7 @@ export default function AIAgentPage() {
     });
   }, []);
 
-  // ── Send message ────────────────────────────────────────────────────────
+  // â”€â”€ Send message â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const sendMessage = useCallback(async (rawQuestion: string) => {
     const question = enrichQuestion(rawQuestion.trim(), convCtx);
@@ -672,7 +599,7 @@ export default function AIAgentPage() {
     });
 
     try {
-      // ── Can I afford? — intercept before routing ──────────────────────
+      // â”€â”€ Can I afford? â€” intercept before routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const affordAmount = detectAffordabilityQuestion(question);
       if (affordAmount !== null && affordAmount > 0) {
         const {
@@ -757,14 +684,14 @@ export default function AIAgentPage() {
 
       const route = routeQuestion(question);
 
-      // ── Out of scope ──────────────────────────────────────────────────
+      // â”€â”€ Out of scope â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (route.type === 'OUT_OF_SCOPE') {
         updateLastAssistant({ id: loadingId, textContent: SCOPE_MESSAGE, source: 'scope', loading: false });
         setConvCtx({});
         return;
       }
 
-      // ── Feature guide ─────────────────────────────────────────────────
+      // â”€â”€ Feature guide â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (route.type === 'FEATURE_GUIDE') {
         const guide = matchFeatureGuide(question);
         updateLastAssistant({
@@ -776,7 +703,7 @@ export default function AIAgentPage() {
         return;
       }
 
-      // ── ACTION — parse, confirm, execute ─────────────────────────────
+      // â”€â”€ ACTION â€” parse, confirm, execute â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (route.type === 'ACTION') {
         const parsed = parseAction(question);
 
@@ -794,13 +721,13 @@ export default function AIAgentPage() {
           return;
         }
 
-        // Clear the pending prefix — the action was successfully parsed
+        // Clear the pending prefix â€” the action was successfully parsed
         setConvCtx((prev) => ({ ...prev, pendingActionPrefix: undefined }));
 
         if (!parsed.action) {
           updateLastAssistant({
             id: loadingId,
-            textContent: "I understood you want to act on something, but couldn't parse the details.\n\nTry:\n- *\"Add ₹2500 electricity bill for Sep 15\"*\n- *\"I bought 10 TCS shares at ₹3200\"*\n- *\"Delete my home loan\"*",
+            textContent: "I understood you want to act on something, but couldn't parse the details.\n\nTry:\n- *\"Add â‚¹2500 electricity bill for Sep 15\"*\n- *\"I bought 10 TCS shares at â‚¹3200\"*\n- *\"Delete my home loan\"*",
             source: 'action', loading: false,
           });
           return;
@@ -808,7 +735,7 @@ export default function AIAgentPage() {
 
         const confirmCard: import('../../services/aiAgentResponseTypes').ActionConfirmResponse = {
           kind: 'action_confirm',
-          emoji: '✏️',
+          emoji: 'âœï¸',
           title: 'Confirm Action',
           summary: parsed.summary,
           assumptions: parsed.assumptions.length ? parsed.assumptions : undefined,
@@ -823,11 +750,11 @@ export default function AIAgentPage() {
         return;
       }
 
-      // ── Personal data — store answer ──────────────────────────────────
+      // â”€â”€ Personal data â€” store answer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (route.type === 'PERSONAL_DATA') {
         if (!ready) {
           updateLastAssistant({
-            id: loadingId, textContent: '⏳ Your data is still loading. Please try again in a moment.',
+            id: loadingId, textContent: 'â³ Your data is still loading. Please try again in a moment.',
             source: 'firebase', loading: false,
           });
           return;
@@ -838,11 +765,11 @@ export default function AIAgentPage() {
         return;
       }
 
-      // ── Personal + AI explanation ─────────────────────────────────────
+      // â”€â”€ Personal + AI explanation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (route.type === 'PERSONAL_EXPLAIN') {
         if (!ready) {
           updateLastAssistant({
-            id: loadingId, textContent: '⏳ Your data is still loading. Please try again in a moment.',
+            id: loadingId, textContent: 'â³ Your data is still loading. Please try again in a moment.',
             source: 'firebase', loading: false,
           });
           return;
@@ -854,7 +781,7 @@ export default function AIAgentPage() {
         return;
       }
 
-      // ── General education ─────────────────────────────────────────────
+      // â”€â”€ General education â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const context = buildGeneralQuestionContext();
       const result  = await generateFinancialAI({ type: 'question', question, context });
       updateLastAssistant({ id: loadingId, textContent: result.text, source: 'groq', loading: false });
@@ -863,7 +790,7 @@ export default function AIAgentPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       updateLastAssistant({
-        id: loadingId, textContent: `❌ ${msg.slice(0, 300)}`,
+        id: loadingId, textContent: `âŒ ${msg.slice(0, 300)}`,
         source: 'scope', loading: false,
       });
       toast.error('Request failed. Please try again.');
@@ -873,7 +800,7 @@ export default function AIAgentPage() {
     }
   }, [loading, ready, convCtx, enrichQuestion, appendMessage, updateLastAssistant]);
 
-  // ── Confirm action ──────────────────────────────────────────────────────
+  // â”€â”€ Confirm action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleConfirmAction = useCallback(async (actionPayload: string) => {
     if (!actionPayload) return;
@@ -891,7 +818,7 @@ export default function AIAgentPage() {
         actionLinkTo: result.linkTo,
       });
     } catch {
-      updateLastAssistant({ id: execId, textContent: '❌ Action failed. Please try again.', source: 'scope', loading: false });
+      updateLastAssistant({ id: execId, textContent: 'âŒ Action failed. Please try again.', source: 'scope', loading: false });
     }
   }, [appendMessage, updateLastAssistant]);
 
@@ -907,19 +834,19 @@ export default function AIAgentPage() {
     setPendingActionId(null);
   }, [pendingActionId]);
 
-  // ── Generate report ─────────────────────────────────────────────────────
+  // â”€â”€ Generate report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const handleGenerateReport = useCallback(async () => {
     if (generatingReport || !ready) return;
     setGeneratingReport(true);
-    appendMessage({ id: genId(), role: 'user', textContent: '📊 Generate my complete financial report', source: 'firebase', timestamp: new Date() });
+    appendMessage({ id: genId(), role: 'user', textContent: 'ðŸ“Š Generate my complete financial report', source: 'firebase', timestamp: new Date() });
     const loadingId = genId();
     appendMessage({ id: loadingId, role: 'assistant', source: 'report', timestamp: new Date(), loading: true });
     try {
       const report = generateFullReport();
       updateLastAssistant({ id: loadingId, textContent: report, source: 'report', loading: false });
     } catch {
-      updateLastAssistant({ id: loadingId, textContent: '❌ Could not generate report.', source: 'scope', loading: false });
+      updateLastAssistant({ id: loadingId, textContent: 'âŒ Could not generate report.', source: 'scope', loading: false });
     } finally {
       setGeneratingReport(false);
     }
@@ -929,222 +856,192 @@ export default function AIAgentPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendMessage(input); }
   };
 
-  const userInitial = (
-    auth.currentUser?.displayName?.[0] ?? auth.currentUser?.email?.[0] ?? 'U'
-  ).toUpperCase();
+  const userInitial = (auth.currentUser?.displayName?.[0] ?? auth.currentUser?.email?.[0] ?? 'U').toUpperCase();
+  const isEmpty     = messages.length === 0;
 
-  const isEmpty = messages.length === 0;
+  // NLP Quick Add helpers
+  const handleNlpParse = () => {
+    if (!nlpInput.trim()) return;
+    setNlpParsed(parseNaturalLanguageTransaction(nlpInput));
+  };
+  const handleNlpConfirm = async () => {
+    if (!nlpParsed?.amount || nlpSaving) return;
+    setNlpSaving(true);
+    try {
+      await usePortfolioStore.getState().addCashflow({ type: nlpParsed.type, date: nlpParsed.date, category: nlpParsed.category, amount: nlpParsed.amount, ...(nlpParsed.notes ? { notes: nlpParsed.notes } : {}) } as any);
+      toast.success(`${nlpParsed.type === 'income' ? 'Income' : 'Expense'} added!`);
+      setNlpInput(''); setNlpParsed(null);
+    } catch { toast.error('Failed to save.'); } finally { setNlpSaving(false); }
+  };
 
-  const navigate = useNavigate();
-
-  // ─── Render ──────────────────────────────────────────────────────────────
+  const tabCls = (t: Tab) =>
+    `flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-white dark:bg-slate-800 text-violet-600 dark:text-violet-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`;
 
   return (
     <SubscriptionGuard feature='ai_insights'>
       <div className='flex flex-col max-w-3xl mx-auto h-[calc(100dvh-140px)] md:h-[calc(100dvh-120px)] gap-2'>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <header className='flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-transparent px-4 py-2.5 border border-violet-500/20 shadow-sm shrink-0'>
           <div className='flex items-center gap-3'>
             <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-lg shadow-violet-500/30'>
               <FiCpu className='h-4 w-4' />
             </div>
             <div>
-              <h1 className='text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5'>
-                AI Coach <FiZap className='h-3 w-3 text-amber-400' />
-              </h1>
-              <p className='text-[10px] text-slate-500 dark:text-slate-400 leading-none'>
-                Add · Update · Delete · Ask · Analyse
-              </p>
+              <h1 className='text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5'>AI Coach <FiZap className='h-3 w-3 text-amber-400' /></h1>
+              <p className='text-[10px] text-slate-500 dark:text-slate-400 leading-none'>Chat · Brief · Search</p>
             </div>
           </div>
           <div className='flex items-center gap-2 shrink-0'>
-            {messages.length > 0 && (
-              <button
-                onClick={() => { setMessages([]); setConvCtx({}); setPendingActionId(null); }}
-                title='Clear conversation'
-                className='flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-2.5 py-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors'
-              >
+            {tab === 'chat' && messages.length > 0 && (
+              <button onClick={() => { setMessages([]); setConvCtx({}); setPendingActionId(null); }} className='flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 px-2.5 py-1.5 text-[10px] font-semibold text-slate-500 hover:text-rose-500 transition-colors'>
                 <FiTrash2 className='h-3 w-3' /> Clear
               </button>
             )}
-            <button
-              onClick={handleGenerateReport}
-              disabled={generatingReport || !ready}
-              title='Generate full financial report'
-              className='flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 px-3 py-1.5 text-[10px] font-bold text-white shadow-lg shadow-teal-500/20 disabled:opacity-40 hover:-translate-y-0.5 transition-all'
-            >
-              {generatingReport ? <FiRefreshCw className='h-3 w-3 animate-spin' /> : <FiFileText className='h-3 w-3' />}
-              Report
+            <button onClick={handleGenerateReport} disabled={generatingReport || !ready} className='flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 px-3 py-1.5 text-[10px] font-bold text-white shadow-lg shadow-teal-500/20 disabled:opacity-40 hover:-translate-y-0.5 transition-all'>
+              {generatingReport ? <FiRefreshCw className='h-3 w-3 animate-spin' /> : <FiFileText className='h-3 w-3' />} Report
             </button>
           </div>
         </header>
 
-        {/* ── Message thread ── */}
-        <div className='flex-1 overflow-y-auto rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 px-3 py-3 space-y-4 min-h-0'>
+        {/* Tab bar */}
+        <div className='flex gap-1 bg-slate-100 dark:bg-slate-800/60 rounded-2xl p-1 shrink-0'>
+          <button type='button' onClick={() => setTab('chat')} className={tabCls('chat')}><FiMessageSquare className='h-3.5 w-3.5' /> Chat</button>
+          <button type='button' onClick={() => setTab('brief')} className={tabCls('brief')}><FiZap className='h-3.5 w-3.5' /> Brief</button>
+          <button type='button' onClick={() => setTab('search')} className={tabCls('search')}><FiSearch className='h-3.5 w-3.5' /> Search</button>
+        </div>
 
-          {/* ── Empty state ── */}
-          {isEmpty && (
-            <div className='flex flex-col gap-4 h-full'>
-              {/* Proactive insights */}
-              {proactiveInsights.length > 0 && (
-                <div>
-                  <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2'>
-                    Needs attention
-                  </p>
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-                    {proactiveInsights.map((insight) => (
-                      <InsightBanner key={insight.id} insight={insight} onAsk={(q) => void sendMessage(q)} />
-                    ))}
-                  </div>
+        {/* Brief tab */}
+        {tab === 'brief' && <div className='flex-1 overflow-y-auto min-h-0'><BriefTab onAsk={(q) => { setInput(q); setTab('chat'); void sendMessage(q); }} /></div>}
+
+        {/* Search tab */}
+        {tab === 'search' && <div className='flex-1 overflow-y-auto min-h-0'><SearchTab /></div>}
+
+        {/* Chat tab */}
+        {tab === 'chat' && (
+          <>
+            {/* NLP Quick Add */}
+            <div className='shrink-0 rounded-2xl border border-emerald-200 dark:border-emerald-700/40 bg-emerald-50 dark:bg-emerald-900/10 p-2'>
+              {nlpParsed ? (
+                <div className='flex items-center gap-2 flex-wrap'>
+                  <span className='text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex-1'>
+                    {nlpParsed.type === 'income' ? '💰' : '💸'} <strong>{nlpParsed.category}</strong> · {nlpParsed.amount ? formatINR(nlpParsed.amount) : '?'} · {nlpParsed.date}
+                    {nlpParsed.confidence !== 'high' && <span className='text-amber-500 ml-1'>(low confidence — edit if needed)</span>}
+                  </span>
+                  <button onClick={() => void handleNlpConfirm()} disabled={nlpSaving} className='rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 text-xs font-bold disabled:opacity-40'>{nlpSaving ? 'Saving…' : 'Confirm'}</button>
+                  <button onClick={() => setNlpParsed(null)} className='rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 text-xs font-bold'><FiX className='h-3.5 w-3.5' /></button>
+                </div>
+              ) : (
+                <div className='flex items-center gap-2'>
+                  <span className='text-sm'>✨</span>
+                  <input value={nlpInput} onChange={e => setNlpInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleNlpParse(); }}
+                    placeholder='"Spent ₹450 on dinner" → instant add'
+                    className='flex-1 bg-transparent text-xs text-slate-700 dark:text-slate-300 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500' />
+                  {nlpInput.trim() && <button onClick={handleNlpParse} className='rounded-lg bg-emerald-600 text-white px-2.5 py-1 text-xs font-bold hover:bg-emerald-500'>Parse</button>}
                 </div>
               )}
-
-              {/* Suggested questions */}
-              <div>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2'>
-                  {proactiveInsights.length > 0 ? 'Or ask' : 'Suggested'}
-                </p>
-                <div className='flex flex-wrap gap-1.5'>
-                  {suggestions.map(({ emoji, label, question }) => (
-                    <button
-                      key={label}
-                      onClick={() => void sendMessage(question)}
-                      disabled={loading}
-                      className='flex items-center gap-1 rounded-full border border-violet-200/70 dark:border-violet-700/50 bg-violet-50 dark:bg-violet-900/20 px-2.5 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors disabled:opacity-50'
-                    >
-                      <span>{emoji}</span>{label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Capability legend */}
-              <div className='flex flex-wrap items-center gap-3 text-[10px] text-slate-400 dark:text-slate-500 mt-auto pb-1'>
-                <span className='flex items-center gap-1'><FiDatabase className='h-3 w-3 text-emerald-500' />Instant from your data</span>
-                <span className='flex items-center gap-1'><FiCpu className='h-3 w-3 text-violet-500' />AI via Groq</span>
-                <span className='flex items-center gap-1'><FiPlus className='h-3 w-3 text-orange-500' />CRUD actions</span>
-                <span className='flex items-center gap-1'><FiInfo className='h-3 w-3 text-sky-500' />App guides</span>
-              </div>
             </div>
-          )}
 
-          {/* ── Messages ── */}
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {/* Message thread */}
+            <div className='flex-1 overflow-y-auto rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 px-3 py-3 space-y-4 min-h-0'>
+              {isEmpty && (
+                <div className='flex flex-col gap-4 h-full'>
+                  {/* Quick action pills — all 8 categories */}
+                  <div>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2'>Quick Add</p>
+                    <div className='grid grid-cols-4 gap-2'>
+                      {[
+                        { emoji: '💸', label: 'Expense',    q: 'Add expense' },
+                        { emoji: '💰', label: 'Income',     q: 'Add income' },
+                        { emoji: '💳', label: 'Payment',    q: 'Add payment reminder' },
+                        { emoji: '📈', label: 'Investment', q: 'I bought stock' },
+                        { emoji: '🎯', label: 'Goal',       q: 'Create a savings goal' },
+                        { emoji: '🏦', label: 'Loan',       q: 'Add a loan' },
+                        { emoji: '🛡️', label: 'Insurance',  q: 'Add insurance policy' },
+                        { emoji: '🔍', label: 'Net Worth',  q: 'What is my net worth?' },
+                      ].map(({ emoji, label, q }) => (
+                        <button key={label} type='button' onClick={() => void sendMessage(q)} disabled={loading}
+                          className='flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 px-2 py-3 transition-all hover:-translate-y-0.5 disabled:opacity-40 active:scale-95'>
+                          <span className='text-xl'>{emoji}</span>
+                          <span className='text-[10px] font-bold text-slate-600 dark:text-slate-300 text-center leading-tight'>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Assistant avatar */}
-              {msg.role === 'assistant' && (
-                <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow mt-1'>
-                  <FiCpu className='h-3 w-3' />
+                  {/* Suggested questions */}
+                  <div>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2'>Ask AI</p>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {suggestions.map(({ emoji, label, question }) => (
+                        <button key={label} onClick={() => void sendMessage(question)} disabled={loading}
+                          className='flex items-center gap-1 rounded-full border border-violet-200/70 dark:border-violet-700/50 bg-violet-50 dark:bg-violet-900/20 px-2.5 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors disabled:opacity-50'>
+                          <span>{emoji}</span>{label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className='flex flex-wrap items-center gap-3 text-[10px] text-slate-400 dark:text-slate-500 mt-auto pb-1'>
+                    <span className='flex items-center gap-1'><FiDatabase className='h-3 w-3 text-emerald-500'/>Instant from data</span>
+                    <span className='flex items-center gap-1'><FiCpu className='h-3 w-3 text-violet-500'/>AI via Groq</span>
+                    <span>✨ Type naturally in Quick Add bar above</span>
+                  </div>
                 </div>
               )}
-
-              {/* Bubble */}
-              <div className={`max-w-[88%] min-w-0 ${msg.role === 'user' ? '' : 'flex-1'}`}>
-                {msg.loading ? (
-                  <div className='bg-white dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/50 rounded-2xl rounded-tl-sm'>
-                    <ThinkingBubble />
-                  </div>
-                ) : msg.role === 'user' ? (
-                  <div className='flex flex-col items-end gap-0.5'>
-                    <div className='bg-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm font-medium'>
-                      {msg.textContent}
-                    </div>
-                    <span className='text-[9px] text-slate-400 dark:text-slate-500 pr-1'>{fmtTime(msg.timestamp)}</span>
-                  </div>
-                ) : (
-                  <div className='space-y-1.5'>
-                    {/* Badge + time row */}
-                    <div className='flex items-center gap-2'>
-                      <SourceBadge source={msg.source} />
-                      <span className='text-[9px] text-slate-400 dark:text-slate-500'>{fmtTime(msg.timestamp)}</span>
-                    </div>
-
-                    {/* Content */}
-                    {msg.affordabilityResult
-                      ? (
-                        <AffordabilityCard result={msg.affordabilityResult} />
-                      )
-                      : msg.structuredContent
-                      ? (
-                        <StructuredRenderer
-                          resp={msg.structuredContent}
-                          onConfirm={handleConfirmAction}
-                          onCancel={handleCancelAction}
-                        />
-                      )
-                      : (
-                        <div className='bg-white dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/50 rounded-xl rounded-tl-sm px-4 py-3'>
-                          <MarkdownRenderer text={msg.textContent ?? ''} />
-                        </div>
-                      )
-                    }
-
-                    {/* Action success navigation button */}
-                    {msg.actionLinkTo && msg.source === 'firebase' && (
-                      <button
-                        onClick={() => navigate(msg.actionLinkTo!)}
-                        className='flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline mt-0.5'
-                      >
-                        <FiExternalLink className='h-3 w-3' /> View in app
-                      </button>
+              {messages.map((msg) => (
+                <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'assistant' && (
+                    <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow mt-1'><FiCpu className='h-3 w-3' /></div>
+                  )}
+                  <div className={`max-w-[88%] min-w-0 ${msg.role === 'user' ? '' : 'flex-1'}`}>
+                    {msg.loading ? (
+                      <div className='bg-white dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/50 rounded-2xl rounded-tl-sm'><ThinkingBubble /></div>
+                    ) : msg.role === 'user' ? (
+                      <div className='flex flex-col items-end gap-0.5'>
+                        <div className='bg-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm font-medium'>{msg.textContent}</div>
+                        <span className='text-[9px] text-slate-400 pr-1'>{fmtTime(msg.timestamp)}</span>
+                      </div>
+                    ) : (
+                      <div className='space-y-1.5'>
+                        <div className='flex items-center gap-2'><SourceBadge source={msg.source} /><span className='text-[9px] text-slate-400'>{fmtTime(msg.timestamp)}</span></div>
+                        {msg.affordabilityResult
+                          ? <AffordabilityCard result={msg.affordabilityResult} />
+                          : msg.structuredContent
+                          ? <StructuredRenderer resp={msg.structuredContent} onConfirm={handleConfirmAction} onCancel={handleCancelAction} />
+                          : <div className='bg-white dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/50 rounded-xl rounded-tl-sm px-4 py-3'><MarkdownRenderer text={msg.textContent ?? ''} /></div>
+                        }
+                        {msg.actionLinkTo && msg.source === 'firebase' && (
+                          <button onClick={() => navigate(msg.actionLinkTo!)} className='flex items-center gap-1 text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline mt-0.5'><FiExternalLink className='h-3 w-3' /> View in app</button>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* User avatar */}
-              {msg.role === 'user' && (
-                <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-700 text-white text-[10px] font-bold mt-1'>
-                  {userInitial}
+                  {msg.role === 'user' && (
+                    <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-700 text-white text-[10px] font-bold mt-1'>{userInitial}</div>
+                  )}
                 </div>
-              )}
+              ))}
+              <div ref={bottomRef} />
             </div>
-          ))}
 
-          <div ref={bottomRef} />
-        </div>
-
-        {/* ── Quick actions ── */}
-        <div className='shrink-0 px-0.5'>
-          <QuickActions onSend={(q) => void sendMessage(q)} disabled={loading} />
-        </div>
-
-        {/* ── Input bar ── */}
-        <div className='shrink-0'>
-          <div className='flex gap-2 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-violet-500/30 transition-all'>
-            {/* Search icon hint */}
-            <div className='flex items-center pl-2 text-slate-400 dark:text-slate-500'>
-              <FiSearch className='h-3.5 w-3.5' />
+            {/* Input bar */}
+            <div className='shrink-0'>
+              <div className='flex gap-2 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-violet-500/30 transition-all'>
+                <div className='flex items-center pl-2 text-slate-400 dark:text-slate-500'><FiSearch className='h-3.5 w-3.5' /></div>
+                <input ref={inputRef} type='text' value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                  placeholder='Ask AI or type a command…' disabled={loading}
+                  className='flex-1 bg-transparent px-2 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 disabled:opacity-50' />
+                <button onClick={() => void sendMessage(input)} disabled={loading || !input.trim()} aria-label='Send'
+                  className='flex items-center justify-center h-9 w-9 rounded-xl bg-violet-600 text-white disabled:opacity-40 hover:bg-violet-500 active:scale-95 transition-all'>
+                  {loading ? <FiRefreshCw className='h-4 w-4 animate-spin' /> : <FiSend className='h-4 w-4' />}
+                </button>
+              </div>
+              <p className='mt-1 text-center text-[9px] text-slate-400 dark:text-slate-500'>AI via Groq · Not investment advice · <Link to='/settings' className='text-violet-500 hover:underline'>Settings</Link></p>
             </div>
-            <input
-              ref={inputRef}
-              type='text'
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder='Ask or say "Add ₹2500 electricity bill for Sep 15"…'
-              disabled={loading}
-              className='flex-1 bg-transparent px-2 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 disabled:opacity-50'
-            />
-            <button
-              onClick={() => void sendMessage(input)}
-              disabled={loading || !input.trim()}
-              aria-label='Send'
-              className='flex items-center justify-center h-9 w-9 rounded-xl bg-violet-600 text-white disabled:opacity-40 hover:bg-violet-500 active:scale-95 transition-all'
-            >
-              {loading
-                ? <FiRefreshCw className='h-4 w-4 animate-spin' />
-                : <FiSend className='h-4 w-4' />
-              }
-            </button>
-          </div>
-          <p className='mt-1 text-center text-[9px] text-slate-400 dark:text-slate-500'>
-            AI via Groq (direct) · Not investment advice ·{' '}
-            <Link to='/settings' className='text-violet-500 hover:underline'>Settings</Link>
-          </p>
-        </div>
+          </>
+        )}
 
       </div>
     </SubscriptionGuard>

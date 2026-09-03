@@ -93,6 +93,13 @@ export const NAV_GROUPS: AppNavGroup[] = [
         bg: 'bg-amber-500/10',
       },
       {
+        to: '/forecast',
+        icon: FiTrendingUp,
+        label: 'Forecast',
+        accent: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
+      },
+      {
         to: '/budget',
         icon: FiPieChart,
         label: 'Budget',
