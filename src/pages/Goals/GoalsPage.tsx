@@ -15,6 +15,9 @@ import {
   FiTarget,
   FiTrash2,
   FiTrendingUp,
+  FiZap,
+  FiChevronDown,
+  FiChevronUp,
 } from 'react-icons/fi';
 import type { Goal, GoalStatus } from '../../types/investmentTypes';
 import {
@@ -33,6 +36,200 @@ import { useMemo, useState } from 'react';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { AsyncButton } from '../../components/ui/AsyncButton';
+import {
+  goalProbabilityResult,
+  whatIfMonthly,
+  type GoalProbabilityResult,
+} from '../../utils/goalProbability';
+
+// ── Goal Probability Panel ────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  'Jan','Feb','Mar','Apr','May','Jun',
+  'Jul','Aug','Sep','Oct','Nov','Dec',
+];
+
+function ProbabilityBar({ pct }: { pct: number }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const color =
+    clamped >= 75 ? '#22c55e' : clamped >= 50 ? '#f59e0b' : '#ef4444';
+  const blocks = 10;
+  const filled = Math.round((clamped / 100) * blocks);
+  return (
+    <div className='flex items-center gap-2'>
+      <div className='flex gap-0.5'>
+        {Array.from({ length: blocks }).map((_, i) => (
+          <div
+            key={i}
+            className='h-3 w-4 rounded-sm transition-all'
+            style={{
+              background: i < filled ? color : undefined,
+              opacity:    i < filled ? 1 : 0.15,
+              backgroundColor: i < filled ? color : '#94a3b8',
+            }}
+          />
+        ))}
+      </div>
+      <span className='text-sm font-black tabular-nums' style={{ color }}>
+        {Math.round(clamped)}%
+      </span>
+    </div>
+  );
+}
+
+function GoalProbabilityPanel({
+  goal,
+  result,
+  monthlyInvestment,
+}: {
+  goal: Goal;
+  result: GoalProbabilityResult;
+  monthlyInvestment: number;
+}) {
+  const [expanded, setExpanded]       = useState(false);
+  const [sliderVal, setSliderVal]     = useState(monthlyInvestment);
+
+  const whatIf = useMemo(
+    () =>
+      whatIfMonthly(
+        {
+          targetAmount:      goal.targetAmount,
+          currentSaved:      goal.currentAmount,
+          expectedReturnPct: 12,
+          targetDate:        goal.dueDate,
+        },
+        sliderVal,
+      ),
+    [sliderVal, goal],
+  );
+
+  const sliderMin = Math.max(500,  Math.round(monthlyInvestment * 0.25 / 500) * 500);
+  const sliderMax = Math.round(monthlyInvestment * 4 / 1000) * 1000 || 50_000;
+
+  return (
+    <div className='mt-3 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/30 overflow-hidden'>
+      {/* Header row */}
+      <button
+        type='button'
+        onClick={() => setExpanded((p) => !p)}
+        className='w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors'
+      >
+        <div className='flex items-center gap-2.5 min-w-0'>
+          <FiZap className='h-3.5 w-3.5 text-amber-400 shrink-0' />
+          <span className='text-xs font-bold text-slate-700 dark:text-slate-200'>
+            Goal Probability
+          </span>
+          <ProbabilityBar pct={result.probability} />
+        </div>
+        <div className='flex items-center gap-3 shrink-0'>
+          <span className='text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block'>
+            Est. {MONTH_NAMES[(result.estimatedCompletionMonth - 1) % 12]}{' '}
+            {result.estimatedCompletionYear > 9000 ? '—' : result.estimatedCompletionYear}
+          </span>
+          {expanded
+            ? <FiChevronUp className='h-3.5 w-3.5 text-slate-400' />
+            : <FiChevronDown className='h-3.5 w-3.5 text-slate-400' />
+          }
+        </div>
+      </button>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className='px-4 pb-4 pt-1 space-y-4 border-t border-slate-200 dark:border-slate-700/40'>
+
+          {/* Stats row */}
+          <div className='grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2'>
+            {[
+              {
+                label: 'Target',
+                value: formatINR(goal.targetAmount),
+                color: 'text-slate-900 dark:text-slate-100',
+              },
+              {
+                label: 'Saved',
+                value: `${formatINR(goal.currentAmount)} (${result.savingsRate.toFixed(0)}%)`,
+                color: 'text-emerald-600 dark:text-emerald-400',
+              },
+              {
+                label: 'Est. Completion',
+                value: result.monthsNeeded === 0
+                  ? 'Already done!'
+                  : result.estimatedCompletionYear > 9000
+                  ? '50+ yrs'
+                  : `${MONTH_NAMES[(result.estimatedCompletionMonth - 1) % 12]} ${result.estimatedCompletionYear}`,
+                color: result.isOnTrack
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-600 dark:text-amber-400',
+              },
+              {
+                label: 'Monthly needed',
+                value: result.monthlyNeeded <= 0
+                  ? 'On track ✓'
+                  : formatINR(result.monthlyNeeded),
+                color: result.monthlyNeeded <= 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-900 dark:text-slate-100',
+              },
+            ].map(({ label, value, color }) => (
+              <div
+                key={label}
+                className='rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/40 px-3 py-2'
+              >
+                <p className='text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1'>
+                  {label}
+                </p>
+                <p className={`text-xs font-bold ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Shortfall warning */}
+          {result.shortfall > 0 && (
+            <div className='flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-700/40 px-3 py-2'>
+              <span className='text-sm shrink-0'>⚠️</span>
+              <p className='text-[11px] text-amber-700 dark:text-amber-400'>
+                Projected shortfall of <strong>{formatINR(result.shortfall)}</strong> at deadline.
+                Increase monthly investment to{' '}
+                <strong>{formatINR(result.monthlyNeeded)}</strong> to stay on track.
+              </p>
+            </div>
+          )}
+
+          {/* What-If slider */}
+          {monthlyInvestment > 0 && (
+            <div>
+              <div className='flex items-center justify-between mb-1.5'>
+                <p className='text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider'>
+                  What if I invest…
+                </p>
+                <span className='text-xs font-black text-violet-600 dark:text-violet-400'>
+                  {formatINR(sliderVal)}/mo
+                </span>
+              </div>
+              <input
+                type='range'
+                min={sliderMin}
+                max={sliderMax}
+                step={500}
+                value={sliderVal}
+                onChange={(e) => setSliderVal(Number(e.target.value))}
+                className='w-full h-1.5 rounded-full appearance-none bg-slate-200 dark:bg-slate-700 accent-violet-600 cursor-pointer'
+              />
+              <div className='flex items-center justify-between mt-2'>
+                <ProbabilityBar pct={whatIf.probability} />
+                <span className='text-xs text-slate-500 dark:text-slate-400'>
+                  {whatIf.estimatedCompletionYear > 9000
+                    ? '50+ years'
+                    : `${MONTH_NAMES[(whatIf.estimatedCompletionMonth - 1) % 12]} ${whatIf.estimatedCompletionYear}`}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Status Badge ──────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status?: GoalStatus }) {
@@ -57,6 +254,7 @@ export function GoalsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const goals = usePortfolioStore((s) => s.goals);
   const cashflows = usePortfolioStore((s) => s.cashflows);
+  const goalContributions = usePortfolioStore((s) => s.goalContributions);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
   const updateGoal = usePortfolioStore((s) => s.updateGoal);
   const { busy: deleteBusy, run: runDelete } = useAsyncAction();
@@ -152,6 +350,39 @@ export function GoalsPage() {
     () => buildGoalInsights(goals, cashflows),
     [goals, cashflows],
   );
+
+  // ── Average monthly surplus for probability engine ────────────────────────
+  const avgMonthlySurplus = useMemo(() => {
+    const inc  = cashflows.filter((e) => e.type === 'income');
+    const exp  = cashflows.filter((e) => e.type === 'expense');
+    if (!inc.length) return 0;
+    const months = new Set(inc.map((e) => e.date.slice(0, 7))).size || 1;
+    const totalInc = inc.reduce((a, e) => a + e.amount, 0);
+    const totalExp = exp.reduce((a, e) => a + e.amount, 0);
+    return Math.max(0, (totalInc - totalExp) / months);
+  }, [cashflows]);
+
+  // ── Per-goal probability results ──────────────────────────────────────────
+  const goalProbabilityMap = useMemo(() => {
+    const map = new Map<string, GoalProbabilityResult>();
+    for (const g of goals) {
+      const contributions = goalContributions
+        .filter((c) => c.goalId === g.id)
+        .reduce((a, c) => a + c.amount, 0);
+      const currentSaved = g.currentAmount + contributions;
+      map.set(
+        g.id,
+        goalProbabilityResult({
+          targetAmount:      g.targetAmount,
+          currentSaved,
+          monthlyInvestment: avgMonthlySurplus,
+          expectedReturnPct: 12,
+          targetDate:        g.dueDate,
+        }),
+      );
+    }
+    return map;
+  }, [goals, goalContributions, avgMonthlySurplus]);
 
   const tabCls = (tab: FilterTab) =>
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -417,6 +648,15 @@ export function GoalsPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Goal Probability Panel */}
+                  {(!g.status || g.status === 'active') && goalProbabilityMap.get(g.id) && (
+                    <GoalProbabilityPanel
+                      goal={g}
+                      result={goalProbabilityMap.get(g.id)!}
+                      monthlyInvestment={avgMonthlySurplus}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -524,6 +764,20 @@ export function GoalsPage() {
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
+                            {/* Inline probability row for desktop */}
+                            {(!g.status || g.status === 'active') && goalProbabilityMap.get(g.id) && (
+                              <div className='flex items-center gap-2 mt-1'>
+                                <FiZap className='h-3 w-3 text-amber-400 shrink-0' />
+                                <span className='text-[10px] text-slate-500 dark:text-slate-400 font-semibold'>Probability:</span>
+                                <ProbabilityBar pct={goalProbabilityMap.get(g.id)!.probability} />
+                                <span className='text-[10px] text-slate-500 dark:text-slate-400 ml-1'>
+                                  Est. {MONTH_NAMES[(goalProbabilityMap.get(g.id)!.estimatedCompletionMonth - 1) % 12]}{' '}
+                                  {goalProbabilityMap.get(g.id)!.estimatedCompletionYear > 9000
+                                    ? '—'
+                                    : goalProbabilityMap.get(g.id)!.estimatedCompletionYear}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </td>
 

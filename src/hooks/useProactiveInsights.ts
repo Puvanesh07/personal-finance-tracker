@@ -39,6 +39,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
     goalContributions,
     lendingBorrowers,
     lendingTransactions,
+    essentials,
   } = usePortfolioStore.getState();
 
   return useMemo(() => {
@@ -200,12 +201,166 @@ export function useProactiveInsights(): ProactiveInsight[] {
       }
     }
 
-    // Return at most 4 to keep the banner clean
-    return insights.slice(0, 4);
+    // ── 9. Spending spike — this month vs 3-month average ─────────────────
+    if (cashflows.length >= 4) {
+      const now        = new Date();
+      const thisMonth  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const thisMonthExp = cashflows
+        .filter((e) => e.type === 'expense' && e.date.startsWith(thisMonth))
+        .reduce((a, e) => a + e.amount, 0);
+
+      // 3-month average excluding current month
+      const prevMonths = new Set(
+        cashflows
+          .filter((e) => e.type === 'expense' && !e.date.startsWith(thisMonth))
+          .map((e) => e.date.slice(0, 7)),
+      );
+      const recentMonths = [...prevMonths].sort().slice(-3);
+      if (recentMonths.length >= 2 && thisMonthExp > 0) {
+        const prevTotal = cashflows
+          .filter((e) => e.type === 'expense' && recentMonths.includes(e.date.slice(0, 7)))
+          .reduce((a, e) => a + e.amount, 0);
+        const avg3Month = prevTotal / recentMonths.length;
+        const spikePct  = avg3Month > 0 ? ((thisMonthExp - avg3Month) / avg3Month) * 100 : 0;
+        if (spikePct >= 20) {
+          insights.push({
+            id: 'spending_spike',
+            emoji: '🔴',
+            title: `Spending is ${formatNumber(spikePct, 0)}% higher than usual`,
+            body: `This month: ${formatINR(thisMonthExp)} vs ${formatINR(avg3Month)} avg (last ${recentMonths.length} months)`,
+            severity: spikePct >= 40 ? 'danger' : 'warning',
+            question: 'Why is my spending higher this month?',
+            linkTo: '/cashflow',
+          });
+        }
+      }
+    }
+
+    // ── 10. Credit utilisation (credit card liabilities) ──────────────────
+    const creditCards = liabilities.filter(
+      (l) => l.type === 'credit_card' && (!l.status || l.status === 'active'),
+    );
+    if (creditCards.length > 0) {
+      // Treat principal as credit limit, outstanding as used amount
+      const totalLimit = creditCards.reduce((a, l) => a + (l.principal ?? 0), 0);
+      const totalUsed  = creditCards.reduce((a, l) => a + (l.outstanding ?? 0), 0);
+      const utilPct    = totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0;
+      if (utilPct >= 40) {
+        insights.push({
+          id: 'credit_utilisation',
+          emoji: '🟠',
+          title: `Credit utilisation at ${formatNumber(utilPct, 0)}%`,
+          body: `${formatINR(totalUsed)} used of ${formatINR(totalLimit)} limit — keep below 30% for good credit health`,
+          severity: utilPct >= 70 ? 'danger' : 'warning',
+          question: 'What is my credit card utilisation?',
+          linkTo: '/liabilities',
+        });
+      }
+    }
+
+    // ── 11. Savings milestone win ──────────────────────────────────────────
+    if (cashflows.length >= 2) {
+      const incEntries = cashflows.filter((e) => e.type === 'income');
+      const expEntries = cashflows.filter((e) => e.type === 'expense');
+      if (incEntries.length && expEntries.length) {
+        const incMonths = new Set(incEntries.map((e) => e.date.slice(0, 7))).size || 1;
+        const avgInc    = incEntries.reduce((a, e) => a + e.amount, 0) / incMonths;
+        const expMonths = new Set(expEntries.map((e) => e.date.slice(0, 7))).size || 1;
+        const avgExp    = expEntries.reduce((a, e) => a + e.amount, 0) / expMonths;
+        const rate      = avgInc > 0 ? ((avgInc - avgExp) / avgInc) * 100 : 0;
+
+        // Show a "win" badge only if rate is notably good (>= 30%) and no danger alerts firing
+        const hasDangerAlready = insights.some((i) => i.severity === 'danger');
+        if (rate >= 30 && !hasDangerAlready) {
+          insights.push({
+            id: 'savings_win',
+            emoji: '🟢',
+            title: `Great savings rate — ${formatNumber(rate, 1)}%!`,
+            body: `You are saving ${formatINR(avgInc - avgExp)}/mo on average. Keep it up!`,
+            severity: 'good',
+            question: 'How much money am I saving each month?',
+            linkTo: '/cashflow',
+          });
+        }
+      }
+    }
+
+    // ── 12. Emergency fund dropped below 3 months ─────────────────────────
+    const emergencyTarget  = essentials?.emergencyFundTarget  ?? 0;
+    const emergencyCurrent = essentials?.emergencyFundCurrent ?? 0;
+    const expForRunway     = (() => {
+      const exp = cashflows.filter((e) => e.type === 'expense');
+      if (!exp.length) return 0;
+      const months = new Set(exp.map((e) => e.date.slice(0, 7))).size || 1;
+      return exp.reduce((a, e) => a + e.amount, 0) / months;
+    })();
+    const runwayMonths = expForRunway > 0 ? emergencyCurrent / expForRunway : 0;
+
+    if (emergencyTarget > 0 || emergencyCurrent > 0) {
+      if (runwayMonths > 0 && runwayMonths < 3) {
+        insights.push({
+          id: 'emergency_fund_low',
+          emoji: '🔴',
+          title: `Emergency fund below 3 months`,
+          body: `You have ${formatNumber(runwayMonths, 1)} months of runway — target is 6 months (${formatINR(expForRunway * 6)})`,
+          severity: runwayMonths < 1 ? 'danger' : 'warning',
+          question: 'How is my emergency fund?',
+          linkTo: '/insights',
+        });
+      } else if (emergencyTarget > 0 && emergencyCurrent < emergencyTarget * 0.5) {
+        const pct = (emergencyCurrent / emergencyTarget) * 100;
+        insights.push({
+          id: 'emergency_fund_low',
+          emoji: '🔴',
+          title: `Emergency fund at ${formatNumber(pct, 0)}% of target`,
+          body: `${formatINR(emergencyCurrent)} saved of ${formatINR(emergencyTarget)} goal`,
+          severity: 'warning',
+          question: 'How is my emergency fund?',
+          linkTo: '/insights',
+        });
+      }
+    }
+
+    // ── 13. Goal ahead of schedule ────────────────────────────────────────
+    for (const g of activeGoals) {
+      if (!g.dueDate) continue;
+      const contributed = goalContributions.filter((c) => c.goalId === g.id).reduce((a, c) => a + c.amount, 0);
+      const saved       = g.currentAmount + contributed;
+      const now         = new Date();
+      const due         = new Date(g.dueDate);
+      const totalMonths = Math.max(1,
+        (due.getFullYear() - new Date(g.createdAt).getFullYear()) * 12 +
+        (due.getMonth() - new Date(g.createdAt).getMonth()),
+      );
+      const elapsedMonths = Math.max(0,
+        (now.getFullYear() - new Date(g.createdAt).getFullYear()) * 12 +
+        (now.getMonth() - new Date(g.createdAt).getMonth()),
+      );
+      const expectedPct = totalMonths > 0 ? (elapsedMonths / totalMonths) * 100 : 0;
+      const actualPct   = g.targetAmount > 0 ? (saved / g.targetAmount) * 100 : 0;
+      const lead        = actualPct - expectedPct;
+
+      if (lead >= 15 && actualPct < 100) {
+        const leadAmount = Math.round((lead / 100) * g.targetAmount);
+        insights.push({
+          id: `goal_lead_${g.id}`,
+          emoji: '🟢',
+          title: `Ahead on "${g.name}" by ${formatINR(leadAmount)}`,
+          body: `${formatNumber(actualPct, 0)}% saved vs ${formatNumber(expectedPct, 0)}% expected at this point — you're ${formatNumber(lead, 0)}% ahead`,
+          severity: 'good',
+          question: 'Which of my goals is ahead of schedule?',
+          linkTo: '/goals',
+        });
+        break; // one goal-lead insight at a time
+      }
+    }
+
+    // Return at most 5 (increased from 4 to accommodate new alert types)
+    return insights.slice(0, 5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     investments, liabilities, cashflows, trackedPayments,
     insurancePolicies, goals, goalContributions,
-    lendingBorrowers, lendingTransactions,
+    lendingBorrowers, lendingTransactions, essentials,
   ]);
 }

@@ -132,6 +132,9 @@ const NotificationsPage = lazy(() =>
     default: m.NotificationsPage,
   })),
 );
+const WhatIfSimulatorPage = lazy(() =>
+  import('./pages/Simulator/WhatIfSimulatorPage'),
+);
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -254,6 +257,14 @@ export default function App() {
               element={
                 <Suspense fallback={<AIAgentSkeleton />}>
                   <AIAgentPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/simulator'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <WhatIfSimulatorPage />
                 </Suspense>
               }
             />

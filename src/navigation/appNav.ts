@@ -15,6 +15,7 @@ import {
   FiShield,
   FiTrendingUp,
   FiZap,
+  FiGitBranch,
 } from 'react-icons/fi';
 import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
@@ -118,9 +119,16 @@ export const NAV_GROUPS: AppNavGroup[] = [
       {
         to: '/ai-agent',
         icon: FiCpu,
-        label: 'AI Agent',
+        label: 'AI Coach',
         accent: 'text-violet-400',
         bg: 'bg-violet-500/10',
+      },
+      {
+        to: '/simulator',
+        icon: FiGitBranch,
+        label: 'Simulator',
+        accent: 'text-fuchsia-400',
+        bg: 'bg-fuchsia-500/10',
       },
     ],
   },

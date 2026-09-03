@@ -47,6 +47,11 @@ import { useContextualSuggestions } from '../../hooks/useContextualSuggestions';
 import { auth } from '../../services/firebase';
 import type { AgentResponse } from '../../services/aiAgentResponseTypes';
 import { severityColor, severityBg } from '../../services/aiAgentResponseTypes';
+import {
+  canIAfford,
+  detectAffordabilityQuestion,
+} from '../../utils/affordabilityEngine';
+import { calculateNetWorth } from '../../utils/calculations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +68,8 @@ interface Message {
   loading?: boolean;
   /** Route to navigate after an action succeeds */
   actionLinkTo?: string;
+  /** Affordability engine result — renders AffordabilityCard */
+  affordabilityResult?: import('../../utils/affordabilityEngine').AffordabilityResult;
 }
 
 interface ConversationContext {
@@ -406,6 +413,74 @@ function ActionConfirmCard({
   );
 }
 
+// ─── Affordability result card ────────────────────────────────────────────────
+
+function AffordabilityCard({ result }: { result: import('../../utils/affordabilityEngine').AffordabilityResult }) {
+  const borderColor =
+    result.verdict === 'yes'               ? 'border-emerald-200 dark:border-emerald-700/50'
+    : result.verdict === 'possible'        ? 'border-amber-200 dark:border-amber-700/50'
+    : result.verdict === 'not_recommended' ? 'border-orange-200 dark:border-orange-700/50'
+    : 'border-rose-200 dark:border-rose-700/50';
+
+  const headerBg =
+    result.verdict === 'yes'               ? 'bg-emerald-50 dark:bg-emerald-900/20'
+    : result.verdict === 'possible'        ? 'bg-amber-50 dark:bg-amber-900/20'
+    : result.verdict === 'not_recommended' ? 'bg-orange-50 dark:bg-orange-900/20'
+    : 'bg-rose-50 dark:bg-rose-900/20';
+
+  const textColor =
+    result.verdict === 'yes'               ? 'text-emerald-800 dark:text-emerald-300'
+    : result.verdict === 'possible'        ? 'text-amber-800 dark:text-amber-300'
+    : result.verdict === 'not_recommended' ? 'text-orange-800 dark:text-orange-300'
+    : 'text-rose-800 dark:text-rose-300';
+
+  const impactColor: Record<string, string> = {
+    good:    'text-emerald-600 dark:text-emerald-400',
+    neutral: 'text-slate-500 dark:text-slate-400',
+    warning: 'text-amber-600 dark:text-amber-400',
+    danger:  'text-rose-600 dark:text-rose-400',
+  };
+
+  return (
+    <div className={`rounded-xl border ${borderColor} overflow-hidden`}>
+      {/* Header */}
+      <div className={`flex items-center gap-2.5 px-4 py-3 ${headerBg}`}>
+        <span className='text-xl'>{result.verdictEmoji}</span>
+        <span className={`text-sm font-bold ${textColor}`}>{result.verdictLabel}</span>
+      </div>
+      {/* Summary */}
+      <div className='px-4 py-3 border-b border-slate-100 dark:border-slate-800'>
+        <p className='text-sm text-slate-700 dark:text-slate-300'>{result.summary}</p>
+      </div>
+      {/* Impact table */}
+      <div className='divide-y divide-slate-100 dark:divide-slate-800'>
+        {result.details.map((d, i) => (
+          <div key={i} className='flex items-start justify-between gap-3 px-4 py-2.5'>
+            <span className='text-xs font-semibold text-slate-500 dark:text-slate-400 w-28 shrink-0'>{d.label}</span>
+            <div className='flex items-center gap-2 text-xs font-mono'>
+              <span className='text-slate-700 dark:text-slate-300'>{d.before}</span>
+              <span className='text-slate-400'>→</span>
+              <span className={impactColor[d.impact] ?? 'text-slate-700 dark:text-slate-300'}>{d.after}</span>
+            </div>
+            {d.note && (
+              <span className={`text-[10px] text-right flex-1 ${impactColor[d.impact]}`}>{d.note}</span>
+            )}
+          </div>
+        ))}
+      </div>
+      {/* Recommended budget */}
+      {result.recommendedBudget && (
+        <div className='px-4 py-2.5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800'>
+          <p className='text-xs text-slate-600 dark:text-slate-400'>
+            💡 <strong>Recommended budget:</strong>{' '}
+            ₹{result.recommendedBudget.min.toLocaleString('en-IN')} – ₹{result.recommendedBudget.max.toLocaleString('en-IN')}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StructuredRenderer({ resp, onConfirm, onCancel }: {
   resp: AgentResponse;
   onConfirm?: (payload: string) => void;
@@ -597,6 +672,89 @@ export default function AIAgentPage() {
     });
 
     try {
+      // ── Can I afford? — intercept before routing ──────────────────────
+      const affordAmount = detectAffordabilityQuestion(question);
+      if (affordAmount !== null && affordAmount > 0) {
+        const {
+          investments, liabilities, cashflows, accounts,
+          trackedPayments, goals, goalContributions, essentials,
+        } = usePortfolioStore.getState();
+
+        const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities);
+        void totalAssets; void totalLiabilities;
+
+        const totalCash        = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
+        const today            = new Date().toISOString().slice(0, 10);
+        const in30             = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+        const upcomingBills    = trackedPayments
+          .filter((p) => p.status === 'pending' && p.dueDate >= today && p.dueDate <= in30)
+          .reduce((a, p) => a + p.amount, 0);
+
+        const incEntries = cashflows.filter((e) => e.type === 'income');
+        const expEntries = cashflows.filter((e) => e.type === 'expense');
+        const months     = new Set(incEntries.map((e) => e.date.slice(0, 7))).size || 1;
+        const avgInc     = incEntries.reduce((a, e) => a + e.amount, 0) / months;
+        const avgExp     = expEntries.reduce((a, e) => a + e.amount, 0) /
+          (new Set(expEntries.map((e) => e.date.slice(0, 7))).size || 1);
+
+        const totalDebt  = liabilities
+          .filter((l) => !l.status || l.status === 'active')
+          .reduce((a, l) => a + (l.outstanding ?? 0), 0);
+        const totalEMI   = liabilities
+          .filter((l) => !l.status || l.status === 'active')
+          .reduce((a, l) => a + (l.emiAmount ?? 0), 0);
+
+        const goalList = goals
+          .filter((g) => !g.status || g.status === 'active')
+          .map((g) => {
+            const contributed = goalContributions
+              .filter((c) => c.goalId === g.id)
+              .reduce((a, c) => a + c.amount, 0);
+            return {
+              name:        g.name,
+              targetAmount: g.targetAmount,
+              savedAmount:  g.currentAmount + contributed,
+              dueDate:     g.dueDate,
+            };
+          });
+
+        const affordResult = canIAfford({
+          purchaseAmount:              affordAmount,
+          totalCash,
+          avgMonthlyIncome:            avgInc,
+          avgMonthlyExpense:           avgExp,
+          emergencyFundCurrent:        essentials.emergencyFundCurrent ?? 0,
+          emergencyFundTarget:         essentials.emergencyFundTarget  ?? 0,
+          avgMonthlyExpenseForRunway:  avgExp,
+          upcomingBillsTotal:          upcomingBills,
+          totalOutstandingDebt:        totalDebt,
+          totalMonthlyEMI:             totalEMI,
+          goals:                       goalList,
+        });
+
+        updateLastAssistant({
+          id: loadingId,
+          textContent: undefined,
+          structuredContent: {
+            kind:   'text',
+            content: `__AFFORDABILITY__${JSON.stringify(affordResult)}`,
+          } as any,
+          source: 'firebase',
+          loading: false,
+        });
+
+        // Store affordability result on message for AffordabilityCard renderer
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === loadingId
+              ? { ...m, affordabilityResult: affordResult, structuredContent: undefined,
+                  textContent: undefined, loading: false, source: 'firebase' as const }
+              : m,
+          ),
+        );
+        return;
+      }
+
       const route = routeQuestion(question);
 
       // ── Out of scope ──────────────────────────────────────────────────
@@ -904,7 +1062,11 @@ export default function AIAgentPage() {
                     </div>
 
                     {/* Content */}
-                    {msg.structuredContent
+                    {msg.affordabilityResult
+                      ? (
+                        <AffordabilityCard result={msg.affordabilityResult} />
+                      )
+                      : msg.structuredContent
                       ? (
                         <StructuredRenderer
                           resp={msg.structuredContent}
