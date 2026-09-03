@@ -25,7 +25,7 @@ const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'qwen/qwen3.6-27b';
 const MODEL_FALLBACK = 'qwen/qwen3.6-27b';
-const MAX_TOKENS = 350;
+const MAX_TOKENS = 450;
 const TEMPERATURE = 0.2;
 
 async function callGroq(messages: GroqCallRequest['messages']): Promise<GroqCallResult> {
