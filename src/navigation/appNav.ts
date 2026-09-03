@@ -3,6 +3,7 @@ import type { IconType } from 'react-icons';
 import {
   FiActivity,
   FiBarChart2,
+  FiCalendar,
   FiCamera,
   FiCreditCard,
   FiCpu,
@@ -11,6 +12,7 @@ import {
   FiBell,
   FiHome,
   FiLock,
+  FiPieChart,
   FiSettings,
   FiShield,
   FiTrendingUp,
@@ -98,6 +100,20 @@ export const NAV_GROUPS: AppNavGroup[] = [
         bg: 'bg-amber-500/10',
       },
       {
+        to: '/budget',
+        icon: FiPieChart,
+        label: 'Budget',
+        accent: 'text-teal-400',
+        bg: 'bg-teal-500/10',
+      },
+      {
+        to: '/calendar',
+        icon: FiCalendar,
+        label: 'Calendar',
+        accent: 'text-sky-400',
+        bg: 'bg-sky-500/10',
+      },
+      {
         to: '/credentials',
         icon: FiLock,
         label: 'Credentials',
@@ -141,6 +157,13 @@ export const NAV_GROUPS: AppNavGroup[] = [
         label: 'Tools',
         accent: 'text-purple-400',
         bg: 'bg-purple-500/10',
+      },
+      {
+        to: '/timeline',
+        icon: FiTrendingUp,
+        label: 'NW Timeline',
+        accent: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
       },
       {
         to: '/snapshots',

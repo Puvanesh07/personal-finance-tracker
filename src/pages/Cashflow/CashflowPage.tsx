@@ -66,7 +66,52 @@ import { usePremiumActions } from '../../hooks/usePremiumActions';
 
 // import LendingDashboard from './LendingDashboard'; // NEW import for lending tab
 
-// ── Utilities ─────────────────────────────────────────────────────────────
+import { useRecurringDetection } from '../../hooks/useRecurringDetection';
+
+// ── Recurring detection banner ─────────────────────────────────────────────
+
+function RecurringBanner() {
+  const candidates = useRecurringDetection();
+  const [dismissed, setDismissed] = useState(false);
+  if (!candidates.length || dismissed) return null;
+  return (
+    <div className='rounded-xl border border-violet-200 dark:border-violet-700/40 bg-violet-50 dark:bg-violet-900/10 px-4 py-3'>
+      <div className='flex items-start justify-between gap-3'>
+        <div className='flex items-center gap-2'>
+          <span className='text-lg'>🔁</span>
+          <div>
+            <p className='text-sm font-bold text-violet-800 dark:text-violet-300'>
+              {candidates.length} recurring transaction{candidates.length > 1 ? 's' : ''} detected
+            </p>
+            <p className='text-[11px] text-violet-600 dark:text-violet-400 mt-0.5'>
+              These look like regular monthly entries. Consider converting them to payment reminders.
+            </p>
+          </div>
+        </div>
+        <button
+          type='button'
+          onClick={() => setDismissed(true)}
+          className='text-violet-400 hover:text-violet-600 text-lg leading-none shrink-0'
+        >
+          ×
+        </button>
+      </div>
+      <div className='mt-3 flex flex-wrap gap-2'>
+        {candidates.slice(0, 5).map((c) => (
+          <span
+            key={`${c.type}_${c.category}`}
+            className='flex items-center gap-1.5 rounded-full bg-violet-100 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700/40 px-3 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300'
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${c.type === 'income' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            {c.category}
+            <span className='font-normal opacity-70'>×{c.occurrences}</span>
+            {c.confidence === 'high' && <span className='text-amber-500'>★</span>}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 function getFYOptions() {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -1085,6 +1130,8 @@ export function CashflowPage() {
 
   return (
     <div className='flex flex-col gap-6 pb-8'>
+      {/* ── Recurring detection ── */}
+      <RecurringBanner />
       {/* ── Tabs Top ── */}
       {/* <div className='flex bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl w-fit mb-2 border border-slate-200/60 dark:border-slate-700/60'>
         <button

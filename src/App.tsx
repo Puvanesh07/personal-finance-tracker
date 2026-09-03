@@ -135,6 +135,15 @@ const NotificationsPage = lazy(() =>
 const WhatIfSimulatorPage = lazy(() =>
   import('./pages/Simulator/WhatIfSimulatorPage'),
 );
+const NetWorthTimelinePage = lazy(() =>
+  import('./pages/Timeline/NetWorthTimelinePage'),
+);
+const FinancialCalendarPage = lazy(() =>
+  import('./pages/Calendar/FinancialCalendarPage'),
+);
+const BudgetPage = lazy(() =>
+  import('./pages/Budget/BudgetPage'),
+);
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -265,6 +274,30 @@ export default function App() {
               element={
                 <Suspense fallback={<ToolsSkeleton />}>
                   <WhatIfSimulatorPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/timeline'
+              element={
+                <Suspense fallback={<SnapshotsSkeleton />}>
+                  <NetWorthTimelinePage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/calendar'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <FinancialCalendarPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/budget'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <BudgetPage />
                 </Suspense>
               }
             />

@@ -14,6 +14,7 @@ import { GoalsEssentialsSummary } from '../../components/dashboard/GoalsEssentia
 import { GrowthChart } from '../../components/dashboard/GrowthChart';
 import { MaturityTimeline } from '../../components/dashboard/MaturityTimeline';
 import { SummaryCards } from '../../components/dashboard/SummaryCards';
+import { CommandCenter } from '../../components/dashboard/CommandCenter';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 const MarketCapAllocationChart = lazy(() =>
@@ -123,6 +124,10 @@ export function DashboardPage() {
 
       <section className='pt-2 min-w-0'>
         <GrowthChart />
+      </section>
+
+      <section className='min-w-0'>
+        <CommandCenter />
       </section>
     </div>
   );
