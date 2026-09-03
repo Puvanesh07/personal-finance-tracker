@@ -10,7 +10,7 @@
  * The intent with the highest total score wins.
  * Ties are broken by the order of INTENT_SCORES (more specific first).
  *
- * This fixes the core bugs in the old system:
+ * Fixed bugs:
  *   • "how much interest am I paying on my liabilities" → liabilities, not portfolio
  *   • "outstanding lending" → lending, not liabilities
  *   • "income and expense" → cashflow summary, not income-only
@@ -18,6 +18,8 @@
  *   • "how much did I save" → cashflow savings, not savings rate
  *   • Date scopes (today/this week) correctly applied to cashflow AND payments
  *   • "what did I invest in VEDL stock" → stock_lookup (symbol extractor runs first)
+ *   • All CRUD actions (add/update/delete + new modules) route to ACTION correctly
+ *   • "search" / "find" intent added
  */
 
 import { matchFeatureGuide, isFeatureGuideQuestion } from './aiAgentFeatureGuide';
@@ -72,6 +74,10 @@ const FINTRACKLY_TOPICS = [
   'inflation', 'compounding', 'emergency fund', 'fintrackly',
   'overview', 'situation', 'health', 'risk', 'focus', 'owe',
   'account', 'balance', 'bank',
+  // CRUD verbs — ensure "add X", "delete X", "update X" are always in-scope
+  'add ', 'buy ', 'bought', 'record ', 'delete ', 'remove ', 'update ',
+  'change ', 'edit ', 'mark ', 'paid', 'lent ', 'lend ', 'gave ',
+  'create ', 'search ', 'find ',
 ];
 
 // ─── Personal-data signals ────────────────────────────────────────────────────
@@ -100,8 +106,6 @@ const PERSONAL_SIGNALS = [
   'highest return', 'lowest return', 'most profitable', 'in loss',
   'in profit', 'profitable invest', 'priorit',
 ];
-
-// ─── Explain signals ──────────────────────────────────────────────────────────
 
 const EXPLAIN_SIGNALS = [
   'why is my', 'why are my',
@@ -703,17 +707,19 @@ function detectPersonalIntent(q: string): string {
 export function routeQuestion(question: string): RouteResult {
   const q = question.trim().toLowerCase();
 
-  // 1. Hard out-of-scope
-  const isHardOutOfScope = OUT_OF_SCOPE_PATTERNS.some((rx) => rx.test(q));
+  // 1. Hard out-of-scope — but never block CRUD commands (add/delete/update/buy/lent)
+  const isCrudCommand = /^(add|buy|bought|record|create|delete|remove|update|change|edit|mark|lent|lend|gave|i (bought|lent|spent|received|got))\b/i.test(question.trim());
+  const isHardOutOfScope = !isCrudCommand && OUT_OF_SCOPE_PATTERNS.some((rx) => rx.test(q));
   const isTopicInScope   = FINTRACKLY_TOPICS.some((t) => q.includes(t));
   const hasPersonal      = hasPersonalSignal(q);
 
-  if (isHardOutOfScope || (!isTopicInScope && !hasPersonal)) {
+  if (isHardOutOfScope || (!isTopicInScope && !hasPersonal && !isCrudCommand)) {
     return { type: 'OUT_OF_SCOPE', intent: 'out_of_scope' };
   }
 
-  // 1b. ACTION — check before explain/personal so "add ₹500 income" doesn't
-  //     fall into personal-data or general.
+  // 1b. ACTION — check BEFORE explain/personal so "add ₹500 income",
+  //     "delete my TCS stock", "update home loan outstanding" all go here.
+  //     search_records also routes as ACTION (executor returns instant results).
   const actionType = detectActionType(q);
   if (actionType !== 'unknown') {
     return { type: 'ACTION', intent: actionType };
@@ -726,8 +732,6 @@ export function routeQuestion(question: string): RouteResult {
 
   // 3. Personal data → store only
   if (hasPersonal) {
-    // Symbol extraction runs before intent detection —
-    // "what did I invest in VEDL stock" → stock_lookup, not portfolio
     const symbol    = extractSymbol(q);
     const dateScope = detectDateScope(q);
     const intent    = symbol ? 'stock_lookup' : detectPersonalIntent(q);
