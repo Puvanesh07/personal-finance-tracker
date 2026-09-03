@@ -1,271 +1,781 @@
 /**
  * src/components/ui/QuickAddFAB.tsx
  *
- * Global Quick Add FAB — floating "+" button visible on every page.
- * Opens a slide-up sheet with 8 quick-add actions.
- * Each action opens the corresponding page's add modal / navigates with
- * a ?quickAdd=true param that pages can detect.
- *
- * Design target: user can log any transaction in < 10 seconds.
+ * Global Quick Add FAB — fully inline, no navigation.
+ * Opens a slide-up sheet with 8 action types.
+ * Every action creates the record directly in Firestore without leaving the page.
+ * Target: user completes any entry in < 10 seconds.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiX } from 'react-icons/fi';
+import {
+  useState, useCallback, useEffect, useRef, useMemo,
+} from 'react';
+import {
+  FiPlus, FiX, FiCheck, FiChevronDown,
+  FiArrowLeft, FiLoader,
+} from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { formatINR } from '../../utils/format';
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../cashflow/UpsertCashflowModal';
+import toast from 'react-hot-toast';
 
-// ─── Quick-add inline expense/income form ────────────────────────────────────
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
-interface InlineEntry {
-  type: 'income' | 'expense';
-  amount: string;
-  category: string;
-  date: string;
-  notes: string;
-  accountId: string;
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+const FIELD_CLS =
+  'w-full rounded-xl border border-slate-200 dark:border-slate-700 ' +
+  'bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium ' +
+  'text-slate-900 dark:text-slate-100 outline-none transition-all ' +
+  'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 ' +
+  'placeholder:text-slate-400 dark:placeholder:text-slate-500';
+
+const LABEL_CLS = 'text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 block';
+
+function AmountInput({
+  value, onChange, autoFocus = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
+  return (
+    <div className='flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'>
+      <span className='pl-4 pr-2 text-slate-400 dark:text-slate-500 font-bold text-lg shrink-0'>₹</span>
+      <input
+        ref={ref}
+        type='number'
+        min='0'
+        step='1'
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='0'
+        className='flex-1 py-2.5 pr-4 text-lg font-bold text-slate-900 dark:text-slate-100 bg-transparent outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600'
+      />
+    </div>
+  );
 }
 
-function InlineTransactionForm({
-  type,
-  onDone,
-  onCancel,
+function CategorySelect({
+  value, onChange, type,
 }: {
-  type: 'income' | 'expense';
-  onDone: () => void;
-  onCancel: () => void;
+  value: string;
+  onChange: (v: string) => void;
+  type: 'expense' | 'income';
 }) {
-  const { addCashflow, accounts } = usePortfolioStore();
-  const [form, setForm] = useState<InlineEntry>({
-    type,
-    amount: '',
-    category: type === 'income' ? 'Salary' : 'Food',
-    date: new Date().toISOString().slice(0, 10),
-    notes: '',
-    accountId: accounts[0]?.id ?? '',
-  });
-  const [saving, setSaving] = useState(false);
-  const amountRef = useRef<HTMLInputElement>(null);
+  const custom = usePortfolioStore((s) => s.customCategories[type]);
+  const hidden = usePortfolioStore((s) => s.hiddenCategories[type]);
+  const defaults = type === 'expense' ? DEFAULT_EXPENSE_CATEGORIES : DEFAULT_INCOME_CATEGORIES;
 
-  useEffect(() => { amountRef.current?.focus(); }, []);
+  const all = useMemo(() => {
+    const customItems = custom.map((c) => ({ key: c, icon: '🏷️' }));
+    return [...defaults, ...customItems].filter((c) => !hidden.includes(c.key));
+  }, [defaults, custom, hidden]);
 
-  const INCOME_CATS = ['Salary', 'Freelance', 'Business', 'Dividend', 'Interest', 'Gift', 'Refund', 'Other'];
-  const EXPENSE_CATS = ['Food', 'Rent', 'Transport', 'Shopping', 'Medical', 'Entertainment', 'Electricity', 'Internet', 'Phone', 'Education', 'Insurance', 'EMI', 'Other'];
-  const cats = type === 'income' ? INCOME_CATS : EXPENSE_CATS;
+  return (
+    <div className='relative'>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${FIELD_CLS} appearance-none pr-9`}
+      >
+        <option value=''>Select category</option>
+        {all.map((c) => (
+          <option key={c.key} value={c.key}>{c.icon} {c.key}</option>
+        ))}
+      </select>
+      <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500' />
+    </div>
+  );
+}
 
-  const handleSave = async () => {
-    const amt = parseFloat(form.amount.replace(/,/g, ''));
-    if (!amt || amt <= 0) return;
+function AccountSelect({
+  value, onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const accounts = usePortfolioStore((s) => s.accounts);
+  if (!accounts.length) return null;
+  return (
+    <div>
+      <label className={LABEL_CLS}>Account</label>
+      <div className='relative'>
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={`${FIELD_CLS} appearance-none pr-9`}>
+          <option value=''>No account</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>{a.name} ({formatINR(a.balance)})</option>
+          ))}
+        </select>
+        <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500' />
+      </div>
+    </div>
+  );
+}
+
+// ─── Individual inline forms ──────────────────────────────────────────────────
+
+// Shared save button
+function SaveBtn({ saving, label = 'Save' }: { saving: boolean; label?: string }) {
+  return (
+    <button
+      type='submit'
+      disabled={saving}
+      className='w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3 text-sm font-bold text-white transition-all disabled:opacity-40 active:scale-[0.98]'
+    >
+      {saving
+        ? <><FiLoader className='h-4 w-4 animate-spin' /> Saving…</>
+        : <><FiCheck className='h-4 w-4' /> {label}</>
+      }
+    </button>
+  );
+}
+
+// ── 1. Expense / Income form ──────────────────────────────────────────────────
+
+function CashflowForm({ type, onDone }: { type: 'expense' | 'income'; onDone: () => void }) {
+  const addCashflow = usePortfolioStore((s) => s.addCashflow);
+  const [amount,    setAmount]    = useState('');
+  const [category,  setCategory]  = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [date,      setDate]      = useState(todayISO());
+  const [notes,     setNotes]     = useState('');
+  const [saving,    setSaving]    = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0 || !category) return;
     setSaving(true);
     try {
       await addCashflow({
-        type: form.type,
-        date: form.date,
-        category: form.category,
-        amount: amt,
-        ...(form.notes ? { notes: form.notes } : {}),
-        ...(form.accountId ? { accountId: form.accountId } : {}),
-      });
+        type, date, category, amount: amt,
+        ...(notes.trim()  ? { notes: notes.trim() } : {}),
+        ...(accountId     ? { accountId }           : {}),
+      } as any);
+      toast.success(`${type === 'income' ? 'Income' : 'Expense'} added!`);
       onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const isIncome = type === 'income';
-  const accentBg    = isIncome ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500';
-  const accentBorder = isIncome ? 'border-emerald-500/30' : 'border-rose-500/30';
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Amount</label>
+        <AmountInput value={amount} onChange={setAmount} autoFocus />
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Category</label>
+        <CategorySelect value={category} onChange={setCategory} type={type} />
+      </div>
+      <div className='grid grid-cols-2 gap-2'>
+        <div>
+          <label className={LABEL_CLS}>Date</label>
+          <input type='date' value={date} onChange={(e) => setDate(e.target.value)} className={FIELD_CLS} />
+        </div>
+        <AccountSelect value={accountId} onChange={setAccountId} />
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Notes (optional)</label>
+        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder='e.g. Swiggy order' className={FIELD_CLS} />
+      </div>
+      <SaveBtn saving={saving} label={type === 'income' ? 'Add Income' : 'Add Expense'} />
+    </form>
+  );
+}
+
+// ── 2. Payment / Bill reminder ────────────────────────────────────────────────
+
+function PaymentForm({ onDone }: { onDone: () => void }) {
+  const addTrackedPayment = usePortfolioStore((s) => s.addTrackedPayment);
+  const [title,    setTitle]    = useState('');
+  const [amount,   setAmount]   = useState('');
+  const [dueDate,  setDueDate]  = useState(todayISO());
+  const [recur,    setRecur]    = useState<'none' | 'monthly' | 'yearly'>('none');
+  const [saving,   setSaving]   = useState(false);
+
+  const PAYMENT_TYPES = ['custom','rent','emi','credit_card','insurance','subscription','utilities','other'];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!title.trim() || !amt || amt <= 0) return;
+    setSaving(true);
+    try {
+      await addTrackedPayment({
+        title:        title.trim(),
+        amount:       amt,
+        dueDate,
+        paymentType:  'custom' as any,
+        recurrence:   recur,
+        reminderDays: [1, 3, 7],
+      });
+      toast.success('Payment reminder added!');
+      onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  void PAYMENT_TYPES;
 
   return (
-    <div className={`rounded-2xl border ${accentBorder} bg-white dark:bg-slate-900 p-4 space-y-3`}>
-      <div className='flex items-center justify-between'>
-        <span className={`text-sm font-bold ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-          {isIncome ? '💰 Add Income' : '💸 Add Expense'}
-        </span>
-        <button type='button' onClick={onCancel} className='text-slate-400 hover:text-slate-600'>
-          <FiX className='h-4 w-4' />
-        </button>
-      </div>
-
-      {/* Amount */}
-      <div className='flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2'>
-        <span className='text-slate-400 font-bold'>₹</span>
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Title</label>
         <input
-          ref={amountRef}
-          type='number'
-          placeholder='Amount'
-          value={form.amount}
-          onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
-          onKeyDown={(e) => { if (e.key === 'Enter') void handleSave(); }}
-          className='flex-1 bg-transparent text-lg font-bold text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400'
+          value={title} onChange={(e) => setTitle(e.target.value)}
+          placeholder='e.g. Electricity Bill, EMI…' className={FIELD_CLS} autoFocus
         />
       </div>
-
-      {/* Category */}
-      <select
-        value={form.category}
-        onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-        className='w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-100 outline-none'
-      >
-        {cats.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-
-      {/* Account + Date row */}
+      <div>
+        <label className={LABEL_CLS}>Amount</label>
+        <AmountInput value={amount} onChange={setAmount} />
+      </div>
       <div className='grid grid-cols-2 gap-2'>
-        {accounts.length > 0 && (
-          <select
-            value={form.accountId}
-            onChange={(e) => setForm((p) => ({ ...p, accountId: e.target.value }))}
-            className='rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 outline-none'
-          >
-            <option value=''>No account</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name} ({formatINR(a.balance)})</option>
-            ))}
-          </select>
-        )}
+        <div>
+          <label className={LABEL_CLS}>Due Date</label>
+          <input type='date' value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={FIELD_CLS} />
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Recurrence</label>
+          <div className='relative'>
+            <select value={recur} onChange={(e) => setRecur(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
+              <option value='none'>One-time</option>
+              <option value='monthly'>Monthly</option>
+              <option value='yearly'>Yearly</option>
+            </select>
+            <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
+          </div>
+        </div>
+      </div>
+      <SaveBtn saving={saving} label='Add Payment Reminder' />
+    </form>
+  );
+}
+
+// ── 3. Goal ───────────────────────────────────────────────────────────────────
+
+function GoalForm({ onDone }: { onDone: () => void }) {
+  const addGoal  = usePortfolioStore((s) => s.addGoal);
+  const [name,   setName]   = useState('');
+  const [target, setTarget] = useState('');
+  const [due,    setDue]    = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(target);
+    if (!name.trim() || !amt || amt <= 0) return;
+    setSaving(true);
+    try {
+      await addGoal({
+        name: name.trim(),
+        targetAmount: amt,
+        currentAmount: 0,
+        status: 'active',
+        ...(due ? { dueDate: due } : {}),
+      } as any);
+      toast.success('Goal created!');
+      onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Goal Name</label>
         <input
-          type='date'
-          value={form.date}
-          onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-          className='rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 outline-none col-span-1'
+          value={name} onChange={(e) => setName(e.target.value)}
+          placeholder='e.g. Emergency Fund, Car…' className={FIELD_CLS} autoFocus
         />
       </div>
+      <div>
+        <label className={LABEL_CLS}>Target Amount</label>
+        <AmountInput value={target} onChange={setTarget} />
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Target Date (optional)</label>
+        <input type='date' value={due} onChange={(e) => setDue(e.target.value)} className={FIELD_CLS} />
+      </div>
+      <SaveBtn saving={saving} label='Create Goal' />
+    </form>
+  );
+}
 
-      {/* Notes */}
-      <input
-        type='text'
-        placeholder='Notes (optional)'
-        value={form.notes}
-        onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-        className='w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 outline-none placeholder:text-slate-400'
-      />
+// ── 4. Liability / Loan ───────────────────────────────────────────────────────
 
-      <button
-        type='button'
-        onClick={() => void handleSave()}
-        disabled={saving || !form.amount}
-        className={`w-full rounded-xl py-2.5 text-sm font-bold text-white transition-all disabled:opacity-40 ${accentBg}`}
-      >
-        {saving ? 'Saving…' : `Save ${isIncome ? 'Income' : 'Expense'}`}
-      </button>
-    </div>
+function LiabilityForm({ onDone }: { onDone: () => void }) {
+  const addLiability = usePortfolioStore((s) => s.addLiability);
+  const [name,    setName]    = useState('');
+  const [amount,  setAmount]  = useState('');
+  const [rate,    setRate]    = useState('');
+  const [emi,     setEmi]     = useState('');
+  const [saving,  setSaving]  = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const principal = parseFloat(amount);
+    if (!name.trim() || !principal || principal <= 0) return;
+    setSaving(true);
+    try {
+      await addLiability({
+        type: 'loan',
+        name: name.trim(),
+        principal,
+        outstanding: principal,
+        status: 'active',
+        ...(rate ? { interestRate: parseFloat(rate) } : {}),
+        ...(emi  ? { emiAmount:   parseFloat(emi)  } : {}),
+      } as any);
+      toast.success('Loan added!');
+      onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Loan / Liability Name</label>
+        <input
+          value={name} onChange={(e) => setName(e.target.value)}
+          placeholder='e.g. Home Loan, Car Loan…' className={FIELD_CLS} autoFocus
+        />
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Total Amount</label>
+        <AmountInput value={amount} onChange={setAmount} />
+      </div>
+      <div className='grid grid-cols-2 gap-2'>
+        <div>
+          <label className={LABEL_CLS}>Interest Rate % (opt.)</label>
+          <input type='number' min='0' step='0.01' value={rate} onChange={(e) => setRate(e.target.value)} placeholder='e.g. 8.5' className={FIELD_CLS} />
+        </div>
+        <div>
+          <label className={LABEL_CLS}>EMI Amount (opt.)</label>
+          <input type='number' min='0' value={emi} onChange={(e) => setEmi(e.target.value)} placeholder='Monthly EMI' className={FIELD_CLS} />
+        </div>
+      </div>
+      <SaveBtn saving={saving} label='Add Liability' />
+    </form>
+  );
+}
+
+// ── 5. Insurance policy ───────────────────────────────────────────────────────
+
+function InsuranceForm({ onDone }: { onDone: () => void }) {
+  const addInsurancePolicy = usePortfolioStore((s) => s.addInsurancePolicy);
+  const [name,      setName]      = useState('');
+  const [provider,  setProvider]  = useState('');
+  const [premium,   setPremium]   = useState('');
+  const [coverage,  setCoverage]  = useState('');
+  const [renewal,   setRenewal]   = useState(todayISO());
+  const [insType,   setInsType]   = useState<'life' | 'health' | 'vehicle' | 'property' | 'other'>('life');
+  const [saving,    setSaving]    = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const prem = parseFloat(premium);
+    if (!name.trim() || !prem || prem <= 0) return;
+    setSaving(true);
+    try {
+      await addInsurancePolicy({
+        type:             insType,
+        policyName:       name.trim(),
+        provider:         provider.trim() || 'Unknown',
+        premiumAmount:    prem,
+        premiumFrequency: 'yearly',
+        coverageAmount:   parseFloat(coverage) || 0,
+        renewalDate:      renewal,
+      } as any);
+      toast.success('Insurance policy added!');
+      onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Policy Name</label>
+        <input
+          value={name} onChange={(e) => setName(e.target.value)}
+          placeholder='e.g. LIC Term Plan…' className={FIELD_CLS} autoFocus
+        />
+      </div>
+      <div className='grid grid-cols-2 gap-2'>
+        <div>
+          <label className={LABEL_CLS}>Type</label>
+          <div className='relative'>
+            <select value={insType} onChange={(e) => setInsType(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
+              <option value='life'>Life</option>
+              <option value='health'>Health</option>
+              <option value='vehicle'>Vehicle</option>
+              <option value='property'>Property</option>
+              <option value='other'>Other</option>
+            </select>
+            <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
+          </div>
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Provider (opt.)</label>
+          <input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder='e.g. LIC, HDFC…' className={FIELD_CLS} />
+        </div>
+      </div>
+      <div className='grid grid-cols-2 gap-2'>
+        <div>
+          <label className={LABEL_CLS}>Annual Premium</label>
+          <AmountInput value={premium} onChange={setPremium} />
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Coverage (opt.)</label>
+          <AmountInput value={coverage} onChange={setCoverage} />
+        </div>
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Renewal Date</label>
+        <input type='date' value={renewal} onChange={(e) => setRenewal(e.target.value)} className={FIELD_CLS} />
+      </div>
+      <SaveBtn saving={saving} label='Add Insurance' />
+    </form>
+  );
+}
+
+// ── 6. Money Lent ─────────────────────────────────────────────────────────────
+
+function LentForm({ onDone }: { onDone: () => void }) {
+  const store               = usePortfolioStore.getState();
+  const lendingBorrowers    = usePortfolioStore((s) => s.lendingBorrowers);
+  const addLendingBorrower  = usePortfolioStore((s) => s.addLendingBorrower);
+  const addLendingTransaction = usePortfolioStore((s) => s.addLendingTransaction);
+
+  const [amount,    setAmount]    = useState('');
+  const [borrower,  setBorrower]  = useState('');
+  const [newName,   setNewName]   = useState('');
+  const [date,      setDate]      = useState(todayISO());
+  const [notes,     setNotes]     = useState('');
+  const [saving,    setSaving]    = useState(false);
+
+  const activeBorrowers = lendingBorrowers.filter((b) => b.status === 'active');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) return;
+    setSaving(true);
+    try {
+      let borrowerId = borrower;
+      if (!borrowerId && newName.trim()) {
+        // Create new borrower first
+        await addLendingBorrower({ name: newName.trim(), status: 'active' } as any);
+        const updated = usePortfolioStore.getState().lendingBorrowers;
+        const created = updated.find((b) => b.name === newName.trim());
+        if (created) borrowerId = created.id;
+      }
+      if (!borrowerId) { toast.error('Please select or name a borrower.'); setSaving(false); return; }
+      await addLendingTransaction({
+        borrowerId,
+        type:   'principal_given',
+        amount: amt,
+        date,
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      } as any);
+      toast.success('Lending recorded!');
+      onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
+    } finally {
+      setSaving(false);
+      void store;
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Amount Lent</label>
+        <AmountInput value={amount} onChange={setAmount} autoFocus />
+      </div>
+      {activeBorrowers.length > 0 ? (
+        <div>
+          <label className={LABEL_CLS}>Borrower</label>
+          <div className='relative'>
+            <select value={borrower} onChange={(e) => { setBorrower(e.target.value); setNewName(''); }} className={`${FIELD_CLS} appearance-none pr-9`}>
+              <option value=''>+ New person</option>
+              {activeBorrowers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
+          </div>
+        </div>
+      ) : null}
+      {(!borrower) && (
+        <div>
+          <label className={LABEL_CLS}>{activeBorrowers.length > 0 ? 'New Person Name' : 'Borrower Name'}</label>
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder='e.g. Ramesh…' className={FIELD_CLS} />
+        </div>
+      )}
+      <div className='grid grid-cols-2 gap-2'>
+        <div>
+          <label className={LABEL_CLS}>Date</label>
+          <input type='date' value={date} onChange={(e) => setDate(e.target.value)} className={FIELD_CLS} />
+        </div>
+        <div>
+          <label className={LABEL_CLS}>Notes (opt.)</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder='Purpose…' className={FIELD_CLS} />
+        </div>
+      </div>
+      <SaveBtn saving={saving} label='Record Lending' />
+    </form>
+  );
+}
+
+// ── 7. Investment (stock) ─────────────────────────────────────────────────────
+
+function InvestmentForm({ onDone }: { onDone: () => void }) {
+  const addInvestment = usePortfolioStore((s) => s.addInvestment);
+  const [name,     setName]     = useState('');
+  const [symbol,   setSymbol]   = useState('');
+  const [qty,      setQty]      = useState('');
+  const [buyPrice, setBuyPrice] = useState('');
+  const [invType,  setInvType]  = useState<'stock' | 'mutual_fund' | 'fixed_deposit' | 'other'>('stock');
+  const [saving,   setSaving]   = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      if (invType === 'stock') {
+        const q = parseFloat(qty) || 1;
+        const bp = parseFloat(buyPrice) || 0;
+        await addInvestment({
+          type: 'stock', name: name.trim(),
+          symbol: symbol.trim() || name.trim().toUpperCase().slice(0, 6),
+          quantity: q, buyPrice: bp, currentPrice: bp,
+          platform: 'manual', status: 'active',
+        } as any);
+      } else if (invType === 'mutual_fund') {
+        const amt = parseFloat(buyPrice) || 0;
+        const nav = parseFloat(qty) || 1;
+        await addInvestment({
+          type: 'mutual_fund', name: name.trim(),
+          units: amt > 0 && nav > 0 ? amt / nav : 0,
+          nav, investedAmount: amt,
+          platform: 'manual', status: 'active',
+        } as any);
+      } else {
+        const amt = parseFloat(buyPrice) || 0;
+        await addInvestment({
+          type: invType, name: name.trim(),
+          investedAmount: amt, currentValue: amt,
+          platform: 'manual', status: 'active',
+        } as any);
+      }
+      toast.success('Investment added!');
+      onDone();
+    } catch {
+      toast.error('Failed to save. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const qtyLabel    = invType === 'mutual_fund' ? 'NAV (₹)' : 'Quantity';
+  const amountLabel = invType === 'mutual_fund' ? 'Invested Amount' : invType === 'stock' ? 'Buy Price (₹)' : 'Amount (₹)';
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className='space-y-3'>
+      <div>
+        <label className={LABEL_CLS}>Type</label>
+        <div className='flex gap-1.5 flex-wrap'>
+          {(['stock','mutual_fund','fixed_deposit','other'] as const).map((t) => (
+            <button key={t} type='button' onClick={() => setInvType(t)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold border transition-colors ${
+                invType === t
+                  ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-600 dark:text-indigo-400'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+              }`}>
+              {t.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className={LABEL_CLS}>Name</label>
+        <input
+          value={name} onChange={(e) => setName(e.target.value)}
+          placeholder={invType === 'stock' ? 'e.g. TCS, Reliance…' : 'Fund / Asset name…'}
+          className={FIELD_CLS} autoFocus
+        />
+      </div>
+      {invType === 'stock' && (
+        <div>
+          <label className={LABEL_CLS}>Symbol (opt.)</label>
+          <input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder='e.g. TCS' className={FIELD_CLS} />
+        </div>
+      )}
+      <div className='grid grid-cols-2 gap-2'>
+        {invType !== 'other' && invType !== 'fixed_deposit' && (
+          <div>
+            <label className={LABEL_CLS}>{qtyLabel}</label>
+            <input type='number' min='0' step='any' value={qty} onChange={(e) => setQty(e.target.value)} placeholder='0' className={FIELD_CLS} />
+          </div>
+        )}
+        <div>
+          <label className={LABEL_CLS}>{amountLabel}</label>
+          <AmountInput value={buyPrice} onChange={setBuyPrice} />
+        </div>
+      </div>
+      <SaveBtn saving={saving} label='Add Investment' />
+    </form>
   );
 }
 
 // ─── Action definitions ───────────────────────────────────────────────────────
 
-const QUICK_ACTIONS = [
-  { id: 'expense',     emoji: '💸', label: 'Expense',      color: 'text-rose-600 dark:text-rose-400',     bg: 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-700/40' },
-  { id: 'income',      emoji: '💰', label: 'Income',       color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700/40' },
-  { id: 'payment',     emoji: '💳', label: 'Payment',      color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/40' },
-  { id: 'investment',  emoji: '📈', label: 'Investment',   color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700/40' },
-  { id: 'goal',        emoji: '🎯', label: 'Goal',         color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700/40' },
-  { id: 'liability',   emoji: '🏦', label: 'Loan/Liability', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700/40' },
-  { id: 'insurance',   emoji: '🛡️', label: 'Insurance',    color: 'text-sky-600 dark:text-sky-400',       bg: 'bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-700/40' },
-  { id: 'lent',        emoji: '🤝', label: 'Money Lent',   color: 'text-teal-600 dark:text-teal-400',     bg: 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700/40' },
+const ACTIONS = [
+  { id: 'expense',    emoji: '💸', label: 'Expense',     bg: 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800',     text: 'text-rose-700 dark:text-rose-300' },
+  { id: 'income',     emoji: '💰', label: 'Income',      bg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800', text: 'text-emerald-700 dark:text-emerald-300' },
+  { id: 'payment',    emoji: '💳', label: 'Payment',     bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',   text: 'text-amber-700 dark:text-amber-300' },
+  { id: 'investment', emoji: '📈', label: 'Investment',  bg: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800', text: 'text-indigo-700 dark:text-indigo-300' },
+  { id: 'goal',       emoji: '🎯', label: 'Goal',        bg: 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800', text: 'text-violet-700 dark:text-violet-300' },
+  { id: 'liability',  emoji: '🏦', label: 'Loan',        bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800', text: 'text-orange-700 dark:text-orange-300' },
+  { id: 'insurance',  emoji: '🛡️', label: 'Insurance',   bg: 'bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800',         text: 'text-sky-700 dark:text-sky-300' },
+  { id: 'lent',       emoji: '🤝', label: 'Money Lent',  bg: 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800',     text: 'text-teal-700 dark:text-teal-300' },
 ] as const;
 
-type ActionId = typeof QUICK_ACTIONS[number]['id'];
+type ActionId = typeof ACTIONS[number]['id'];
 
-// ─── Main FAB component ───────────────────────────────────────────────────────
+// ─── Main FAB ─────────────────────────────────────────────────────────────────
 
 export function QuickAddFAB() {
-  const navigate  = useNavigate();
-  const [open,    setOpen]   = useState(false);
-  const [inline,  setInline] = useState<'income' | 'expense' | null>(null);
+  const [open,   setOpen]   = useState(false);
+  const [active, setActive] = useState<ActionId | null>(null);
 
-  const close = useCallback(() => { setOpen(false); setInline(null); }, []);
+  const close = useCallback(() => { setOpen(false); setActive(null); }, []);
+  const done  = useCallback(() => { setActive(null); setOpen(false); }, []);
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [close]);
 
-  const handleAction = (id: ActionId) => {
-    switch (id) {
-      case 'expense':    setInline('expense');             return;
-      case 'income':     setInline('income');              return;
-      case 'payment':    close(); navigate('/payments?quickAdd=1'); return;
-      case 'investment': close(); navigate('/investments?quickAdd=1'); return;
-      case 'goal':       close(); navigate('/goals?quickAdd=1'); return;
-      case 'liability':  close(); navigate('/liabilities?quickAdd=1'); return;
-      case 'insurance':  close(); navigate('/insurance?quickAdd=1'); return;
-      case 'lent':       close(); navigate('/cashflow?tab=lending&quickAdd=1'); return;
-    }
-  };
+  const activeMeta = ACTIONS.find((a) => a.id === active);
 
   return (
     <>
       {/* Backdrop */}
       {open && (
         <div
-          className='fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm'
+          className='fixed inset-0 z-[90] bg-black/40 dark:bg-black/60 backdrop-blur-sm'
           onClick={close}
         />
       )}
 
-      {/* Slide-up sheet */}
+      {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-slate-900 rounded-t-3xl shadow-2xl border-t border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
-          ${open ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[100] bg-white dark:bg-slate-900 rounded-t-3xl shadow-2xl border-t border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          open ? 'translate-y-0' : 'translate-y-full'
+        }`}
       >
-        <div className='px-4 pt-3 pb-8 max-w-lg mx-auto'>
+        <div className='mx-auto max-w-md'>
           {/* Handle */}
-          <div className='w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-4' />
+          <div className='flex justify-center pt-3 pb-1'>
+            <div className='h-1 w-10 rounded-full bg-slate-200 dark:bg-slate-700' />
+          </div>
 
-          {inline ? (
-            <InlineTransactionForm
-              type={inline}
-              onDone={() => { close(); }}
-              onCancel={() => setInline(null)}
-            />
-          ) : (
-            <>
-              <div className='flex items-center justify-between mb-4'>
-                <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>Quick Add</h2>
-                <button type='button' onClick={close} className='p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'>
-                  <FiX className='h-4 w-4' />
-                </button>
-              </div>
+          {/* Header */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-800'>
+            {active ? (
+              <button type='button' onClick={() => setActive(null)}
+                className='flex items-center gap-1.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors'>
+                <FiArrowLeft className='h-4 w-4' />
+                Back
+              </button>
+            ) : (
+              <span className='text-sm font-bold text-slate-900 dark:text-slate-100'>Quick Add</span>
+            )}
+            <span className='flex-1' />
+            {activeMeta && (
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${activeMeta.bg} ${activeMeta.text}`}>
+                {activeMeta.emoji} {activeMeta.label}
+              </span>
+            )}
+            <button type='button' onClick={close}
+              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'>
+              <FiX className='h-4 w-4' />
+            </button>
+          </div>
 
-              <div className='grid grid-cols-4 gap-2.5'>
-                {QUICK_ACTIONS.map((a) => (
-                  <button
-                    key={a.id}
-                    type='button'
-                    onClick={() => handleAction(a.id)}
-                    className={`flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3.5 transition-all hover:-translate-y-0.5 hover:shadow-sm active:scale-95 ${a.bg}`}
-                  >
-                    <span className='text-2xl'>{a.emoji}</span>
-                    <span className={`text-[10px] font-bold text-center leading-tight ${a.color}`}>
-                      {a.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <p className='text-center text-[10px] text-slate-400 mt-4'>
-                Expense & Income save instantly · Others open the relevant page
-              </p>
-            </>
-          )}
+          {/* Content */}
+          <div className='px-4 py-4 pb-8 overflow-y-auto max-h-[70vh]'>
+            {!active ? (
+              /* Action grid */
+              <>
+                <div className='grid grid-cols-4 gap-2'>
+                  {ACTIONS.map((a) => (
+                    <button
+                      key={a.id}
+                      type='button'
+                      onClick={() => setActive(a.id)}
+                      className={`flex flex-col items-center gap-2 rounded-2xl border py-3.5 px-2 transition-all hover:-translate-y-0.5 hover:shadow-sm active:scale-95 ${a.bg}`}
+                    >
+                      <span className='text-2xl'>{a.emoji}</span>
+                      <span className={`text-[10px] font-bold text-center leading-tight ${a.text}`}>{a.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className='text-center text-[10px] text-slate-400 dark:text-slate-500 mt-4'>
+                  All entries save directly to your account
+                </p>
+              </>
+            ) : (
+              /* Inline form */
+              <>
+                {active === 'expense'    && <CashflowForm   type='expense'  onDone={done} />}
+                {active === 'income'     && <CashflowForm   type='income'   onDone={done} />}
+                {active === 'payment'    && <PaymentForm                    onDone={done} />}
+                {active === 'investment' && <InvestmentForm                 onDone={done} />}
+                {active === 'goal'       && <GoalForm                       onDone={done} />}
+                {active === 'liability'  && <LiabilityForm                  onDone={done} />}
+                {active === 'insurance'  && <InsuranceForm                  onDone={done} />}
+                {active === 'lent'       && <LentForm                       onDone={done} />}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* FAB button — top right on desktop, bottom-right on mobile */}
+      {/* FAB button */}
       <button
         type='button'
         onClick={() => setOpen((p) => !p)}
         aria-label='Quick Add'
-        className={`fixed bottom-8 right-6 z-[85] flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all duration-300 active:scale-90
-          md:bottom-6 md:right-6
-          ${open
-            ? 'bg-slate-200 dark:bg-slate-700 rotate-45 shadow-none'
-            : 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/40 hover:-translate-y-1'
-          }`}
+        className={`fixed bottom-8 right-5 z-[85] flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all duration-300 active:scale-90 md:bottom-6 md:right-6 ${
+          open
+            ? 'bg-slate-100 dark:bg-slate-800 rotate-45 shadow-none'
+            : 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/40 hover:-translate-y-1 hover:shadow-emerald-500/60'
+        }`}
       >
         <FiPlus className='h-6 w-6 text-white' strokeWidth={2.5} />
       </button>

@@ -113,6 +113,8 @@ export type SettingsRecord = {
   notion: NotionConfig;
   essentials?: EssentialsConfig;
   encryptionEnabled?: boolean;
+  customCategories?: { expense: string[]; income: string[] };
+  hiddenCategories?: { expense: string[]; income: string[] };
 };
 
 type PortfolioState = {
@@ -140,6 +142,15 @@ type PortfolioState = {
   lendingTransactions: LendingTransaction[];
   sipPlans: any[];
   _lastSnapshotDate: string | null;
+
+  /** User-defined category lists stored in Firestore, keyed by type */
+  customCategories: { expense: string[]; income: string[] };
+  /** Categories the user has hidden (stored in Firestore) */
+  hiddenCategories: { expense: string[]; income: string[] };
+
+  addCustomCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
+  removeCustomCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
+  toggleHiddenCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
 
   hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
 
@@ -310,6 +321,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   lendingTransactions: [],
   sipPlans: [],
   _lastSnapshotDate: null,
+  customCategories: { expense: [], income: [] },
+  hiddenCategories: { expense: [], income: [] },
 
   hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
@@ -374,6 +387,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         goals: goals.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)),
         notion: settings.notion ?? DEFAULT_NOTION,
         essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
+        customCategories: settings.customCategories ?? { expense: [], income: [] },
+        hiddenCategories: settings.hiddenCategories ?? { expense: [], income: [] },
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
@@ -1418,6 +1433,41 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({
       sipPlans: s.sipPlans.filter((x: any) => x.id !== existing.id),
     }));
+  },
+
+  // ── Custom category management (persisted in settings doc) ───────────────
+
+  addCustomCategory: async (type, name) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const current = get().customCategories;
+    if (current[type].includes(trimmed)) return; // no duplicates
+    const updated = { ...current, [type]: [...current[type], trimmed] };
+    await setDoc(settingsDocRef(uid), { customCategories: updated }, { merge: true });
+    set({ customCategories: updated });
+  },
+
+  removeCustomCategory: async (type, name) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const current = get().customCategories;
+    const updated = { ...current, [type]: current[type].filter((c) => c !== name) };
+    await setDoc(settingsDocRef(uid), { customCategories: updated }, { merge: true });
+    set({ customCategories: updated });
+  },
+
+  toggleHiddenCategory: async (type, name) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const current = get().hiddenCategories;
+    const list    = current[type];
+    const updated = list.includes(name)
+      ? { ...current, [type]: list.filter((c) => c !== name) }
+      : { ...current, [type]: [...list, name] };
+    await setDoc(settingsDocRef(uid), { hiddenCategories: updated }, { merge: true });
+    set({ hiddenCategories: updated });
   },
 
   setNotionConfig: async (patch) => {

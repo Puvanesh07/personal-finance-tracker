@@ -64,8 +64,6 @@ import { useExportPresetsStore } from '../../store/exportPresetsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
 
-// import LendingDashboard from './LendingDashboard'; // NEW import for lending tab
-
 import { useRecurringDetection } from '../../hooks/useRecurringDetection';
 
 // ── Recurring detection banner ─────────────────────────────────────────────
@@ -1862,7 +1860,6 @@ export function CashflowPage() {
           </div>
         </Modal>
       </>
-      {/* )} */}
     </div>
   );
 }
