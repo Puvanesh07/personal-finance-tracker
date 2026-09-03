@@ -679,7 +679,7 @@ ${sections.join('')}
 </div>
 
 <div style="text-align:center;padding:18px 10px 6px">
-<p style="color:#475569;font-size:12px;margin:0 0 8px">FinTrackly — Your personal finance and farm tracker</p>
+<p style="color:#475569;font-size:12px;margin:0 0 8px">FinTrackly — Your personal finance tracker</p>
 <p style="color:#334155;font-size:11px;margin:0 0 6px">💡 Attached JSON backup includes all modules — same format as Settings → Export JSON.</p>
 <p style="color:#334155;font-size:11px;margin:0 0 10px">📋 CSV ZIP contains individual sheets for each module.</p>
 <a href="https://finance-tracker-3b842.web.app/settings" style="color:#22c55e;text-decoration:none;font-size:11px;font-weight:500">Manage account</a>
