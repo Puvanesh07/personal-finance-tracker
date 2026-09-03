@@ -536,11 +536,11 @@ export const restorePurchase = onCall(
 
 export const expireSubscriptions = onSchedule(
   {
-    schedule: 'every 24 hours', 
+    schedule: '0 0 * * *', // Midnight IST (18:30 UTC previous day) — runs once, not polling
     region,
     timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 540, // Increased timeout to prevent failing on busy days
-    memory: '256MiB',    // Explicit memory limit
+    timeoutSeconds: 300,
+    memory: '256MiB',
   },
   async () => {
     const now = Timestamp.now();
@@ -551,59 +551,46 @@ export const expireSubscriptions = onSchedule(
       .get();
 
     logger.info(`expireSubscriptions: found ${snapshot.size} users`);
-    
+
     if (snapshot.empty) return;
 
-    // Create an array to hold all the background tasks
     const updatePromises = snapshot.docs.map(async (docSnap) => {
       const uid = docSnap.id;
       const data = docSnap.data();
 
-      // Guard clauses (skip if lifetime, premium granted, or no expiry)
       if (data.premiumGranted === true) return;
       if (data.plan === 'lifetime') return;
       if (!data.expiresAt) return;
 
       try {
-        // 1. Update the database document
-        const dbUpdate = docSnap.ref.set(
-          {
-            subscriptionStatus: 'expired',
-            updatedAt: Timestamp.now(),
-          },
-          { merge: true }
-        );
-
-        // 2. Send the notification
-        const notificationUpdate = createSubscriptionNotification(uid, {
-          title: 'Subscription expired', // generalized in case they are on a paid plan, not just a trial
-          message: 'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
-          type: 'warning',
-        });
-
-        // Run both operations for this specific user at the exact same time
-        await Promise.all([dbUpdate, notificationUpdate]);
-        
+        await Promise.all([
+          docSnap.ref.set(
+            { subscriptionStatus: 'expired', updatedAt: Timestamp.now() },
+            { merge: true },
+          ),
+          createSubscriptionNotification(uid, {
+            title: 'Subscription expired',
+            message: 'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
+            type: 'warning',
+          }),
+        ]);
       } catch (error) {
-        // If one user fails, log it, but don't crash the whole function for the other users
         logger.error(`Failed to expire subscription for uid: ${uid}`, error);
       }
     });
 
-    // Execute ALL user updates simultaneously
     await Promise.all(updatePromises);
-    
     logger.info('expireSubscriptions: Finished processing all users.');
   },
 );
 
 export const deleteExpiredUsers = onSchedule(
   {
-    schedule: 'every 24 hours',
+    schedule: '30 0 * * *', // 12:30 AM IST — 30 min after expireSubscriptions
     region,
     timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 540, // Increased to 9 minutes to allow large deletions
-    memory: '256MiB',    // Explicitly set memory
+    timeoutSeconds: 300,
+    memory: '256MiB',
   },
   async () => {
     const now = Timestamp.now();
@@ -617,7 +604,6 @@ export const deleteExpiredUsers = onSchedule(
 
     for (const docSnap of snapshot.docs) {
       if (docSnap.data().premiumGranted === true) continue;
-      
       const uid = docSnap.id;
       try {
         await deleteAllUserData(uid);
