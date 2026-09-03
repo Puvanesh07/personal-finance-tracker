@@ -18,12 +18,31 @@ const { webcrypto } = require('crypto');
 
 const subtle = webcrypto.subtle;
 
+// ── Validate env vars BEFORE touching Firebase ────────────────────────────────
+const REQUIRED_ENV = [
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY',
+  'GMAIL_USER',
+  'GMAIL_PASS',
+];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length) {
+  console.error('');
+  console.error('ERROR: Missing required GitHub Secrets / environment variables:');
+  missing.forEach((k) => console.error(`  ✗ ${k}`));
+  console.error('');
+  console.error('Go to: GitHub repo → Settings → Secrets and variables → Actions');
+  console.error('Add each missing secret listed above, then re-run the workflow.');
+  process.exit(1);
+}
+
 // ── Init Firebase ─────────────────────────────────────────────────────────────
 admin.initializeApp({
   credential: admin.credential.cert({
     projectId: process.env.FIREBASE_PROJECT_ID,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
   }),
 });
 const db = admin.firestore();
@@ -463,20 +482,6 @@ async function processUser(uid, userEmail, transporter) {
 async function main() {
   console.log('=== FinTrackly Daily Notifications ===');
   console.log('Time (UTC):', new Date().toISOString());
-
-  const required = [
-    'FIREBASE_PROJECT_ID',
-    'FIREBASE_CLIENT_EMAIL',
-    'FIREBASE_PRIVATE_KEY',
-    'GMAIL_USER',
-    'GMAIL_PASS',
-  ];
-  for (const key of required) {
-    if (!process.env[key]) {
-      console.error(`MISSING env var: ${key}`);
-      process.exit(1);
-    }
-  }
   console.log('All env vars present ✓');
 
   const transporter = createTransporter();
