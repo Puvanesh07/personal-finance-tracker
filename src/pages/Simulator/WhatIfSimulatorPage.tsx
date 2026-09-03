@@ -11,11 +11,16 @@ import {
   FiActivity, FiAlertCircle, FiArrowRight, FiBarChart2,
   FiCpu, FiDollarSign, FiHome, FiInfo,
   FiRefreshCw, FiTrendingDown, FiTrendingUp, FiZap,
+  FiCalendar,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { calculateNetWorth, investedValue, currentValue } from '../../utils/calculations';
 import { futureValue, goalProbabilityResult } from '../../utils/goalProbability';
 import { formatINR } from '../../utils/format';
+import { LifeEventPlannerCard } from './LifeEventPlannerCard';
+import { LoanVsCashCard } from './LoanVsCashCard';
+
+type PageTab = 'whatif' | 'life_events' | 'loan_vs_cash';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -372,6 +377,7 @@ function ImpactRow({ label, before, after, delta, prefix = '₹', invert = false
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function WhatIfSimulatorPage() {
+  const [pageTab, setPageTab]           = useState<PageTab>('whatif');
   const [activeScenario, setActiveScenario] = useState<ScenarioId>('increase_sip');
   const [paramValues, setParamValues]       = useState<Record<ScenarioId, number>>(
     Object.fromEntries(SCENARIOS.map((s) => [s.id, s.paramDefault])) as Record<ScenarioId, number>,
@@ -431,9 +437,27 @@ export default function WhatIfSimulatorPage() {
         </div>
       )}
 
-      <div className='flex flex-col lg:flex-row gap-6'>
+      <div className='flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-xl p-1 w-full sm:w-fit'>
+        {([
+          { id: 'whatif',       label: 'What-If',      Icon: FiZap },
+          { id: 'life_events',  label: 'Life Events',  Icon: FiCalendar },
+          { id: 'loan_vs_cash', label: 'Loan vs Cash', Icon: FiBarChart2 },
+        ] as Array<{ id: PageTab; label: string; Icon: React.ElementType }>).map(({ id, label, Icon }) => (
+          <button key={id} type='button' onClick={() => setPageTab(id)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              pageTab === id
+                ? 'bg-white dark:bg-slate-800 text-violet-600 dark:text-violet-400 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+            }`}>
+            <Icon className='h-3.5 w-3.5' />{label}
+          </button>
+        ))}
+      </div>
 
-        {/* ── Scenario picker ── */}
+      {pageTab === 'life_events'  && <LifeEventPlannerCard />}
+      {pageTab === 'loan_vs_cash' && <LoanVsCashCard />}
+
+      {pageTab === 'whatif' && <div className='flex flex-col lg:flex-row gap-6'>
         <div className='lg:w-64 shrink-0'>
           <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
             Choose a scenario
@@ -680,7 +704,7 @@ export default function WhatIfSimulatorPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Disclaimer */}
       <p className='text-[10px] text-slate-400 dark:text-slate-600 text-center'>

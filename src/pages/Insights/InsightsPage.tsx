@@ -14,6 +14,11 @@ import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 import { computeAlpha, projectFutureValue } from '../../utils/advancedInsights';
+import { LifestyleInflationCard }   from './components/LifestyleInflationCard';
+import { SpendingVelocityCard }     from './components/SpendingVelocityCard';
+import { MerchantIntelligenceCard } from './components/MerchantIntelligenceCard';
+import { PassiveIncomeCard }        from './components/PassiveIncomeCard';
+import { HabitsCard }               from './components/HabitsCard';
 import {
   calculateNetWorth,
   summarizePortfolio,
@@ -1065,6 +1070,15 @@ export default function InsightsPage() {
               </div>
             )}
           </div>
+
+          {/* ── Tier 2 Intelligence Cards ── */}
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
+            <SpendingVelocityCard />
+            <HabitsCard />
+          </div>
+          <LifestyleInflationCard />
+          <MerchantIntelligenceCard />
+          <PassiveIncomeCard />
 
           {/* ── Action Items / Alerts ── */}
           {(metrics.topDebt ||
