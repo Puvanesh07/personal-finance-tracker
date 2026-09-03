@@ -169,8 +169,6 @@ function buildBackupJSON(collections, settingsDoc) {
     snapshots = [],
     networthSnapshots = [],
     accounts = [],
-    notion: settingsDoc?.notion ?? { enabled: false },
-    essentials: settingsDoc?.essentials ?? {},
     insurancePolicies = [],
     insurancePayments = [],
     lendingBorrowers = [],
