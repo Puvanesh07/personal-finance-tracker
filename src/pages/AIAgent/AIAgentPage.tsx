@@ -104,6 +104,37 @@ function SourceBadge({ source }: { source: MessageSource }) {
 
 
 // â”€â”€â”€ Structured response renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Module quick-action pills ───────────────────────────────────────────────
+
+const MODULE_ACTIONS = [
+  { emoji: '💸', label: 'Expense',    question: 'Add expense' },
+  { emoji: '💰', label: 'Income',     question: 'Add income' },
+  { emoji: '💳', label: 'Payment',    question: 'Add payment reminder' },
+  { emoji: '📈', label: 'Investment', question: 'I bought stock' },
+  { emoji: '🎯', label: 'Goal',       question: 'Create a savings goal' },
+  { emoji: '🏦', label: 'Loan',       question: 'Add a loan' },
+  { emoji: '🛡️', label: 'Insurance',  question: 'Add insurance policy' },
+  { emoji: '📊', label: 'Net Worth',  question: 'What is my net worth?' },
+] as const;
+
+function QuickActions({ onSend, disabled }: { onSend: (q: string) => void; disabled: boolean }) {
+  return (
+    <div className='flex gap-1.5 overflow-x-auto pb-1 scrollbar-none'>
+      {MODULE_ACTIONS.map(({ emoji, label, question }) => (
+        <button
+          key={label}
+          type='button'
+          onClick={() => onSend(question)}
+          disabled={disabled}
+          className='flex items-center gap-1.5 shrink-0 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-700 dark:hover:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all disabled:opacity-40 active:scale-95'
+        >
+          <span className='text-sm'>{emoji}</span>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function StatGridCard({ resp }: { resp: Extract<AgentResponse, { kind: 'stat_grid' }> }) {
   return (
@@ -1024,6 +1055,11 @@ export default function AIAgentPage() {
                 </div>
               ))}
               <div ref={bottomRef} />
+            </div>
+
+            {/* Quick action pills — always visible above input */}
+            <div className='shrink-0 px-0.5'>
+              <QuickActions onSend={(q) => void sendMessage(q)} disabled={loading} />
             </div>
 
             {/* Input bar */}
