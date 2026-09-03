@@ -346,61 +346,118 @@ const EMAIL_CLICK_BASE = 'https://fintrackly.web.app';
 
 function severityToBadgeColor(severity) {
   switch (severity) {
-    case 'critical': return '#dc2626';
-    case 'high':     return '#ea580c';
-    case 'medium':   return '#ca8a04';
-    case 'low':      return '#16a34a';
-    case 'info':     return '#2563eb';
-    default:         return '#475569';
+    case 'critical': return '#dc2626'; // red
+    case 'high':     return '#ea580c'; // orange
+    case 'medium':   return '#d97706'; // amber
+    case 'low':      return '#16a34a'; // green
+    case 'info':     return '#2563eb'; // blue
+    default:         return '#64748b'; // slate
+  }
+}
+
+function severityToBgColor(severity) {
+  switch (severity) {
+    case 'critical': return '#fef2f2';
+    case 'high':     return '#fff7ed';
+    case 'medium':   return '#fffbeb';
+    case 'low':      return '#f0fdf4';
+    case 'info':     return '#eff6ff';
+    default:         return '#f8fafc';
+  }
+}
+
+function severityLabel(severity) {
+  switch (severity) {
+    case 'critical': return 'CRITICAL';
+    case 'high':     return 'HIGH';
+    case 'medium':   return 'MEDIUM';
+    case 'low':      return 'LOW';
+    case 'info':     return 'INFO';
+    default:         return 'NOTICE';
   }
 }
 
 function renderConsolidatedHtmlEmail(messages) {
   const dateStr = new Date().toLocaleDateString('en-IN', {
     weekday: 'long',
-    month: 'short',
+    month: 'long',
     day: 'numeric',
+    year: 'numeric',
   });
 
-  const itemsHtml = messages
+  // Group by severity order: critical → high → medium → low → info
+  const order = ['critical', 'high', 'medium', 'low', 'info'];
+  const sorted = [...messages].sort(
+    (a, b) => order.indexOf(a.severity) - order.indexOf(b.severity),
+  );
+
+  const itemsHtml = sorted
     .map((msg) => {
       const badgeColor = severityToBadgeColor(msg.severity);
-      const clickUrl = new URL(
+      const bgColor    = severityToBgColor(msg.severity);
+      const label      = severityLabel(msg.severity);
+      const clickUrl   = new URL(
         msg.clickUrl || '/dashboard',
         EMAIL_CLICK_BASE,
       ).toString();
       return `
-      <div style="border-left:4px solid ${badgeColor};padding:12px 16px;margin-bottom:16px;background:#f8fafc;border-radius:4px;">
-        <h3 style="margin:0 0 4px 0;font-size:16px;color:#0f172a;">${msg.title}</h3>
-        <p style="margin:0 0 10px 0;font-size:14px;color:#334155;line-height:1.5;">${msg.body}</p>
-        <a href="${clickUrl}" style="font-size:13px;font-weight:600;color:${badgeColor};text-decoration:none;">${msg.actionLabel || 'View Details'} &rarr;</a>
+      <div style="border:1px solid ${badgeColor}30;border-left:4px solid ${badgeColor};background:${bgColor};border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;margin-bottom:6px;">
+          <span style="display:inline-block;background:${badgeColor};color:#ffffff;font-size:9px;font-weight:700;letter-spacing:0.8px;padding:2px 7px;border-radius:10px;margin-right:8px;text-transform:uppercase;">${label}</span>
+        </div>
+        <h3 style="margin:0 0 5px;font-size:15px;color:#0f172a;font-weight:700;">${msg.title}</h3>
+        <p style="margin:0 0 10px;font-size:13.5px;color:#475569;line-height:1.55;">${msg.body}</p>
+        <a href="${clickUrl}" style="display:inline-block;background:${badgeColor};color:#ffffff;text-decoration:none;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px;">${msg.actionLabel || 'View Details'} →</a>
       </div>`;
     })
     .join('');
 
-  return `
-  <!doctype html>
-  <html lang="en">
-    <body style="margin:0;padding:0;background:#0f172a;font-family:sans-serif;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;padding:20px;">
-        <tr><td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;">
-            <tr><td style="padding:24px;border-bottom:1px solid #e2e8f0;">
-              <h2 style="margin:0;color:#0f172a;font-size:20px;">Your Daily Finance Summary</h2>
-              <p style="margin:4px 0 0 0;color:#64748b;font-size:14px;">${dateStr} · FinTrackly</p>
-            </td></tr>
-            <tr><td style="padding:24px;">
-              <p style="margin:0 0 20px 0;color:#334155;font-size:15px;">Here is your financial overview and pending actions for today:</p>
-              ${itemsHtml}
-            </td></tr>
-            <tr><td style="padding:20px 24px;background:#f1f5f9;text-align:center;font-size:12px;color:#64748b;">
-              <p style="margin:0;">Sent by FinTrackly. You can manage notifications in your App Settings.</p>
-            </td></tr>
-          </table>
-        </td></tr>
-      </table>
-    </body>
-  </html>`;
+  const criticalCount = messages.filter(m => m.severity === 'critical').length;
+  const highCount     = messages.filter(m => m.severity === 'high').length;
+  const urgentCount   = criticalCount + highCount;
+  const urgentNote    = urgentCount > 0
+    ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:16px;">
+        <p style="margin:0;color:#dc2626;font-size:13px;font-weight:600;">⚠️ ${urgentCount} urgent action${urgentCount > 1 ? 's' : ''} require${urgentCount === 1 ? 's' : ''} your attention today.</p>
+       </div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.5;">
+<div style="max-width:600px;margin:0 auto;padding:24px 16px;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1e40af 0%,#1d4ed8 50%,#2563eb 100%);border-radius:16px;padding:28px 24px;margin-bottom:16px;text-align:center;">
+    <div style="font-size:36px;margin-bottom:8px;">🔔</div>
+    <h1 style="color:#ffffff;font-size:20px;margin:0 0 4px;font-weight:700;">Daily Finance Summary</h1>
+    <p style="color:#bfdbfe;font-size:13px;margin:0;">${dateStr}</p>
+    <div style="margin-top:10px;display:inline-block;background:rgba(255,255,255,0.18);border-radius:20px;padding:4px 14px;">
+      <span style="color:#e0f2fe;font-size:12px;font-weight:600;">${messages.length} alert${messages.length > 1 ? 's' : ''} for today</span>
+    </div>
+  </div>
+
+  <!-- Main card -->
+  <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+    <p style="margin:0 0 16px;color:#475569;font-size:14px;">Here are your pending actions and reminders for today:</p>
+    ${urgentNote}
+    ${itemsHtml}
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align:center;padding:10px;">
+    <p style="color:#94a3b8;font-size:12px;margin:0 0 8px;">FinTrackly — Your personal finance tracker</p>
+    <p style="color:#cbd5e1;font-size:11px;margin:0 0 10px;">Manage your notification preferences in App Settings.</p>
+    <a href="${EMAIL_CLICK_BASE}/settings" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font-size:12px;font-weight:600;padding:7px 18px;border-radius:20px;">App Settings →</a>
+  </div>
+
+</div>
+</body>
+</html>`;
 }
 
 // ── Per-user processing ───────────────────────────────────────────────────────

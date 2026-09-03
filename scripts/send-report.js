@@ -565,15 +565,17 @@ async function buildCSVZip(allData) {
 // ── HTML Report Builders (Redesigned) ─────────────────────────────────────────
 
 function noRecords(label = 'No records yet') {
-  return `<tr><td colspan="10" style="padding:10px 8px;color:#475569;font-size:12px;font-style:italic;text-align:center">— ${label} —</td></tr>`;
+  return `<tr><td colspan="10" style="padding:12px 10px;color:#475569;font-size:12px;font-style:italic;text-align:center;background:#f8fafc;border-radius:6px;">— ${label} —</td></tr>`;
 }
 
 function tableRows(data) {
   return data
     .map(
       ([label, value, color]) =>
-        `<tr><td style="padding:5px 0;color:#94a3b8;font-size:13px">${label}</td>` +
-        `<td style="padding:5px 0;text-align:right;font-size:13px;font-weight:600;color:${color}">${value}</td></tr>`,
+        `<tr>` +
+        `<td style="padding:7px 4px;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">${label}</td>` +
+        `<td style="padding:7px 4px;text-align:right;font-size:13px;font-weight:600;color:${color};border-bottom:1px solid #f1f5f9;">${value}</td>` +
+        `</tr>`,
     )
     .join('');
 }
@@ -581,16 +583,17 @@ function tableRows(data) {
 function section(title, color, content, anchor) {
   const idAttr = anchor ? ` id="${anchor}"` : '';
   return (
-    `<div style="margin-bottom:32px"${idAttr}>` +
-    `<h2 style="color:${color};font-size:15px;margin:0 0 14px;padding-bottom:10px;border-bottom:2px solid ${color}40;letter-spacing:0.2px">${title}</h2>` +
-    `<div style="background:#0f172a40;border-radius:10px;padding:14px 16px">${content}</div></div>`
+    `<div style="margin-bottom:28px"${idAttr}>` +
+    `<h2 style="color:${color};font-size:14px;font-weight:700;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid ${color};letter-spacing:0.1px;text-transform:uppercase;">${title}</h2>` +
+    `<div style="background:#ffffff;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;">${content}</div>` +
+    `</div>`
   );
 }
 
 function sectionGroup(title, icon, color) {
   return (
-    `<div style="margin:36px 0 20px;background:linear-gradient(135deg, ${color}15 0%, transparent 100%);border-left:3px solid ${color};border-radius:0 10px 10px 0;padding:14px 18px">` +
-    `<h1 style="color:${color};font-size:17px;margin:0;font-weight:600">${icon} ${title}</h1>` +
+    `<div style="margin:32px 0 16px;padding:12px 16px;background:${color}10;border-left:4px solid ${color};border-radius:0 8px 8px 0;">` +
+    `<h1 style="color:${color};font-size:16px;margin:0;font-weight:700;">${icon} ${title}</h1>` +
     `</div>`
   );
 }
@@ -599,29 +602,30 @@ function dataTable(headers, rows, colAligns) {
   const headRow = headers
     .map(
       (h, i) =>
-        `<th style="padding:8px 10px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;text-align:${
+        `<th style="padding:9px 10px;font-size:10.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.6px;text-align:${
           colAligns?.[i] || 'left'
-        };border-bottom:1px solid #1e293b">${h}</th>`,
+        };border-bottom:2px solid #1e293b;background:#f8fafc;">${h}</th>`,
     )
     .join('');
   return (
-    `<table style="width:100%;border-collapse:collapse;margin-top:4px">` +
+    `<table style="width:100%;border-collapse:collapse;margin-top:4px;border-radius:8px;overflow:hidden;">` +
     `<thead><tr>${headRow}</tr></thead>` +
     `<tbody>${rows.join('')}</tbody></table>`
   );
 }
 
 function dataRow(cells, aligns, colors) {
+  // Light theme default cell color is dark slate instead of light slate
   return (
-    '<tr>' +
+    '<tr style="background:#ffffff;">' +
     cells
       .map(
         (c, i) =>
-          `<td style="padding:7px 10px;font-size:12.5px;color:${
-            colors?.[i] || '#cbd5e1'
+          `<td style="padding:8px 10px;font-size:12.5px;color:${
+            colors?.[i] || '#334155'
           };text-align:${
             aligns?.[i] || 'left'
-          };border-bottom:1px solid #1e293b50">${c}</td>`,
+          };border-bottom:1px solid #f1f5f9;">${c}</td>`,
       )
       .join('') +
     '</tr>'
@@ -629,10 +633,10 @@ function dataRow(cells, aligns, colors) {
 }
 
 function summaryCard(label, value, color, sub) {
-  return `<div style="flex:1;min-width:120px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;margin:4px">
-    <div style="color:#64748b;font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">${label}</div>
-    <div style="color:${color};font-size:18px;font-weight:700;margin-bottom:2px">${value}</div>
-    ${sub ? `<div style="color:#475569;font-size:10.5px">${sub}</div>` : ''}
+  return `<div style="flex:1;min-width:130px;background:#ffffff;border:1px solid #1e293b;border-radius:10px;padding:14px 16px;margin:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    <div style="color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;font-weight:600;">${label}</div>
+    <div style="color:${color};font-size:19px;font-weight:700;margin-bottom:3px;">${value}</div>
+    ${sub ? `<div style="color:#475569;font-size:10.5px;">${sub}</div>` : ''}
   </div>`;
 }
 
@@ -640,50 +644,58 @@ function buildTOC(items) {
   const chips = items
     .map(
       ([emoji, label, color]) =>
-        `<a href="#${label.toLowerCase().replace(/\s+/g, '-')}" style="display:inline-block;background:#0f172a80;border:1px solid ${color}40;color:${color};font-size:11.5px;padding:6px 11px;margin:3px;border-radius:20px;text-decoration:none">${emoji} ${label}</a>`,
+        `<a href="#${label.toLowerCase().replace(/\s+/g, '-')}" style="display:inline-block;background:#ffffff;border:1px solid ${color};color:${color};font-size:11.5px;font-weight:600;padding:5px 12px;margin:3px;border-radius:20px;text-decoration:none;">${emoji} ${label}</a>`,
     )
     .join('');
-  return `<div style="margin-bottom:8px">${chips}</div>`;
+  return `<div style="margin-bottom:8px;">${chips}</div>`;
 }
 
 function emailTemplate(sections, monthLbl, attachmentSummary, overview) {
   const attachNote = attachmentSummary
-    ? `<div style="margin:20px 0;background:#1e3a5f;border:1px solid #3b82f640;border-radius:12px;padding:16px 20px">
-        <p style="color:#60a5fa;font-size:13px;font-weight:600;margin:0 0 6px">📎 Attachments included in this email</p>
-        <p style="color:#94a3b8;font-size:12px;margin:0">${attachmentSummary}</p>
+    ? `<div style="margin:0 0 20px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 18px;">
+        <p style="color:#1d4ed8;font-size:13px;font-weight:600;margin:0 0 4px;">📎 Attachments included in this email</p>
+        <p style="color:#475569;font-size:12px;margin:0;">${attachmentSummary}</p>
       </div>`
     : '';
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#020617;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0;line-height:1.5">
-<div style="max-width:720px;margin:0 auto;padding:20px 14px">
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.5;">
+<div style="max-width:700px;margin:0 auto;padding:24px 16px;">
 
-<!-- Header -->
-<div style="background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%);border:1px solid #22c55e33;border-radius:18px;padding:32px 24px 28px;margin-bottom:22px;text-align:center;position:relative;overflow:hidden">
-<div style="position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:radial-gradient(circle,#22c55e20 0%,transparent 70%);border-radius:50%"></div>
-<div style="position:absolute;bottom:-50px;left:-50px;width:160px;height:160px;background:radial-gradient(circle,#3b82f615 0%,transparent 70%);border-radius:50%"></div>
-<div style="position:relative">
-<div style="font-size:42px;margin-bottom:10px">📊</div>
-<h1 style="color:#f8fafc;font-size:24px;margin:0 0 6px;font-weight:700;letter-spacing:-0.3px">FinTrackly Monthly Report</h1>
-<p style="color:#64748b;font-size:14px;margin:0;font-weight:500">${monthLbl}</p>
-<div style="margin-top:14px;color:#94a3b8;font-size:12px">Comprehensive overview of your finances</div>
-</div>
-</div>
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1e40af 0%,#1d4ed8 50%,#2563eb 100%);border-radius:16px;padding:32px 28px;margin-bottom:20px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px;">📊</div>
+    <h1 style="color:#ffffff;font-size:22px;margin:0 0 6px;font-weight:700;letter-spacing:-0.3px;">FinTrackly Monthly Report</h1>
+    <p style="color:#bfdbfe;font-size:14px;margin:0 0 10px;">${monthLbl}</p>
+    <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:20px;padding:4px 14px;">
+      <span style="color:#e0f2fe;font-size:12px;">Comprehensive overview of your finances</span>
+    </div>
+  </div>
 
-${attachNote}
+  <!-- Attachment note -->
+  ${attachNote}
 
-${overview || ''}
+  <!-- Overview cards -->
+  ${overview || ''}
 
-<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px 20px;margin-bottom:22px">
-${sections.join('')}
-</div>
+  <!-- Main content -->
+  <div style="background:#f8fafc;border:1px solid #1e293b;border-radius:14px;padding:24px 20px;margin-bottom:20px;">
+    ${sections.join('')}
+  </div>
 
-<div style="text-align:center;padding:18px 10px 6px">
-<p style="color:#475569;font-size:12px;margin:0 0 8px">FinTrackly — Your personal finance tracker</p>
-<p style="color:#334155;font-size:11px;margin:0 0 6px">💡 Attached JSON backup includes all modules — same format as Settings → Export JSON.</p>
-<p style="color:#334155;font-size:11px;margin:0 0 10px">📋 CSV ZIP contains individual sheets for each module.</p>
-<a href="https://finance-tracker-3b842.web.app/settings" style="color:#22c55e;text-decoration:none;font-size:11px;font-weight:500">Manage account</a>
-</div>
+  <!-- Footer -->
+  <div style="text-align:center;padding:16px 10px 8px;">
+    <p style="color:#475569;font-size:12px;margin:0 0 6px;">FinTrackly — Your personal finance tracker</p>
+    <p style="color:#334155;font-size:11px;margin:0 0 4px;">💡 JSON backup attached — same format as Settings → Export JSON (restoreable).</p>
+    <p style="color:#334155;font-size:11px;margin:0 0 10px;">📋 CSV ZIP contains individual sheets for each module.</p>
+    <a href="https://finance-tracker-3b842.web.app/settings" style="display:inline-block;background:#1d4ed8;color:#ffffff;text-decoration:none;font-size:12px;font-weight:600;padding:8px 20px;border-radius:20px;">Manage Account →</a>
+  </div>
 
 </div>
 </body>
@@ -914,8 +926,8 @@ async function buildReportAndData(uid) {
                                        tocItems.push(['📜', 'Net Worth',   '#14b8a6']);
 
     sections.push(
-      `<div style="margin-bottom:28px">
-        <h2 style="color:#64748b;font-size:12px;margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Quick Jump</h2>
+      `<div style="margin-bottom:28px;">
+        <h2 style="color:#475569;font-size:11px;margin:0 0 10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;">Quick Jump</h2>
         ${buildTOC(tocItems)}
       </div>`,
     );
@@ -986,8 +998,8 @@ async function buildReportAndData(uid) {
             ],
             ['left', 'left', 'center', 'left', 'right'],
             [
-              '#94a3b8',
-              '#cbd5e1',
+              '#475569',
+              '#334155',
               tx.type === 'income' ? '#22c55e' : '#ef4444',
               '#64748b',
               tx.type === 'income' ? '#22c55e' : '#ef4444',
@@ -1007,7 +1019,7 @@ async function buildReportAndData(uid) {
           dataRow(
             [esc(cat), fmt(amt)],
             ['left', 'right'],
-            ['#cbd5e1', '#f59e0b'],
+            ['#334155', '#f59e0b'],
           ),
         )
       : [noRecords('No expenses this month')];
@@ -1022,7 +1034,7 @@ async function buildReportAndData(uid) {
           dataRow(
             [esc(cat), fmt(amt)],
             ['left', 'right'],
-            ['#cbd5e1', '#22c55e'],
+            ['#334155', '#22c55e'],
           ),
         )
       : [noRecords('No income this month')];
@@ -1099,9 +1111,9 @@ async function buildReportAndData(uid) {
       ]);
 
     const summary = [
-      ['Total Holdings', `${investments.length} assets`, '#e2e8f0'],
-      ['Amount Invested', fmt(totalInvested), '#94a3b8'],
-      ['Current Value', fmt(totalCurrent), '#e2e8f0'],
+      ['Total Holdings', `${investments.length} assets`, '#1e293b'],
+      ['Amount Invested', fmt(totalInvested), '#475569'],
+      ['Current Value', fmt(totalCurrent), '#1e293b'],
       [
         'Unrealised P&L',
         `${invPnl >= 0 ? '+' : ''}${fmt(invPnl)} (${invPnl >= 0 ? '+' : ''}${pnlPct}%)`,
@@ -1139,7 +1151,7 @@ async function buildReportAndData(uid) {
               `${h.pnl >= 0 ? '+' : ''}${fmt(h.pnl)}`,
             ],
             ['left', 'left', 'right', 'right'],
-            ['#cbd5e1', '#64748b', '#e2e8f0', pnlColor],
+            ['#334155', '#64748b', '#1e293b', pnlColor],
           );
         })
       : [noRecords('No investment holdings yet')];
@@ -1191,7 +1203,7 @@ async function buildReportAndData(uid) {
               t.profitPct ? `${t.profitPct >= 0 ? '+' : ''}${t.profitPct.toFixed(1)}%` : '—',
             ],
             ['left', 'left', 'right', 'right', 'right'],
-            ['#94a3b8', '#cbd5e1', '#e2e8f0', c, c],
+            ['#475569', '#334155', '#1e293b', c, c],
           );
         })
       : [noRecords('No sold trades yet')];
@@ -1207,10 +1219,10 @@ async function buildReportAndData(uid) {
         `${realisedPnl >= 0 ? '+' : ''}${fmt(realisedPnl)}`,
         realisedPnl >= 0 ? '#22c55e' : '#ef4444',
       ],
-      ['Total Trades Closed', `${soldTrades.length}`, '#e2e8f0'],
+      ['Total Trades Closed', `${soldTrades.length}`, '#1e293b'],
     ];
     if (monthSold.length > 0) {
-      summary.push([`Closed This Month`, `${monthSold.length}`, '#94a3b8']);
+      summary.push([`Closed This Month`, `${monthSold.length}`, '#475569']);
       summary.push([
         `This Month P&L`,
         `${monthPnl >= 0 ? '+' : ''}${fmt(monthPnl)}`,
@@ -1257,11 +1269,11 @@ async function buildReportAndData(uid) {
         ],
         ['left', 'left', 'right', 'right', 'center'],
         [
-          '#cbd5e1',
+          '#334155',
           '#64748b',
           '#ef4444',
           paidOff >= 0 ? '#22c55e' : '#f59e0b',
-          l.status === 'paid' ? '#22c55e' : '#94a3b8',
+          l.status === 'paid' ? '#22c55e' : '#475569',
         ],
       );
     });
@@ -1273,8 +1285,8 @@ async function buildReportAndData(uid) {
     );
 
     const summary = [
-      ['Total Loans', `${liabilities.length}`, '#e2e8f0'],
-      ['Total Principal', fmt(principal), '#94a3b8'],
+      ['Total Loans', `${liabilities.length}`, '#1e293b'],
+      ['Total Principal', fmt(principal), '#475569'],
       ['Total Outstanding', fmt(totalLiabOut), '#ef4444'],
       ['Paid Off', fmt(paidOff), '#22c55e'],
       [
@@ -1327,10 +1339,10 @@ async function buildReportAndData(uid) {
         ],
         ['left', 'left', 'left', 'left', 'right', 'center'],
         [
-          '#cbd5e1',
-          '#94a3b8',
+          '#334155',
+          '#475569',
           '#64748b',
-          overdue ? '#ef4444' : '#94a3b8',
+          overdue ? '#ef4444' : '#475569',
           '#f59e0b',
           overdue ? '#ef4444' : '#f59e0b',
         ],
@@ -1345,8 +1357,8 @@ async function buildReportAndData(uid) {
 
     const summary = [
       ['Receivables (Pending)', fmt(pendingRecv), pendingRecv > 0 ? '#f59e0b' : '#64748b'],
-      ['Pending Items', `${pending.length}`, '#e2e8f0'],
-      ['Total Receivable Items', `${pendingPayments.length}`, '#94a3b8'],
+      ['Pending Items', `${pending.length}`, '#1e293b'],
+      ['Total Receivable Items', `${pendingPayments.length}`, '#475569'],
     ];
     if (recvAmt > 0)
       summary.push([
@@ -1386,7 +1398,7 @@ async function buildReportAndData(uid) {
         ? Math.ceil((new Date(p.dueDate) - today) / 86400000)
         : 999;
       let status = `${d}d`;
-      let col = '#94a3b8';
+      let col = '#475569';
       if (d < 0) {
         status = `🔴 ${-d}d overdue`;
         col = '#ef4444';
@@ -1407,7 +1419,7 @@ async function buildReportAndData(uid) {
           status,
         ],
         ['left', 'left', 'left', 'left', 'right', 'center'],
-        ['#cbd5e1', '#64748b', '#94a3b8', '#64748b', '#f97316', col],
+        ['#334155', '#64748b', '#475569', '#64748b', '#f97316', col],
       );
     });
     const rows = tpRows.length ? tpRows : [noRecords('No upcoming dues — all clear!')];
@@ -1419,8 +1431,8 @@ async function buildReportAndData(uid) {
 
     const summary = [
       ['Upcoming Dues (Unpaid)', fmt(duesUpcoming), duesUpcoming > 0 ? '#f97316' : '#22c55e'],
-      ['Unpaid Items', `${unpaid.length}`, '#e2e8f0'],
-      ['Total Tracked', `${trackedPayments.length}`, '#94a3b8'],
+      ['Unpaid Items', `${unpaid.length}`, '#1e293b'],
+      ['Total Tracked', `${trackedPayments.length}`, '#475569'],
     ];
     if (paidAmt > 0)
       summary.push([`Paid — ${monthLbl}`, fmt(paidAmt), '#22c55e']);
@@ -1462,10 +1474,10 @@ async function buildReportAndData(uid) {
         ],
         ['left', 'left', 'right', 'right', 'right'],
         [
-          '#cbd5e1',
+          '#334155',
           a.type === 'credit' ? '#ef4444' : '#22c55e',
-          a.type === 'credit' && (a.balance || 0) > 0 ? '#ef4444' : '#e2e8f0',
-          '#94a3b8',
+          a.type === 'credit' && (a.balance || 0) > 0 ? '#ef4444' : '#1e293b',
+          '#475569',
           delta >= 0 ? '#22c55e' : '#ef4444',
         ],
       );
@@ -1553,8 +1565,8 @@ async function buildReportAndData(uid) {
         ],
         ['left', 'left', 'right', 'right', 'center', 'right'],
         [
-          '#cbd5e1',
-          '#94a3b8',
+          '#334155',
+          '#475569',
           statusColor,
           statusColor,
           statusColor,
@@ -1582,7 +1594,7 @@ async function buildReportAndData(uid) {
               esc((c.note || '—')).slice(0, 24),
             ],
             ['left', 'left', 'right', 'left'],
-            ['#94a3b8', '#cbd5e1', '#0ea5e9', '#64748b'],
+            ['#475569', '#334155', '#0ea5e9', '#64748b'],
           ),
         )
       : [noRecords('No contributions yet — start contributing to your goals!')];
@@ -1593,9 +1605,9 @@ async function buildReportAndData(uid) {
     );
 
     const summary = [
-      ['Active Goals', `${goals.length}`, '#e2e8f0'],
-      ['Total Target Amount', fmt(goals.reduce((s, g) => s + (g.targetAmount || 0), 0)), '#94a3b8'],
-      ['Total Saved So Far', fmt(goals.reduce((s, g) => s + (g.currentAmount || 0), 0)), '#e2e8f0'],
+      ['Active Goals', `${goals.length}`, '#1e293b'],
+      ['Total Target Amount', fmt(goals.reduce((s, g) => s + (g.targetAmount || 0), 0)), '#475569'],
+      ['Total Saved So Far', fmt(goals.reduce((s, g) => s + (g.currentAmount || 0), 0)), '#1e293b'],
     ];
     if (monthContribTotal > 0)
       summary.push([
@@ -1638,7 +1650,7 @@ async function buildReportAndData(uid) {
           '#14b8a6',
           tableRows([
             ['Saved', fmt(ef.currentAmount), '#14b8a6'],
-            ['Target', fmt(ef.targetAmount), '#94a3b8'],
+            ['Target', fmt(ef.targetAmount), '#475569'],
             [
               'Progress',
               `${pct}%`,
@@ -1727,11 +1739,11 @@ async function buildReportAndData(uid) {
         ],
         ['left', 'left', 'right', 'right', 'left', 'center'],
         [
-          '#cbd5e1',
+          '#334155',
           '#64748b',
           '#a78bfa',
           '#f59e0b',
-          '#94a3b8',
+          '#475569',
           days !== null && days < 0
             ? '#ef4444'
             : days !== null && days <= 30
@@ -1760,7 +1772,7 @@ async function buildReportAndData(uid) {
               esc(p.note || '—').slice(0, 20),
             ],
             ['left', 'left', 'right', 'left'],
-            ['#94a3b8', '#cbd5e1', '#22c55e', '#64748b'],
+            ['#475569', '#334155', '#22c55e', '#64748b'],
           ),
         )
       : [noRecords('No insurance payment history recorded')];
@@ -1771,9 +1783,9 @@ async function buildReportAndData(uid) {
     );
 
     const summary = [
-      ['Total Policies', `${insurancePolicies.length}`, '#e2e8f0'],
+      ['Total Policies', `${insurancePolicies.length}`, '#1e293b'],
       ['Total Coverage', fmt(totalCoverage), '#a78bfa'],
-      ['Yearly Premium Est.', fmt(yearlyPremium), '#94a3b8'],
+      ['Yearly Premium Est.', fmt(yearlyPremium), '#475569'],
       ['Monthly Equivalent', fmt(yearlyPremium / 12), '#64748b'],
     ];
     if (monthPrem > 0)
@@ -1815,7 +1827,7 @@ async function buildReportAndData(uid) {
       const sipRows = [];
       if (budget > 0) sipRows.push(['Monthly SIP Budget', fmt(budget), '#22c55e']);
       if (instruments.length > 0)
-        sipRows.push(['Instruments Planned', `${instruments.length}`, '#e2e8f0']);
+        sipRows.push(['Instruments Planned', `${instruments.length}`, '#1e293b']);
       if (budget > 0)
         sipRows.push([
           'Allocated Amount',
@@ -1844,7 +1856,7 @@ async function buildReportAndData(uid) {
             budget > 0 ? fmt(amt) : `${inst.percentage || 0}%`,
           ],
           ['left', 'right', 'right'],
-          ['#cbd5e1', '#06b6d4', '#e2e8f0'],
+          ['#334155', '#06b6d4', '#1e293b'],
         );
       });
       const instTable = instrTableRows.length
@@ -1909,11 +1921,11 @@ async function buildReportAndData(uid) {
         ],
         ['left', 'right', 'right', 'right', 'left', 'center'],
         [
-          '#cbd5e1',
+          '#334155',
           '#64748b',
           '#f59e0b',
           '#22c55e',
-          '#94a3b8',
+          '#475569',
           days !== null && days < 0 ? '#ef4444' : '#22c55e',
         ],
       );
@@ -1928,9 +1940,9 @@ async function buildReportAndData(uid) {
     );
 
     const summary = [
-      ['Total Borrowers', `${lendingBorrowers.length}`, '#e2e8f0'],
+      ['Total Borrowers', `${lendingBorrowers.length}`, '#1e293b'],
       ['Active Accounts', `${active.length}`, '#22c55e'],
-      ['Total Principal Given', fmt(tGiven), '#94a3b8'],
+      ['Total Principal Given', fmt(tGiven), '#475569'],
       ['Principal Returned', fmt(tReturned), '#22c55e'],
       ['Outstanding Balance', fmt(tGiven - tReturned), '#f59e0b'],
       ['Total Interest Earned', fmt(tInterest), '#22c55e'],
@@ -1974,7 +1986,7 @@ async function buildReportAndData(uid) {
           c.updatedAt ? shortDate(c.updatedAt) : '—',
         ],
         ['left', 'left', 'center', 'left'],
-        ['#cbd5e1', '#64748b', '#22c55e', '#94a3b8'],
+        ['#334155', '#64748b', '#22c55e', '#475569'],
       ),
     );
     const crTable = dataTable(
@@ -1988,11 +2000,11 @@ async function buildReportAndData(uid) {
       .map(([cat, n]) => [
         `${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
         `${n} item${n > 1 ? 's' : ''}`,
-        '#94a3b8',
+        '#475569',
       ]);
 
     const summary = [
-      ['Total Stored', `${credentials.length}`, '#e2e8f0'],
+      ['Total Stored', `${credentials.length}`, '#1e293b'],
       ...catSummary,
     ];
     if (staleCount > 0)
@@ -2006,8 +2018,8 @@ async function buildReportAndData(uid) {
       section(
         `🔐 Credentials Vault (${credentials.length} items)`,
         '#0ea5e9',
-        `<div style="background:#082f49;border:1px solid #0ea5e930;border-radius:10px;padding:12px 14px;margin-bottom:14px">
-          <p style="color:#38bdf8;font-size:11.5px;margin:0;font-weight:500">🔒 For your security, passwords/secrets are never shown in email reports. Export JSON for full backup.</p>
+        `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+          <p style="color:#1d4ed8;font-size:11.5px;margin:0;font-weight:600;">🔒 For your security, passwords/secrets are never shown in email reports. Export JSON for full backup.</p>
         </div>` +
           `<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${tableRows(summary)}</table>` +
           `<div>
@@ -2044,7 +2056,7 @@ async function buildReportAndData(uid) {
       nwRows.push([
         'Snapshots Recorded',
         `${sortedNw.length}`,
-        '#94a3b8',
+        '#475569',
       ]);
       if (sortedNw.length > 1) {
         nwRows.push([
@@ -2078,7 +2090,7 @@ async function buildReportAndData(uid) {
               fmt(s.netWorth || 0),
             ],
             ['left', 'left', 'right', 'right', 'right'],
-            ['#94a3b8', '#64748b', '#22c55e', '#ef4444', '#14b8a6'],
+            ['#475569', '#64748b', '#22c55e', '#ef4444', '#14b8a6'],
           ),
         );
       const histTable = dataTable(
@@ -2131,7 +2143,7 @@ async function buildReportAndData(uid) {
   if (sections.length <= 3) {
     // Nothing beyond header/TCC rendered
     sections.push(`<div style="text-align:center;padding:30px 16px"><div style="font-size:38px;margin-bottom:14px">👋</div>
-      <p style="color:#94a3b8;font-size:15px;margin:0 0 6px;font-weight:500">Your FinTrackly account is active.</p>
+      <p style="color:#475569;font-size:15px;margin:0 0 6px;font-weight:500">Your FinTrackly account is active.</p>
       <p style="color:#64748b;font-size:13px;margin:0">Start adding investments, cashflows, goals, and other records to see your comprehensive monthly summary here.</p></div>`);
   }
 
@@ -2153,9 +2165,9 @@ async function buildReportAndData(uid) {
     summaryCard('Cash in Bank', fmt(totalAccountBal), '#a78bfa', `${accounts.length} accounts`),
   ];
   const overviewContent =
-    `<div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:22px 20px;margin-bottom:22px">
-      <h2 style="color:#f1f5f9;font-size:16px;margin:0 0 14px;font-weight:600">💡 This Month At a Glance</h2>
-      <div style="display:flex;flex-wrap:wrap;margin:-4px">${overviewCards.join('')}</div>
+    `<div style="background:#ffffff;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+      <h2 style="color:#1e293b;font-size:15px;margin:0 0 14px;font-weight:700;">💡 This Month At a Glance</h2>
+      <div style="display:flex;flex-wrap:wrap;margin:-4px;">${overviewCards.join('')}</div>
     </div>`;
 
   return { sections, allData, settingsDoc, monthLbl, overview: overviewContent };
