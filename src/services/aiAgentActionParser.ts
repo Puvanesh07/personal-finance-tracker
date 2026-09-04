@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/services/aiAgentActionParser.ts
  *
  * Parses natural-language commands into typed action payloads.
@@ -8,7 +8,6 @@
  *   add_cashflow_income / add_cashflow_expense
  *   add_payment          add_goal          add_liability
  *   add_investment       add_insurance     add_account
- *   add_lending_borrower add_lending_transaction
  *
  * UPDATE
  *   update_payment       update_goal       update_liability
@@ -17,7 +16,6 @@
  * DELETE
  *   delete_payment       delete_goal       delete_liability
  *   delete_investment    delete_insurance  delete_account
- *   delete_lending_borrower
  *
  * OTHER
  *   mark_payment_paid    search_records
@@ -35,8 +33,6 @@ export type ActionType =
   | 'add_investment'
   | 'add_insurance'
   | 'add_account'
-  | 'add_lending_borrower'
-  | 'add_lending_transaction'
   // UPDATE
   | 'update_payment'
   | 'update_goal'
@@ -49,7 +45,6 @@ export type ActionType =
   | 'delete_investment'
   | 'delete_insurance'
   | 'delete_account'
-  | 'delete_lending_borrower'
   // OTHER
   | 'mark_payment_paid'
   | 'search_records'
@@ -139,22 +134,6 @@ export interface AddAccountAction {
   openingBalanceDate?: string;
 }
 
-export interface AddLendingBorrowerAction {
-  kind: 'add_lending_borrower';
-  name: string;
-  phone?: string;
-  interestRate?: number;
-  notes?: string;
-}
-
-export interface AddLendingTransactionAction {
-  kind: 'add_lending_transaction';
-  borrowerNameHint: string;
-  txType: 'principal_given' | 'interest_paid' | 'principal_returned';
-  amount: number;
-  date: string;
-  notes?: string;
-}
 
 export interface UpdatePaymentAction {
   kind: 'update_payment';
@@ -188,7 +167,6 @@ export interface DeleteAction {
     | 'delete_investment'
     | 'delete_insurance'
     | 'delete_account'
-    | 'delete_lending_borrower';
   nameHint: string;
 }
 
@@ -211,8 +189,6 @@ export type ParsedAction =
   | AddInvestmentAction
   | AddInsuranceAction
   | AddAccountAction
-  | AddLendingBorrowerAction
-  | AddLendingTransactionAction
   | UpdatePaymentAction
   | UpdateGoalAction
   | UpdateLiabilityAction
@@ -601,7 +577,6 @@ export function detectActionType(q: string): ActionType {
     if (/\b(stock|share|mutual\s*fund|investment|fd|fixed\s*deposit|bond)\b/i.test(lower)) return 'delete_investment';
     if (/\b(insurance|policy)\b/i.test(lower)) return 'delete_insurance';
     if (/\b(account|bank)\b/i.test(lower)) return 'delete_account';
-    if (/\b(borrower|lending|lent|lend)\b/i.test(lower)) return 'delete_lending_borrower';
   }
 
   // ── UPDATE ──────────────────────────────────────────────────────────────
@@ -635,15 +610,6 @@ export function detectActionType(q: string): ActionType {
   if (/\b(add|create|register)\b/i.test(lower) &&
       /\b(account|bank\s+account|credit\s+card\s+account|savings\s+account)\b/i.test(lower)) {
     return 'add_account';
-  }
-
-  // ── CREATE — lending ─────────────────────────────────────────────────────
-  if (/\b(lent|lend|gave|loaned)\b/i.test(lower) ||
-      (/\b(add|record)\b/i.test(lower) && /\b(borrower|lending|lend)\b/i.test(lower))) {
-    return 'add_lending_transaction';
-  }
-  if (/\b(add|create)\b/i.test(lower) && /\bborrower\b/i.test(lower)) {
-    return 'add_lending_borrower';
   }
 
   // ── CREATE — income ──────────────────────────────────────────────────────
@@ -1019,41 +985,6 @@ export function parseAction(question: string): ActionParseResult {
       },
       summary: `Add ${accType} account "${toTitleCase(name)}" — balance ₹${balance.toLocaleString('en-IN')}`,
       assumptions,
-      incomplete: false,
-    };
-  }
-
-  // ── ADD — lending borrower ─────────────────────────────────────────────────
-  if (type === 'add_lending_borrower') {
-    const name = extractNameHint(q, 'borrower');
-    if (!name) return { action: null, summary: '', assumptions: [], incomplete: true,
-      missingPrompt: "What is the borrower's name?" };
-    const interestRate = extractInterestRate(q);
-    return {
-      action: { kind: 'add_lending_borrower', name: toTitleCase(name),
-        ...(interestRate ? { interestRate } : {}) },
-      summary: `Add borrower "${toTitleCase(name)}"${interestRate ? ` at ${interestRate}% interest` : ''}`,
-      assumptions: [],
-      incomplete: false,
-    };
-  }
-
-  // ── ADD — lending transaction ──────────────────────────────────────────────
-  if (type === 'add_lending_transaction') {
-    const amount = extractAmount(q);
-    if (!amount) return { action: null, summary: '', assumptions: [], incomplete: true,
-      missingPrompt: 'How much did you lend? (e.g. "I lent ₹10000 to Ramesh")' };
-    const borrowerName = extractNameHint(q, 'lent') || 'borrower';
-    const txType: AddLendingTransactionAction['txType'] =
-      /\binterest\b/i.test(q) ? 'interest_paid'
-      : /\brepaid|returned|back\b/i.test(q) ? 'principal_returned'
-      : 'principal_given';
-    const date = extractDate(q);
-    return {
-      action: { kind: 'add_lending_transaction', borrowerNameHint: borrowerName,
-        txType, amount, date },
-      summary: `Record lending: ₹${amount.toLocaleString('en-IN')} ${txType.replace(/_/g,' ')} — ${toTitleCase(borrowerName)}`,
-      assumptions: [],
       incomplete: false,
     };
   }

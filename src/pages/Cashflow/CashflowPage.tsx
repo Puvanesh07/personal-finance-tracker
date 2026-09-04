@@ -877,9 +877,6 @@ function SortableHeader({
 
 export function CashflowPage() {
   const { premiumActionProps } = usePremiumActions();
-  // const [activeTab, setActiveTab] = useState<'personal' | 'lending'>(
-  //   'personal',
-  // );
 
   const ready = usePortfolioStore((s) => s.ready);
   const cashflows = usePortfolioStore((s) => s.cashflows);
@@ -1131,24 +1128,6 @@ export function CashflowPage() {
       {/* ── Recurring detection ── */}
       <RecurringBanner />
       {/* ── Tabs Top ── */}
-      {/* <div className='flex bg-slate-100 dark:bg-slate-800/60 p-1.5 rounded-2xl w-fit mb-2 border border-slate-200/60 dark:border-slate-700/60'>
-        <button
-          onClick={() => setActiveTab('personal')}
-          className={`px-5 py-2 text-sm font-bold cursor-pointer rounded-xl transition-all duration-300 ${activeTab === 'personal' ? 'bg-white dark:bg-slate-700 text-emerald-500 shadow-sm' : 'text-slate-900 dark:text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-        >
-          Personal Cashflow
-        </button>
-        <button
-          onClick={() => setActiveTab('lending')}
-          className={`px-5 py-2 text-sm font-bold cursor-pointer rounded-xl transition-all duration-300 ${activeTab === 'lending' ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm' : 'text-slate-900 dark:text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-        >
-          Financier / Lending
-        </button>
-      </div> */}
-
-      {/* {activeTab === 'lending' ? (
-        <LendingDashboard />
-      ) : ( */}
       <>
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header className='flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>

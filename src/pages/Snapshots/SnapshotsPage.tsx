@@ -20,7 +20,6 @@ import {
   FiShield,
   FiTag,
   FiTrendingUp,
-  FiUsers,
 } from 'react-icons/fi';
 import { useMemo, useState } from 'react';
 
@@ -132,7 +131,6 @@ function SnapshotDetail({ snap }: { snap: NetWorthSnapshot }) {
   const hasAcc = snap.accountBalance !== undefined;
   const hasGoals = snap.goalsProgress !== undefined;
   const hasIns = snap.insuranceCoverage !== undefined;
-  const hasLending = snap.lendingOutstanding !== undefined;
   const hasSip = snap.sipMonthlyBudget !== undefined;
   const hasLiab = snap.liabilitiesCount !== undefined;
 
@@ -220,20 +218,6 @@ function SnapshotDetail({ snap }: { snap: NetWorthSnapshot }) {
         </SectionPanel>
       )}
 
-      {/* Lending */}
-      {hasLending && (
-        <SectionPanel
-          icon={<FiUsers className='text-violet-400' />}
-          title='Lending'
-          accent='bg-violet-500/5 text-violet-600 dark:text-violet-400'
-        >
-          <SectionRow label='Outstanding' value={money(snap.lendingOutstanding)} color='text-violet-400' />
-          {snap.lendingBorrowersCount !== undefined && (
-            <SectionRow label='Active Borrowers' value={num(snap.lendingBorrowersCount)} />
-          )}
-        </SectionPanel>
-      )}
-
       {/* SIP */}
       {hasSip && (
         <SectionPanel
@@ -264,7 +248,7 @@ function SnapshotDetail({ snap }: { snap: NetWorthSnapshot }) {
       )}
 
       {/* Legacy snapshots that only have net worth */}
-      {!hasInv && !hasCf && !hasAcc && !hasGoals && !hasIns && !hasLending && !hasSip && !hasLiab && (
+      {!hasInv && !hasCf && !hasAcc && !hasGoals && !hasIns && !hasSip && !hasLiab && (
         <div className='col-span-full text-center py-4 text-xs text-slate-400 dark:text-slate-500'>
           This snapshot was taken before detailed section tracking was added. Only net worth data is available.
         </div>
@@ -472,8 +456,6 @@ export function SnapshotsPage() {
   const accounts            = usePortfolioStore((s) => s.accounts);
   const goals               = usePortfolioStore((s) => s.goals);
   const insurancePolicies   = usePortfolioStore((s) => s.insurancePolicies) ?? [];
-  const lendingBorrowers    = usePortfolioStore((s) => s.lendingBorrowers) ?? [];
-  const lendingTransactions = usePortfolioStore((s) => s.lendingTransactions) ?? [];
   const sipPlans            = usePortfolioStore((s) => s.sipPlans) ?? [];
   const soldTrades          = usePortfolioStore((s) => s.soldTrades) ?? [];
 
@@ -506,14 +488,6 @@ export function SnapshotsPage() {
   const goalsTarget = goals.reduce((a, g) => a + g.targetAmount, 0);
   const goalsSaved  = goals.reduce((a, g) => a + g.currentAmount, 0);
   const goalsProgress = goalsTarget > 0 ? (goalsSaved / goalsTarget) * 100 : 0;
-
-  const activeBorrowers = lendingBorrowers.filter((b) => b.status === 'active');
-  const validBorrowerIds = new Set(activeBorrowers.map((b) => b.id));
-  const lendingOutstanding = useMemo(() => {
-    const given    = lendingTransactions.filter((tx) => validBorrowerIds.has(tx.borrowerId) && tx.type === 'principal_given').reduce((s, tx) => s + (tx.amount || 0), 0);
-    const returned = lendingTransactions.filter((tx) => validBorrowerIds.has(tx.borrowerId) && tx.type === 'principal_returned').reduce((s, tx) => s + (tx.amount || 0), 0);
-    return Math.max(0, given - returned);
-  }, [lendingTransactions, validBorrowerIds]);
 
   const sipBudget = sipPlans.find((x: any) => x.type === 'budget');
   const sipMonthly = sipBudget?.budget || 0;
@@ -643,12 +617,6 @@ export function SnapshotsPage() {
               label='Coverage'
               value={formatINR(totalInsuranceCoverage)}
               color='text-sky-400'
-            />
-            <PreviewChip
-              icon={<FiUsers className='h-3.5 w-3.5' />}
-              label='Lending Out'
-              value={formatINR(lendingOutstanding)}
-              color='text-violet-400'
             />
             <PreviewChip
               icon={<FiLayers className='h-3.5 w-3.5' />}

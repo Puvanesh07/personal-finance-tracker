@@ -187,34 +187,6 @@ Go to **Sidebar → Insurance**.
 - Add all policies so the AI Agent can show your total coverage in one place.`,
   },
 
-  // ── Lending ───────────────────────────────────────────────────────────────
-  {
-    keywords: ['add lending', 'add borrower', 'add loan given', 'lend money',
-               'record lending', 'new borrower', 'how to add lending',
-               'log lending', 'add money lent', 'record money lent'],
-    answer: `## 🤝 How to Add a Lending Record in FinTrackly
-
-Go to **Sidebar → Lending** (under the Lending / Finance section).
-
-### Adding a Borrower
-1. Tap **+ Add Borrower**.
-2. Enter: Name, Phone (optional), Interest Rate (%), Status = Active.
-3. Tap **Save**.
-
-### Recording a Transaction
-1. Open the borrower → tap **+ Add Transaction**.
-2. Choose type:
-   - **Principal Given** — money you lent out
-   - **Principal Returned** — repayment received
-   - **Interest Paid** — interest collected
-3. Enter Amount and Date.
-4. Tap **Save**.
-
-### Tips
-- Set a **Next Due Date** on the borrower to track upcoming repayments.
-- The AI Agent uses these records to show total outstanding and interest earned.`,
-  },
-
   // ── Accounts ─────────────────────────────────────────────────────────────
   {
     keywords: ['add account', 'add bank account', 'new account',
@@ -275,7 +247,6 @@ FinTrackly is a complete personal finance tracker. Here's what each module does:
 | **Liabilities** | Loans, credit card debt |
 | **Insurance** | Policies, premiums, renewals |
 | **Goals** | Financial targets and progress tracking |
-| **Lending** | Money you've lent to others |
 | **Insights** | Financial health score, FIRE projection |
 | **AI Agent** | Ask questions about your own data |
 | **Reports** | Full financial summary |

@@ -419,41 +419,6 @@ export function buildAllCSVBlobs(
     });
   }
 
-  // ── Lending / Financier ───────────────────────────────────────────────────
-  if (state.lendingBorrowers?.length) {
-    const bMap = new Map<string, string>();
-    state.lendingBorrowers.forEach((b: any) => bMap.set(b.id, b.name));
-
-    attachments.push({
-      filename: 'lending-borrowers.csv',
-      content: toCSVString(
-        state.lendingBorrowers.map((b: any) => ({
-          Name: b.name,
-          Phone: b.phone ?? '',
-          Status: b.status,
-          'Interest Rate (%)': b.interestRate ?? '',
-          'Due Date': b.nextDueDate ?? '',
-          Notes: b.notes ?? '',
-        })),
-      ),
-    });
-
-    if (state.lendingTransactions?.length) {
-      attachments.push({
-        filename: 'lending-transactions.csv',
-        content: toCSVString(
-          state.lendingTransactions.map((tx: any) => ({
-            Date: tx.date,
-            Borrower: bMap.get(tx.borrowerId) || 'Unknown',
-            Type: tx.type,
-            'Amount (₹)': tx.amount,
-            Notes: tx.notes ?? '',
-          })),
-        ),
-      });
-    }
-  }
-
   // ── SIP Plans ────────────────────────────────────────────────────────────
   const sipInstruments = (state.sipPlans ?? []).filter((s: any) => s?.type === 'instrument');
   const sipBudgetRow   = (state.sipPlans ?? []).find((s: any) => s?.type === 'budget');
@@ -505,7 +470,6 @@ export function buildAllCSVBlobs(
           'Goals Saved (₹)': s.goalsSaved ?? '',
           'Goals Target (₹)': s.goalsTarget ?? '',
           'Insurance Coverage (₹)': s.insuranceCoverage ?? '',
-          'Lending Outstanding (₹)': s.lendingOutstanding ?? '',
           'SIP Monthly Budget (₹)': s.sipMonthlyBudget ?? '',
           'EMI Monthly Total (₹)': s.totalEmiMonthly ?? '',
         })),

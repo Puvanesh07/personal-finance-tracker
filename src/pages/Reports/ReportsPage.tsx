@@ -5,7 +5,6 @@ import {
   FiActivity,
   FiArrowUpRight,
   FiBarChart2,
-  FiBriefcase,
   FiCreditCard,
   FiDownload,
   FiFlag,
@@ -190,41 +189,6 @@ export function ReportsPage() {
       .sort((a, b) => b.value - a.value);
   }, [filteredCashflows]);
 
-  // ── 3. Lending & Financing (Time Filtered)
-  const lendingStats = useMemo(() => {
-    let tfGiven = 0,
-      tfReturned = 0,
-      tfInterest = 0;
-    const validIds = new Set(portStore.lendingBorrowers.map((b) => b.id));
-
-    // Filtered by timeframe for period metrics
-    portStore.lendingTransactions
-      .filter((t) => isWithinTimeframe(t.date) && validIds.has(t.borrowerId))
-      .forEach((t) => {
-        if (t.type === 'principal_given') tfGiven += t.amount;
-        if (t.type === 'principal_returned') tfReturned += t.amount;
-        if (t.type === 'interest_paid') tfInterest += t.amount;
-      });
-
-    // All time for outstanding balance calculation
-    let allTimeGiven = 0,
-      allTimeReturned = 0;
-    portStore.lendingTransactions
-      .filter((t) => validIds.has(t.borrowerId))
-      .forEach((t) => {
-        if (t.type === 'principal_given') allTimeGiven += t.amount;
-        if (t.type === 'principal_returned') allTimeReturned += t.amount;
-      });
-
-    return {
-      tfGiven,
-      tfReturned,
-      tfInterest,
-      outstanding: allTimeGiven - allTimeReturned,
-    };
-  }, [portStore.lendingTransactions, portStore.lendingBorrowers, timeframe]);
-
-
   const totalAssets = netWorthAssets;
 
   // ── Insurance & Goals (Static Snapshots)
@@ -330,7 +294,7 @@ export function ReportsPage() {
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
         {[
           {
-            label: 'Total Assets (Incl. Lending)',
+            label: 'Total Assets',
             value: formatINR(totalAssets),
             color: 'text-slate-900 dark:text-slate-100',
             bg: 'bg-slate-100 dark:bg-slate-800/50 border border-slate-300/60 dark:border-slate-700/50',
@@ -552,34 +516,6 @@ export function ReportsPage() {
               </div>
             </div>
           )}
-        </SectionCard>
-
-
-        {/* ── Lending & Financing ── */}
-        <SectionCard
-          icon={<FiBriefcase className='h-5 w-5 text-indigo-400' />}
-          title='Lending & Financing'
-          color='bg-indigo-500/10'
-          to='/cashflow'
-        >
-          <StatRow
-            label={`Interest Earned (${timeframe})`}
-            value={formatINR(lendingStats.tfInterest)}
-            positive={lendingStats.tfInterest > 0}
-          />
-          <StatRow
-            label={`Principal Lent (${timeframe})`}
-            value={formatINR(lendingStats.tfGiven)}
-          />
-          <StatRow
-            label='Total Active Borrowers'
-            value={`${portStore.lendingBorrowers.filter((b) => b.status === 'active').length} accounts`}
-          />
-          <StatRow
-            label='Outstanding Capital (All Time)'
-            value={formatINR(lendingStats.outstanding)}
-            accent
-          />
         </SectionCard>
 
 

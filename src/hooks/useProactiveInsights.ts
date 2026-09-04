@@ -37,8 +37,6 @@ export function useProactiveInsights(): ProactiveInsight[] {
     insurancePolicies,
     goals,
     goalContributions,
-    lendingBorrowers,
-    lendingTransactions,
     essentials,
   } = usePortfolioStore.getState();
 
@@ -151,29 +149,6 @@ export function useProactiveInsights(): ProactiveInsight[] {
         });
         break; // show at most one goal insight
       }
-    }
-
-    // ── 7. Lending overdue ────────────────────────────────────────────────
-    const overdueLoans = lendingBorrowers.filter(
-      (b) => b.status === 'active' && b.nextDueDate && b.nextDueDate < today,
-    );
-    if (overdueLoans.length) {
-      const stats = overdueLoans.map((b) => {
-        const txns    = lendingTransactions.filter((t) => t.borrowerId === b.id);
-        const given   = txns.filter((t) => t.type === 'principal_given').reduce((a, t) => a + t.amount, 0);
-        const returned= txns.filter((t) => t.type === 'principal_returned').reduce((a, t) => a + t.amount, 0);
-        return given - returned;
-      });
-      const totalOut = stats.reduce((a, v) => a + v, 0);
-      insights.push({
-        id: 'lending_overdue',
-        emoji: '🤝',
-        title: `${overdueLoans.length} overdue repayment${overdueLoans.length > 1 ? 's' : ''}`,
-        body: `${formatINR(totalOut)} outstanding — ${overdueLoans.map((b) => b.name).slice(0, 2).join(', ')}`,
-        severity: 'warning',
-        question: 'Are any of my lending repayments overdue?',
-        linkTo: '/lending' as string,
-      });
     }
 
     // ── 8. Low savings rate ────────────────────────────────────────────────
@@ -360,7 +335,6 @@ export function useProactiveInsights(): ProactiveInsight[] {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     investments, liabilities, cashflows, trackedPayments,
-    insurancePolicies, goals, goalContributions,
-    lendingBorrowers, lendingTransactions, essentials,
+    insurancePolicies, goals, goalContributions, essentials,
   ]);
 }

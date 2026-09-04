@@ -634,69 +634,6 @@ export function useDerivedNotifications() {
       }
     })();
 
-    // ── Lending ─────────────────────────────────────────────────────────────
-    portfolio.lendingBorrowers?.forEach((borrower) => {
-      if (borrower.status !== 'active') return;
-      if (!borrower.nextDueDate) return;
-      const days = differenceInDays(parseISO(borrower.nextDueDate), t);
-      if (days < -30) return;
-      const validIds = new Set(portfolio.lendingBorrowers.map((b) => b.id));
-      const given = portfolio.lendingTransactions
-        .filter((tx) => validIds.has(tx.borrowerId) && tx.borrowerId === borrower.id && tx.type === 'principal_given')
-        .reduce((s, tx) => s + (tx.amount || 0), 0);
-      const returned = portfolio.lendingTransactions
-        .filter((tx) => validIds.has(tx.borrowerId) && tx.borrowerId === borrower.id && tx.type === 'principal_returned')
-        .reduce((s, tx) => s + (tx.amount || 0), 0);
-      const outstanding = given - returned;
-      const amtLine = outstanding > 0 ? ` (${INR(outstanding)} due)` : '';
-
-      let fire = false;
-      let fireKey = '';
-      let title = '';
-      let message = '';
-      if (days === 0) {
-        fire = true;
-        fireKey = 'today';
-        title = `🤝 Collect Today: ${borrower.name}`;
-        message = `Payment from ${borrower.name}${amtLine} is due today. Follow up!`;
-      } else if (days === 3) {
-        fire = true;
-        fireKey = '3d';
-        title = `🤝 3 Days Until ${borrower.name} Payment`;
-        message = `Remind ${borrower.name} about the payment${amtLine} on ${format(parseISO(borrower.nextDueDate), 'dd MMM')}.`;
-      } else if (days === 7) {
-        fire = true;
-        fireKey = '7d';
-        title = `🤝 Lending Due in a Week — ${borrower.name}`;
-        message = `${borrower.name}${amtLine} — due ${format(parseISO(borrower.nextDueDate), 'dd MMM')}.`;
-      } else if (days < 0 && [-1, -3, -7, -14, -21].includes(days)) {
-        fire = true;
-        fireKey = `overdue_${Math.abs(days)}d`;
-        title = `❗ OVERDUE ${Math.abs(days)}d: ${borrower.name}`;
-        message = `${borrower.name}'s payment${amtLine} is ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue. Collect immediately.`;
-      }
-      if (!fire || !fireKey) return;
-      notifs.push(
-        makeNotif(
-          days < 0 ? 'lending_overdue' : 'lending_due',
-          title,
-          message,
-          borrower.id,
-          'lending',
-          {
-            dueDate: borrower.nextDueDate,
-            expiresAt:
-              days < 0
-                ? new Date(t.getTime() + (Math.abs(days) + 3) * 86_400_000).toISOString()
-                : new Date(t.getTime() + (days + 1) * 86_400_000).toISOString(),
-            severity: days < -7 ? 'high' : days < 0 ? 'medium' : days === 0 ? 'high' : 'low',
-            actionLabel: 'Open Lending',
-            actionPath: '/cashflow?tab=lending',
-          },
-        ),
-      );
-    });
-
     // ── Credentials ─────────────────────────────────────────────────────────
     portfolio.credentials?.forEach((c) => {
       if (!c.updatedAt && !c.createdAt) return;
@@ -991,8 +928,6 @@ export function useDerivedNotifications() {
     portfolio.goalContributions,
     portfolio.investments,
     portfolio.sipPlans,
-    portfolio.lendingBorrowers,
-    portfolio.lendingTransactions,
     portfolio.credentials,
     portfolio.networthSnapshots,
     portfolio.essentials,

@@ -248,9 +248,6 @@ export type NetWorthSnapshot = {
   // Insurance
   insuranceCoverage?: number;
   insurancePoliciesCount?: number;
-  // Lending
-  lendingOutstanding?: number;
-  lendingBorrowersCount?: number;
   // SIP
   sipMonthlyBudget?: number;
   sipInstrumentsCount?: number;
@@ -361,38 +358,6 @@ export type PendingPayment = {
   createdAt: string;
   updatedAt: string;
   userId?: string;
-};
-
-// ── Financier / Lending ──────────────────────────────────────────────
-export type LendingStatus = 'active' | 'closed';
-export type LendingTransactionType =
-  | 'principal_given'
-  | 'interest_paid'
-  | 'principal_returned';
-
-export type LendingBorrower = {
-  id: string;
-  name: string;
-  phone?: string;
-  status: LendingStatus;
-  notes?: string;
-  interestRate?: number;
-  nextDueDate?: string;
-  createdAt: string;
-  updatedAt: string;
-  userId: string;
-};
-
-export type LendingTransaction = {
-  id: string;
-  borrowerId: string;
-  type: LendingTransactionType;
-  amount: number;
-  date: ISODateString;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  userId: string;
 };
 
 // ── Goals ──────────────────────────────────────────────────────────────────

@@ -21,8 +21,6 @@ import type {
   InsurancePayment,
   InsurancePolicy,
   Investment,
-  LendingBorrower,
-  LendingTransaction,
   Liability,
   PendingPayment,
   TrackedPayment,
@@ -279,32 +277,6 @@ function generateInsurancePayments(uid: string): InsurancePayment[] {
   ];
 }
 
-function generateLendingBorrowers(uid: string): LendingBorrower[] {
-  const today = todayStr();
-  return [
-    { id: genId('lendb'), name: 'Arun Sharma', phone: '9876543210', status: 'active', interestRate: 12, nextDueDate: future(3), createdAt: past(180), updatedAt: today, userId: uid },
-    { id: genId('lendb'), name: 'Deepak Verma', phone: '8765432109', status: 'active', interestRate: 10, nextDueDate: future(15), createdAt: past(365), updatedAt: today, userId: uid },
-    { id: genId('lendb'), name: 'Kiran Patel', phone: '7654321098', status: 'active', interestRate: 15, nextDueDate: past(7), createdAt: past(90), updatedAt: today, userId: uid },
-    { id: genId('lendb'), name: 'Ravi Kumar', phone: '6543210987', status: 'closed', interestRate: 12, nextDueDate: undefined, createdAt: past(400), updatedAt: today, userId: uid },
-  ];
-}
-
-function generateLendingTransactions(uid: string): LendingTransaction[] {
-  const items: LendingTransaction[] = [];
-  const today = todayStr();
-  const borrowerIds = ['lendb_a', 'lendb_b', 'lendb_c'];
-  for (let i = 0; i < 12; i++) {
-    items.push({
-      id: genId('lendtx'), borrowerId: borrowerIds[i % 3],
-      type: i < 4 ? 'principal_given' : i < 8 ? 'interest_paid' : 'principal_returned',
-      amount: [25000, 50000, 15000, 30000, 20000, 10000, 45000, 35000, 5000, 8000, 12000, 7000][i],
-      date: past(Math.floor(Math.random() * 365)),
-      createdAt: past(Math.floor(Math.random() * 365)), updatedAt: today, userId: uid,
-    });
-  }
-  return items;
-}
-
 function generateCredentials(uid: string): Credential[] {
   return [
     { id: genId('cred'), category: 'identity', title: 'PAN Card', identifier: 'ABCDE1234F', notes: 'Permanent Account Number', createdAt: past(365), updatedAt: past(30), userId: uid },
@@ -400,17 +372,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   await batchWrite(uid, 'insurancePayments', insPayments);
   counts['insurancePayments'] = insPayments.length;
 
-  // 11. Lending Borrowers
-  const borrowers = generateLendingBorrowers(uid).slice(0, 2);
-  await batchWrite(uid, 'lendingBorrowers', borrowers);
-  counts['lendingBorrowers'] = borrowers.length;
-
-  // 12. Lending Transactions
-  const transactions = generateLendingTransactions(uid).slice(0, 3);
-  await batchWrite(uid, 'lendingTransactions', transactions);
-  counts['lendingTransactions'] = transactions.length;
-
-  // 13. Credentials
+  // 11. Credentials
   const credentials = generateCredentials(uid).slice(0, 2);
   await batchWrite(uid, 'credentials', credentials);
   counts['credentials'] = credentials.length;
@@ -476,8 +438,6 @@ export function getDummyDataPreview(): Record<string, number> {
   counts['goalContributions'] = 5;
   counts['insurancePolicies'] = 2;
   counts['insurancePayments'] = 1;
-  counts['lendingBorrowers'] = 2;
-  counts['lendingTransactions'] = 3;
   counts['credentials'] = 2;
   counts['snapshots'] = 5;
   counts['networthSnapshots'] = 3;

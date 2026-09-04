@@ -28,7 +28,6 @@ export interface NotificationSettingsConfig {
   insuranceReminders:  boolean;
   goalReminders:       boolean;
   emiReminders:        boolean;
-  lendingReminders:    boolean;
   sipReminders:        boolean;
   investmentAlerts:    boolean;
   subscriptionAlerts:  boolean;
@@ -45,7 +44,6 @@ const DEFAULT_SETTINGS: NotificationSettingsConfig = {
   insuranceReminders:  true,
   goalReminders:       true,
   emiReminders:        true,
-  lendingReminders:    true,
   sipReminders:        true,
   investmentAlerts:    true,
   subscriptionAlerts:  true,
@@ -335,14 +333,6 @@ export function NotificationSettings() {
             disabled={!cfg.pushEnabled}
           />
           <ToggleRow
-            icon='🤝'
-            label='Lending Reminders'
-            description='Borrower repayment dues and overdue collection alerts'
-            checked={cfg.lendingReminders}
-            onChange={(v) => update('lendingReminders', v)}
-            disabled={!cfg.pushEnabled}
-          />
-          <ToggleRow
             icon='📅'
             label='SIP Reminders'
             description='Monthly SIP execution reminder and allocation mismatch alerts'
@@ -486,7 +476,7 @@ export function NotificationSettings() {
             <ul className='space-y-1 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300'>
               <li>💳 Payment dues &amp; overdue warnings</li>
               <li>🛡️ Insurance renewal 30 / 7 / 1 days before</li>
-              <li>🏦 EMI, loan, SIP, lending repayments</li>
+              <li>🏦 EMI, loan, SIP repayments</li>
               <li>🎯 Goals achieved · Investments maturing</li>
               <li>⏳ Trial ending · Receivables pending</li>
             </ul>

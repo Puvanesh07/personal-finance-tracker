@@ -5,11 +5,9 @@
  * Called ONLY after the user taps "Confirm" in the ActionConfirmCard.
  *
  * Covers all CRUD operations:
- *   CREATE  — cashflow, payment, goal, liability, investment, insurance,
- *              account, lending (borrower + transaction)
+ *   CREATE  — cashflow, payment, goal, liability, investment, insurance, account
  *   UPDATE  — payment, goal, liability, investment
- *   DELETE  — payment, goal, liability, investment, insurance, account,
- *              lending borrower
+ *   DELETE  — payment, goal, liability, investment, insurance, account
  *   OTHER   — mark_payment_paid, search_records
  */
 
@@ -239,49 +237,6 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         };
       }
 
-      // ── ADD lending borrower ───────────────────────────────────────────────
-      case 'add_lending_borrower': {
-        await store.addLendingBorrower({
-          name:   action.name,
-          status: 'active',
-          ...(action.phone        ? { phone: action.phone }               : {}),
-          ...(action.interestRate ? { interestRate: action.interestRate } : {}),
-          ...(action.notes        ? { notes: action.notes }               : {}),
-        });
-        return {
-          success: true,
-          message: `✅ Borrower "${action.name}" added.`,
-          linkTo: '/lending',
-        };
-      }
-
-      // ── ADD lending transaction ────────────────────────────────────────────
-      case 'add_lending_transaction': {
-        const hint     = action.borrowerNameHint.toLowerCase();
-        const borrower = store.lendingBorrowers.find(
-          (b) => b.status === 'active' && b.name.toLowerCase().includes(hint),
-        );
-        if (!borrower) {
-          return {
-            success: false,
-            message: `❌ No active borrower matching "${action.borrowerNameHint}" found. Add the borrower first or check the Lending page.`,
-            linkTo: '/lending',
-          };
-        }
-        await store.addLendingTransaction({
-          borrowerId: borrower.id,
-          type:       action.txType,
-          amount:     action.amount,
-          date:       action.date,
-          ...(action.notes ? { notes: action.notes } : {}),
-        });
-        return {
-          success: true,
-          message: `✅ ₹${fmt(action.amount)} ${action.txType.replace(/_/g, ' ')} recorded for "${borrower.name}".`,
-          linkTo: '/lending',
-        };
-      }
-
       // ── UPDATE payment ─────────────────────────────────────────────────────
       case 'update_payment': {
         const hint    = action.titleHint.toLowerCase();
@@ -457,17 +412,6 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return { success: true, message: `✅ Account "${match.name}" deleted.`, linkTo: '/accounts' };
       }
 
-      // ── DELETE lending borrower ────────────────────────────────────────────
-      case 'delete_lending_borrower': {
-        const hint  = action.nameHint.toLowerCase();
-        const match = store.lendingBorrowers.find((b) => b.name.toLowerCase().includes(hint));
-        if (!match) {
-          return { success: false, message: `❌ No borrower matching "${action.nameHint}" found.`, linkTo: '/lending' };
-        }
-        await store.deleteLendingBorrower(match.id);
-        return { success: true, message: `✅ Borrower "${match.name}" deleted.`, linkTo: '/lending' };
-      }
-
       // ── MARK payment paid ──────────────────────────────────────────────────
       case 'mark_payment_paid': {
         const hint    = action.titleHint.toLowerCase();
@@ -521,10 +465,6 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         if (mod.includes('account') || mod === 'records') {
           const hits = store.accounts.filter((a) => a.name.toLowerCase().includes(q));
           results.push(...hits.map((a) => `🏦 ${a.name} — ₹${fmt(a.balance)}`));
-        }
-        if (mod.includes('borrow') || mod.includes('lend') || mod === 'records') {
-          const hits = store.lendingBorrowers.filter((b) => b.name.toLowerCase().includes(q));
-          results.push(...hits.map((b) => `🤝 ${b.name} (${b.status})`));
         }
 
         if (!results.length) {

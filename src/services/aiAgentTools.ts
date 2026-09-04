@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/services/aiAgentTools.ts
  *
  * The FinTrackly AI tool registry.
@@ -839,70 +839,6 @@ export function getAccountsSummary(): AgentResponse {
     summary: `Total balance: ${formatINR(total)} across ${accounts.length} account(s)`,
     items,
     footer: 'From your FinTrackly Accounts.',
-  };
-}
-
-// ─── LENDING ─────────────────────────────────────────────────────────────────
-
-function lendingStats() {
-  const { lendingBorrowers, lendingTransactions } = usePortfolioStore.getState();
-  return lendingBorrowers.map((b) => {
-    const txns     = lendingTransactions.filter((t) => t.borrowerId === b.id);
-    const given    = txns.filter((t) => t.type === 'principal_given').reduce((a, t) => a + t.amount, 0);
-    const returned = txns.filter((t) => t.type === 'principal_returned').reduce((a, t) => a + t.amount, 0);
-    const interest = txns.filter((t) => t.type === 'interest_paid').reduce((a, t) => a + t.amount, 0);
-    return { ...b, given, returned, outstanding: given - returned, interest };
-  });
-}
-
-export function getLendingSummary(): AgentResponse {
-  const stats  = lendingStats();
-  const active = stats.filter((b) => b.status === 'active');
-  if (!active.length) return emptyResponse('No active lending records.', 'Add borrowers in the Lending module.');
-
-  const totalGiven       = active.reduce((a, b) => a + b.given, 0);
-  const totalOutstanding = active.reduce((a, b) => a + b.outstanding, 0);
-  const totalInterest    = active.reduce((a, b) => a + b.interest, 0);
-
-  const items: CardItem[] = active.sort((a, b) => b.outstanding - a.outstanding).map((b) => ({
-    emoji: '🤝',
-    title: b.name,
-    subtitle: `Given: ${formatINR(b.given)} · Returned: ${formatINR(b.returned)}${b.interestRate ? ` · ${b.interestRate}% p.a.` : ''}`,
-    value: formatINR(b.outstanding),
-    valueSub: b.interest > 0 ? `Interest: ${formatINR(b.interest)}` : undefined,
-    severity: b.outstanding > 0 ? 'warning' : 'good',
-    linkTo: '/lending' as string,
-  }));
-
-  return {
-    kind: 'list_card',
-    title: 'Lending Overview',
-    emoji: '🤝',
-    summary: `Total lent: ${formatINR(totalGiven)} · Outstanding: ${formatINR(totalOutstanding)} · Interest collected: ${formatINR(totalInterest)}`,
-    items,
-    footer: 'From your FinTrackly Lending data.',
-  };
-}
-
-export function getLendingOutstanding(): AgentResponse {
-  const stats = lendingStats().filter((b) => b.status === 'active' && b.outstanding > 0);
-  if (!stats.length) return { kind: 'empty', emoji: '✅', message: 'All lending amounts have been fully recovered.' };
-  const total = stats.reduce((a, b) => a + b.outstanding, 0);
-  const items: CardItem[] = stats.sort((a, b) => b.outstanding - a.outstanding).map((b) => ({
-    emoji: '🤝',
-    title: b.name,
-    subtitle: `Lent: ${formatINR(b.given)} · Returned: ${formatINR(b.returned)}`,
-    value: formatINR(b.outstanding),
-    severity: 'warning',
-    linkTo: '/lending' as string,
-  }));
-  return {
-    kind: 'list_card',
-    title: 'Outstanding Lending',
-    emoji: '💰',
-    summary: `Total outstanding: ${formatINR(total)} from ${stats.length} borrower(s)`,
-    items,
-    footer: 'From your FinTrackly Lending data.',
   };
 }
 

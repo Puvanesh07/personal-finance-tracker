@@ -29,7 +29,6 @@ export function useContextualSuggestions(): Suggestion[] {
     trackedPayments,
     insurancePolicies,
     accounts,
-    lendingBorrowers,
   } = usePortfolioStore.getState();
 
   return useMemo(() => {
@@ -124,6 +123,5 @@ export function useContextualSuggestions(): Suggestion[] {
   }, [
     investments, liabilities, cashflows, goals,
     trackedPayments, insurancePolicies, accounts,
-    lendingBorrowers,
   ]);
 }

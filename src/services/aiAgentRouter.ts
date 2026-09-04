@@ -69,7 +69,6 @@ const FINTRACKLY_TOPICS = [
   'payment', 'due date', 'recurring', 'chit fund', 'reminder',
   'insur', 'coverage', 'premium', 'policy', 'nominee', 'renewal',
   'goal', 'target amount', 'financial goal', 'retirement', 'fire',
-  'lending', 'lend', 'borrow', 'borrower',
   'financial', 'finance', 'money', 'rupee', 'inr', 'tax',
   'inflation', 'compounding', 'emergency fund', 'fintrackly',
   'overview', 'situation', 'health', 'risk', 'focus', 'owe',
@@ -99,7 +98,6 @@ const PERSONAL_SIGNALS = [
   'overdue payment', 'paid this',
   'my insur', 'my policy', 'my policies', 'my coverage', 'my premium',
   'my goal', 'my target', 'my financial goal',
-  'my lending', 'my borrower', 'money i lent', 'money i have lent',
   'my financial', 'my current', 'my overall', 'my situation',
   'my health', 'my risk', 'my focus',
   'best performing', 'worst performing', 'top stock', 'biggest loss',
@@ -615,63 +613,6 @@ const INTENT_DEFS: IntentDef[] = [
     ],
   },
 
-  // ── LENDING ─────────────────────────────────────────────────────────────────
-  // KEY FIX: Lending rules now heavily penalise liabilities keywords and vice versa.
-  {
-    id: 'lending',
-    rules: [
-      pos('lending|money.*lent|lent.*money|money i lend', 20),
-      pos('borrower|how much.*lent|lend.*to', 18),
-      pos('i lent|i have lent|outstanding.*lending|lending.*outstanding', 16),
-      pos('money.*owe.*me|owes.*me', 14),
-      // KEY FIX: "outstanding" alone should NOT map here without lending context
-      neg('my loan|my debt|my emi|my liabilit', 15),
-      neg('payment.*due|bill.*due', 8),
-    ],
-  },
-  {
-    id: 'lending_outstanding',
-    rules: [
-      pos('outstanding.*lending|lending.*outstanding|outstanding.*lent', 24),
-      pos('still.*owe.*me|how much.*lent.*outstanding', 20),
-      pos('outstanding.*borrower|borrower.*outstanding', 18),
-      pos('lending|lent', 8),
-      neg('my loan|my debt|my emi|liabilit', 15),
-    ],
-  },
-  {
-    id: 'lending_top_borrower',
-    rules: [
-      pos('owes.*me.*most|who.*owes.*most|borrower.*most|most.*borrow', 22),
-      pos('highest.*borrow|which.*borrower.*most', 18),
-      pos('lending|borrower', 8),
-    ],
-  },
-  {
-    id: 'lending_interest_collected',
-    rules: [
-      // KEY FIX: "interest collected from lending" must not route to liabilities
-      pos('interest.*collect|interest.*receive.*lend|lend.*interest.*receive', 24),
-      pos('how much.*interest.*lend|interest.*from.*borrow', 20),
-      pos('lending', 8),
-    ],
-  },
-  {
-    id: 'lending_overdue',
-    rules: [
-      pos('overdue.*lend|lend.*overdue|overdue.*repay|late.*repay.*lend', 22),
-      pos('borrower.*overdue|overdue.*borrower', 18),
-      pos('lending|borrower', 8),
-    ],
-  },
-  {
-    id: 'lending_recovered',
-    rules: [
-      pos('recover.*lend|lend.*recover|recoup', 22),
-      pos('how much.*recover.*lend|repaid.*lend', 18),
-      pos('lending', 8),
-    ],
-  },
 ];
 
 // ─── Scorer ───────────────────────────────────────────────────────────────────

@@ -9,8 +9,6 @@ import type {
   GoalContribution,
   InsurancePayment,
   Investment,
-  LendingBorrower,
-  LendingTransaction,
   Liability,
   PendingPayment,
   TrackedPayment,
@@ -52,8 +50,6 @@ export type BackupPayload = {
   essentials: EssentialsConfig;
   insurancePolicies?: any[];
   insurancePayments?: InsurancePayment[];
-  lendingBorrowers?: LendingBorrower[];
-  lendingTransactions?: LendingTransaction[];
   sipPlans?: any[];
   soldTrades?: any[];
   pendingPayments?: PendingPayment[];
@@ -103,8 +99,6 @@ export async function exportFullBackup(uid: string) {
     accounts,
     insurancePolicies,
     insurancePayments,
-    lendingBorrowers,
-    lendingTransactions,
     sipPlans,
     soldTrades,
     pendingPayments,
@@ -122,8 +116,6 @@ export async function exportFullBackup(uid: string) {
     fetchSub<Account>(uid, 'accounts'),
     fetchSub<any>(uid, 'insurancePolicies'),
     fetchSub<InsurancePayment>(uid, 'insurancePayments'),
-    fetchSub<LendingBorrower>(uid, 'lendingBorrowers'),
-    fetchSub<LendingTransaction>(uid, 'lendingTransactions'),
     fetchSub<any>(uid, 'sipPlans'),
     fetchSub<any>(uid, 'soldTrades'),
     fetchSub<PendingPayment>(uid, 'pendingPayments'),
@@ -153,8 +145,6 @@ export async function exportFullBackup(uid: string) {
     essentials: settings?.essentials ?? {},
     insurancePolicies,
     insurancePayments,
-    lendingBorrowers,
-    lendingTransactions,
     sipPlans,
     soldTrades,
     pendingPayments,
@@ -191,8 +181,6 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'accounts', parsed.accounts ?? []),
     batchSet(uid, 'insurancePolicies', parsed.insurancePolicies ?? []),
     batchSet(uid, 'insurancePayments', parsed.insurancePayments ?? []),
-    batchSet(uid, 'lendingBorrowers', parsed.lendingBorrowers ?? []),
-    batchSet(uid, 'lendingTransactions', parsed.lendingTransactions ?? []),
     batchSet(uid, 'sipPlans', parsed.sipPlans ?? []),
     batchSet(uid, 'soldTrades', parsed.soldTrades ?? []),
     batchSet(uid, 'pendingPayments', parsed.pendingPayments ?? []),

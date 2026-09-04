@@ -3,7 +3,6 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -43,7 +42,7 @@ export function listenSubscriptionNotifications(
   const q = query(
     collection(db, 'notifications', uid, 'items'),
     orderBy('createdAt', 'desc'),
-    limit(50),
+    limit(20),
   );
 
   return onSnapshot(
@@ -74,13 +73,13 @@ export async function markNotificationRead(uid: string, notificationId: string) 
   await updateDoc(doc(db, 'notifications', uid, 'items', notificationId), { read: true });
 }
 
-export async function markAllNotificationsRead(uid: string) {
-  const q = query(collection(db, 'notifications', uid, 'items'), limit(50));
-  const snap = await getDocs(q);
+export async function markAllNotificationsRead(uid: string, unreadIds: string[]) {
+  if (!unreadIds.length) return;
+  // Use IDs passed from in-memory state — avoids a full collection read
   await Promise.all(
-    snap.docs
-      .filter((d) => !d.data().read)
-      .map((d) => updateDoc(d.ref, { read: true })),
+    unreadIds.map((id) =>
+      updateDoc(doc(db, 'notifications', uid, 'items', id), { read: true }),
+    ),
   );
 }
 
@@ -89,8 +88,13 @@ export async function initializeTrialIfMissing(): Promise<void> {
   const email = auth.currentUser?.email?.trim().toLowerCase() ?? '';
   if (!uid) return;
 
+  // Skip if already run this browser session — avoids a Firestore read on every refresh
+  const sessionKey = `ft_trial_init_${uid}`;
   const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL ?? '').trim().toLowerCase();
   const isOwner = ownerEmail && email === ownerEmail;
+  // Always re-run for owner so their lifetime grant is kept current
+  if (!isOwner && sessionStorage.getItem(sessionKey) === '1') return;
+
   const ref = doc(db, 'users', uid);
 
   try {
@@ -161,7 +165,10 @@ export async function initializeTrialIfMissing(): Promise<void> {
   } catch (err) {
     // Silently fail — subscription context will still read existing Firestore state
     console.warn('[initializeTrialIfMissing] client-side init failed:', err);
+    return; // Don't set the session flag if the write failed
   }
+  // Mark as done for this browser session so we skip the Firestore read on next refresh
+  try { sessionStorage.setItem(sessionKey, '1'); } catch { /* private browsing */ }
 }
 
 export async function createRazorpayOrder(plan: PaidPlan): Promise<{
@@ -179,15 +186,6 @@ export async function createRazorpayOrder(plan: PaidPlan): Promise<{
     isTestMode: boolean;
   }>(functions, 'createRazorpayOrder');
   const result = await fn({ plan });
-  return result.data;
-}
-
-export async function resetTestSubscription(): Promise<{ success: boolean; reset: boolean }> {
-  const fn = httpsCallable<void, { success: boolean; reset: boolean }>(
-    functions,
-    'resetTestSubscription',
-  );
-  const result = await fn();
   return result.data;
 }
 
@@ -390,18 +388,11 @@ export async function payWithStandardCheckout(params: {
   });
 }
 
-export async function simulateTestSubscription(plan: PaidPlan): Promise<{
-  success: boolean;
-  plan: PaidPlan;
-  simulated: boolean;
-}> {
-  const fn = httpsCallable<{ plan: PaidPlan }, {
-    success: boolean;
-    plan: PaidPlan;
-    simulated: boolean;
-  }>(functions, 'simulateTestSubscription', { timeout: 20000 });
-  const result = await fn({ plan });
-  return result.data;
+export async function simulateTestSubscription(_plan: PaidPlan): Promise<void> {
+  // simulateTestSubscription Cloud Function was removed.
+  // Test payments now go via initiateUpiCollect with success@razorpay VPA,
+  // which handles the test-mode activation server-side.
+  throw new Error('simulateTestSubscription is no longer available. Use success@razorpay as VPA instead.');
 }
 
 export async function initiateUpiCollect(params: {
@@ -566,42 +557,6 @@ export async function payWithUpiApp(params: {
   return submitRazorpayPayment(params.keyId, baseData, intentMap[params.app]);
 }
 
-export interface TestPushNotificationsResult {
-  ok: boolean;
-  reason?: string;
-  deviceCount?: number;
-  userEmail?: string;
-  settings?: Record<string, unknown>;
-  results?: string[];
-}
-
-export async function testPushNotifications(options?: {
-  force?: boolean;
-}): Promise<TestPushNotificationsResult> {
-  const fn = httpsCallable<
-    { force?: boolean },
-    TestPushNotificationsResult
-  >(functions, 'testPushNotifications', { timeout: 120000 });
-  const res = await fn({ force: options?.force ?? false });
-  return res.data;
-}
-
-export interface ClearNotificationDedupResult {
-  ok: boolean;
-  uid: string;
-  deleted: number;
-  message: string;
-}
-
-export async function clearNotificationDedup(): Promise<ClearNotificationDedupResult> {
-  const fn = httpsCallable<void, ClearNotificationDedupResult>(
-    functions,
-    'clearNotificationDedup',
-    { timeout: 60000 },
-  );
-  const res = await fn();
-  return res.data;
-}
 
 export function loadRazorpayCustomScript(): Promise<void> {
   return new Promise((resolve, reject) => {

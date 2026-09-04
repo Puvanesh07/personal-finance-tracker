@@ -102,10 +102,17 @@ function ScoreRing({ score }: { score: number }) {
 
 export function CommandCenter() {
   const navigate = useNavigate();
-  const {
-    investments, liabilities, cashflows, goals, goalContributions,
-    essentials, networthSnapshots, trackedPayments, accounts,
-  } = usePortfolioStore();
+
+  // Specific selectors — only re-render when the data this component uses changes
+  const investments      = usePortfolioStore((s) => s.investments);
+  const liabilities      = usePortfolioStore((s) => s.liabilities);
+  const cashflows        = usePortfolioStore((s) => s.cashflows);
+  const goals            = usePortfolioStore((s) => s.goals);
+  const goalContributions = usePortfolioStore((s) => s.goalContributions);
+  const essentials       = usePortfolioStore((s) => s.essentials);
+  const networthSnapshots = usePortfolioStore((s) => s.networthSnapshots);
+  const trackedPayments  = usePortfolioStore((s) => s.trackedPayments);
+  const accounts         = usePortfolioStore((s) => s.accounts);
 
   const proactiveInsights = useProactiveInsights();
 

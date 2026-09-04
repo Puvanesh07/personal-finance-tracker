@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/services/aiAgentDataFetcher.ts
  *
  * Every intent from aiAgentRouter.ts has a matching case here.
@@ -1454,201 +1454,6 @@ function fetchAccountsCash(): AgentDataResult {
   return { answer: lines.join('\n') };
 }
 
-// ─── LENDING fetchers ─────────────────────────────────────────────────────────
-
-function getLendingStats() {
-  const { lendingBorrowers, lendingTransactions } = usePortfolioStore.getState();
-  return lendingBorrowers.map((b) => {
-    const txns     = lendingTransactions.filter((t) => t.borrowerId === b.id);
-    const given    = txns.filter((t) => t.type === 'principal_given').reduce((a, t) => a + t.amount, 0);
-    const returned = txns.filter((t) => t.type === 'principal_returned').reduce((a, t) => a + t.amount, 0);
-    const interest = txns.filter((t) => t.type === 'interest_paid').reduce((a, t) => a + t.amount, 0);
-    return { ...b, given, returned, outstanding: given - returned, interest };
-  });
-}
-
-function fetchLendingData(): AgentDataResult {
-  const stats  = getLendingStats();
-  const active = stats.filter((b) => b.status === 'active');
-  if (!active.length) return noData('Lending');
-  const totalGiven       = active.reduce((a, b) => a + b.given, 0);
-  const totalOutstanding = active.reduce((a, b) => a + b.outstanding, 0);
-  const totalInterest    = active.reduce((a, b) => a + b.interest, 0);
-  const lines = [
-    `## 🤝 Lending Overview`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Total Lent** | ${formatINR(totalGiven)} |`,
-    `| **Total Outstanding** | ${formatINR(totalOutstanding)} |`,
-    `| **Interest Received** | ${formatINR(totalInterest)} |`,
-    `| **Active Borrowers** | ${active.length} |`,
-    ``,
-    `| Borrower | Lent | Returned | Outstanding | Interest |`, `|---|---|---|---|---|`,
-    ...active.sort((a, b) => b.outstanding - a.outstanding).map(
-      (b) => `| **${b.name}** | ${formatINR(b.given)} | ${formatINR(b.returned)} | ${formatINR(b.outstanding)} | ${formatINR(b.interest)} |`,
-    ),
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchLendingTotal(): AgentDataResult {
-  const stats = getLendingStats();
-  if (!stats.length) return noData('Lending');
-  const total   = stats.reduce((a, b) => a + b.given, 0);
-  const active  = stats.filter((b) => b.status === 'active');
-  const closed  = stats.filter((b) => b.status === 'closed');
-  const lines   = [
-    `## 💰 Total Money Lent`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Total Lent (all time)** | ${formatINR(total)} |`,
-    `| **Active Loans** | ${active.length} (${formatINR(active.reduce((a, b) => a + b.given, 0))}) |`,
-    `| **Closed Loans** | ${closed.length} (${formatINR(closed.reduce((a, b) => a + b.given, 0))}) |`,
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchLendingOutstanding(): AgentDataResult {
-  const stats  = getLendingStats().filter((b) => b.status === 'active' && b.outstanding > 0);
-  if (!stats.length) return { answer: '✅ All lending amounts have been fully recovered.' };
-  const total  = stats.reduce((a, b) => a + b.outstanding, 0);
-  const sorted = [...stats].sort((a, b) => b.outstanding - a.outstanding);
-  const lines  = [
-    `## 💰 Outstanding Lending`,
-    ``,
-    `**Total Outstanding: ${formatINR(total)}** from ${stats.length} borrower(s)`,
-    ``,
-    `| Borrower | Lent | Returned | Outstanding |`, `|---|---|---|---|`,
-    ...sorted.map((b) => `| **${b.name}** | ${formatINR(b.given)} | ${formatINR(b.returned)} | **${formatINR(b.outstanding)}** |`),
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchLendingBorrowerCount(): AgentDataResult {
-  const stats  = getLendingStats();
-  const active = stats.filter((b) => b.status === 'active');
-  const closed = stats.filter((b) => b.status === 'closed');
-  const lines  = [
-    `## 👥 Borrower Count`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Active Borrowers** | ${active.length} |`,
-    `| **Closed / Repaid** | ${closed.length} |`,
-    `| **Total** | ${stats.length} |`,
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchLendingTopBorrower(): AgentDataResult {
-  const stats  = getLendingStats().filter((b) => b.status === 'active');
-  if (!stats.length) return noData('Lending');
-  const sorted = [...stats].sort((a, b) => b.outstanding - a.outstanding);
-  const top    = sorted[0];
-  const lines  = [
-    `## 🥇 Borrower Who Owes the Most`,
-    ``,
-    `**${top.name}** — Outstanding: **${formatINR(top.outstanding)}**`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Total Lent** | ${formatINR(top.given)} |`,
-    `| **Returned** | ${formatINR(top.returned)} |`,
-    `| **Outstanding** | ${formatINR(top.outstanding)} |`,
-    `| **Interest Received** | ${formatINR(top.interest)} |`,
-    top.interestRate ? `| **Interest Rate** | ${top.interestRate}% p.a. |` : '',
-    ``,
-    sorted.length > 1 ? `All active borrowers by outstanding:` : '',
-    ...sorted.map((b) => `- **${b.name}**: ${formatINR(b.outstanding)}`),
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.filter((l) => l !== '').join('\n') };
-}
-
-function fetchLendingInterestCollected(): AgentDataResult {
-  const stats = getLendingStats();
-  if (!stats.length) return noData('Lending');
-  const total   = stats.reduce((a, b) => a + b.interest, 0);
-  const withInt = stats.filter((b) => b.interest > 0).sort((a, b) => b.interest - a.interest);
-  const lines   = [
-    `## 💹 Interest Received from Lending`,
-    ``,
-    `**Total Interest Collected: ${formatINR(total)}**`,
-    ``,
-    withInt.length
-      ? `| Borrower | Interest Received |\n|---|---|\n` +
-        withInt.map((b) => `| **${b.name}** | ${formatINR(b.interest)} |`).join('\n')
-      : `No interest payments recorded yet.`,
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchLendingHighestRate(): AgentDataResult {
-  const { lendingBorrowers } = usePortfolioStore.getState();
-  const withRate = lendingBorrowers.filter((b) => b.status === 'active' && b.interestRate).sort((a, b) => (b.interestRate ?? 0) - (a.interestRate ?? 0));
-  if (!withRate.length) return { answer: '📭 No interest rates set for active lending records.' };
-  const top   = withRate[0];
-  const stats = getLendingStats();
-  const topStats = stats.find((b) => b.id === top.id);
-  const lines = [
-    `## 📈 Lending with Highest Interest Rate`,
-    ``,
-    `**${top.name}** at **${top.interestRate}% p.a.**`,
-    ``,
-    topStats
-      ? `| | |\n|---|---|\n| **Outstanding** | ${formatINR(topStats.outstanding)} |\n| **Interest Collected** | ${formatINR(topStats.interest)} |`
-      : '',
-    ``,
-    `All rates:`,
-    ...withRate.map((b) => `- **${b.name}**: ${b.interestRate}% p.a.`),
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.filter((l) => l !== '').join('\n') };
-}
-
-function fetchLendingOverdue(): AgentDataResult {
-  const { lendingBorrowers } = usePortfolioStore.getState();
-  const today   = new Date().toISOString().slice(0, 10);
-  const overdue = lendingBorrowers.filter((b) => b.status === 'active' && b.nextDueDate && b.nextDueDate < today);
-  if (!overdue.length) return { answer: '✅ No overdue lending repayments found.' };
-  const stats = getLendingStats();
-  const lines = [
-    `## ⚠️ Overdue Lending Repayments`,
-    ``,
-    `| Borrower | Due Date | Outstanding |`, `|---|---|---|`,
-    ...overdue.map((b) => {
-      const s = stats.find((x) => x.id === b.id);
-      return `| **${b.name}** | ${b.nextDueDate} ⚠️ | ${s ? formatINR(s.outstanding) : '—'} |`;
-    }),
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
-function fetchLendingRecovered(): AgentDataResult {
-  const stats = getLendingStats();
-  if (!stats.length) return noData('Lending');
-  const totalGiven     = stats.reduce((a, b) => a + b.given, 0);
-  const totalReturned  = stats.reduce((a, b) => a + b.returned, 0);
-  const totalInterest  = stats.reduce((a, b) => a + b.interest, 0);
-  const totalRecovered = totalReturned + totalInterest;
-  const lines = [
-    `## 💰 Lending Recovery Summary`,
-    ``,
-    `| | |`, `|---|---|`,
-    `| **Total Lent** | ${formatINR(totalGiven)} |`,
-    `| **Principal Returned** | ${formatINR(totalReturned)} |`,
-    `| **Interest Collected** | ${formatINR(totalInterest)} |`,
-    `| **Total Recovered** | **${formatINR(totalRecovered)}** |`,
-    `| **Still Outstanding** | ${formatINR(Math.max(0, totalGiven - totalReturned))} |`,
-    ``, `*From your FinTrackly Lending data.*`,
-  ];
-  return { answer: lines.join('\n') };
-}
-
 // ─── NET WORTH / STOCK LOOKUP helpers ────────────────────────────────────────
 
 function fetchNetWorthData(): AgentDataResult {
@@ -1757,7 +1562,7 @@ function fetchStockBySymbol(symbol: string): AgentDataResult {
 export function generateFullReport(): string {
   const {
     investments, liabilities, cashflows, goals, accounts,
-    trackedPayments, insurancePolicies, lendingBorrowers,
+    trackedPayments, insurancePolicies,
   } = usePortfolioStore.getState();
   const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
   const avgIncome  = monthlyAvg(cashflows, 'income');
@@ -1784,8 +1589,6 @@ export function generateFullReport(): string {
                                     sections.push(fetchGoalsData().answer, ``);
   if (insurancePolicies.length)     sections.push(fetchInsuranceData().answer, ``);
   if (accounts.length)              sections.push(fetchAccountsData().answer, ``);
-  if (lendingBorrowers.filter((b) => b.status === 'active').length)
-                                    sections.push(fetchLendingData().answer, ``);
 
   return sections.length > 1
     ? sections.join('\n')
@@ -1872,18 +1675,6 @@ export function fetchPersonalData(
     case 'accounts_highest':      return fetchAccountsHighest();
     case 'accounts_distribution': return fetchAccountsDistribution();
     case 'accounts_cash':         return fetchAccountsCash();
-
-    // Lending
-    case 'lending':                    return fetchLendingData();
-    case 'lending_total':              return fetchLendingTotal();
-    case 'lending_outstanding':        return fetchLendingOutstanding();
-    case 'lending_borrower_count':     return fetchLendingBorrowerCount();
-    case 'lending_top_borrower':       return fetchLendingTopBorrower();
-    case 'lending_interest_collected': return fetchLendingInterestCollected();
-    case 'lending_highest_rate':       return fetchLendingHighestRate();
-    case 'lending_overdue':            return fetchLendingOverdue();
-    case 'lending_recovered':          return fetchLendingRecovered();
-
     // Fallbacks
     case 'net_worth':
     case 'general_personal':
@@ -1928,8 +1719,6 @@ import {
   getGoalClosestToCompletion,
   getGoalsOnTrack,
   getAccountsSummary,
-  getLendingSummary,
-  getLendingOutstanding,
 } from './aiAgentTools';
 
 export function fetchAgentResponse(
@@ -2017,18 +1806,6 @@ export function fetchAgentResponse(
     case 'accounts_highest':      return getAccountsSummary();
     case 'accounts_distribution': return getAccountsSummary();
     case 'accounts_cash':         return getAccountsSummary();
-
-    // Lending
-    case 'lending':                    return getLendingSummary();
-    case 'lending_total':              return getLendingSummary();
-    case 'lending_outstanding':        return getLendingOutstanding();
-    case 'lending_borrower_count':     return getLendingSummary();
-    case 'lending_top_borrower':       return getLendingOutstanding();
-    case 'lending_interest_collected': return getLendingSummary();
-    case 'lending_highest_rate':       return getLendingSummary();
-    case 'lending_overdue':            return getLendingOutstanding();
-    case 'lending_recovered':          return getLendingSummary();
-
     default: {
       if (process.env.NODE_ENV !== 'production') {
         console.warn('[AIAgent] fetchAgentResponse: unhandled intent', { intent, symbol, dateScope });

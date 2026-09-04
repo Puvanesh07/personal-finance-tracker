@@ -18,7 +18,6 @@ import { CommandCenter }                  from '../../components/dashboard/Comma
 import { DashboardAccountsSummary }       from '../../components/dashboard/DashboardAccountsSummary';
 import { DashboardCashflowSummary }       from '../../components/dashboard/DashboardCashflowSummary';
 import { DashboardInsuranceSummary }      from '../../components/dashboard/DashboardInsuranceSummary';
-import { DashboardLendingSummary }        from '../../components/dashboard/DashboardLendingSummary';
 import { DashboardLiabilitiesSummary }    from '../../components/dashboard/DashboardLiabilitiesSummary';
 import { DashboardPaymentsSummary }       from '../../components/dashboard/DashboardPaymentsSummary';
 import { DashboardSIPSummary }            from '../../components/dashboard/DashboardSIPSummary';
@@ -144,12 +143,11 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Row 2: Liabilities · Lending · SIP ── */}
+      {/* ── Row 2: Liabilities · SIP ── */}
       <section>
         <SectionHeading icon={FiTrendingDown} label='Obligations & Planning' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-3'>
+        <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-2'>
           <DashboardLiabilitiesSummary />
-          <DashboardLendingSummary />
           <DashboardSIPSummary />
         </div>
       </section>

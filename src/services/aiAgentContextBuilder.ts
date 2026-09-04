@@ -60,8 +60,6 @@ export function buildAgentContext(): Record<string, unknown> {
     accounts,
     trackedPayments,
     insurancePolicies,
-    lendingBorrowers,
-    lendingTransactions,
     essentials,
   } = usePortfolioStore.getState();
 
@@ -231,26 +229,6 @@ export function buildAgentContext(): Record<string, unknown> {
     })),
   } : undefined;
 
-  // ── Lending ──────────────────────────────────────────────────────────────
-  const activeBorrowers = lendingBorrowers.filter((b) => b.status === 'active');
-  const lendingCtx = activeBorrowers.length > 0 ? {
-    activeBorrowerCount: activeBorrowers.length,
-    borrowers: activeBorrowers.map((b) => {
-      const txns     = lendingTransactions.filter((t) => t.borrowerId === b.id);
-      const given    = txns.filter((t) => t.type === 'principal_given').reduce((a, t) => a + t.amount, 0);
-      const returned = txns.filter((t) => t.type === 'principal_returned').reduce((a, t) => a + t.amount, 0);
-      const interest = txns.filter((t) => t.type === 'interest_paid').reduce((a, t) => a + t.amount, 0);
-      return {
-        name:                b.name,
-        principalGiven:      given,
-        principalReturned:   returned,
-        outstanding:         given - returned,
-        interestCollected:   interest,
-        interestRate:        b.interestRate ?? null,
-      };
-    }),
-  } : null;
-
   // ── Emergency fund ───────────────────────────────────────────────────────
   const emergencyFundCtx = (essentials.emergencyFundTarget || essentials.emergencyFundCurrent)
     ? {
@@ -273,7 +251,6 @@ export function buildAgentContext(): Record<string, unknown> {
     ...(insuranceCtx    ? { insurance:     insuranceCtx    } : {}),
     ...(accountsCtx     ? { accounts:      accountsCtx     } : {}),
     ...(emergencyFundCtx? { emergencyFund: emergencyFundCtx} : {}),
-    lending:     lendingCtx  ?? null,
   };
 }
 

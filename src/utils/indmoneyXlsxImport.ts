@@ -1,4 +1,6 @@
-import ExcelJS from 'exceljs'
+// ExcelJS is dynamically imported inside parseIndmoneyXlsx to keep it out of
+// the initial bundle — it's only needed when the user actually triggers an import.
+import type ExcelJS from 'exceljs';
 
 export type IndmoneyDraft =
   | {
@@ -142,6 +144,8 @@ function sheetPreview(sheet: ExcelJS.Worksheet) {
 }
 
 export async function parseIndmoneyXlsx(file: File): Promise<IndmoneyDraft[]> {
+  // Dynamically import ExcelJS so it is excluded from the initial JS bundle
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook()
   const buf = await file.arrayBuffer()
   await workbook.xlsx.load(buf)

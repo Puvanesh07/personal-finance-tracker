@@ -95,8 +95,6 @@ export const USER_SUBCOLLECTIONS = [
   'credentials',
   'insurancePolicies',
   'insurancePayments',
-  'lendingBorrowers',
-  'lendingTransactions',
   'sipPlans',
   'networthSnapshots',
   'insights',

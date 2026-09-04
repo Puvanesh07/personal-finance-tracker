@@ -28,8 +28,8 @@ const USER_SUBCOLLECTIONS = [
   'investments', 'snapshots', 'liabilities', 'cashflows',
   'goals', 'goalContributions', 'accounts', 'soldTrades',
   'pendingPayments', 'trackedPayments', 'credentials',
-  'insurancePolicies', 'insurancePayments', 'lendingBorrowers',
-  'lendingTransactions', 'sipPlans', 'networthSnapshots',
+  'insurancePolicies', 'insurancePayments',
+  'sipPlans', 'networthSnapshots',
   'insights', 'settings', 'notificationSettings',
 ];
 

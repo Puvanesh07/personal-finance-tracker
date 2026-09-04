@@ -82,8 +82,6 @@ export function ExportImport() {
     'Insurance Payments':  state.insurancePayments?.length ?? 0,
     'SIP Instruments':     sipInstrumentCount,
     'SIP Budget':          sipBudgetCount,
-    'Lending Borrowers':   state.lendingBorrowers?.length ?? 0,
-    'Lending Transactions':state.lendingTransactions?.length ?? 0,
     'Net Worth Snapshots': state.networthSnapshots?.length ?? 0,
   };
 
@@ -170,8 +168,6 @@ export function ExportImport() {
         'Insurance Payments':   parsed.insurancePayments?.length ?? 0,
         'SIP Instruments':      parsedSipInstruments,
         'SIP Budget':           parsedSipBudget,
-        'Lending Borrowers':    parsed.lendingBorrowers?.length ?? 0,
-        'Lending Transactions': parsed.lendingTransactions?.length ?? 0,
         'Net Worth Snapshots':  parsed.networthSnapshots?.length ?? 0,
       };
 

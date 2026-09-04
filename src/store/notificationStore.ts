@@ -38,8 +38,6 @@ export type NotifType =
   | 'pending_payment_overdue'
   | 'payment_tracker_due'
   | 'payment_tracker_overdue'
-  | 'lending_due'
-  | 'lending_overdue'
   | 'sip_reminder'
   | 'sip_allocation_mismatch'
   | 'credential_stale'
@@ -206,8 +204,6 @@ export const NOTIF_CATEGORY: Record<NotifType, string> = {
   pending_payment_overdue: 'Payments',
   payment_tracker_due: 'Payments',
   payment_tracker_overdue: 'Payments',
-  lending_due: 'Lending',
-  lending_overdue: 'Lending',
   sip_reminder: 'SIP',
   sip_allocation_mismatch: 'SIP',
   credential_stale: 'Security',
@@ -249,8 +245,6 @@ export const NOTIF_ICONS: Record<NotifType, string> = {
   pending_payment_overdue: '⚠️',
   payment_tracker_due: '🔔',
   payment_tracker_overdue: '📌',
-  lending_due: '🤝',
-  lending_overdue: '❗',
   sip_reminder: '📅',
   sip_allocation_mismatch: '🧭',
   credential_stale: '🔐',
@@ -292,8 +286,6 @@ export const NOTIF_COLORS: Record<NotifType, string> = {
   pending_payment_overdue: 'bg-orange-500/10 border-orange-500/30',
   payment_tracker_due: 'bg-sky-500/10 border-sky-500/20',
   payment_tracker_overdue: 'bg-rose-500/10 border-rose-500/30',
-  lending_due: 'bg-cyan-500/10 border-cyan-500/20',
-  lending_overdue: 'bg-orange-500/15 border-orange-500/30',
   sip_reminder: 'bg-cyan-500/10 border-cyan-500/20',
   sip_allocation_mismatch: 'bg-violet-500/10 border-violet-500/20',
   credential_stale: 'bg-slate-500/10 border-slate-500/30',
