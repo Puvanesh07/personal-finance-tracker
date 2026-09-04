@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/pages/Timeline/NetWorthTimelinePage.tsx
  *
  * Net Worth Timeline — Feature 3.
@@ -14,6 +14,7 @@ import {
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { calculateNetWorth } from '../../utils/calculations';
 import { formatINR, formatNumber } from '../../utils/format';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ export default function NetWorthTimelinePage() {
             <FiTrendingUp className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Net Worth Timeline</h1>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>Net Worth Timeline <FeatureInfo feature='timeline' /></h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               Track how your wealth grows over time.
             </p>

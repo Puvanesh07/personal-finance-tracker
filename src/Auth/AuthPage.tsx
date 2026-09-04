@@ -394,7 +394,7 @@ export default function AuthPage() {
                 whileTap={{ scale: 0.97 }}
                 transition={{ duration: 0.15 }}
               >
-                Get Started Free
+                Get Started
                 <FiArrowRight className='h-3.5 w-3.5' />
               </motion.button>
             </div>
@@ -429,7 +429,7 @@ export default function AuthPage() {
                   color: '#f8fafc',
                 }}
               >
-                India's only personal
+                Your complete personal
                 <br />
                 <span
                   style={{
@@ -440,7 +440,7 @@ export default function AuthPage() {
                     backgroundClip: 'text',
                   }}
                 >
-                  finance tracker.
+                  finance dashboard.
                 </span>
               </motion.h1>
 
@@ -450,9 +450,9 @@ export default function AuthPage() {
                 style={{ color: 'rgba(226,232,240,0.52)' }}
               >
                 Track net worth, stocks, mutual funds, SIPs, crypto, gold, FDs,
-                PPF and expenses across 20+ asset classes. Import from Zerodha,
-                Groww, Angel One & INDmoney. No broker credentials. No
-                third-party tracking. Just you and your data.
+                PPF, NPS, insurance, and expenses across 20+ asset classes.
+                Import from Zerodha, Groww, Angel One &amp; INDmoney. No broker
+                credentials required. Your data stays private and encrypted.
               </motion.p>
 
               <motion.div
@@ -544,12 +544,12 @@ export default function AuthPage() {
                 className='flex flex-wrap items-center justify-center gap-3 mb-16'
               >
                 {[
-                  '14 Built Modules',
+                  '20+ Asset Classes',
                   'Stocks · MFs · SIPs · Crypto · Gold',
                   'Import Zerodha · Groww · Angel One',
-                  'PPF · NPS · FD Tracker',
-                  'Notion Sync',
-                  '100% Free & Private',
+                  'PPF · NPS · FD · Insurance Tracker',
+                  'AI Financial Coach',
+                  'Private & Secure',
                   'CSV & Excel Export',
                   'NSE 500+ Stocks',
                 ].map((s, i) => (
@@ -1112,7 +1112,7 @@ export default function AuthPage() {
                     ) : (
                       <>
                         <FcGoogle className='text-xl' />
-                        Start Free with Google
+                        Continue with Google
                         <FiArrowRight />
                       </>
                     )}
@@ -1176,7 +1176,7 @@ export default function AuthPage() {
                   'Bank Account Tracker',
                   'Notion Finance Sync',
                   'NSE Stock Data India',
-                  'Free Finance App India',
+                  'Budget Management',
                   'Personal Finance Dashboard',
                 ].map((tag, i) => (
                   <span
@@ -1221,7 +1221,7 @@ export default function AuthPage() {
               className='text-xs cursor-pointer'
               style={{ color: 'rgba(148,163,184,0.85)' }}
             >
-              © 2026 Fintrackly · Free personal finance tracker & investment
+              © 2026 Fintrackly · Personal finance tracker &amp; investment
               portfolio manager for India
             </p>
           </footer>

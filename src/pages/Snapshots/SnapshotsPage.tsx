@@ -1,4 +1,4 @@
-// src/pages/Snapshots/SnapshotsPage.tsx
+﻿// src/pages/Snapshots/SnapshotsPage.tsx
 //
 // REVAMPED: Full snapshot coverage — investments, cashflow, accounts, goals,
 // insurance, lending, SIP, liabilities, realized profits, and net worth.
@@ -31,6 +31,7 @@ import {
 } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import type { NetWorthSnapshot } from '../../types/investmentTypes';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -532,8 +533,9 @@ export function SnapshotsPage() {
               <FiCamera className='h-6 w-6' />
             </div>
             <div>
-              <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>
+              <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>
                 Net Worth Snapshots
+                <FeatureInfo feature='snapshots' />
               </h1>
               <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
                 Freeze your entire financial picture at any moment — investments, cashflow, goals, insurance, lending, SIP, and more.

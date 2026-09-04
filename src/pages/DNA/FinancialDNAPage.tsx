@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { computeFinancialDNA } from '../../utils/financialDNA';
 import { formatNumber } from '../../utils/format';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 const COLOR_CLASSES: Record<string, { bar: string; text: string; bg: string; border: string }> = {
   emerald: { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-700/40' },
@@ -29,7 +30,7 @@ export default function FinancialDNAPage() {
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-lg text-2xl'>🧬</div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Financial DNA</h1>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>Financial DNA <FeatureInfo feature='dna' /></h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>Your 5 financial behaviour dimensions based on actual data.</p>
           </div>
         </div>

@@ -53,9 +53,16 @@ export default function AuthWrapper({
 
       if (isSameUser) return;
 
+      // Only navigate to /dashboard when the user lands on the bare root path ("/").
+      // On a refresh of any other page (e.g. /settings, /cashflow) we stay on that page.
+      // hasNavigated prevents a second navigation if both peekCurrentUser AND
+      // onAuthStateChanged fire for the same login event.
       if (!hasNavigated.current) {
         hasNavigated.current = true;
-        navigate('/dashboard', { replace: true });
+        const landingPath = window.location.pathname;
+        if (landingPath === '/' || landingPath === '') {
+          navigate('/dashboard', { replace: true });
+        }
       }
 
       void hydrate(user.uid).catch(() => {

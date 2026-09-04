@@ -1,4 +1,4 @@
-// src/pages/Insights/InsightsPage.tsx
+﻿// src/pages/Insights/InsightsPage.tsx
 
 import type {
   CashflowEntry,
@@ -24,6 +24,7 @@ import {
   summarizePortfolio,
 } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EDUCATIONAL CONTENT DICTIONARY
@@ -722,8 +723,9 @@ export default function InsightsPage() {
             <FiZap className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>
               Financial Insights
+              <FeatureInfo feature='insights' />
             </h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               {latestInsight

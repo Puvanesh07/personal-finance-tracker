@@ -31,11 +31,11 @@
   <link rel="shortcut icon" href="/icons/favicon-32x32.png" />
 
   <!-- ── Primary SEO ── -->
-  <title>Fintrackly – Finance &amp; Investment Tracker for Indian Investors</title>
+  <title>Fintrackly – Personal Finance &amp; Investment Tracker for India</title>
   <meta name="description"
-    content="Fintrackly is India's only  tracker for investors. Track stocks, mutual funds, SIPs, FDs, PPF, NPS, net worth and financial goals — all in one private dashboard. No ads. 100% ." />
+    content="Fintrackly is a personal finance management app for Indian investors. Track net worth, stocks, mutual funds, SIPs, FDs, PPF, NPS, expenses, and financial goals — all in one private dashboard. Import from Zerodha, Groww &amp; Angel One." />
   <meta name="keywords"
-    content=" personal finance tracker India, investment portfolio tracker India, net worth tracker India, mutual fund tracker India, SIP tracker India, stock portfolio tracker India, Zerodha portfolio tracker, Groww import, Angel One import, FD tracker India, PPF tracker India, NPS tracker, Fintrackly" />
+    content="personal finance tracker India, investment portfolio tracker India, net worth tracker India, mutual fund tracker India, SIP tracker India, stock portfolio tracker India, Zerodha portfolio tracker, Groww import, Angel One import, FD tracker India, PPF tracker India, NPS tracker, expense tracker India, budget tracker India, financial goal tracker India, Fintrackly" />
   <meta name="author" content="Fintrackly" />
   <meta name="robots" content="index, follow" />
 
@@ -50,22 +50,21 @@
   <meta property="og:url" content="https://fintrackly.web.app/" />
   <meta property="og:site_name" content="Fintrackly" />
   <meta property="og:title"
-    content="Fintrackly –  Finance &amp; Investment Tracker for Indian Investors" />
+    content="Fintrackly – Personal Finance &amp; Investment Tracker for India" />
   <meta property="og:description"
-    content="Track your net worth, stocks, mutual funds, SIPs, crypto, gold, FDs, PPF, NPS, and expenses in one private dashboard. Import from Zerodha, Groww, Angel One &amp; INDmoney. 100% ." />
+    content="Track your net worth, stocks, mutual funds, SIPs, crypto, gold, FDs, PPF, NPS, and expenses in one private dashboard. Import from Zerodha, Groww, Angel One &amp; INDmoney. Your data stays private." />
   <meta property="og:image" content="https://fintrackly.web.app/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:locale" content="en_IN" />
-  <meta property="fb:app_id" content="0" />
 
   <!-- ── Twitter Card ── -->
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title"
-    content="Fintrackly –  Finance &amp; Investment Tracker for Indian Investors" />
+    content="Fintrackly – Personal Finance &amp; Investment Tracker for India" />
   <meta name="twitter:description"
-    content="Track net worth, stocks, mutual funds, SIPs, crypto, gold, FDs, PPF, and financial goals. Import from Zerodha, Groww &amp; Angel One. 100%  &amp; private." />
+    content="Track net worth, stocks, mutual funds, SIPs, crypto, gold, FDs, PPF, and financial goals. Import from Zerodha, Groww &amp; Angel One. Private and secure." />
   <meta name="twitter:image" content="https://fintrackly.web.app/og-image.png" />
-
 
   <!-- ── PWA ── -->
   <link rel="manifest" href="/manifest.json" />
@@ -86,23 +85,24 @@
     "name": "Fintrackly",
     "url": "https://fintrackly.web.app/",
     "applicationCategory": "FinanceApplication",
-    "operatingSystem": "Web",
-    "description": "Fintrackly is a  personal finance tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, crypto, gold, fixed deposits, PPF, NPS, expenses, and financial goals in one private dashboard. Import from Zerodha, Groww, Angel One and INDmoney.",
+    "operatingSystem": "Web, Android, iOS",
+    "description": "Fintrackly is a personal finance management app for Indian investors. Track net worth, stocks, mutual funds, SIPs, fixed deposits, PPF, NPS, expenses, insurance, and financial goals in one private dashboard. Import from Zerodha, Groww, Angel One and INDmoney.",
     "inLanguage": "en-IN",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
     "featureList": [
-      "Net worth tracker",
-      "Stock portfolio tracker India NSE",
+      "Net worth tracker with live dashboard",
+      "Stock portfolio tracker for NSE India",
       "Mutual fund and SIP tracker",
-      "Crypto tracker India",
-      "Gold and silver tracker",
-      "Fixed deposit tracker",
+      "Fixed deposit and bond tracker",
       "PPF and NPS tracker",
-      "Expense and cashflow tracker",
-      "Financial goal tracker",
-      "Import from Zerodha Groww Angel One INDmoney",
-      "Notion sync",
-      "CSV and Excel export"
+      "Expense and income cashflow tracker",
+      "Budget management and planning",
+      "Financial goal tracker with progress",
+      "Insurance policy tracker",
+      "Investment snapshot history",
+      "AI-powered financial coach",
+      "Import from Zerodha, Groww, Angel One, INDmoney",
+      "CSV and Excel export",
+      "End-to-end encrypted data"
     ],
     "screenshot": "https://fintrackly.web.app/og-image.png"
   }
@@ -114,25 +114,38 @@
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "Fintrackly",
-    "url": "https://fintrackly.web.app/"
+    "url": "https://fintrackly.web.app/",
+    "description": "Personal finance and investment portfolio tracker for Indian investors",
+    "inLanguage": "en-IN"
   }
   </script>
 
-  <!-- ── Fonts: preconnect + display=swap (fixes render-blocking) ── -->
+  <!-- ── Structured Data: Organization ── -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Fintrackly",
+    "url": "https://fintrackly.web.app/",
+    "logo": "https://fintrackly.web.app/icons/android-chrome-512x512.png",
+    "sameAs": []
+  }
+  </script>
+
+  <!-- ── Fonts: preconnect + display=swap ── -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://firebaseapp.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" crossorigin />
   <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
-  <!-- Geist by Vercel — modern premium fintech font -->
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet" />
   <noscript>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet" />
   </noscript>
 
-  <!-- ── Critical inline styles (prevents FOUC, no render blocking) ── -->
+  <!-- ── Critical inline styles ── -->
   <style>
     html,
     body,
@@ -173,8 +186,7 @@
     }
   </style>
 
-  <!-- ── Google Analytics — loaded after page is fully ready ── -->
-  <!-- Delayed 3 seconds after load so it NEVER blocks FCP or LCP -->
+  <!-- ── Google Analytics — delayed 3 seconds after load ── -->
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
@@ -199,39 +211,45 @@
 </head>
 
 <body>
-  <!-- ── SEO: crawlable hidden text for Google bot (SPA fallback) ── -->
+  <!-- ── SEO: crawlable content for search engines (SPA fallback) ── -->
   <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;"
     aria-hidden="true">
-    <h1>Fintrackly –  Personal Finance Tracker and Investment Portfolio Manager for India</h1>
-    <p>Fintrackly helps Indian investors track their complete financial life in one private dashboard.
+    <h1>Fintrackly – Personal Finance Tracker and Investment Portfolio Manager for India</h1>
+    <p>Fintrackly helps Indian investors manage their complete financial life in one private dashboard.
       Monitor net worth, stocks, mutual funds, SIPs, crypto, gold, silver, fixed deposits, PPF, NPS, expenses,
-      liabilities, and financial goals — all for
-      , with no broker access required. Import from Zerodha, Groww, Angel One and INDmoney.</p>
+      insurance, liabilities, and financial goals — with no broker access required.
+      Import holdings from Zerodha, Groww, Angel One and INDmoney.</p>
 
-    <h2>Investment &amp; Finance Features</h2>
+    <h2>Personal Finance &amp; Investment Features</h2>
     <ul>
       <li>Net worth tracker with live dashboard</li>
       <li>Stock portfolio tracker — NSE India 500+ symbols</li>
-      <li>Mutual fund and SIP tracker</li>
-      <li>Crypto portfolio tracker India</li>
+      <li>Mutual fund and SIP tracker with monthly planner</li>
+      <li>Crypto portfolio tracker</li>
       <li>Gold, silver, bonds and fixed deposit tracker</li>
       <li>PPF and NPS tracker</li>
       <li>Monthly expense and income cashflow tracker</li>
-      <li>Financial goal tracker with progress bars</li>
-      <li>Sold trades and profit tracker</li>
+      <li>Budget planning and management</li>
+      <li>Financial goal tracker with progress tracking</li>
+      <li>Insurance policy and renewal tracker</li>
+      <li>Investment snapshot history for net worth comparison</li>
+      <li>AI-powered financial coach and analysis</li>
       <li>Import from Zerodha, Groww, Angel One, INDmoney</li>
       <li>Loan and liability tracker</li>
-      <li>Bank account tracker</li>
+      <li>Bank account and credit card tracker</li>
+      <li>Payment reminder and bill tracker</li>
+      <li>Credentials vault for financial documents</li>
       <li>Notion workspace sync</li>
       <li>CSV and Excel export</li>
     </ul>
 
     <h2>Why Fintrackly</h2>
     <ul>
-      <li>100%  personal finance app India</li>
+      <li>Private personal finance app for India — your data stays yours</li>
       <li>No broker account access required</li>
-      <li>Complete privacy — your data stays yours</li>
-      <li>Works for investors and salaried professionals</li>
+      <li>Works for investors, salaried professionals, and anyone managing personal finances</li>
+      <li>End-to-end encrypted data storage</li>
+      <li>Available as a Progressive Web App on all devices</li>
     </ul>
   </div>
 

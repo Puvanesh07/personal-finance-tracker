@@ -1,4 +1,4 @@
-// src/pages/Liabilities/LiabilitiesPage.tsx
+﻿// src/pages/Liabilities/LiabilitiesPage.tsx
 
 import {
   FiCheck,
@@ -26,6 +26,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { AsyncButton } from '../../components/ui/AsyncButton';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // NEW: 'settled' tab groups both "paid" credit cards and "returned" personal loans
 type FilterTab = 'all' | 'active' | 'settled';
@@ -139,7 +140,7 @@ export function LiabilitiesPage() {
     } as any);
   }
 
-  // NEW: Quick "Mark as Paid" for credit cards
+  // Quick "Mark as Paid" for credit cards
   async function markAsPaid(l: Liability) {
     await updateLiability(l.id, {
       status: 'paid',
@@ -147,14 +148,16 @@ export function LiabilitiesPage() {
     } as any);
   }
 
-  if (!ready) return <LiabilitiesSkeleton />;
+  // ── All derived values BEFORE any conditional return ──────────────────────
+  // This is required by the Rules of Hooks — useMemo must not appear after
+  // a conditional return that depends on changing state (e.g. ready, pageSection).
 
   const filteredLiabilities = liabilities.filter((l) => {
     if (filterTab === 'active')
       return l.status !== 'returned' && l.status !== 'paid';
     if (filterTab === 'settled')
       return l.status === 'returned' || l.status === 'paid';
-    return true; // 'all'
+    return true;
   });
 
   const getTypeLabel = (type: string) => {
@@ -191,10 +194,16 @@ export function LiabilitiesPage() {
   const settledCount = liabilities.filter(
     (l) => l.status === 'returned' || l.status === 'paid',
   ).length;
+
+  // useMemo must be here — BEFORE any conditional return
   const liabilityInsights = useMemo(
     () => buildLiabilityInsights(liabilities),
     [liabilities],
   );
+
+  // ── Conditional returns AFTER all hooks/derived values ────────────────────
+
+  if (!ready) return <LiabilitiesSkeleton />;
 
   if (pageSection === 'pending_payments') {
     return (
@@ -249,8 +258,9 @@ export function LiabilitiesPage() {
             <FiCreditCard className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2'>
               Borrowed Money & Bills
+              <FeatureInfo feature='liabilities' />
             </h1>
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
               Track loans, personal debts, and upcoming credit card bills.

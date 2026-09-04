@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/pages/Calendar/FinancialCalendarPage.tsx
  *
  * Financial Calendar — Feature 4.
@@ -18,6 +18,7 @@ import {
 } from 'date-fns';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { formatINR } from '../../utils/format';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ─── Event types ──────────────────────────────────────────────────────────────
 
@@ -184,7 +185,7 @@ export default function FinancialCalendarPage() {
             <FiCalendar className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Financial Calendar</h1>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>Financial Calendar <FeatureInfo feature='calendar' /></h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               All EMIs, bills, insurance, salary and SIPs in one view.
             </p>

@@ -1,4 +1,4 @@
-// src/pages/Profits/ProfitsPage.tsx
+﻿// src/pages/Profits/ProfitsPage.tsx
 
 import {
   FiArrowDown,
@@ -45,6 +45,7 @@ import { exportSoldTradesCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { AsyncButton } from '../../components/ui/AsyncButton';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ── Inline Calendar Picker ────────────────────────────────────────────────
 function CalendarPicker({
@@ -597,8 +598,9 @@ export function ProfitsPage() {
               <FiDollarSign className='h-5 w-5 md:h-6 md:w-6' />
             </div>
             <div>
-              <h1 className='text-xl font-semibold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white'>
+              <h1 className='text-xl font-semibold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white flex items-center gap-2'>
                 Realized Profits
+                <FeatureInfo feature='profits' />
               </h1>
               <p className='mt-0.5 text-[11px] md:text-sm font-medium text-slate-500 dark:text-slate-400'>
                 Track every sale — buy cost vs sell value = actual profit.

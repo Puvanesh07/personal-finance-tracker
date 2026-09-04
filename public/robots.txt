@@ -3,20 +3,37 @@
 
 User-agent: *
 Allow: /
+Allow: /privacy
+Allow: /terms
 
-# Block internal app routes from indexing
+# Block authenticated app routes — these require login and should not be indexed
 Disallow: /dashboard
 Disallow: /investments
-Disallow: /profits
 Disallow: /cashflow
 Disallow: /accounts
 Disallow: /liabilities
+Disallow: /payments
+Disallow: /insurance
 Disallow: /goals
+Disallow: /credentials
+Disallow: /insights
+Disallow: /ai-agent
+Disallow: /tools
 Disallow: /snapshots
 Disallow: /reports
 Disallow: /settings
-Disallow: /insights
-Disallow: /tools
+Disallow: /notifications
+Disallow: /simulator
+Disallow: /timeline
+Disallow: /calendar
+Disallow: /budget
+Disallow: /forecast
+Disallow: /dna
+Disallow: /milestones
+Disallow: /cfo
+Disallow: /profits
+Disallow: /pricing
+Disallow: /payment
 
 # Sitemap location
 Sitemap: https://fintrackly.web.app/sitemap.xml

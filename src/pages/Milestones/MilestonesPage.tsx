@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { computeMilestones } from '../../utils/milestones';
 import { formatNumber } from '../../utils/format';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 const CAT_COLORS: Record<string, string> = {
   investment: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700/40',
@@ -29,7 +30,7 @@ export default function MilestonesPage() {
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg text-2xl'>🏆</div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Money Milestones</h1>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>Money Milestones <FeatureInfo feature='milestones' /></h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>Track your financial achievements. {unlocked.length}/{milestones.length} unlocked.</p>
           </div>
         </div>

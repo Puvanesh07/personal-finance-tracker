@@ -1,4 +1,4 @@
-// src/pages/Goals/GoalsPage.tsx
+﻿// src/pages/Goals/GoalsPage.tsx
 //
 // UPDATED:
 //  • Status badge shown on each goal card/row
@@ -32,6 +32,7 @@ import { buildGoalInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { useMemo, useState } from 'react';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
@@ -345,7 +346,8 @@ export function GoalsPage() {
     return true;
   });
 
-  if (!ready) return <GoalsSkeleton />;
+  // ── All useMemo hooks BEFORE any conditional return (Rules of Hooks) ──────
+
   const goalInsights = useMemo(
     () => buildGoalInsights(goals, cashflows),
     [goals, cashflows],
@@ -391,6 +393,8 @@ export function GoalsPage() {
         : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 border border-transparent'
     }`;
 
+  if (!ready) return <GoalsSkeleton />;
+
   return (
     <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
       {/* Header */}
@@ -400,8 +404,9 @@ export function GoalsPage() {
             <FiFlag className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2'>
               Financial Goals
+              <FeatureInfo feature='goals' />
             </h1>
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
               Set, track, and achieve your long-term milestones.

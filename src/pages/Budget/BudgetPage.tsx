@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/pages/Budget/BudgetPage.tsx
  *
  * Budget vs Actual — Feature 6.
@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { formatINR } from '../../utils/format';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
@@ -223,7 +224,7 @@ export default function BudgetPage() {
             <FiPieChart className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Budget vs Actual</h1>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>Budget vs Actual <FeatureInfo feature='budget' /></h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               Set monthly category budgets and track actual spending.
             </p>

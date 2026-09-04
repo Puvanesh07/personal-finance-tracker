@@ -1,4 +1,4 @@
-// src/pages/Reports/ReportsPage.tsx
+﻿// src/pages/Reports/ReportsPage.tsx
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import {
@@ -28,6 +28,7 @@ import {
 } from '../../utils/calculations';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { useThemeStore } from '../../store/themeStore';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 
@@ -257,8 +258,9 @@ export function ReportsPage() {
             <FiBarChart2 className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>
               Advanced Reports
+              <FeatureInfo feature='reports' />
             </h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               Comprehensive snapshot of all your financial & operational data.

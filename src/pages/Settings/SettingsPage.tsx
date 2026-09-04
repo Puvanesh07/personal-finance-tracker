@@ -1,4 +1,4 @@
-// src/pages/Settings/SettingsPage.tsx
+﻿// src/pages/Settings/SettingsPage.tsx
 //
 // REDESIGNED — Full tabbed Settings page with:
 //   1. Profile tab  — edit display name, view email, avatar
@@ -46,6 +46,7 @@ import { SubscriptionStatusCard } from '../../components/subscription/Subscripti
 import { TrialUsagePanel } from '../../components/subscription/TrialUsagePanel';
 import { auth } from '../../services/firebase';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { OWNER_EMAIL } from '../../utils/subscriptionUtils';
 
 // ─── Tab config ─────────────────────────────────────────────────────────────
@@ -477,7 +478,7 @@ export function SettingsPage() {
           <FiSettings className='h-6 w-6' />
         </div>
         <div>
-          <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Settings</h1>
+          <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>Settings <FeatureInfo feature='settings' /></h1>
           <p className='mt-0.5 text-sm text-slate-600 dark:text-slate-400'>
             Manage your profile, data, security, and app preferences.
           </p>

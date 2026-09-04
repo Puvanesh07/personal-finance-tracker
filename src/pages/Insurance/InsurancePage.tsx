@@ -1,4 +1,4 @@
-// src/pages/Insurance/InsurancePage.tsx
+﻿// src/pages/Insurance/InsurancePage.tsx
 
 import {
   FiAlertTriangle,
@@ -30,6 +30,7 @@ import { buildInsuranceInsights } from '../../utils/advancedInsights';
 import { formatCurrency } from '../../utils/format';
 import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -1224,6 +1225,7 @@ export function InsurancePage() {
               <FiShield className='text-blue-400' />
             </div>
             Insurance & Protection
+            <FeatureInfo feature='insurance' />
           </h1>
           <p className='text-slate-500 dark:text-slate-400 text-sm mt-2'>
             Track life, health, vehicle, and property coverage.

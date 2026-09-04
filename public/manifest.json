@@ -1,7 +1,7 @@
 {
   "name": "Fintrackly – Personal Finance Tracker",
   "short_name": "Fintrackly",
-  "description": "Free personal finance tracker for Indian investors and farmers.",
+  "description": "Personal finance and investment portfolio tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, expenses, and financial goals.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

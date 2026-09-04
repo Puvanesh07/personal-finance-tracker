@@ -8,7 +8,7 @@ import {
   FiCpu, FiRefreshCw, FiSend, FiZap, FiDatabase,
   FiFileText, FiTrash2, FiExternalLink, FiInfo,
   FiSearch, FiAlertTriangle, FiCheckCircle,
-  FiX, FiEdit2, FiMessageSquare,
+  FiX, FiEdit2, FiMessageSquare, FiLayers,
 } from 'react-icons/fi';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -33,6 +33,7 @@ import { calculateNetWorth } from '../../utils/calculations';
 import { generateMonthlyPlan } from '../../utils/aiFinancialPlan';
 import { formatINR } from '../../utils/format';
 import { BriefTab, SearchTab } from './AICoachPanels';
+import { BulkAddPanel } from '../../components/ai/BulkAddPanel';
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -565,6 +566,7 @@ export default function AIAgentPage() {
   const [generatingReport,setGeneratingReport] = useState(false);
   const [convCtx,         setConvCtx]       = useState<ConversationContext>({});
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [showBulk,        setShowBulk]      = useState(false);
 
   // NLP Quick Add state
   const [nlpInput,  setNlpInput]  = useState('');
@@ -949,6 +951,19 @@ export default function AIAgentPage() {
                 <FiTrash2 className='h-3 w-3' /> Clear
               </button>
             )}
+            {/* Bulk Add button */}
+            <button
+              onClick={() => setShowBulk(v => !v)}
+              title='Bulk add multiple records at once'
+              className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[10px] font-bold transition-all ${
+                showBulk
+                  ? 'border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                  : 'border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 hover:border-violet-400 hover:text-violet-600 dark:hover:border-violet-500 dark:hover:text-violet-300'
+              }`}
+            >
+              <FiLayers className='h-3.5 w-3.5' />
+              <span className='hidden sm:inline'>Bulk Add</span>
+            </button>
             <button onClick={handleGenerateReport} disabled={generatingReport || !ready} className='flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 px-3 py-1.5 text-[10px] font-bold text-white shadow-lg shadow-teal-500/20 disabled:opacity-40 hover:-translate-y-0.5 transition-all'>
               {generatingReport ? <FiRefreshCw className='h-3 w-3 animate-spin' /> : <FiFileText className='h-3 w-3' />} Report
             </button>
@@ -961,6 +976,13 @@ export default function AIAgentPage() {
           <button type='button' onClick={() => setTab('brief')} className={tabCls('brief')}><FiZap className='h-3.5 w-3.5' /> Brief</button>
           <button type='button' onClick={() => setTab('search')} className={tabCls('search')}><FiSearch className='h-3.5 w-3.5' /> Search</button>
         </div>
+
+        {/* Bulk Add Panel — shown above tab content when toggled */}
+        {showBulk && (
+          <div className='shrink-0 flex-1 min-h-0 overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-700/50 shadow-xl'>
+            <BulkAddPanel onClose={() => setShowBulk(false)} />
+          </div>
+        )}
 
         {/* Brief tab */}
         {tab === 'brief' && <div className='flex-1 overflow-y-auto min-h-0'><BriefTab onAsk={(q) => { setInput(q); setTab('chat'); void sendMessage(q); }} /></div>}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * src/pages/Simulator/WhatIfSimulatorPage.tsx
  *
  * What-If Simulator (Feature 8)
@@ -14,6 +14,7 @@ import {
   FiCalendar,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { calculateNetWorth, investedValue, currentValue } from '../../utils/calculations';
 import { futureValue, goalProbabilityResult } from '../../utils/goalProbability';
 import { formatINR } from '../../utils/format';
@@ -420,7 +421,7 @@ export default function WhatIfSimulatorPage() {
             <FiCpu className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>What-If Simulator</h1>
+            <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>What-If Simulator <FeatureInfo feature='simulator' /></h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
               Explore how financial decisions impact your net worth, goals, cashflow and debt.
             </p>

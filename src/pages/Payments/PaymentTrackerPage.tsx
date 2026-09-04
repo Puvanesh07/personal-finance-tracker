@@ -1,4 +1,4 @@
-import {
+﻿import {
   FiAlertCircle,
   FiCalendar,
   FiCheck,
@@ -27,6 +27,8 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { AsyncButton } from '../../components/ui/AsyncButton';
 import { ButtonSpinner } from '../../components/ui/ButtonSpinner';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
+import { GoalsSkeleton } from '../../components/loader/skeletons';
 
 type FilterTab = 'pending' | 'paid' | 'all';
 type ViewMode = 'list' | 'calendar';
@@ -114,12 +116,7 @@ export function PaymentTrackerPage() {
         ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30'
         : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-transparent'
     }`;
-
-  if (!ready) {
-    return (
-      <div className='p-8 text-center text-slate-500'>Loading payments…</div>
-    );
-  }
+if (!ready) return <GoalsSkeleton />;
 
   return (
     <div className='flex flex-col gap-6 pb-8'>
@@ -129,8 +126,9 @@ export function PaymentTrackerPage() {
             <FiCalendar className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2'>
               Payment Tracker
+              <FeatureInfo feature='payments' />
             </h1>
             <p className='mt-1 text-sm text-slate-600 dark:text-slate-300'>
               Track upcoming payments and get reminders before due dates.

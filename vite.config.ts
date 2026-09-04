@@ -21,7 +21,7 @@ export default defineConfig({
         name: 'Fintrackly – Personal Finance Tracker',
         short_name: 'Fintrackly',
         description:
-          'Free personal finance tracker for Indian investors and farmers.',
+          'Personal finance and investment portfolio tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, expenses, and financial goals.',
         theme_color: '#10b981',
         background_color: '#020617',
         display: 'standalone',

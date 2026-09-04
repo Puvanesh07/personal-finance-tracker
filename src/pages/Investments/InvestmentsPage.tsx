@@ -1,4 +1,4 @@
-// src/pages/Investments/InvestmentsPage.tsx
+﻿// src/pages/Investments/InvestmentsPage.tsx
 
 import {
   FiBox,
@@ -32,6 +32,7 @@ import { MonthlySipPlanPage } from './MonthlySipPlanPage';
 import { UpsertInvestmentModal } from '../../components/investments/UpsertInvestmentModal';
 import { createPortal } from 'react-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { useStockMetadata } from '../../hooks/useStockMetadata';
 import {
   buildPortfolioCashflows,
@@ -517,8 +518,9 @@ export function InvestmentsPage() {
               <FiTrendingUp className='h-5 w-5' />
             </div>
             <div>
-              <h1 className='text-xl font-semibold leading-tight text-slate-900 md:text-2xl dark:text-white'>
+              <h1 className='text-xl font-semibold leading-tight text-slate-900 md:text-2xl dark:text-white flex items-center gap-2'>
                 Investments
+                <FeatureInfo feature='investments' />
               </h1>
               <p className='text-[11px] md:text-sm text-slate-500 dark:text-slate-400 font-medium'>
                 Manage your asset portfolio

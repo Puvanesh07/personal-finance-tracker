@@ -1,4 +1,4 @@
-// src/pages/Credentials/CredentialsPage.tsx
+﻿// src/pages/Credentials/CredentialsPage.tsx
 
 import { FiLock, FiPlus, FiSearch } from 'react-icons/fi';
 import { useMemo, useState } from 'react';
@@ -8,6 +8,7 @@ import { UpsertCredentialModal } from './UpsertCredentialModal';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { buildCredentialSecurityInsights } from '../../utils/advancedInsights';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 export function CredentialsPage() {
   const { premiumActionProps } = usePremiumActions();
@@ -48,8 +49,9 @@ export function CredentialsPage() {
               <FiLock className='h-5 w-5' />
             </div>
             <div>
-              <h1 className='text-xl font-semibold leading-tight text-slate-900 md:text-2xl dark:text-white'>
+              <h1 className='text-xl font-semibold leading-tight text-slate-900 md:text-2xl dark:text-white flex items-center gap-2'>
                 Credentials
+                <FeatureInfo feature='credentials' />
               </h1>
               <p className='text-[11px] md:text-sm text-slate-500 dark:text-slate-400 font-medium'>
                 Securely store passwords, PAN, UAN, and notes

@@ -1,4 +1,4 @@
-// src/pages/Dashboard/DashboardPage.tsx
+﻿// src/pages/Dashboard/DashboardPage.tsx
 import {
   FiActivity,
   FiCamera,
@@ -29,6 +29,7 @@ import { GrowthChart }                    from '../../components/dashboard/Growt
 import { MaturityTimeline }               from '../../components/dashboard/MaturityTimeline';
 import { SummaryCards }                   from '../../components/dashboard/SummaryCards';
 import { usePortfolioStore }              from '../../store/portfolioStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 const MarketCapAllocationChart = lazy(() =>
   import('../../components/dashboard/MarketCapAllocationChart').then((m) => ({
@@ -94,8 +95,9 @@ export function DashboardPage() {
             <FiHome className='h-5 w-5 md:h-6 md:w-6' />
           </div>
           <div>
-            <h1 className='text-xl font-semibold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white'>
+            <h1 className='text-xl font-semibold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white flex items-center gap-2'>
               Dashboard
+              <FeatureInfo feature='dashboard' />
             </h1>
             <p className='mt-0.5 text-[11px] md:text-sm font-medium text-slate-500 dark:text-slate-400 leading-snug'>
               Unified portfolio overview and health summary.

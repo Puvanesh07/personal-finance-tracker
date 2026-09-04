@@ -1,4 +1,4 @@
-import type { Account, AccountType } from '../../types/investmentTypes';
+﻿import type { Account, AccountType } from '../../types/investmentTypes';
 import {
   Bar,
   BarChart,
@@ -38,6 +38,7 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { FREE_ACCOUNT_LIMIT } from '../../types/subscription';
 import toast from 'react-hot-toast';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 const ACCOUNT_COLORS = [
   '#10b981',
@@ -454,8 +455,9 @@ export function AccountsPage() {
             <BsBank2 className='h-6 w-6' />
           </div>
           <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2'>
               Accounts
+              <FeatureInfo feature='accounts' />
             </h1>
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
               Live balances auto-update from your cashflow entries.

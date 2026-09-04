@@ -1,4 +1,4 @@
-// src/pages/Notifications/NotificationsPage.tsx
+﻿// src/pages/Notifications/NotificationsPage.tsx
 // Dedicated notifications page — shows all valid notifications.
 // Newest first, clear distinction between read/unread.
 // Supports mark as read, dismiss, and clear all.
@@ -7,6 +7,9 @@ import { FiBell, FiCheck, FiCheckCircle, FiTrash2, FiX } from 'react-icons/fi';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import { NOTIF_CATEGORY, NOTIF_COLORS, NOTIF_ICONS, useNotificationStore } from '../../store/notificationStore';
 import { useDerivedNotifications } from '../../hooks/useDerivedNotifications';
+import { useSubscription } from '../../context/SubscriptionContext';
+import type { AppNotification } from '../../store/notificationStore';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 function relativeTime(iso: string): string {
   const d = new Date(iso);
@@ -34,29 +37,63 @@ function EmptyState() {
 }
 
 export function NotificationsPage() {
-  const notifications = useDerivedNotifications();
+  const derivedNotifications = useDerivedNotifications();
+  const { notifications: subscriptionNotifications } = useSubscription();
   const markRead = useNotificationStore((s) => s.markRead);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const dismiss = useNotificationStore((s) => s.dismiss);
   const clearAll = useNotificationStore((s) => s.clearAll);
+  const clearedAt = useNotificationStore((s) => s.clearedAt);
+
+  // Merge derived + Firestore subscription notifications (same logic as Bell)
+  const derivedTypeSet = new Set(derivedNotifications.map((n) => n.type));
+  const firestoreNotifs: AppNotification[] = subscriptionNotifications
+    .map((n): AppNotification => ({
+      id: `sub_${n.id}`,
+      title: n.title,
+      message: n.message,
+      type: n.type === 'warning' ? 'subscription_expiring'
+          : n.type === 'error'   ? 'subscription_expired'
+          : n.type === 'success' ? 'subscription_activated'
+          : 'system',
+      read: n.read,
+      dismissed: false,
+      createdAt: n.createdAt.toISOString(),
+      updatedAt: n.createdAt.toISOString(),
+      actionPath: '/pricing',
+      actionLabel: 'View Subscription',
+      severity: n.type === 'error' ? 'critical' : n.type === 'warning' ? 'high' : 'info',
+    }))
+    .filter((n) => !derivedTypeSet.has(n.type))
+    .filter((n) => !clearedAt || n.createdAt > clearedAt);
+
+  const seenIds = new Set<string>();
+  const notifications: AppNotification[] = [
+    ...derivedNotifications,
+    ...firestoreNotifs,
+  ]
+    .filter((n) => { if (seenIds.has(n.id)) return false; seenIds.add(n.id); return true; })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const hasAny = notifications.length > 0;
 
   const handleMarkRead = (id: string) => {
-    markRead(id);
+    if (!id.startsWith('sub_')) markRead(id);
   };
 
   const handleDismiss = (id: string) => {
-    dismiss(id);
+    if (!id.startsWith('sub_')) dismiss(id);
   };
 
+  // Mark ALL notifications (derived + Firestore) as read in the local store
+  const handleMarkAllRead = () => {
+    markAllRead(notifications.filter((n) => !n.read).map((n) => n.id));
+  };
+
+  // Clear All: sets clearedAt = now so both derived and Firestore notifications vanish
   const handleClearAll = () => {
     clearAll();
-  };
-
-  const handleMarkAllRead = () => {
-    markAllRead(notifications.map((n) => n.id));
   };
 
   return (
@@ -67,9 +104,10 @@ export function NotificationsPage() {
           <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20'>
             <FiBell className='h-4 w-4 text-emerald-500' aria-hidden='true' />
           </div>
-          <h1 className='text-xl font-black text-slate-900 dark:text-slate-100'>
-            Notifications
-          </h1>
+            <h1 className='text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2'>
+              Notifications
+              <FeatureInfo feature='notifications' align='left' />
+            </h1>
           {unreadCount > 0 && (
             <span className='rounded-full bg-rose-500/15 border border-rose-500/20 px-2 py-0.5 text-xs font-black text-rose-500'>
               {unreadCount} unread
