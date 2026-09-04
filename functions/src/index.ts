@@ -13,7 +13,6 @@ import {
   deleteAllUserData,
   getExpiresAtForPlan,
   activatePaidPlan,
-  resetUserToTrial,
   grantPremiumAccess,
   revokePremiumAccess,
   findUidByEmail,
@@ -49,6 +48,9 @@ const callableOptions = {
   // Allow all origins; Firebase Auth still protects every callable.
   cors: true as const,
   invoker: 'public' as const,
+  // Scale to zero when idle — eliminates minimum-instance charges.
+  // Cold start adds ~1-2s on first call but saves ≈₹6-8/month at low user counts.
+  minInstances: 0,
 };
 
 export const onUserProfileCreated = onDocumentCreated(
@@ -279,54 +281,9 @@ export const confirmUpiPayment = onCall(
   },
 );
 
-/** Test Mode only — simulates a successful UPI payment when QR/VPA is unavailable on desktop */
-export const simulateTestSubscription = onCall(
-  callableOptions,
-  async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError('unauthenticated', 'Authentication required');
-    }
-
-    if (!isRazorpayTestMode()) {
-      throw new HttpsError(
-        'permission-denied',
-        'Test simulation is only available with Razorpay Test Mode keys',
-      );
-    }
-
-    const plan = request.data?.plan as Plan | undefined;
-    if (!plan || !['monthly', 'yearly', 'lifetime'].includes(plan)) {
-      throw new HttpsError('invalid-argument', 'Invalid plan');
-    }
-
-    const uid = request.auth.uid;
-    const paymentId = `test_pay_${Date.now()}`;
-    await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
-
-    return { success: true, plan, simulated: true };
-  },
-);
-
-/** Test Mode only — reset current user back to trial so you can test payment again */
-export const resetTestSubscription = onCall(
-  callableOptions,
-  async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError('unauthenticated', 'Authentication required');
-    }
-
-    if (!isRazorpayTestMode()) {
-      throw new HttpsError(
-        'permission-denied',
-        'Reset is only available with Razorpay Test Mode keys',
-      );
-    }
-
-    const uid = request.auth.uid;
-    await resetUserToTrial(uid);
-    return { success: true, reset: true };
-  },
-);
+// simulateTestSubscription and resetTestSubscription intentionally removed from production.
+// They only worked in Razorpay test mode and contributed idle Cloud Run container costs
+// with zero production value. Use the Firebase emulator locally if you need them.
 
 function assertOwnerEmail(request: { auth?: { token?: { email?: string } } }) {
   const ownerEmail = getOwnerEmail();
@@ -539,8 +496,8 @@ export const expireSubscriptions = onSchedule(
     schedule: '0 0 * * *', // Midnight IST (18:30 UTC previous day) — runs once, not polling
     region,
     timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 300,
-    memory: '256MiB',
+    timeoutSeconds: 60,   // Reduced from 300 — 3 users takes <5s
+    memory: '128MiB',     // Reduced from 256MiB — minimal workload
   },
   async () => {
     const now = Timestamp.now();
@@ -589,8 +546,8 @@ export const deleteExpiredUsers = onSchedule(
     schedule: '30 0 * * *', // 12:30 AM IST — 30 min after expireSubscriptions
     region,
     timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 300,
-    memory: '256MiB',
+    timeoutSeconds: 60,   // Reduced from 300 — 3 users takes <5s
+    memory: '128MiB',     // Reduced from 256MiB — minimal workload
   },
   async () => {
     const now = Timestamp.now();
