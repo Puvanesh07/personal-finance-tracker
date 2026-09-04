@@ -44,6 +44,11 @@ import { calculateNetWorth, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { nextDueDate } from '../utils/paymentTracker';
 import {
+  analyseAfterTransaction,
+  analyseAfterPayment,
+  analyseAfterInvestment,
+} from '../services/financialEventEngine';
+import {
   deleteLedgerEntry,
   getDeterministicLedgerId,
   saveLedgerEntry,
@@ -515,6 +520,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'investments', withMeta);
     set((s) => ({ investments: [withMeta, ...s.investments] }));
     await get().recordSnapshotIfNeeded();
+    void analyseAfterInvestment(withMeta);
   },
 
   importInvestments: async (drafts) => {
@@ -866,6 +872,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ? s.cashflows
         : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
     }));
+    void analyseAfterPayment(existing);
   },
 
   addCashflow: async (entry) => {
@@ -917,6 +924,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       ),
       accounts: updatedAccounts,
     }));
+    // ── Fire event engine ────────────────────────────────────────────────
+    void analyseAfterTransaction(
+      get().cashflows, get().investments, get().liabilities, get().trackedPayments, withMeta,
+    );
   },
 
   updateCashflow: async (id, patch) => {

@@ -140,6 +140,15 @@ const BudgetPage = lazy(() =>
 const ForecastPage = lazy(() =>
   import('./pages/Forecast/ForecastPage'),
 );
+const FinancialDNAPage = lazy(() =>
+  import('./pages/DNA/FinancialDNAPage'),
+);
+const MilestonesPage = lazy(() =>
+  import('./pages/Milestones/MilestonesPage'),
+);
+const PersonalCFOPage = lazy(() =>
+  import('./pages/CFO/PersonalCFOPage'),
+);
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -294,6 +303,30 @@ export default function App() {
               element={
                 <Suspense fallback={<ToolsSkeleton />}>
                   <ForecastPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/dna'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <FinancialDNAPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/milestones'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <MilestonesPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path='/cfo'
+              element={
+                <Suspense fallback={<ToolsSkeleton />}>
+                  <PersonalCFOPage />
                 </Suspense>
               }
             />

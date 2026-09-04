@@ -17,6 +17,7 @@ import {
   FiTrendingUp,
   FiZap,
   FiGitBranch,
+  FiAward,
 } from 'react-icons/fi';
 import { AiFillCalculator } from 'react-icons/ai';
 import { BsBank2 } from 'react-icons/bs';
@@ -145,6 +146,27 @@ export const NAV_GROUPS: AppNavGroup[] = [
         label: 'Simulator',
         accent: 'text-fuchsia-400',
         bg: 'bg-fuchsia-500/10',
+      },
+      {
+        to: '/cfo',
+        icon: FiShield,
+        label: 'Personal CFO',
+        accent: 'text-amber-400',
+        bg: 'bg-amber-500/10',
+      },
+      {
+        to: '/dna',
+        icon: FiActivity,
+        label: 'Financial DNA',
+        accent: 'text-violet-400',
+        bg: 'bg-violet-500/10',
+      },
+      {
+        to: '/milestones',
+        icon: FiAward,
+        label: 'Milestones',
+        accent: 'text-yellow-400',
+        bg: 'bg-yellow-500/10',
       },
     ],
   },

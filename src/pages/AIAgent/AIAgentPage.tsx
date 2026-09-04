@@ -30,6 +30,7 @@ import { severityColor, severityBg } from '../../services/aiAgentResponseTypes';
 import { canIAfford, detectAffordabilityQuestion } from '../../utils/affordabilityEngine';
 import { parseNaturalLanguageTransaction } from '../../utils/smartCategorize';
 import { calculateNetWorth } from '../../utils/calculations';
+import { generateMonthlyPlan } from '../../utils/aiFinancialPlan';
 import { formatINR } from '../../utils/format';
 import { BriefTab, SearchTab } from './AICoachPanels';
 
@@ -630,6 +631,25 @@ export default function AIAgentPage() {
     });
 
     try {
+
+      // Plan my finances intercept
+      const isPlanRequest = /plan\s+(my\s+)?(finances|budget|month|september|october|november|december|january|february|march|april|may|june|july|august)/i.test(question) || /what\s+should\s+i\s+do\s+this\s+month/i.test(question);
+      if (isPlanRequest) {
+        const s = usePortfolioStore.getState();
+        const planResult = generateMonthlyPlan(s.cashflows, s.investments, s.liabilities, s.goals, s.goalContributions, s.essentials, s.accounts);
+        const planText = [
+          `## ${planResult.month} Financial Plan ${planResult.status}`,
+          `**Income:** ${formatINR(planResult.totalIncome)} | **Savings Rate:** ${Math.round(planResult.savingsRate)}%`,
+          '',
+          ...planResult.items.map(i => `- ${i.emoji} **${i.label}:** ${formatINR(i.amount)} (${Math.round(i.pct)}%)`),
+          '',
+          `**Surplus after plan:** ${formatINR(planResult.surplus)}`,
+          '',
+          `💡 **Top action:** ${planResult.topRecommendation}`,
+        ].join('\n');
+        updateLastAssistant({ id: loadingId, textContent: planText, source: 'firebase', loading: false });
+        return;
+      }
       // â”€â”€ Can I afford? â€” intercept before routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const affordAmount = detectAffordabilityQuestion(question);
       if (affordAmount !== null && affordAmount > 0) {
