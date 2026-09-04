@@ -1,0 +1,39 @@
+name: Subscription Maintenance
+
+# Replaces TWO Cloud Run functions (expireSubscriptions + deleteExpiredUsers)
+# that were costing money as idle containers.
+# GitHub Actions is FREE for public repos and free-tier private repos.
+
+on:
+  schedule:
+    # 12:30 AM IST = 19:00 UTC (IST is UTC+5:30)
+    # Runs after midnight so any subscriptions that expired today are caught.
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub UI for testing
+
+jobs:
+  expire-and-cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package.json
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: scripts
+
+      - name: Run subscription maintenance
+        env:
+          FIREBASE_PROJECT_ID:   ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY:  ${{ secrets.FIREBASE_PRIVATE_KEY }}
+        run: node expire-subscriptions.js
+        working-directory: scripts

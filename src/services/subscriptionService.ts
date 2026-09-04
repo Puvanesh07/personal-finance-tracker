@@ -1,4 +1,5 @@
 import {
+  Timestamp,
   collection,
   doc,
   getDoc,
@@ -8,6 +9,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -83,21 +85,82 @@ export async function markAllNotificationsRead(uid: string) {
 }
 
 export async function initializeTrialIfMissing(): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  const email = auth.currentUser?.email?.trim().toLowerCase() ?? '';
+  if (!uid) return;
+
+  const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL ?? '').trim().toLowerCase();
+  const isOwner = ownerEmail && email === ownerEmail;
+  const ref = doc(db, 'users', uid);
+
   try {
-    const fn = httpsCallable(functions, 'initializeTrialIfMissing');
-    await fn();
-  } catch {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    const ref = doc(db, 'users', uid);
     const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-    const data = snap.data();
-    if (data.premiumGranted !== undefined) return;
-    await updateDoc(ref, {
-      premiumGranted: false,
-      updatedAt: serverTimestamp(),
-    });
+    const data = snap.exists() ? snap.data() : null;
+
+    // Owner always gets lifetime access — set directly without calling Cloud Function
+    if (isOwner) {
+      if (data?.premiumGranted !== true || data?.plan !== 'lifetime') {
+        await setDoc(ref, {
+          email,
+          plan: 'lifetime',
+          subscriptionStatus: 'active',
+          premiumGranted: true,
+          expiresAt: null,
+          gracePeriodEnd: null,
+          trialEnd: null,
+          paymentId: null,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+      return;
+    }
+
+    // New user — doc doesn't exist yet, create trial
+    if (!snap.exists()) {
+      const now = new Date();
+      const trialEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const gracePeriodEnd = new Date(trialEnd.getTime() + 30 * 24 * 60 * 60 * 1000);
+      await setDoc(ref, {
+        uid,
+        email,
+        plan: 'trial',
+        subscriptionStatus: 'active',
+        trialStart: serverTimestamp(),
+        trialEnd: Timestamp.fromDate(trialEnd),
+        expiresAt: Timestamp.fromDate(trialEnd),
+        gracePeriodEnd: Timestamp.fromDate(gracePeriodEnd),
+        paymentId: null,
+        premiumGranted: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      return;
+    }
+
+    // Existing user — fill in any missing fields only
+    const updates: Record<string, unknown> = {};
+    if (!data?.plan) {
+      const now = new Date();
+      const trialEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const gracePeriodEnd = new Date(trialEnd.getTime() + 30 * 24 * 60 * 60 * 1000);
+      updates.plan = 'trial';
+      updates.subscriptionStatus = 'active';
+      updates.trialEnd = Timestamp.fromDate(trialEnd);
+      updates.expiresAt = Timestamp.fromDate(trialEnd);
+      updates.gracePeriodEnd = Timestamp.fromDate(gracePeriodEnd);
+    }
+    if (!('premiumGranted' in (data ?? {}))) {
+      updates.premiumGranted = false;
+    }
+    if (email && (!data?.email || String(data.email).toLowerCase() !== email)) {
+      updates.email = email;
+    }
+    if (Object.keys(updates).length > 0) {
+      await setDoc(ref, { ...updates, updatedAt: serverTimestamp() }, { merge: true });
+    }
+  } catch (err) {
+    // Silently fail — subscription context will still read existing Firestore state
+    console.warn('[initializeTrialIfMissing] client-side init failed:', err);
   }
 }
 

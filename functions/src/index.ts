@@ -1,16 +1,10 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// ── AI Agent (Groq proxy) ────────────────────────────────────────────────────
 import {
-  buildTrialFields,
-  createSubscriptionNotification,
   getDb,
-  deleteAllUserData,
   getExpiresAtForPlan,
   activatePaidPlan,
   grantPremiumAccess,
@@ -53,125 +47,14 @@ const callableOptions = {
   minInstances: 0,
 };
 
-export const onUserProfileCreated = onDocumentCreated(
-  { document: 'users/{uid}', region },
-  async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const data = snap.data();
-    if (data.plan) return;
+// onUserProfileCreated — removed.
+// Trial initialization is now handled entirely client-side in
+// src/services/subscriptionService.ts → initializeTrialIfMissing()
+// This eliminates the Firestore trigger Cloud Run container cost.
 
-    const trial = buildTrialFields();
-    await snap.ref.set(
-      {
-        ...trial,
-        updatedAt: Timestamp.now(),
-      },
-      { merge: true },
-    );
-
-    await createSubscriptionNotification(event.params.uid, {
-      title: 'Welcome to FinTrackly!',
-      message: 'Your 7-day free trial has started. Enjoy all premium features.',
-      type: 'success',
-    });
-  },
-);
-
-export const initializeTrialIfMissing = onCall(
-  { ...callableOptions, secrets: ownerSecrets },
-  async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError('unauthenticated', 'Authentication required');
-    }
-
-    const uid = request.auth.uid;
-    const callerEmail = request.auth.token?.email?.trim().toLowerCase() ?? '';
-    const ownerEmail = getOwnerEmail();
-    const ref = getDb().collection('users').doc(uid);
-    const snap = await ref.get();
-    const data = snap.exists ? (snap.data() ?? {}) : {};
-
-    // Create a minimal profile if the Firestore doc is missing (common for older accounts).
-    if (!snap.exists) {
-      if (ownerEmail && callerEmail === ownerEmail) {
-        await grantPremiumAccess(uid, callerEmail);
-        await ref.set(
-          {
-            uid,
-            email: callerEmail,
-            name: (request.auth.token?.name as string) || '',
-            createdAt: Timestamp.now(),
-          },
-          { merge: true },
-        );
-        return { initialized: true, synced: true, ownerGranted: true };
-      }
-
-      const trial = buildTrialFields();
-      await ref.set(
-        {
-          uid,
-          email: callerEmail,
-          name: (request.auth.token?.name as string) || '',
-          ...trial,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true },
-      );
-      await createSubscriptionNotification(uid, {
-        title: 'Welcome to FinTrackly!',
-        message: 'Your 7-day free trial has started. Enjoy all premium features.',
-        type: 'success',
-      });
-      return { initialized: true, synced: true };
-    }
-
-    // Owner account always gets complimentary lifetime premium
-    if (ownerEmail && callerEmail === ownerEmail) {
-      if (
-        data.premiumGranted !== true ||
-        data.plan !== 'lifetime' ||
-        data.subscriptionStatus !== 'active'
-      ) {
-        await grantPremiumAccess(uid, callerEmail);
-        return { initialized: false, synced: true, ownerGranted: true };
-      }
-      // Keep email normalized on the profile for admin lookups
-      if (typeof data.email !== 'string' || data.email.toLowerCase() !== callerEmail) {
-        await ref.set({ email: callerEmail, updatedAt: Timestamp.now() }, { merge: true });
-      }
-      return { initialized: false, synced: false, ownerGranted: true };
-    }
-
-    const updates: Record<string, unknown> = {};
-
-    if (!data.plan) {
-      Object.assign(updates, buildTrialFields());
-    } else if (!('premiumGranted' in data)) {
-      updates.premiumGranted = false;
-    }
-
-    if (callerEmail && (!data.email || String(data.email).toLowerCase() !== callerEmail)) {
-      updates.email = callerEmail;
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return { initialized: false, synced: false };
-    }
-
-    await ref.set(
-      {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      },
-      { merge: true },
-    );
-
-    return { initialized: !data.plan, synced: true };
-  },
-);
+// initializeTrialIfMissing cloud function — removed.
+// All logic moved to the client. No server round-trip needed on login.
+// See src/services/subscriptionService.ts for the replacement.
 
 export const createRazorpayOrder = onCall(
   { ...callableOptions, secrets: razorpaySecrets },
@@ -491,83 +374,10 @@ export const restorePurchase = onCall(
 );
  
 
-export const expireSubscriptions = onSchedule(
-  {
-    schedule: '0 0 * * *', // Midnight IST (18:30 UTC previous day) — runs once, not polling
-    region,
-    timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 60,   // Reduced from 300 — 3 users takes <5s
-    memory: '128MiB',     // Reduced from 256MiB — minimal workload
-  },
-  async () => {
-    const now = Timestamp.now();
-    const snapshot = await getDb()
-      .collection('users')
-      .where('subscriptionStatus', '==', 'active')
-      .where('expiresAt', '<=', now)
-      .get();
+// expireSubscriptions — removed from Cloud Functions.
+// Now runs as a free GitHub Actions workflow:
+// .github/workflows/subscription-maintenance.yml
+// (runs daily at 12:30 AM IST, zero cost)
 
-    logger.info(`expireSubscriptions: found ${snapshot.size} users`);
-
-    if (snapshot.empty) return;
-
-    const updatePromises = snapshot.docs.map(async (docSnap) => {
-      const uid = docSnap.id;
-      const data = docSnap.data();
-
-      if (data.premiumGranted === true) return;
-      if (data.plan === 'lifetime') return;
-      if (!data.expiresAt) return;
-
-      try {
-        await Promise.all([
-          docSnap.ref.set(
-            { subscriptionStatus: 'expired', updatedAt: Timestamp.now() },
-            { merge: true },
-          ),
-          createSubscriptionNotification(uid, {
-            title: 'Subscription expired',
-            message: 'Premium features are locked. Data deletion in 30 days if you do not subscribe.',
-            type: 'warning',
-          }),
-        ]);
-      } catch (error) {
-        logger.error(`Failed to expire subscription for uid: ${uid}`, error);
-      }
-    });
-
-    await Promise.all(updatePromises);
-    logger.info('expireSubscriptions: Finished processing all users.');
-  },
-);
-
-export const deleteExpiredUsers = onSchedule(
-  {
-    schedule: '30 0 * * *', // 12:30 AM IST — 30 min after expireSubscriptions
-    region,
-    timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 60,   // Reduced from 300 — 3 users takes <5s
-    memory: '128MiB',     // Reduced from 256MiB — minimal workload
-  },
-  async () => {
-    const now = Timestamp.now();
-    const snapshot = await getDb()
-      .collection('users')
-      .where('subscriptionStatus', '==', 'expired')
-      .where('gracePeriodEnd', '<=', now)
-      .get();
-
-    logger.info(`deleteExpiredUsers: found ${snapshot.size} users`);
-
-    for (const docSnap of snapshot.docs) {
-      if (docSnap.data().premiumGranted === true) continue;
-      const uid = docSnap.id;
-      try {
-        await deleteAllUserData(uid);
-        logger.info(`Deleted all data for user ${uid}`);
-      } catch (err) {
-        logger.error(`Failed to delete user ${uid}`, err);
-      }
-    }
-  },
-);
+// deleteExpiredUsers — removed from Cloud Functions.
+// Also handled by the same GitHub Actions workflow above.
