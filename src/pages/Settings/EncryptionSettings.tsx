@@ -3,6 +3,7 @@
 //  Theme-aware (light / dark) — matches FinTrackly settings cards.
 // ============================================================
 
+import { SettingsLoader } from '../../components/ui/SectionLoader';
 import {
   isEncryptionEnabled,
   migrateAllDataToEncrypted,
@@ -29,6 +30,8 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
       .then((val) => setEnabledState(val))
       .catch(() => setEnabledState(true));
   }, [uid]);
+
+  if (!uid) return null;
 
   const handleToggle = useCallback(async () => {
     if (!uid || enabled === null || migrating) return;
@@ -78,6 +81,7 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
     }
   }, [uid, enabled, migrating]);
 
+  // All hooks above — single conditional return AFTER all hooks (Rules of Hooks)
   if (!uid) return null;
 
   const pct =
@@ -100,7 +104,7 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
       </div>
 
       {enabled === null ? (
-        <p className='text-sm text-slate-500 dark:text-slate-400'>Loading…</p>
+        <SettingsLoader />
       ) : (
         <>
           <div

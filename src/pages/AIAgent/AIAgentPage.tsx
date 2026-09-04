@@ -977,21 +977,21 @@ export default function AIAgentPage() {
           <button type='button' onClick={() => setTab('search')} className={tabCls('search')}><FiSearch className='h-3.5 w-3.5' /> Search</button>
         </div>
 
-        {/* Bulk Add Panel — shown above tab content when toggled */}
+        {/* Bulk Add Panel — takes over the content area when toggled */}
         {showBulk && (
-          <div className='shrink-0 flex-1 min-h-0 overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-700/50 shadow-xl'>
+          <div className='flex-1 min-h-0 overflow-hidden'>
             <BulkAddPanel onClose={() => setShowBulk(false)} />
           </div>
         )}
 
-        {/* Brief tab */}
-        {tab === 'brief' && <div className='flex-1 overflow-y-auto min-h-0'><BriefTab onAsk={(q) => { setInput(q); setTab('chat'); void sendMessage(q); }} /></div>}
+        {/* Brief tab — only when bulk is closed */}
+        {!showBulk && tab === 'brief' && <div className='flex-1 overflow-y-auto min-h-0'><BriefTab onAsk={(q) => { setInput(q); setTab('chat'); void sendMessage(q); }} /></div>}
 
-        {/* Search tab */}
-        {tab === 'search' && <div className='flex-1 overflow-y-auto min-h-0'><SearchTab /></div>}
+        {/* Search tab — only when bulk is closed */}
+        {!showBulk && tab === 'search' && <div className='flex-1 overflow-y-auto min-h-0'><SearchTab /></div>}
 
-        {/* Chat tab */}
-        {tab === 'chat' && (
+        {/* Chat tab — only when bulk is closed */}
+        {!showBulk && tab === 'chat' && (
           <>
             {/* NLP Quick Add */}
             <div className='shrink-0 rounded-2xl border border-emerald-200 dark:border-emerald-700/40 bg-emerald-50 dark:bg-emerald-900/10 p-2'>
