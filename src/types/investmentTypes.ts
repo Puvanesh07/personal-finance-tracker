@@ -225,9 +225,38 @@ export type NetWorthSnapshot = {
   userId: string;
   createdAt: string;
   label?: string;
+  // Core net worth
   totalAssets: number;
   totalLiabilities: number;
   netWorth: number;
+  // Investment breakdown
+  investmentValue?: number;
+  investedTotal?: number;
+  unrealizedPnl?: number;
+  realizedProfit?: number;
+  // Cashflow (current month at time of snapshot)
+  monthIncome?: number;
+  monthExpense?: number;
+  monthNet?: number;
+  // Liquid cash
+  accountBalance?: number;
+  // Goals
+  goalsProgress?: number;       // % (0–100)
+  goalsCount?: number;
+  goalsSaved?: number;
+  goalsTarget?: number;
+  // Insurance
+  insuranceCoverage?: number;
+  insurancePoliciesCount?: number;
+  // Lending
+  lendingOutstanding?: number;
+  lendingBorrowersCount?: number;
+  // SIP
+  sipMonthlyBudget?: number;
+  sipInstrumentsCount?: number;
+  // Liabilities
+  liabilitiesCount?: number;
+  totalEmiMonthly?: number;
 };
 
 // ── Liabilities ────────────────────────────────────────────────────────────

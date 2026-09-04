@@ -1,8 +1,13 @@
 import { FiAlertTriangle, FiClock, FiZap } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useSubscription } from '../../context/SubscriptionContext';
 
+// Pages that render their own richer subscription banner — suppress TrialBanner there
+// to avoid showing the same message twice in different formats.
+const PAGES_WITH_OWN_BANNER = new Set(['/dashboard']);
+
 export function TrialBanner() {
+  const location = useLocation();
   const {
     hasPremiumAccess,
     isTrial,
@@ -11,6 +16,9 @@ export function TrialBanner() {
     graceDaysRemaining,
     loading,
   } = useSubscription();
+
+  // Never render on pages that already show their own, more-detailed banner
+  if (PAGES_WITH_OWN_BANNER.has(location.pathname)) return null;
 
   if (loading) return null;
 

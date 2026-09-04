@@ -1545,22 +1545,105 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   takeNetWorthSnapshot: async (label) => {
     const uid = get().uid;
     if (!uid) return;
+    const state = get();
+
+    // ── Core net worth ───────────────────────────────────────────────────────
     const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
-      get().investments,
-      get().liabilities,
+      state.investments,
+      state.liabilities,
     );
-    const date = todayISO();
+
+    // ── Investment breakdown ─────────────────────────────────────────────────
+    const portfolioSummary = summarizePortfolio(state.investments);
+    const realizedProfit = (state.soldTrades ?? []).reduce((s, t) => s + (t.profit || 0), 0);
+
+    // ── Cashflow — current month ─────────────────────────────────────────────
+    const todayStr = todayISO();
+    const ym = todayStr.slice(0, 7); // "YYYY-MM"
+    const thisMonthCf = (state.cashflows ?? []).filter((c) => (c.date ?? '').startsWith(ym));
+    const monthIncome = thisMonthCf.filter((c) => c.type === 'income').reduce((s, c) => s + c.amount, 0);
+    const monthExpense = thisMonthCf.filter((c) => c.type === 'expense').reduce((s, c) => s + c.amount, 0);
+
+    // ── Liquid cash ──────────────────────────────────────────────────────────
+    const accountBalance = (state.accounts ?? []).reduce((s, a) => s + (a.balance || 0), 0);
+
+    // ── Goals ────────────────────────────────────────────────────────────────
+    const goals = state.goals ?? [];
+    const goalsSaved = goals.reduce((s, g) => s + (g.currentAmount || 0), 0);
+    const goalsTarget = goals.reduce((s, g) => s + (g.targetAmount || 0), 0);
+    const goalsProgress = goalsTarget > 0 ? Math.min(100, (goalsSaved / goalsTarget) * 100) : 0;
+
+    // ── Insurance ────────────────────────────────────────────────────────────
+    const insurancePolicies = state.insurancePolicies ?? [];
+    const insuranceCoverage = insurancePolicies.reduce((s, p) => s + (p.coverageAmount || 0), 0);
+
+    // ── Lending ──────────────────────────────────────────────────────────────
+    const activeBorrowers = (state.lendingBorrowers ?? []).filter((b) => b.status === 'active');
+    const validBorrowerIds = new Set(activeBorrowers.map((b) => b.id));
+    const lendingTxs = state.lendingTransactions ?? [];
+    const lendingGiven = lendingTxs
+      .filter((tx) => validBorrowerIds.has(tx.borrowerId) && tx.type === 'principal_given')
+      .reduce((s, tx) => s + (tx.amount || 0), 0);
+    const lendingReturned = lendingTxs
+      .filter((tx) => validBorrowerIds.has(tx.borrowerId) && tx.type === 'principal_returned')
+      .reduce((s, tx) => s + (tx.amount || 0), 0);
+    const lendingOutstanding = Math.max(0, lendingGiven - lendingReturned);
+
+    // ── SIP ──────────────────────────────────────────────────────────────────
+    const sipPlans = state.sipPlans ?? [];
+    const sipBudget = sipPlans.find((x: any) => x.type === 'budget');
+    const sipInstruments = sipPlans.filter((x: any) => x.type === 'instrument');
+    const sipMonthlyBudget = sipBudget?.budget || 0;
+
+    // ── Liabilities breakdown ────────────────────────────────────────────────
+    const activeLiabilities = (state.liabilities ?? []).filter(
+      (l) => l.status !== 'paid' && l.status !== 'returned',
+    );
+    const totalEmiMonthly = activeLiabilities.reduce((s, l) => s + (l.emiAmount || 0), 0);
+
+    const date = todayStr;
     const t = now();
     const deterministicId = label?.trim() ? createId('nws') : `networthSnapshot_${date}`;
-    const snap: NetWorthSnapshot = {
+
+    const snap: NetWorthSnapshot = clean({
       id: deterministicId,
       createdAt: t,
+      userId: uid,
+      ...(label?.trim() ? { label: label.trim() } : {}),
+      // Core
       totalAssets,
       totalLiabilities,
       netWorth,
-      userId: uid,
-      ...(label?.trim() ? { label: label.trim() } : {}),
-    };
+      // Investments
+      investmentValue: portfolioSummary.totalValue,
+      investedTotal: portfolioSummary.investedTotal,
+      unrealizedPnl: portfolioSummary.profitLossTotal,
+      realizedProfit,
+      // Cashflow
+      monthIncome,
+      monthExpense,
+      monthNet: monthIncome - monthExpense,
+      // Cash
+      accountBalance,
+      // Goals
+      goalsProgress,
+      goalsCount: goals.length,
+      goalsSaved,
+      goalsTarget,
+      // Insurance
+      insuranceCoverage,
+      insurancePoliciesCount: insurancePolicies.length,
+      // Lending
+      lendingOutstanding,
+      lendingBorrowersCount: activeBorrowers.length,
+      // SIP
+      sipMonthlyBudget,
+      sipInstrumentsCount: sipInstruments.length,
+      // Liabilities
+      liabilitiesCount: activeLiabilities.length,
+      totalEmiMonthly,
+    }) as NetWorthSnapshot;
+
     await saveDoc(uid, 'networthSnapshots', snap);
     set((s) => ({
       networthSnapshots: [

@@ -63,24 +63,29 @@ export function ExportImport() {
 
 
 
+  // SIP: only count instrument rows, not the single budget meta-row
+  const sipInstrumentCount = (state.sipPlans ?? []).filter((x: any) => x?.type === 'instrument').length;
+  const sipBudgetCount     = (state.sipPlans ?? []).filter((x: any) => x?.type === 'budget').length;
+
   const exportSummary: Record<string, number> = {
-    Investments: state.investments?.length ?? 0,
-    'Profits (Sold)': state.soldTrades?.length ?? 0,
-    Liabilities: state.liabilities?.length ?? 0,
-    'Pending Payments': state.pendingPayments?.length ?? 0,
-    'Payment Tracker': state.trackedPayments?.length ?? 0,
-    Cashflows: state.cashflows?.length ?? 0,
-    Goals: state.goals?.length ?? 0,
-    'Goal Contributions': (state as any).goalContributions?.length ?? 0,
-    Credentials: state.credentials?.length ?? 0, // ← NEW
-    Accounts: state.accounts?.length ?? 0,
-    'Insurance Policies': state.insurancePolicies?.length ?? 0,
-    'Insurance Payments': (state as any).insurancePayments?.length ?? 0,
-    'SIP Plans': state.sipPlans?.length ?? 0,
-    'Lending Records':
-       (state.lendingBorrowers?.length ?? 0) +
-       (state.lendingTransactions?.length ?? 0),
-   };
+    Investments:           state.investments?.length ?? 0,
+    'Profits (Sold)':      state.soldTrades?.length ?? 0,
+    Liabilities:           state.liabilities?.length ?? 0,
+    'Pending Payments':    state.pendingPayments?.length ?? 0,
+    'Payment Tracker':     state.trackedPayments?.length ?? 0,
+    Cashflows:             state.cashflows?.length ?? 0,
+    Goals:                 state.goals?.length ?? 0,
+    'Goal Contributions':  state.goalContributions?.length ?? 0,
+    Credentials:           state.credentials?.length ?? 0,
+    Accounts:              state.accounts?.length ?? 0,
+    'Insurance Policies':  state.insurancePolicies?.length ?? 0,
+    'Insurance Payments':  state.insurancePayments?.length ?? 0,
+    'SIP Instruments':     sipInstrumentCount,
+    'SIP Budget':          sipBudgetCount,
+    'Lending Borrowers':   state.lendingBorrowers?.length ?? 0,
+    'Lending Transactions':state.lendingTransactions?.length ?? 0,
+    'Net Worth Snapshots': state.networthSnapshots?.length ?? 0,
+  };
 
   const totalRecords = Object.values(exportSummary).reduce((s, n) => s + n, 0);
 
@@ -147,23 +152,27 @@ export function ExportImport() {
       const parsed = JSON.parse(text);
 
 
+      const parsedSipInstruments = (parsed.sipPlans ?? []).filter((x: any) => x?.type === 'instrument').length;
+      const parsedSipBudget      = (parsed.sipPlans ?? []).filter((x: any) => x?.type === 'budget').length;
+
       const counts: Record<string, number> = {
-        Investments: parsed.investments?.length ?? 0,
-        'Profits (Sold)': parsed.soldTrades?.length ?? 0,
-        Liabilities: parsed.liabilities?.length ?? 0,
-        'Pending Payments': parsed.pendingPayments?.length ?? 0,
-        'Payment Tracker': parsed.trackedPayments?.length ?? 0,
-        Cashflows: parsed.cashflows?.length ?? 0,
-        Goals: parsed.goals?.length ?? 0,
-        'Goal Contributions': parsed.goalContributions?.length ?? 0,
-        Credentials: parsed.credentials?.length ?? 0, // ← NEW
-        Accounts: parsed.accounts?.length ?? 0,
-        'Insurance Policies': parsed.insurancePolicies?.length ?? 0,
-        'Insurance Payments': parsed.insurancePayments?.length ?? 0,
-        'SIP Plans': parsed.sipPlans?.length ?? 0,
-        'Lending Records':
-          (parsed.lendingBorrowers?.length ?? 0) +
-          (parsed.lendingTransactions?.length ?? 0),
+        Investments:            parsed.investments?.length ?? 0,
+        'Profits (Sold)':       parsed.soldTrades?.length ?? 0,
+        Liabilities:            parsed.liabilities?.length ?? 0,
+        'Pending Payments':     parsed.pendingPayments?.length ?? 0,
+        'Payment Tracker':      parsed.trackedPayments?.length ?? 0,
+        Cashflows:              parsed.cashflows?.length ?? 0,
+        Goals:                  parsed.goals?.length ?? 0,
+        'Goal Contributions':   parsed.goalContributions?.length ?? 0,
+        Credentials:            parsed.credentials?.length ?? 0,
+        Accounts:               parsed.accounts?.length ?? 0,
+        'Insurance Policies':   parsed.insurancePolicies?.length ?? 0,
+        'Insurance Payments':   parsed.insurancePayments?.length ?? 0,
+        'SIP Instruments':      parsedSipInstruments,
+        'SIP Budget':           parsedSipBudget,
+        'Lending Borrowers':    parsed.lendingBorrowers?.length ?? 0,
+        'Lending Transactions': parsed.lendingTransactions?.length ?? 0,
+        'Net Worth Snapshots':  parsed.networthSnapshots?.length ?? 0,
       };
 
       setPreviewData(counts);

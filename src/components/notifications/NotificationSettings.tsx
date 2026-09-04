@@ -2,10 +2,10 @@
  * src/components/notifications/NotificationSettings.tsx
  *
  * Full notification settings panel rendered inside Settings page.
- * - Per-category push toggles
+ * - Per-category toggles (in-app + push/email)
  * - Quiet hours
  * - Reads/writes users/{uid}/notificationSettings/config in Firestore
- * - Shows current device registration status
+ * - Shows current device push-registration status
  */
 
 import { useEffect, useState } from 'react';
@@ -23,37 +23,37 @@ import toast from 'react-hot-toast';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface NotificationSettingsConfig {
-  pushEnabled:            boolean;
-  paymentReminders:       boolean;
-  insuranceReminders:     boolean;
-  goalReminders:          boolean;
-  emiReminders:           boolean;
-  lendingReminders:       boolean;
-  sipReminders:           boolean;
-  subscriptionAlerts:     boolean;
-   investmentAlerts:       boolean;
-   weeklyDigest:           boolean;
-  monthlyReport:          boolean;
-  quietHoursEnabled:      boolean;
-  quietHoursStart:        string;  // "HH:MM" 24h
-  quietHoursEnd:          string;
+  pushEnabled:         boolean;
+  paymentReminders:    boolean;
+  insuranceReminders:  boolean;
+  goalReminders:       boolean;
+  emiReminders:        boolean;
+  lendingReminders:    boolean;
+  sipReminders:        boolean;
+  investmentAlerts:    boolean;
+  subscriptionAlerts:  boolean;
+  weeklyDigest:        boolean;
+  monthlyReport:       boolean;
+  quietHoursEnabled:   boolean;
+  quietHoursStart:     string; // "HH:MM" 24h
+  quietHoursEnd:       string;
 }
 
 const DEFAULT_SETTINGS: NotificationSettingsConfig = {
-  pushEnabled:            true,
-  paymentReminders:       true,
-  insuranceReminders:     true,
-  goalReminders:          true,
-  emiReminders:           true,
-  lendingReminders:       true,
-  sipReminders:           true,
-  subscriptionAlerts:     true,
-   investmentAlerts:       true,
-   weeklyDigest:           true,
-  monthlyReport:          true,
-  quietHoursEnabled:      true,
-  quietHoursStart:        '22:00',
-  quietHoursEnd:          '07:00',
+  pushEnabled:         true,
+  paymentReminders:    true,
+  insuranceReminders:  true,
+  goalReminders:       true,
+  emiReminders:        true,
+  lendingReminders:    true,
+  sipReminders:        true,
+  investmentAlerts:    true,
+  subscriptionAlerts:  true,
+  weeklyDigest:        true,
+  monthlyReport:       true,
+  quietHoursEnabled:   true,
+  quietHoursStart:     '22:00',
+  quietHoursEnd:       '07:00',
 };
 
 // ── Firestore helpers ─────────────────────────────────────────────────────────
@@ -73,7 +73,12 @@ async function saveSettings(uid: string, cfg: NotificationSettingsConfig): Promi
 // ── Toggle row component ──────────────────────────────────────────────────────
 
 function ToggleRow({
-  icon, label, description, checked, onChange, disabled,
+  icon,
+  label,
+  description,
+  checked,
+  onChange,
+  disabled = false,
 }: {
   icon: string;
   label: string;
@@ -83,13 +88,24 @@ function ToggleRow({
   disabled?: boolean;
 }) {
   return (
-    <div className={`flex items-center justify-between gap-3 py-3 border-b border-slate-200/60 dark:border-slate-800/60 last:border-0 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+    <div
+      className={`flex items-center justify-between gap-3 py-3 border-b border-slate-200/60 dark:border-slate-800/60 last:border-0 ${
+        disabled ? 'opacity-50 pointer-events-none' : ''
+      }`}
+    >
       <div className='flex items-center gap-3 min-w-0'>
-        <span className='text-base shrink-0'>{icon}</span>
+        {/* Use aria-hidden span so screen readers skip the decorative emoji */}
+        <span className='text-base shrink-0 leading-none select-none' aria-hidden='true'>
+          {icon}
+        </span>
         <div className='min-w-0'>
-          <p className='text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight'>{label}</p>
+          <p className='text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight'>
+            {label}
+          </p>
           {description && (
-            <p className='text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed'>{description}</p>
+            <p className='text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed'>
+              {description}
+            </p>
           )}
         </div>
       </div>
@@ -97,6 +113,7 @@ function ToggleRow({
         type='button'
         role='switch'
         aria-checked={checked}
+        aria-label={`${label} ${checked ? 'on' : 'off'}`}
         onClick={() => onChange(!checked)}
         className={`relative shrink-0 inline-flex h-6 w-11 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
           checked ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
@@ -115,10 +132,10 @@ function ToggleRow({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NotificationSettings() {
-  const uid = auth.currentUser?.uid;
-  const [cfg, setCfg] = useState<NotificationSettingsConfig>(DEFAULT_SETTINGS);
+  const uid       = auth.currentUser?.uid;
+  const [cfg, setCfg]       = useState<NotificationSettingsConfig>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving,  setSaving]  = useState(false);
   const [permState, setPermState] = useState(getNotificationPermission());
   const supported = isPushSupported();
 
@@ -127,9 +144,8 @@ export function NotificationSettings() {
     loadSettings(uid).then((s) => { setCfg(s); setLoading(false); });
   }, [uid]);
 
-  const update = (key: keyof NotificationSettingsConfig, value: boolean | string) => {
+  const update = (key: keyof NotificationSettingsConfig, value: boolean | string) =>
     setCfg((prev) => ({ ...prev, [key]: value }));
-  };
 
   const handleSave = async () => {
     if (!uid) return;
@@ -150,8 +166,9 @@ export function NotificationSettings() {
     const result = await registerForPush(uid);
     setPermState(getNotificationPermission());
     if (result === 'granted') {
-      update('pushEnabled', true);
-      await saveSettings(uid, { ...cfg, pushEnabled: true });
+      const updated = { ...cfg, pushEnabled: true };
+      setCfg(updated);
+      await saveSettings(uid, updated);
       toast.success('Push notifications enabled for this device.');
     } else if (result === 'denied') {
       toast.error('Permission denied. Allow notifications in your browser site settings.');
@@ -165,8 +182,9 @@ export function NotificationSettings() {
     if (!uid) return;
     setSaving(true);
     await unregisterDevice(uid);
-    update('pushEnabled', false);
-    await saveSettings(uid, { ...cfg, pushEnabled: false });
+    const updated = { ...cfg, pushEnabled: false };
+    setCfg(updated);
+    await saveSettings(uid, updated);
     setPermState(getNotificationPermission());
     toast.success('Push notifications disabled for this device.');
     setSaving(false);
@@ -183,142 +201,215 @@ export function NotificationSettings() {
 
   return (
     <div className='space-y-6'>
-      {/* ── Push status banner ─────────────────────────────────────────── */}
-      <div className={`flex items-start gap-3 rounded-xl border p-4 ${
-        !supported
-          ? 'border-slate-200/80 dark:border-slate-700/50 bg-slate-100/60 dark:bg-slate-800/40'
-          : permState === 'granted'
-          ? 'border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-900/10'
-          : permState === 'denied'
-          ? 'border-rose-400/30 bg-rose-50/60 dark:bg-rose-900/10'
-          : 'border-amber-400/30 bg-amber-50/60 dark:bg-amber-900/10'
-      }`}>
-        {!supported ? (
-          <><FiBellOff className='h-5 w-5 shrink-0 text-slate-400 mt-0.5' />
-          <div>
-            <p className='text-sm font-bold text-slate-700 dark:text-slate-300'>Push not supported</p>
-            <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-              Push notifications require a browser that supports Web Push (Chrome, Edge, Firefox). 
-              Safari on iOS requires iOS 16.4+ with the app added to Home Screen.
-            </p>
-          </div></>
-        ) : permState === 'granted' ? (
-          <><FiBell className='h-5 w-5 shrink-0 text-emerald-500 mt-0.5' />
-          <div className='flex-1 min-w-0'>
-            <p className='text-sm font-bold text-emerald-700 dark:text-emerald-400'>Push notifications active</p>
-            <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-              This device is registered. You'll receive alerts even when the app is closed.
-            </p>
-            <div className='mt-2 flex items-center gap-3 flex-wrap'>
+
+      {/* ── Push device status banner ────────────────────────────────── */}
+      <div
+        className={`flex items-start gap-3 rounded-xl border p-4 ${
+          !supported
+            ? 'border-slate-200/80 dark:border-slate-700/50 bg-slate-100/60 dark:bg-slate-800/40'
+            : permState === 'granted'
+              ? 'border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-900/10'
+              : permState === 'denied'
+                ? 'border-rose-400/30 bg-rose-50/60 dark:bg-rose-900/10'
+                : 'border-amber-400/30 bg-amber-50/60 dark:bg-amber-900/10'
+        }`}
+      >
+        {!supported && (
+          <>
+            <FiBellOff className='h-5 w-5 shrink-0 text-slate-400 mt-0.5' />
+            <div>
+              <p className='text-sm font-bold text-slate-700 dark:text-slate-300'>
+                Push not supported
+              </p>
+              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
+                Push notifications require Chrome, Edge, or Firefox. Safari on iOS needs iOS 16.4+
+                with the app added to Home Screen.
+              </p>
+            </div>
+          </>
+        )}
+
+        {supported && permState === 'granted' && (
+          <>
+            <FiBell className='h-5 w-5 shrink-0 text-emerald-500 mt-0.5' />
+            <div className='flex-1 min-w-0'>
+              <p className='text-sm font-bold text-emerald-700 dark:text-emerald-400'>
+                Push notifications active
+              </p>
+              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
+                This device is registered. You'll receive alerts even when the app is closed.
+              </p>
               <button
                 onClick={handleDisablePush}
                 disabled={saving}
-                className='text-[11px] font-bold text-rose-500 hover:text-rose-400 transition-colors'
+                className='mt-2 text-[11px] font-bold text-rose-500 hover:text-rose-400 transition-colors disabled:opacity-60'
               >
                 Disable for this device
               </button>
             </div>
-          </div></>
-        ) : permState === 'denied' ? (
-          <><FiBellOff className='h-5 w-5 shrink-0 text-rose-400 mt-0.5' />
-          <div>
-            <p className='text-sm font-bold text-rose-600 dark:text-rose-400'>Notifications blocked</p>
-            <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-              To enable, open your browser's <strong>Site Settings</strong> → 
-              Notifications → Allow, then come back and click Enable.
-            </p>
-          </div></>
-        ) : (
-          <><FiInfo className='h-5 w-5 shrink-0 text-amber-500 mt-0.5' />
-          <div className='flex-1 min-w-0'>
-            <p className='text-sm font-bold text-amber-700 dark:text-amber-400'>Push not yet enabled</p>
-            <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-              Enable push notifications to get alerts when the app is closed.
-            </p>
-            <button
-              onClick={handleEnablePush}
-              disabled={saving}
-              className='mt-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 px-3 py-1.5 text-[11px] font-bold text-white transition-colors'
-            >
-              🔔 Enable Push Notifications
-            </button>
-          </div></>
+          </>
+        )}
+
+        {supported && permState === 'denied' && (
+          <>
+            <FiBellOff className='h-5 w-5 shrink-0 text-rose-400 mt-0.5' />
+            <div>
+              <p className='text-sm font-bold text-rose-600 dark:text-rose-400'>
+                Notifications blocked
+              </p>
+              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
+                Open your browser's <strong>Site Settings</strong> → Notifications → Allow, then
+                come back and click Enable.
+              </p>
+            </div>
+          </>
+        )}
+
+        {supported && permState !== 'granted' && permState !== 'denied' && (
+          <>
+            <FiInfo className='h-5 w-5 shrink-0 text-amber-500 mt-0.5' />
+            <div className='flex-1 min-w-0'>
+              <p className='text-sm font-bold text-amber-700 dark:text-amber-400'>
+                Push not yet enabled
+              </p>
+              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
+                Enable push notifications to get alerts when the app is closed.
+              </p>
+              <button
+                onClick={handleEnablePush}
+                disabled={saving}
+                className='mt-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 px-3 py-1.5 text-[11px] font-bold text-white transition-colors'
+              >
+                🔔 Enable Push Notifications
+              </button>
+            </div>
+          </>
         )}
       </div>
 
       {/* ── Per-category toggles ──────────────────────────────────────── */}
-      <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 divide-y divide-slate-100 dark:divide-slate-800/60 overflow-hidden'>
-        <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30'>
+      <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 overflow-hidden'>
+        <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60'>
           <p className='text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
             Notification Categories
           </p>
         </div>
-        <div className='px-4'>
-          <ToggleRow icon='�' label='Enable All Reminders'
-            description='Master switch — turn OFF to stop all emails. Individual categories below depend on this.'
+        <div className='px-4 divide-y divide-slate-100 dark:divide-slate-800/60'>
+          <ToggleRow
+            icon='🔔'
+            label='Enable All Reminders'
+            description='Master switch — turn OFF to pause all reminders. Individual toggles below still save their state.'
             checked={cfg.pushEnabled}
-            onChange={(v) => update('pushEnabled', v)} />
-          <ToggleRow icon='�💳' label='Payment Reminders'
-            description='Payment tracker dues, overdue alerts'
+            onChange={(v) => update('pushEnabled', v)}
+          />
+          <ToggleRow
+            icon='💳'
+            label='Payment Reminders'
+            description='Payment tracker dues, overdue alerts, and receivables'
             checked={cfg.paymentReminders}
             onChange={(v) => update('paymentReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='🛡️' label='Insurance Renewals'
-            description='30d, 15d, 7d, 3d, 1d before renewal'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='🛡️'
+            label='Insurance Renewals'
+            description='30d, 7d, 1d before renewal — and expired policy alerts'
             checked={cfg.insuranceReminders}
             onChange={(v) => update('insuranceReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='🎯' label='Goal Reminders'
-            description='Milestones, deadlines, monthly contributions'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='🎯'
+            label='Goal Reminders'
+            description='Milestones reached, deadlines approaching, monthly contribution nudges'
             checked={cfg.goalReminders}
             onChange={(v) => update('goalReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='💸' label='EMI & Loan Reminders'
-            description='Due dates and overdue liability alerts'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='💸'
+            label='EMI & Loan Reminders'
+            description='Due dates, overdue alerts, and final payment notices'
             checked={cfg.emiReminders}
             onChange={(v) => update('emiReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='🤝' label='Lending Reminders'
-            description='Borrower repayment dues and overdue'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='🤝'
+            label='Lending Reminders'
+            description='Borrower repayment dues and overdue collection alerts'
             checked={cfg.lendingReminders}
             onChange={(v) => update('lendingReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='📅' label='SIP Reminders'
-            description='Monthly investment reminder on 5th'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='📅'
+            label='SIP Reminders'
+            description='Monthly SIP execution reminder and allocation mismatch alerts'
             checked={cfg.sipReminders}
             onChange={(v) => update('sipReminders', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='📈' label='Investment Alerts'
-            description='Maturity alerts, FD/bond upcoming'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='📈'
+            label='Investment Alerts'
+            description='FD / bond maturity upcoming and matured notifications'
             checked={cfg.investmentAlerts}
             onChange={(v) => update('investmentAlerts', v)}
-            disabled={!cfg.pushEnabled} />
-          <ToggleRow icon='⏳' label='Subscription Alerts'
-            description='Trial ending, expiry, billing reminders'
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='⏳'
+            label='Subscription Alerts'
+            description='Trial ending, plan expiry, and billing reminders'
             checked={cfg.subscriptionAlerts}
             onChange={(v) => update('subscriptionAlerts', v)}
-            disabled={!cfg.pushEnabled} />
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='📊'
+            label='Weekly Digest'
+            description='Weekly in-app summary of your financial activity'
+            checked={cfg.weeklyDigest}
+            onChange={(v) => update('weeklyDigest', v)}
+            disabled={!cfg.pushEnabled}
+          />
+        </div>
+      </div>
 
-
-          <ToggleRow icon='📊' label='Monthly Report Email'
-            description='Email digest on 1st of each month'
+      {/* ── Email digest toggles ──────────────────────────────────────── */}
+      <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 overflow-hidden'>
+        <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60'>
+          <p className='text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
+            Email Digests
+          </p>
+        </div>
+        <div className='px-4 divide-y divide-slate-100 dark:divide-slate-800/60'>
+          <ToggleRow
+            icon='📧'
+            label='Monthly Report Email'
+            description='Full portfolio summary email on the 1st of each month'
             checked={cfg.monthlyReport}
-            onChange={(v) => update('monthlyReport', v)} />
+            onChange={(v) => update('monthlyReport', v)}
+          />
         </div>
       </div>
 
       {/* ── Quiet hours ───────────────────────────────────────────────── */}
       <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 overflow-hidden'>
-        <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30'>
+        <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60'>
           <p className='text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
             Quiet Hours
           </p>
         </div>
         <div className='px-4 pb-4'>
-          <ToggleRow icon='🌙' label='Enable Quiet Hours'
-            description='No push notifications during these hours'
+          <ToggleRow
+            icon='🌙'
+            label='Enable Quiet Hours'
+            description='No push notifications are sent during these hours'
             checked={cfg.quietHoursEnabled}
-            onChange={(v) => update('quietHoursEnabled', v)} />
+            onChange={(v) => update('quietHoursEnabled', v)}
+          />
           {cfg.quietHoursEnabled && (
             <div className='flex items-center gap-4 mt-3'>
               <div className='flex-1'>
@@ -358,7 +449,7 @@ export function NotificationSettings() {
         {saving ? 'Saving…' : 'Save Settings'}
       </button>
 
-      {/* ── Automated Reminders Info Card ──────────────────────────────── */}
+      {/* ── How reminders work ────────────────────────────────────────── */}
       <div className='rounded-xl border border-emerald-400/30 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-900/10 p-5 space-y-4'>
         <div className='flex items-start gap-3'>
           <div className='h-9 w-9 shrink-0 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center'>
@@ -369,8 +460,8 @@ export function NotificationSettings() {
               Automated Email Reminders Are Active
             </p>
             <p className='text-[11.5px] text-emerald-700/80 dark:text-emerald-400/80 mt-0.5 leading-relaxed'>
-              You do not need to click anything to receive reminders — they are sent automatically every 30 minutes
-              by a cloud scheduler. No app installation, no browser open required. Just keep the toggles above ON.
+              Reminders are sent automatically every 30 minutes by a cloud scheduler — no browser
+              open required. Just keep the toggles above ON.
             </p>
           </div>
         </div>
@@ -382,9 +473,9 @@ export function NotificationSettings() {
             </p>
             <ul className='space-y-1 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300'>
               <li>📧 Email — sent to your registered inbox</li>
-              <li>🌏 Works on every phone, laptop & tablet</li>
-              <li>🔁 Re-runs every 30 min in background</li>
-              <li>🛑 Scheduler respects quiet hours & toggles</li>
+              <li>🌏 Works on every phone, laptop &amp; tablet</li>
+              <li>🔁 Re-runs every 30 min in the background</li>
+              <li>🛑 Respects quiet hours &amp; individual toggles</li>
             </ul>
           </div>
 
@@ -393,8 +484,8 @@ export function NotificationSettings() {
               What You Will Receive
             </p>
             <ul className='space-y-1 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300'>
-              <li>💳 Payment dues & overdue warnings</li>
-              <li>🛡️ Insurance renewal 30/15/7/3/1 days before</li>
+              <li>💳 Payment dues &amp; overdue warnings</li>
+              <li>🛡️ Insurance renewal 30 / 7 / 1 days before</li>
               <li>🏦 EMI, loan, SIP, lending repayments</li>
               <li>🎯 Goals achieved · Investments maturing</li>
               <li>⏳ Trial ending · Receivables pending</li>
@@ -405,13 +496,13 @@ export function NotificationSettings() {
         <div className='rounded-lg border border-amber-400/40 bg-amber-50/70 dark:bg-amber-500/5 dark:border-amber-500/25 px-4 py-3'>
           <div className='flex items-start gap-2.5'>
             <FiInfo className='h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
-            <div className='text-[12px] leading-relaxed text-amber-800 dark:text-amber-300'>
-              <span className='font-bold'>Tip:</span> If you don't see the first email within an hour, please check
-              your <span className='font-semibold'>Spam / Promotions</span> folder once. Open the email, click
-              <span className='font-semibold'> "Not spam"</span>, and add
-              <span className='font-semibold'> fintracklysupport@gmail.com </span>
-              to your contacts — this teaches Gmail to keep all future reminders in your Primary Inbox.
-            </div>
+            <p className='text-[12px] leading-relaxed text-amber-800 dark:text-amber-300'>
+              <span className='font-bold'>Tip:</span> If you don't see the first email within an
+              hour, check your <span className='font-semibold'>Spam / Promotions</span> folder.
+              Mark it "Not spam" and add{' '}
+              <span className='font-semibold'>fintracklysupport@gmail.com</span> to your contacts
+              so future reminders land in your Primary inbox.
+            </p>
           </div>
         </div>
       </div>

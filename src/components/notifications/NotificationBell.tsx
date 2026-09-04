@@ -248,12 +248,20 @@ export function NotificationBell() {
   const dismiss = useNotificationStore((s) => s.dismiss);
   const clearAll = useNotificationStore((s) => s.clearAll);
 
-  // Merge derived + subscription notifications
-  const mergedNotifications: AppNotification[] = [
-    // Derived in-app notifications
-    ...derivedNotifications,
-    // Subscription notifications from Firestore
-    ...subscriptionNotifications.map(
+  // ── Merge derived + Firestore subscription notifications ─────────────────
+  // Strategy:
+  //   1. Start with all derived in-app notifications (stable IDs, already deduped).
+  //   2. Map Firestore subscription docs to AppNotification shape.
+  //   3. Drop any Firestore item whose *type* is already covered by a derived
+  //      notification — this prevents the same subscription event appearing twice
+  //      (once from useDerivedNotifications, once from the Firestore listener).
+  //   4. Final dedup on stable `id` to catch any remaining exact duplicates.
+  //   5. Sort newest-first.
+
+  const derivedTypeSet = new Set(derivedNotifications.map((n) => n.type));
+
+  const firestoreNotifs: AppNotification[] = subscriptionNotifications
+    .map(
       (n): AppNotification => ({
         id: `sub_${n.id}`,
         title: n.title,
@@ -272,21 +280,23 @@ export function NotificationBell() {
         updatedAt: n.createdAt.toISOString(),
         actionPath: '/pricing',
         actionLabel: 'View Subscription',
-        severity: n.type === 'error' ? 'critical' : n.type === 'warning' ? 'high' : 'info',
+        severity:
+          n.type === 'error' ? 'critical' : n.type === 'warning' ? 'high' : 'info',
       }),
-    ),
+    )
+    // Drop if the derived hook already covers the same notification type
+    .filter((n) => !derivedTypeSet.has(n.type));
+
+  const seenIds = new Set<string>();
+  const mergedNotifications: AppNotification[] = [
+    ...derivedNotifications,
+    ...firestoreNotifs,
   ]
-    // Dedup by title+message+type (overlapping sources can produce the same thing)
-    .filter((n, idx, arr) => {
-      const first = arr.findIndex(
-        (x) =>
-          x.title === n.title &&
-          x.message === n.message &&
-          x.type === n.type,
-      );
-      return first === idx;
+    .filter((n) => {
+      if (seenIds.has(n.id)) return false;
+      seenIds.add(n.id);
+      return true;
     })
-    // Newest first
     .sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

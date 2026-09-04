@@ -455,21 +455,63 @@ export function buildAllCSVBlobs(
   }
 
   // ── SIP Plans ────────────────────────────────────────────────────────────
-  if (state.sipPlans?.length) {
+  const sipInstruments = (state.sipPlans ?? []).filter((s: any) => s?.type === 'instrument');
+  const sipBudgetRow   = (state.sipPlans ?? []).find((s: any) => s?.type === 'budget');
+  if (sipInstruments.length || sipBudgetRow) {
+    const rows: any[] = [];
+    if (sipBudgetRow) {
+      rows.push({
+        Type: 'Monthly Budget',
+        Name: '—',
+        'Allocation (%)': '—',
+        'Amount (₹)': sipBudgetRow.budget ?? '',
+        Notes: '',
+      });
+    }
+    sipInstruments.forEach((s: any) => {
+      rows.push({
+        Type: 'Instrument',
+        Name: s.name ?? '',
+        'Allocation (%)': s.percentage ?? '',
+        'Amount (₹)': sipBudgetRow
+          ? (((s.percentage ?? 0) / 100) * (sipBudgetRow.budget ?? 0)).toFixed(0)
+          : '',
+        Notes: s.notes ?? '',
+      });
+    });
+    attachments.push({ filename: 'sip-plans.csv', content: toCSVString(rows) });
+  }
+
+  // ── Net Worth Snapshots ───────────────────────────────────────────────────
+  if (state.networthSnapshots?.length) {
     attachments.push({
-      filename: 'sip-plans.csv',
+      filename: 'networth-snapshots.csv',
       content: toCSVString(
-        state.sipPlans.map((s: any) => ({
-          Name: s.name ?? '',
-          'Monthly Amount': s.monthlyAmount ?? '',
-          'Started At': s.startedAt ?? '',
-          Notes: s.notes ?? '',
+        state.networthSnapshots.map((s: any) => ({
+          'Date': s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '',
+          'Label': s.label ?? '',
+          'Net Worth (₹)': s.netWorth ?? '',
+          'Total Assets (₹)': s.totalAssets ?? '',
+          'Total Liabilities (₹)': s.totalLiabilities ?? '',
+          'Investment Value (₹)': s.investmentValue ?? '',
+          'Amount Invested (₹)': s.investedTotal ?? '',
+          'Unrealised P&L (₹)': s.unrealizedPnl ?? '',
+          'Realised Profit (₹)': s.realizedProfit ?? '',
+          'Month Income (₹)': s.monthIncome ?? '',
+          'Month Expense (₹)': s.monthExpense ?? '',
+          'Month Net (₹)': s.monthNet ?? '',
+          'Account Balance (₹)': s.accountBalance ?? '',
+          'Goals Progress (%)': s.goalsProgress !== undefined ? s.goalsProgress.toFixed(1) : '',
+          'Goals Saved (₹)': s.goalsSaved ?? '',
+          'Goals Target (₹)': s.goalsTarget ?? '',
+          'Insurance Coverage (₹)': s.insuranceCoverage ?? '',
+          'Lending Outstanding (₹)': s.lendingOutstanding ?? '',
+          'SIP Monthly Budget (₹)': s.sipMonthlyBudget ?? '',
+          'EMI Monthly Total (₹)': s.totalEmiMonthly ?? '',
         })),
       ),
     });
   }
-
-  // ── Lending / Financier ───────────────────────────────────────────────────
 
   return attachments;
 }
