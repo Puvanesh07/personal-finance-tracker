@@ -91,9 +91,10 @@ export function NotificationsPage() {
     markAllRead(notifications.filter((n) => !n.read).map((n) => n.id));
   };
 
-  // Clear All: sets clearedAt = now so both derived and Firestore notifications vanish
+  // Clear All: stores the IDs of every current notification so they stay hidden.
+  // New notifications (new IDs) still appear.
   const handleClearAll = () => {
-    clearAll();
+    clearAll(notifications.map((n) => n.id));
   };
 
   return (

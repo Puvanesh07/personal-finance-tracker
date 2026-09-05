@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -67,6 +68,38 @@ export function listenSubscriptionNotifications(
     },
     (err) => onError?.(err),
   );
+}
+
+/** One-time fetch of subscription notifications — replaces the always-on
+ *  onSnapshot listener to avoid persistent Firestore connection cost. */
+export async function getSubscriptionNotificationsOnce(
+  uid: string,
+): Promise<SubscriptionNotification[]> {
+  try {
+    const q = query(
+      collection(db, 'notifications', uid, 'items'),
+      orderBy('createdAt', 'desc'),
+      limit(20),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data();
+      const createdAt =
+        data.createdAt && typeof data.createdAt.toDate === 'function'
+          ? data.createdAt.toDate()
+          : new Date();
+      return {
+        id: d.id,
+        title: String(data.title ?? ''),
+        message: String(data.message ?? ''),
+        type: (data.type as SubscriptionNotification['type']) ?? 'info',
+        read: Boolean(data.read),
+        createdAt,
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function markNotificationRead(uid: string, notificationId: string) {

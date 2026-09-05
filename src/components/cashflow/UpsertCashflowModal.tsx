@@ -1,4 +1,4 @@
-// src/components/cashflow/UpsertCashflowModal.tsx
+﻿// src/components/cashflow/UpsertCashflowModal.tsx
 //
 // Rewritten:
 //  • Category persistence moved from localStorage → Firestore (portfolioStore)
@@ -96,7 +96,7 @@ const INPUT_CLS =
   'bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium ' +
   'text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all ' +
   'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 ' +
-  'placeholder:text-slate-400 dark:placeholder:text-slate-500';
+  'placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:placeholder:text-slate-500';
 
 const LABEL_CLS =
   'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 block';
@@ -411,7 +411,7 @@ function CategoryDropdown({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder='Search categories…'
-              className='flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500'
+              className='flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:placeholder:text-slate-500'
               autoFocus
             />
             {search && (
@@ -456,7 +456,7 @@ function CategoryDropdown({
                     if (e.key === 'Escape') { setNewCatMode(false); setNewCatVal(''); }
                   }}
                   placeholder='New category name…'
-                  className='flex-1 rounded-lg border border-emerald-400 dark:border-emerald-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500'
+                  className='flex-1 rounded-lg border border-emerald-400 dark:border-emerald-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:placeholder:text-slate-500'
                   autoFocus
                 />
                 <button type='button' onClick={() => void handleAddNew()} disabled={!newCatVal.trim()}

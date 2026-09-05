@@ -6,6 +6,7 @@
 import { SettingsLoader } from '../../components/ui/SectionLoader';
 import {
   isEncryptionEnabled,
+  invalidateEncryptionCache,
   migrateAllDataToEncrypted,
   migrateAllDataToPlain,
   setEncryptionEnabled,
@@ -31,13 +32,13 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
       .catch(() => setEnabledState(true));
   }, [uid]);
 
-  if (!uid) return null;
-
   const handleToggle = useCallback(async () => {
     if (!uid || enabled === null || migrating) return;
     const next = !enabled;
     try {
-      await setEncryptionEnabled(uid, next);
+      await setEncryptionEnabled(uid, next); // also invalidates cache internally
+      // Sync the cached flag in the portfolio store so future writes use the new value
+      invalidateEncryptionCache(uid);
       setEnabledState(next);
       setStatusMsg(
         next

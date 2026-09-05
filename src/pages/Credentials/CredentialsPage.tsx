@@ -1,7 +1,7 @@
 ﻿// src/pages/Credentials/CredentialsPage.tsx
 
 import { FiLock, FiPlus, FiSearch } from 'react-icons/fi';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { CredentialCard } from './CredentialCard';
 import { UpsertCredentialModal } from './UpsertCredentialModal';
@@ -14,6 +14,10 @@ export function CredentialsPage() {
   const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const credentials = usePortfolioStore((s) => s.credentials);
+  const loadCredentials = usePortfolioStore((s) => s.loadCredentials);
+
+  // Lazy-load credentials the first time this page opens
+  useEffect(() => { void loadCredentials(); }, [loadCredentials]);
   const [query, setQuery] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
 

@@ -248,6 +248,8 @@ export function NotificationBell() {
   const dismiss = useNotificationStore((s) => s.dismiss);
   const clearAll = useNotificationStore((s) => s.clearAll);
   const clearedAt = useNotificationStore((s) => s.clearedAt);
+  const clearedDerivedIds = useNotificationStore((s) => s.clearedDerivedIds);
+  const clearedDerivedIdSet = new Set(clearedDerivedIds);
 
   // ── Merge derived + Firestore subscription notifications ─────────────────
   // Strategy:
@@ -287,8 +289,9 @@ export function NotificationBell() {
     )
     // Drop if the derived hook already covers the same notification type
     .filter((n) => !derivedTypeSet.has(n.type))
-    // Apply clearedAt filter — hide Firestore notifications older than the last clear
-    .filter((n) => !clearedAt || n.createdAt > clearedAt);
+    // Hide if the ID was in the list when user last clicked "Clear All",
+    // or if the notification predates the clearedAt timestamp
+    .filter((n) => !clearedDerivedIdSet.has(n.id) && (!clearedAt || n.createdAt > clearedAt));
 
   const seenIds = new Set<string>();
   const mergedNotifications: AppNotification[] = [
@@ -332,7 +335,7 @@ export function NotificationBell() {
   // useDerivedNotifications and firestoreNotifs both filter out anything older,
   // so every notification visually disappears immediately and the bell goes to 0.
   const handleClearAll = () => {
-    clearAll(); // sets clearedAt = now(), resets readIds / dismissedIds
+    clearAll(mergedNotifications.map((n) => n.id)); // pass all current IDs
   };
 
   // ── Close on outside click / Escape ──────────────────────────────────────

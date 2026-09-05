@@ -83,7 +83,7 @@ export function useDerivedNotifications() {
 
   const readIds = new Set(notifStore.readIds);
   const dismissedIds = new Set(notifStore.dismissedIds);
-  const clearedAt = notifStore.clearedAt;
+  const clearedDerivedIds = new Set(notifStore.clearedDerivedIds);
 
   const derived = useMemo(() => {
     const notifs: AppNotification[] = [];
@@ -908,9 +908,9 @@ export function useDerivedNotifications() {
     const active = filtered.filter((n) => !n.dismissed);
 
     // Filter out notifications that existed before the user clicked "Clear All".
-    // Only show notifications created AFTER the clear timestamp.
-    const afterClear = clearedAt
-      ? active.filter((n) => n.createdAt > clearedAt)
+    // Uses stable IDs stored at clear time — works regardless of createdAt timestamps.
+    const afterClear = clearedDerivedIds.size > 0
+      ? active.filter((n) => !clearedDerivedIds.has(n.id))
       : active;
 
     // Sort newest first
@@ -946,7 +946,7 @@ export function useDerivedNotifications() {
     subscription?.userSubscription,
     notifStore.readIds,
     notifStore.dismissedIds,
-    notifStore.clearedAt,
+    notifStore.clearedDerivedIds,
   ]);
 
   return derived;

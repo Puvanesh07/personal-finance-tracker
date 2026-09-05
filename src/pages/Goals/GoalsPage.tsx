@@ -33,7 +33,7 @@ import { formatINR } from '../../utils/format';
 import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { AsyncButton } from '../../components/ui/AsyncButton';
@@ -256,8 +256,12 @@ export function GoalsPage() {
   const goals = usePortfolioStore((s) => s.goals);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const goalContributions = usePortfolioStore((s) => s.goalContributions);
+  const loadGoalContributions = usePortfolioStore((s) => s.loadGoalContributions);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
   const updateGoal = usePortfolioStore((s) => s.updateGoal);
+
+  // Lazy-load goalContributions the first time this page opens
+  useEffect(() => { void loadGoalContributions(); }, [loadGoalContributions]);
   const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const [open, setOpen] = useState(false);

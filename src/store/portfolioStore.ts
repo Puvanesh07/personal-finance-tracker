@@ -103,6 +103,8 @@ async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   );
 }
 
+/** saveDoc — accepts an optional precomputed encryption flag so we never hit
+ *  Firestore for it on every write. Pass the store's encryptionEnabled field. */
 async function saveDoc<
   T extends {
     id: string;
@@ -110,8 +112,10 @@ async function saveDoc<
     createdAt?: string;
     updatedAt?: string;
   },
->(uid: string, col: string, data: T): Promise<void> {
-  const payload = await encryptDoc(uid, data);
+>(uid: string, col: string, data: T, forceEncrypt?: boolean): Promise<void> {
+  // If forceEncrypt not supplied, use store's cached flag (avoids per-write Firestore read)
+  const flag = forceEncrypt !== undefined ? forceEncrypt : usePortfolioStore.getState().encryptionEnabled;
+  const payload = await encryptDoc(uid, data, flag);
   await setDoc(userDoc(uid, col, data.id), payload);
 }
 
@@ -126,6 +130,8 @@ export type SettingsRecord = {
 type PortfolioState = {
   uid: string | null;
   ready: boolean;
+  /** Cached encryption flag — read once from settings on hydrate, used for all writes */
+  encryptionEnabled: boolean;
   investments: Investment[];
   snapshots: PortfolioSnapshot[];
   liabilities: Liability[];
@@ -146,6 +152,20 @@ type PortfolioState = {
   insurancePayments: InsurancePayment[];
   sipPlans: any[];
   _lastSnapshotDate: string | null;
+
+  /** Lazy-load flags — true once a collection has been fetched on demand */
+  _goalContributionsLoaded: boolean;
+  _insurancePaymentsLoaded: boolean;
+  _pendingPaymentsLoaded: boolean;
+  _credentialsLoaded: boolean;
+  _ledgerEntriesLoaded: boolean;
+
+  /** Lazy-load actions — call these from the relevant page on first mount */
+  loadGoalContributions: () => Promise<void>;
+  loadInsurancePayments: () => Promise<void>;
+  loadPendingPayments: () => Promise<void>;
+  loadCredentials: () => Promise<void>;
+  loadLedgerEntries: () => Promise<void>;
 
   /** User-defined category lists stored in Firestore, keyed by type */
   customCategories: { expense: string[]; income: string[] };
@@ -283,6 +303,7 @@ const DEFAULT_ESSENTIALS: EssentialsConfig = {};
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   uid: null,
   ready: false,
+  encryptionEnabled: true, // default ON; updated from settings on hydrate
   investments: [],
   snapshots: [],
   liabilities: [],
@@ -305,6 +326,42 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   _lastSnapshotDate: null,
   customCategories: { expense: [], income: [] },
   hiddenCategories: { expense: [], income: [] },
+  _goalContributionsLoaded: false,
+  _insurancePaymentsLoaded: false,
+  _pendingPaymentsLoaded: false,
+  _credentialsLoaded: false,
+  _ledgerEntriesLoaded: false,
+
+  loadGoalContributions: async () => {
+    const { uid, _goalContributionsLoaded } = get();
+    if (!uid || _goalContributionsLoaded) return;
+    const items = await fetchSub<GoalContribution>(uid, 'goalContributions');
+    set({ goalContributions: items.sort((a, b) => safeCompare(b.date, a.date)), _goalContributionsLoaded: true });
+  },
+  loadInsurancePayments: async () => {
+    const { uid, _insurancePaymentsLoaded } = get();
+    if (!uid || _insurancePaymentsLoaded) return;
+    const items = await fetchSub<InsurancePayment>(uid, 'insurancePayments');
+    set({ insurancePayments: items.sort((a, b) => safeCompare(b.paidAt, a.paidAt)), _insurancePaymentsLoaded: true });
+  },
+  loadPendingPayments: async () => {
+    const { uid, _pendingPaymentsLoaded } = get();
+    if (!uid || _pendingPaymentsLoaded) return;
+    const items = await fetchSub<PendingPayment>(uid, 'pendingPayments');
+    set({ pendingPayments: items.sort((a, b) => safeCompare(a.expectedPaymentDate, b.expectedPaymentDate)), _pendingPaymentsLoaded: true });
+  },
+  loadCredentials: async () => {
+    const { uid, _credentialsLoaded } = get();
+    if (!uid || _credentialsLoaded) return;
+    const items = await fetchSub<Credential>(uid, 'credentials');
+    set({ credentials: items.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)), _credentialsLoaded: true });
+  },
+  loadLedgerEntries: async () => {
+    const { uid, _ledgerEntriesLoaded } = get();
+    if (!uid || _ledgerEntriesLoaded) return;
+    const items = await fetchSub<LedgerEntry>(uid, 'ledgerEntries');
+    set({ ledgerEntries: items.sort((a, b) => safeCompare(b.date, a.date) || safeCompare(b.updatedAt, a.updatedAt)), _ledgerEntriesLoaded: true });
+  },
 
   hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
@@ -320,14 +377,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       // Phase 1: dashboard-critical only — show UI as soon as this completes
       const [
         investments,
-        snapshots,
         liabilities,
         cashflows,
         goals,
         accounts,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
-        fetchSub<PortfolioSnapshot>(uid, 'snapshots'),
         fetchSub<Liability>(uid, 'liabilities'),
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
@@ -339,18 +394,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ? (settingsSnap.data() as SettingsRecord)
         : { notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS };
 
-      const sortedSnapshots = snapshots.sort((a, b) =>
-        safeCompare(a.date, b.date),
-      );
-      const today = todayISO();
-      const alreadySnappedToday = sortedSnapshots.some((s) => s.date === today);
+      // Cache encryption flag in store — eliminates per-write Firestore read
+      const encryptionEnabled = settings.encryptionEnabled !== false;
 
       set({
         ready: true,
+        encryptionEnabled,
         investments: investments.sort((a, b) =>
           safeCompare(b.updatedAt, a.updatedAt),
         ),
-        snapshots: sortedSnapshots,
         liabilities: liabilities.sort((a, b) =>
           safeCompare(b.updatedAt, a.updatedAt),
         ),
@@ -367,12 +419,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
-        _lastSnapshotDate: alreadySnappedToday ? today : null,
       });
 
-      if (investments.length > 0 && !opts?.force) {
-        void get().recordSnapshotIfNeeded();
-      }
+      // Auto-snapshot removed: GrowthChart now uses networthSnapshots (manual snapshots).
+      // Investment edits no longer trigger a daily write to `snapshots`.
 
       const loadPhase1b = async () => {
         const [trackedPayments, soldTrades, insurancePolicies] =
@@ -396,21 +446,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
       const loadPhase2 = async () => {
         const [
-          pendingPayments,
-          goalContributions,
-          credentials,
           networthSnapshots,
-          insurancePayments,
           sipPlans,
-          ledgerEntries,
         ] = await Promise.all([
-          fetchSub<PendingPayment>(uid, 'pendingPayments'),
-          fetchSub<GoalContribution>(uid, 'goalContributions'),
-          fetchSub<Credential>(uid, 'credentials'),
           fetchSub<NetWorthSnapshot>(uid, 'networthSnapshots'),
-          fetchSub<InsurancePayment>(uid, 'insurancePayments'),
           fetchSub<any>(uid, 'sipPlans'),
-          fetchSub<LedgerEntry>(uid, 'ledgerEntries'),
         ]);
 
         // Only fetch the single latest insight — no need for the full collection
@@ -424,35 +464,18 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
               .catch(() => null);
 
         set({
-          pendingPayments: pendingPayments.sort((a, b) =>
-            safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
-          ),
-          goalContributions: goalContributions.sort((a, b) =>
-            safeCompare(b.date, a.date),
-          ),
-          credentials: credentials.sort((a, b) =>
-            safeCompare(b.updatedAt, a.updatedAt),
-          ),
           networthSnapshots: networthSnapshots.sort((a, b) =>
             safeCompare(b.createdAt, a.createdAt),
           ),
           latestInsight,
-          insurancePayments: insurancePayments.sort((a, b) =>
-            safeCompare(b.paidAt, a.paidAt),
-          ),
           sipPlans: sipPlans.sort((a: any, b: any) =>
             safeCompare(a.createdAt, b.createdAt),
-          ),
-          ledgerEntries: ledgerEntries.sort(
-            (a, b) =>
-              safeCompare(b.date, a.date) ||
-              safeCompare(b.updatedAt, a.updatedAt),
           ),
         });
       };
 
       if (opts?.force) {
-        // Import / restore: wait until every collection is in memory
+        // Import / restore: wait until every collection is in memory including lazy ones
         await Promise.all([
           loadPhase1b().catch((err) =>
             console.error('[PortfolioStore] phase 1b hydrate failed:', err),
@@ -460,6 +483,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           loadPhase2().catch((err) =>
             console.error('[PortfolioStore] secondary hydrate failed:', err),
           ),
+        ]);
+        // Force-load lazy collections too so restored data is immediately visible
+        await Promise.all([
+          get().loadGoalContributions().catch(() => {}),
+          get().loadInsurancePayments().catch(() => {}),
+          get().loadPendingPayments().catch(() => {}),
+          get().loadCredentials().catch(() => {}),
+          get().loadLedgerEntries().catch(() => {}),
         ]);
       } else {
         // Phase 1b: other dashboard widgets — background
@@ -492,7 +523,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as Investment;
     await saveDoc(uid, 'investments', withMeta);
     set((s) => ({ investments: [withMeta, ...s.investments] }));
-    await get().recordSnapshotIfNeeded();
     void analyseAfterInvestment(withMeta);
   },
 
@@ -564,7 +594,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         );
         return { investments: [...newDocs, ...merged] };
       });
-      await get().recordSnapshotIfNeeded();
     }
     return { added, updated, skipped };
   },
@@ -584,7 +613,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({
       investments: s.investments.map((x) => (x.id === id ? updated : x)),
     }));
-    await get().recordSnapshotIfNeeded();
   },
 
   deleteInvestment: async (id) => {
@@ -592,7 +620,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'investments', id));
     set((s) => ({ investments: s.investments.filter((x) => x.id !== id) }));
-    await get().recordSnapshotIfNeeded();
   },
 
   addLiability: async (liability) => {
@@ -1528,6 +1555,20 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       createdAt: t,
     }) as InsightSnapshot;
     await saveDoc(uid, 'insights', snapshot);
+    // Delete any older insight docs — cap the collection to 1 document
+    try {
+      const older = await getDocs(
+        query(userCol(uid, 'insights'), orderBy('createdAt', 'desc'), limit(10)),
+      );
+      const toDelete = older.docs.slice(1); // keep only the newest
+      if (toDelete.length > 0) {
+        const batch = writeBatch(db);
+        toDelete.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch {
+      // Non-critical — ignore cleanup errors
+    }
     set({ latestInsight: snapshot });
   },
 
@@ -1624,6 +1665,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       insurancePayments: [],
       sipPlans: [],
       _lastSnapshotDate: null,
+      _goalContributionsLoaded: false,
+      _insurancePaymentsLoaded: false,
+      _pendingPaymentsLoaded: false,
+      _credentialsLoaded: false,
+      _ledgerEntriesLoaded: false,
     });
   },
 }));

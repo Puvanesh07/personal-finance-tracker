@@ -22,7 +22,7 @@ import {
   subMonths,
   subYears,
 } from 'date-fns';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Modal } from '../../components/ui/Modal';
 import { UpsertInsuranceModal } from '../../components/insurance/UpsertInsuranceModal';
@@ -408,7 +408,7 @@ function PoliciesTab({
           placeholder='Search policies…'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className='flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-900 dark:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-colors'
+          className='flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-colors'
         />
         <div className='flex gap-3'>
           <select
@@ -602,7 +602,7 @@ function RecordPaymentModal({
   };
 
   const inputCls =
-    'w-full rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-900 dark:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
+    'w-full rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-all';
   const labelCls =
     'block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2';
 
@@ -1106,6 +1106,10 @@ function ReportsTab({
 export function InsurancePage() {
   const policies = usePortfolioStore((s) => s.insurancePolicies) || [];
   const payments = usePortfolioStore((s) => s.insurancePayments) || [];
+  const loadInsurancePayments = usePortfolioStore((s) => s.loadInsurancePayments);
+
+  // Lazy-load insurance payments the first time this page opens
+  useEffect(() => { void loadInsurancePayments(); }, [loadInsurancePayments]);
 
   const deletePolicy = usePortfolioStore((s) => s.deleteInsurancePolicy);
   const updatePolicy = usePortfolioStore((s) => s.updateInsurancePolicy);

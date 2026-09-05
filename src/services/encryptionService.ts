@@ -96,22 +96,33 @@ function fromBase64(str: string): Uint8Array {
 const settingsRef = (uid: string) =>
   doc(db, 'users', uid, 'settings', 'config');
 
+/** Module-level cache so isEncryptionEnabled never hits Firestore twice per session. */
+const _encryptionCache = new Map<string, boolean>();
+
 /**
  * Read the master encryption boolean flag from Firestore.
- * Path: users/{uid}/settings/config → { encryptionEnabled: boolean }
- *
- * This is the "x-encrypted: true/false" boolean flag you asked for.
+ * Result is cached in memory for the lifetime of the module (i.e. the browser session).
+ * Call invalidateEncryptionCache(uid) if the flag changes via setEncryptionEnabled.
  */
 export async function isEncryptionEnabled(uid: string): Promise<boolean> {
+  if (_encryptionCache.has(uid)) return _encryptionCache.get(uid)!;
   try {
     const snap = await getDoc(settingsRef(uid));
     // Default is ON — only return false if explicitly set to false
-    if (!snap.exists()) return true;
-    const data = snap.data() as Record<string, unknown>;
-    return data['encryptionEnabled'] !== false;
+    const enabled = !snap.exists() || (snap.data() as Record<string, unknown>)['encryptionEnabled'] !== false;
+    _encryptionCache.set(uid, enabled);
+    return enabled;
   } catch {
     return true; // Default ON even if Firestore read fails
   }
+}
+
+/**
+ * Clear the in-memory cache for a user.
+ * Must be called after setEncryptionEnabled so subsequent encryptDoc calls pick up the new value.
+ */
+export function invalidateEncryptionCache(uid: string): void {
+  _encryptionCache.delete(uid);
 }
 
 /**
@@ -130,6 +141,8 @@ export async function setEncryptionEnabled(
     { encryptionEnabled: enabled },
     { merge: true },
   );
+  // Invalidate cache so next encryptDoc call sees the new value
+  invalidateEncryptionCache(uid);
 }
 
 // ─── Core encrypt ─────────────────────────────────────────────────────────────

@@ -87,6 +87,10 @@ export function LiabilitiesPage() {
     }
   }, [searchParams]);
 
+  // Lazy-load pending payments when this page opens
+  const loadPendingPayments = usePortfolioStore((s) => s.loadPendingPayments);
+  useEffect(() => { void loadPendingPayments(); }, [loadPendingPayments]);
+
   const openDeleteModal = (id: string) => {
     setSelectedId(id);
     setDeleteOpen(true);

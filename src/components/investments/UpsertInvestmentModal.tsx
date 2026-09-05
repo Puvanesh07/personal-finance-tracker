@@ -1,4 +1,4 @@
-// src/components/investments/UpsertInvestmentModal.tsx
+﻿// src/components/investments/UpsertInvestmentModal.tsx
 
 import {
   FiBox,
@@ -286,7 +286,7 @@ function RichAssetDropdown({
           </div>
           <div className='flex flex-col items-start'>
             <span className='font-bold text-slate-900 dark:text-slate-100'>{selected.label}</span>
-            <span className='text-[10px] font-medium text-slate-900 dark:text-slate-500'>
+            <span className='text-[10px] font-medium text-slate-500 dark:text-slate-400'>
               {selected.desc}
             </span>
           </div>
@@ -312,7 +312,7 @@ function RichAssetDropdown({
             <div className='max-h-[400px] overflow-y-auto custom-scrollbar p-2'>
               {ASSET_CATEGORIES.map((group, gIdx) => (
                 <div key={group.group} className={gIdx > 0 ? 'mt-3' : ''}>
-                  <div className='px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
+                  <div className='px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
                     {group.group}
                   </div>
                   <div className='flex flex-col gap-1'>
@@ -333,7 +333,7 @@ function RichAssetDropdown({
                           className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-all ${
                             isSelected
                               ? 'bg-emerald-500/10 border border-emerald-500/20'
-                              : 'border border-transparent hover:bg-slate-200/80 dark:bg-slate-800/80 hover:border-slate-300 dark:border-slate-700'
+                              : 'border border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-200 dark:hover:border-slate-700'
                           }`}
                         >
                           <div className='flex items-center gap-3'>
@@ -344,11 +344,11 @@ function RichAssetDropdown({
                             </div>
                             <div className='flex flex-col'>
                               <span
-                                className={`text-sm font-bold ${isSelected ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-800 dark:text-slate-200'}`}
+                                className={`text-sm font-bold ${isSelected ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
                               >
                                 {opt.label}
                               </span>
-                              <span className='text-[10px] font-medium text-slate-900 dark:text-slate-500'>
+                              <span className='text-[10px] font-medium text-slate-500 dark:text-slate-400'>
                                 {opt.desc}
                               </span>
                             </div>
@@ -459,15 +459,15 @@ function CalendarPicker({
         className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'}`}
       >
         <FiCalendar
-          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
+          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}
         />
         <span
-          className={`flex-1 text-left ${!selectedDate ? 'text-slate-900 dark:text-slate-500' : ''}`}
+          className={`flex-1 text-left ${!selectedDate ? 'text-slate-500 dark:text-slate-400' : ''}`}
         >
           {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
         </span>
         <FiChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-500 dark:text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
         />
       </button>
 
@@ -507,7 +507,7 @@ function CalendarPicker({
               {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
                 <div
                   key={d}
-                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
+                  className='text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 pb-1'
                 >
                   {d}
                 </div>
@@ -539,7 +539,7 @@ function CalendarPicker({
                   onChange('');
                   setOpen(false);
                 }}
-                className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors px-2 py-1'
+                className='text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors px-2 py-1'
               >
                 Clear
               </button>
@@ -850,7 +850,7 @@ export function UpsertInvestmentModal(props: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500';
   const labelCls =
     'text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5 block ml-1';
 
@@ -1020,7 +1020,7 @@ export function UpsertInvestmentModal(props: Props) {
                 {toNumber(state.usdToInr) > 0 && (
                   <div className='grid grid-cols-2 gap-3 pt-1'>
                     <div className='rounded-lg bg-slate-200/70 dark:bg-slate-800/60 px-3 py-2'>
-                      <p className='text-[10px] text-slate-900 dark:text-slate-500 mb-0.5'>
+                      <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
                         Buy Price (INR)
                       </p>
                       <p className='text-sm font-bold text-slate-900 dark:text-slate-100'>
@@ -1031,7 +1031,7 @@ export function UpsertInvestmentModal(props: Props) {
                       </p>
                     </div>
                     <div className='rounded-lg bg-slate-200/70 dark:bg-slate-800/60 px-3 py-2'>
-                      <p className='text-[10px] text-slate-900 dark:text-slate-500 mb-0.5'>
+                      <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
                         Current Price (INR)
                       </p>
                       <p className='text-sm font-bold text-emerald-400'>

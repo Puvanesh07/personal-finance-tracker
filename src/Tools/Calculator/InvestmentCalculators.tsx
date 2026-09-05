@@ -235,7 +235,7 @@ export function CAGRCalculator() {
     }
   }, [initial, final, years])
 
-  const inputCls = 'w-full rounded-xl border border-slate-200/80 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700/80 px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all'
+  const inputCls = 'w-full rounded-xl border border-slate-200/80 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700/80 px-4 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500'
 
   return (
     <CardShell color="emerald" title="CAGR Calculator" subtitle="Compounded Annual Growth" Icon={FiActivity}>

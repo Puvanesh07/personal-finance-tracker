@@ -11,7 +11,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import {
   initializeTrialIfMissing,
-  listenSubscriptionNotifications,
+  getSubscriptionNotificationsOnce,
   listenUserSubscription,
 } from '../services/subscriptionService';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -156,11 +156,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       () => setLoading(false),
     );
 
-    const unsubNotifs = listenSubscriptionNotifications(uid, setNotifications);
+    // Load subscription notifications once — avoids a persistent onSnapshot listener.
+    // Re-fetched whenever uid changes (login/logout). For 1–3 users with rare
+    // subscription events this is far cheaper than an always-open listener.
+    getSubscriptionNotificationsOnce(uid).then(setNotifications).catch(() => {});
 
     return () => {
       unsubUser();
-      unsubNotifs();
     };
   }, [uid, refreshSubscription]);
 
