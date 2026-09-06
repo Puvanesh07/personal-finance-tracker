@@ -33,7 +33,7 @@ Go to **Sidebar → Payments**.
    - **Amount** — the expected payment amount
    - **Due Date** — when it needs to be paid
    - **Payment Type** — EMI / Insurance / Rent / Credit Card / Custom etc.
-   - **Recurrence** — None / Monthly / Yearly
+   - **Recurrence** — One-time / Weekly / Every 2 weeks / Monthly / Every 2 months / Quarterly / Half-yearly / Yearly
    - **Reminder Days** — how many days before due date to get notified
 3. Tap **Save**.
 

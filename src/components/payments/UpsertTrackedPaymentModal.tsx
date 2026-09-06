@@ -218,9 +218,14 @@ export function UpsertTrackedPaymentModal(props: Props) {
           <Dropdown
             value={state.recurrence}
             options={[
-              { value: 'none', label: 'One-time payment' },
-              { value: 'monthly', label: 'Monthly (auto-create next)' },
-              { value: 'yearly', label: 'Yearly (auto-create next)' },
+              { value: 'none',          label: '🔂 One-time (no repeat)' },
+              { value: 'weekly',        label: '📅 Weekly' },
+              { value: 'every_2_weeks', label: '📅 Every 2 weeks (fortnightly)' },
+              { value: 'monthly',       label: '🗓️ Monthly' },
+              { value: 'every_2_months',label: '🗓️ Every 2 months' },
+              { value: 'quarterly',     label: '🗓️ Quarterly (every 3 months)' },
+              { value: 'half_yearly',   label: '🗓️ Half-yearly (every 6 months)' },
+              { value: 'yearly',        label: '🗓️ Yearly / Annual' },
             ]}
             onChange={(recurrence) =>
               setState((s) => ({ ...s, recurrence: recurrence as PaymentRecurrence }))

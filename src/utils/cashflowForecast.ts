@@ -92,11 +92,26 @@ function buildEvents(
       });
     }
 
-    // Project monthly recurrences
-    if (p.recurrence === 'monthly') {
+    // Project all recurrences using the shared nextDueDate utility
+    if (p.recurrence !== 'none') {
+      // Determine interval in months or days based on recurrence type
+      const addInterval = (d: Date): Date => {
+        switch (p.recurrence) {
+          case 'weekly':         return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7);
+          case 'every_2_weeks':  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 14);
+          case 'monthly':        return new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+          case 'every_2_months': return new Date(d.getFullYear(), d.getMonth() + 2, d.getDate());
+          case 'quarterly':      return new Date(d.getFullYear(), d.getMonth() + 3, d.getDate());
+          case 'half_yearly':    return new Date(d.getFullYear(), d.getMonth() + 6, d.getDate());
+          case 'yearly':         return new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
+          default:               return new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+        }
+      };
+
       let d = new Date(p.dueDate);
-      for (let i = 0; i < Math.ceil(days / 28) + 1; i++) {
-        d = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+      const maxIterations = 400; // safety cap
+      for (let i = 0; i < maxIterations; i++) {
+        d = addInterval(d);
         const iso = d.toISOString().slice(0, 10);
         if (iso > end) break;
         if (iso >= start) {

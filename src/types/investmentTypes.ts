@@ -323,7 +323,15 @@ export type PaymentTrackerType =
   | 'custom';
 
 export type TrackedPaymentStatus = 'pending' | 'paid';
-export type PaymentRecurrence = 'none' | 'monthly' | 'yearly';
+export type PaymentRecurrence =
+  | 'none'
+  | 'weekly'
+  | 'every_2_weeks'
+  | 'monthly'
+  | 'every_2_months'
+  | 'quarterly'
+  | 'half_yearly'
+  | 'yearly';
 
 export type TrackedPayment = {
   id: string;

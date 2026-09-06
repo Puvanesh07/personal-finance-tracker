@@ -197,7 +197,7 @@ function PaymentForm({ onDone }: { onDone: () => void }) {
   const [title,    setTitle]    = useState('');
   const [amount,   setAmount]   = useState('');
   const [dueDate,  setDueDate]  = useState(todayISO());
-  const [recur,    setRecur]    = useState<'none' | 'monthly' | 'yearly'>('none');
+  const [recur,    setRecur]    = useState<import('../../types/investmentTypes').PaymentRecurrence>('none');
   const [saving,   setSaving]   = useState(false);
 
   const PAYMENT_TYPES = ['custom','rent','emi','credit_card','insurance','subscription','utilities','other'];
@@ -250,7 +250,12 @@ function PaymentForm({ onDone }: { onDone: () => void }) {
           <div className='relative'>
             <select value={recur} onChange={(e) => setRecur(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
               <option value='none'>One-time</option>
+              <option value='weekly'>Weekly</option>
+              <option value='every_2_weeks'>Every 2 weeks</option>
               <option value='monthly'>Monthly</option>
+              <option value='every_2_months'>Every 2 months</option>
+              <option value='quarterly'>Quarterly (3 months)</option>
+              <option value='half_yearly'>Half-yearly (6 months)</option>
               <option value='yearly'>Yearly</option>
             </select>
             <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />

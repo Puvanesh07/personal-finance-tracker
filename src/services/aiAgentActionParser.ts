@@ -21,6 +21,8 @@
  *   mark_payment_paid    search_records
  */
 
+import type { PaymentRecurrence } from '../types/investmentTypes';
+
 // ─── Action types ─────────────────────────────────────────────────────────────
 
 export type ActionType =
@@ -66,7 +68,7 @@ export interface AddPaymentAction {
   amount: number;
   dueDate: string;
   paymentType: string;
-  recurrence: 'none' | 'monthly' | 'yearly';
+  recurrence: PaymentRecurrence;
   notes?: string;
 }
 
@@ -397,9 +399,14 @@ function extractPaymentType(q: string): string {
   return 'custom';
 }
 
-function extractRecurrence(q: string): 'none' | 'monthly' | 'yearly' {
-  if (/\b(every\s+month|monthly|recurring\s+monthly)\b/i.test(q)) return 'monthly';
-  if (/\b(every\s+year|yearly|annual)\b/i.test(q)) return 'yearly';
+function extractRecurrence(q: string): PaymentRecurrence {
+  if (/\b(every\s+week|weekly)\b/i.test(q))                              return 'weekly';
+  if (/\b(every\s+2\s+weeks?|fortnightly|bi.?weekly)\b/i.test(q))       return 'every_2_weeks';
+  if (/\b(every\s+month|monthly|recurring\s+monthly)\b/i.test(q))       return 'monthly';
+  if (/\b(every\s+2\s+months?|bi.?monthly)\b/i.test(q))                 return 'every_2_months';
+  if (/\b(quarterly|every\s+3\s+months?|every\s+quarter)\b/i.test(q))   return 'quarterly';
+  if (/\b(half.?yearly|every\s+6\s+months?|semi.?annual)\b/i.test(q))   return 'half_yearly';
+  if (/\b(every\s+year|yearly|annual)\b/i.test(q))                       return 'yearly';
   return 'none';
 }
 

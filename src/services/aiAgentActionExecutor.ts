@@ -256,7 +256,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           ...(action.patch.dueDate   !== undefined ? { dueDate: action.patch.dueDate }  : {}),
           ...(action.patch.title     !== undefined ? { title:   action.patch.title }    : {}),
           ...(action.patch.recurrence !== undefined
-            ? { recurrence: action.patch.recurrence as 'none' | 'monthly' | 'yearly' }
+            ? { recurrence: action.patch.recurrence as import('../types/investmentTypes').PaymentRecurrence }
             : {}),
         });
         return {

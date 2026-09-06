@@ -165,11 +165,15 @@ export function getReminderDates(dueDateStr: string, reminderDays: number[]): Bu
  */
 export function getNextRecurringDate(
   currentDateStr: string,
-  recurrence: 'none' | 'weekly' | 'monthly' | 'yearly',
+  recurrence: 'none' | 'weekly' | 'every_2_weeks' | 'monthly' | 'every_2_months' | 'quarterly' | 'half_yearly' | 'yearly',
 ): BusinessDateString | null {
-  if (recurrence === 'none') return null;
-  if (recurrence === 'weekly') return addDays(currentDateStr, 7);
-  if (recurrence === 'monthly') return addMonths(currentDateStr, 1);
-  if (recurrence === 'yearly') return addYears(currentDateStr, 1);
+  if (recurrence === 'none')          return null;
+  if (recurrence === 'weekly')        return addDays(currentDateStr, 7);
+  if (recurrence === 'every_2_weeks') return addDays(currentDateStr, 14);
+  if (recurrence === 'monthly')       return addMonths(currentDateStr, 1);
+  if (recurrence === 'every_2_months')return addMonths(currentDateStr, 2);
+  if (recurrence === 'quarterly')     return addMonths(currentDateStr, 3);
+  if (recurrence === 'half_yearly')   return addMonths(currentDateStr, 6);
+  if (recurrence === 'yearly')        return addYears(currentDateStr, 1);
   return null;
 }

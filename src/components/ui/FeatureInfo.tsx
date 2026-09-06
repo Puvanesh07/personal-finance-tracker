@@ -115,7 +115,7 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
     summary: 'Never miss a bill or EMI again — schedule reminders for any recurring or one-time payment.',
     what: 'The Payment Tracker is your bill reminder system. Add any upcoming payment — electricity, OTT subscription, insurance premium, EMI, rent — and FinTrackly will alert you before it\'s due.',
     why: 'Late payments cost money (late fees, interest) and hurt your credit score. A central reminder system prevents this even when you\'re busy.',
-    how: 'Tap "+ Add Payment" with title, amount, due date, and recurrence (none/monthly/yearly). Set reminder days (e.g. remind me 3 days before). Mark as paid when done.',
+    how: 'Tap "+ Add Payment" with title, amount, due date, and recurrence (one-time / weekly / monthly / quarterly / half-yearly / yearly). Set reminder days (e.g. remind me 3 days before). Mark as paid when done.',
     questions: [
       { q: 'What is the difference between Payments and Liabilities?', a: 'Liabilities are long-term debts (loans). Payments are one-time or recurring bills (electricity, subscriptions). Both generate reminders, but Liabilities also track your outstanding balance.' },
       { q: 'What are Pending Payments?', a: 'Money people owe you — e.g. a friend who bought something and hasn\'t paid back yet. Track the expected receipt date and get reminders to follow up.' },
