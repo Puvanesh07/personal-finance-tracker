@@ -11,8 +11,12 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import {
   initializeTrialIfMissing,
-  getSubscriptionNotificationsOnce,
+  listenSubscriptionNotifications,
   listenUserSubscription,
+  markAllNotificationsRead,
+  markNotificationRead,
+  dismissNotification as firestoreDismissNotification,
+  clearAllNotificationsFirestore,
 } from '../services/subscriptionService';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -64,6 +68,19 @@ interface SubscriptionContextValue {
   refreshSubscription: () => Promise<void>;
   dismissUpgradeModalForSession: () => void;
   upgradeModalDismissed: boolean;
+  /**
+   * Sync helpers for the notification UI layer: write user read/dismiss/clear
+   * actions back to Firestore so they replicate across devices.
+   * - If a `notificationId` does NOT start with `sub_` it's a derived
+   *   in-app-only notification (originates from portfolio store data, no
+   *   corresponding Firestore document) → helpers no-op safely.
+   * - For `sub_*` IDs the helper strips the `sub_` prefix and writes to
+   *   `notifications/{uid}/items/{id}`.
+   */
+  markNotificationReadRemote: (notificationId: string) => void;
+  markAllNotificationsReadRemote: (notificationIds: string[]) => void;
+  dismissNotificationRemote: (notificationId: string) => void;
+  clearAllNotificationsRemote: (notificationIds: string[]) => void;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
@@ -156,15 +173,65 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       () => setLoading(false),
     );
 
-    // Load subscription notifications once — avoids a persistent onSnapshot listener.
-    // Re-fetched whenever uid changes (login/logout). For 1–3 users with rare
-    // subscription events this is far cheaper than an always-open listener.
-    getSubscriptionNotificationsOnce(uid).then(setNotifications).catch(() => {});
+    // Live listener for subscription notifications — pushes to Firestore from
+    // this device → picks up instantly on all other signed-in devices.
+    const unsubNotifs = listenSubscriptionNotifications(
+      uid,
+      (items) => setNotifications(items),
+      () => {},
+    );
 
     return () => {
       unsubUser();
+      unsubNotifs();
     };
   }, [uid, refreshSubscription]);
+
+  const uidCurrent = uid;
+
+  const markNotificationReadRemote = useCallback(
+    (notificationId: string) => {
+      if (!uidCurrent) return;
+      if (!notificationId.startsWith('sub_')) return;
+      const id = notificationId.slice(4);
+      markNotificationRead(uidCurrent, id).catch(() => {});
+    },
+    [uidCurrent],
+  );
+
+  const markAllNotificationsReadRemote = useCallback(
+    (notificationIds: string[]) => {
+      if (!uidCurrent || !notificationIds.length) return;
+      const firestoreIds = notificationIds
+        .filter((s) => s.startsWith('sub_'))
+        .map((s) => s.slice(4));
+      if (!firestoreIds.length) return;
+      markAllNotificationsRead(uidCurrent, firestoreIds).catch(() => {});
+    },
+    [uidCurrent],
+  );
+
+  const dismissNotificationRemote = useCallback(
+    (notificationId: string) => {
+      if (!uidCurrent) return;
+      if (!notificationId.startsWith('sub_')) return;
+      const id = notificationId.slice(4);
+      firestoreDismissNotification(uidCurrent, id).catch(() => {});
+    },
+    [uidCurrent],
+  );
+
+  const clearAllNotificationsRemote = useCallback(
+    (notificationIds: string[]) => {
+      if (!uidCurrent || !notificationIds.length) return;
+      const firestoreIds = notificationIds
+        .filter((s) => s.startsWith('sub_'))
+        .map((s) => s.slice(4));
+      if (!firestoreIds.length) return;
+      clearAllNotificationsFirestore(uidCurrent, firestoreIds).catch(() => {});
+    },
+    [uidCurrent],
+  );
 
   const premium = hasPremiumAccess(userSubscription, authEmail);
   const expired = isExpiredStatus(userSubscription, authEmail);
@@ -200,6 +267,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       refreshSubscription,
       dismissUpgradeModalForSession: () => setUpgradeModalDismissed(true),
       upgradeModalDismissed,
+      markNotificationReadRemote,
+      markAllNotificationsReadRemote,
+      dismissNotificationRemote,
+      clearAllNotificationsRemote,
     }),
     [
       userSubscription,
@@ -214,6 +285,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       notifications,
       refreshSubscription,
       upgradeModalDismissed,
+      markNotificationReadRemote,
+      markAllNotificationsReadRemote,
+      dismissNotificationRemote,
+      clearAllNotificationsRemote,
     ],
   );
 

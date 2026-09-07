@@ -70,6 +70,22 @@ export function invalidatePriceCache(symbols?: string[]) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function normalizeSymbol(s: string): string {
+  const t = s.trim();
+  if (!t) return '';
+  const up = t.toUpperCase();
+  if (up.startsWith('MF:')) {
+    const code = up.slice(3).trim();
+    if (/^\d+$/.test(code)) return `MF:${code}`;
+    return up;
+  }
+  if (up.startsWith('US:')) {
+    const ticker = up.slice(3).trim();
+    return ticker ? `US:${ticker}` : '';
+  }
+  return up;
+}
+
 function getWorkerUrl(): string {
   const url = import.meta.env.VITE_LIVE_PRICE_WORKER_URL as string | undefined;
   if (!url)
@@ -109,7 +125,7 @@ export async function fetchLivePrices(
   onProgress?: FetchProgressCallback,
 ): Promise<LivePriceResponse> {
   const clean = [
-    ...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean)),
+    ...new Set(symbols.map(normalizeSymbol).filter(Boolean)),
   ];
   if (clean.length === 0)
     return { prices: {}, fetchedAt: new Date().toISOString(), count: 0 };

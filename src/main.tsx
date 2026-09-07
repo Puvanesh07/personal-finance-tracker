@@ -1,4 +1,5 @@
 import './index.css';
+import '@fontsource-variable/geist';
 
 import App from './App';
 import AuthWrapper from './Auth/AuthWrapper';

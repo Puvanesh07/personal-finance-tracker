@@ -463,90 +463,90 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
 
       {/* ── Panel — fixed position so it's never clipped ── */}
       {open && (
-        <div
-          ref={wrapperRef}
-          style={panelStyle}
-          className='z-[9999] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-[0_24px_64px_-8px_rgba(0,0,0,0.28),0_4px_16px_-4px_rgba(0,0,0,0.14)] dark:shadow-[0_24px_64px_-8px_rgba(0,0,0,0.7)] overflow-hidden'
-          role='dialog'
-          aria-label={`${feature} feature information`}
-        >
-          {/* ── Header ── */}
-          <div className='flex items-start gap-3 px-4 py-3.5 bg-emerald-500/5 dark:bg-emerald-500/10 border-b border-slate-100 dark:border-slate-800'>
-            <span className='text-2xl shrink-0 leading-none mt-0.5 select-none'>{content.emoji}</span>
-            <div className='min-w-0 flex-1'>
-              <p className='text-[13px] font-bold text-slate-900 dark:text-slate-50 capitalize leading-tight'>
-                {feature.replace(/_/g, ' ')}
+  <div
+    ref={wrapperRef}
+    style={panelStyle}
+    className='antialiased z-[9999] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-[0_24px_64px_-8px_rgba(0,0,0,0.28),0_4px_16px_-4px_rgba(0,0,0,0.14)] dark:shadow-[0_24px_64px_-8px_rgba(0,0,0,0.7)] overflow-hidden'
+    role='dialog'
+    aria-label={`${feature} feature information`}
+  >
+    {/* ── Header ── */}
+    <div className='flex items-start gap-3 px-4 py-3.5 bg-emerald-500/5 dark:bg-emerald-500/10 border-b border-slate-100 dark:border-slate-800'>
+      <span className='text-2xl shrink-0 leading-none mt-0.5 select-none'>{content.emoji}</span>
+      <div className='min-w-0 flex-1'>
+        <p className='text-sm font-semibold text-slate-900 dark:text-slate-50 capitalize leading-snug tracking-normal'>
+          {feature.replace(/_/g, ' ')}
+        </p>
+        <p className='text-sm font-normal text-slate-600 dark:text-slate-300 leading-relaxed mt-1'>
+          {content.summary}
+        </p>
+      </div>
+      <button
+        type='button'
+        onClick={() => { setOpen(false); setExpanded(false); }}
+        aria-label='Close'
+        className='shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'
+      >
+        <FiX className='h-4 w-4' />
+      </button>
+    </div>
+
+    {/* ── Know more toggle ── */}
+    <button
+      type='button'
+      onClick={() => setExpanded((v) => !v)}
+      className='flex w-full items-center justify-between gap-2 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors border-b border-slate-100 dark:border-slate-800'
+    >
+      <span>{expanded ? '▲ Show less' : '✨ Know more — What, Why, How & FAQs'}</span>
+      {expanded
+        ? <FiChevronUp className='h-4 w-4 shrink-0' />
+        : <FiChevronDown className='h-4 w-4 shrink-0' />}
+    </button>
+
+    {/* ── Expanded detail ── */}
+    {expanded && (
+      <div className='max-h-[380px] overflow-y-auto overscroll-contain'>
+        <div className='px-4 pt-4 pb-2 space-y-4'>
+          {[
+            { label: '📌 What is it?',        text: content.what },
+            { label: '💡 Why does it matter?', text: content.why },
+            { label: '🛠️ How do I use it?',    text: content.how },
+          ].map(({ label, text }) => (
+            <div key={label}>
+              <p className='text-xs font-semibold tracking-wide text-emerald-700 dark:text-emerald-500 mb-1.5'>
+                {label}
               </p>
-              <p className='text-[12px] font-normal text-slate-600 dark:text-slate-300 leading-relaxed mt-1'>
-                {content.summary}
+              <p className='text-sm font-normal leading-relaxed text-slate-700 dark:text-slate-200'>
+                {text}
               </p>
             </div>
-            <button
-              type='button'
-              onClick={() => { setOpen(false); setExpanded(false); }}
-              aria-label='Close'
-              className='shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'
-            >
-              <FiX className='h-4 w-4' />
-            </button>
-          </div>
-
-          {/* ── Know more toggle ── */}
-          <button
-            type='button'
-            onClick={() => setExpanded((v) => !v)}
-            className='flex w-full items-center justify-between gap-2 px-4 py-2.5 text-[12px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors border-b border-slate-100 dark:border-slate-800'
-          >
-            <span>{expanded ? '▲ Show less' : '✨ Know more — What, Why, How & FAQs'}</span>
-            {expanded
-              ? <FiChevronUp className='h-4 w-4 shrink-0' />
-              : <FiChevronDown className='h-4 w-4 shrink-0' />}
-          </button>
-
-          {/* ── Expanded detail ── */}
-          {expanded && (
-            <div className='max-h-[380px] overflow-y-auto overscroll-contain'>
-              <div className='px-4 pt-4 pb-2 space-y-4'>
-                {[
-                  { label: '📌 What is it?',         text: content.what },
-                  { label: '💡 Why does it matter?',  text: content.why },
-                  { label: '🛠️ How do I use it?',     text: content.how },
-                ].map(({ label, text }) => (
-                  <div key={label}>
-                    <p className='text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-500 mb-1.5'>
-                      {label}
-                    </p>
-                    <p className='text-[12.5px] font-normal leading-relaxed text-slate-700 dark:text-slate-200'>
-                      {text}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className='px-4 pb-4'>
-                <p className='text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 mt-1'>
-                  ❓ Common questions
-                </p>
-                <div className='space-y-2'>
-                  {content.questions.map(({ q, a }) => (
-                    <div
-                      key={q}
-                      className='rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3 py-2.5'
-                    >
-                      <p className='text-[12px] font-semibold text-slate-800 dark:text-slate-100 mb-1 leading-snug'>
-                        {q}
-                      </p>
-                      <p className='text-[12px] font-normal leading-relaxed text-slate-600 dark:text-slate-300'>
-                        {a}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          ))}
         </div>
-      )}
+
+        <div className='px-4 pb-4'>
+          <p className='text-xs font-semibold tracking-wide text-slate-400 dark:text-slate-500 mb-2 mt-1'>
+            ❓ Common questions
+          </p>
+          <div className='space-y-2'>
+            {content.questions.map(({ q, a }) => (
+              <div
+                key={q}
+                className='rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-3 py-2.5'
+              >
+                <p className='text-sm font-semibold text-slate-800 dark:text-slate-100 mb-1 leading-snug'>
+                  {q}
+                </p>
+                <p className='text-sm font-normal leading-relaxed text-slate-600 dark:text-slate-300'>
+                  {a}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
     </div>
   );
 }

@@ -31,6 +31,9 @@ export interface SubscriptionNotification {
   message: string;
   type: 'info' | 'warning' | 'error' | 'success';
   read: boolean;
+  dismissed?: boolean;
+  dismissedAt?: Date | null;
+  clearedAt?: Date | null;
   createdAt: Date;
 }
 

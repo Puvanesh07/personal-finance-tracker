@@ -55,12 +55,27 @@ export function listenSubscriptionNotifications(
           data.createdAt && typeof data.createdAt.toDate === 'function'
             ? data.createdAt.toDate()
             : new Date();
+        const dismissedAt =
+          data.dismissedAt && typeof data.dismissedAt.toDate === 'function'
+            ? data.dismissedAt.toDate()
+            : data.dismissedAt instanceof Date
+              ? data.dismissedAt
+              : null;
+        const clearedAt =
+          data.clearedAt && typeof data.clearedAt.toDate === 'function'
+            ? data.clearedAt.toDate()
+            : data.clearedAt instanceof Date
+              ? data.clearedAt
+              : null;
         return {
           id: d.id,
           title: String(data.title ?? ''),
           message: String(data.message ?? ''),
           type: (data.type as SubscriptionNotification['type']) ?? 'info',
           read: Boolean(data.read),
+          dismissed: Boolean(data.dismissed),
+          dismissedAt,
+          clearedAt,
           createdAt,
         };
       });
@@ -88,12 +103,27 @@ export async function getSubscriptionNotificationsOnce(
         data.createdAt && typeof data.createdAt.toDate === 'function'
           ? data.createdAt.toDate()
           : new Date();
+      const dismissedAt =
+        data.dismissedAt && typeof data.dismissedAt.toDate === 'function'
+          ? data.dismissedAt.toDate()
+          : data.dismissedAt instanceof Date
+            ? data.dismissedAt
+            : null;
+      const clearedAt =
+        data.clearedAt && typeof data.clearedAt.toDate === 'function'
+          ? data.clearedAt.toDate()
+          : data.clearedAt instanceof Date
+            ? data.clearedAt
+            : null;
       return {
         id: d.id,
         title: String(data.title ?? ''),
         message: String(data.message ?? ''),
         type: (data.type as SubscriptionNotification['type']) ?? 'info',
         read: Boolean(data.read),
+        dismissed: Boolean(data.dismissed),
+        dismissedAt,
+        clearedAt,
         createdAt,
       };
     });
@@ -108,10 +138,34 @@ export async function markNotificationRead(uid: string, notificationId: string) 
 
 export async function markAllNotificationsRead(uid: string, unreadIds: string[]) {
   if (!unreadIds.length) return;
-  // Use IDs passed from in-memory state — avoids a full collection read
   await Promise.all(
     unreadIds.map((id) =>
       updateDoc(doc(db, 'notifications', uid, 'items', id), { read: true }),
+    ),
+  );
+}
+
+export async function dismissNotification(uid: string, notificationId: string) {
+  await updateDoc(doc(db, 'notifications', uid, 'items', notificationId), {
+    read: true,
+    dismissed: true,
+    dismissedAt: serverTimestamp(),
+  });
+}
+
+export async function clearAllNotificationsFirestore(
+  uid: string,
+  itemIds: string[],
+  opts: { markRead?: boolean } = {},
+) {
+  if (!itemIds.length) return;
+  const markRead = opts.markRead !== false;
+  await Promise.all(
+    itemIds.map((id) =>
+      updateDoc(doc(db, 'notifications', uid, 'items', id), {
+        ...(markRead ? { read: true } : {}),
+        clearedAt: serverTimestamp(),
+      }),
     ),
   );
 }

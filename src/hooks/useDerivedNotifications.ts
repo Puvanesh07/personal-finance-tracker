@@ -1,7 +1,25 @@
 // src/hooks/useDerivedNotifications.ts
-// Derives all in-app notifications directly from portfolio store data.
-// No notification objects are persisted — they are computed fresh on every render.
-// Read/dismissed state is tracked minimally via notificationStore (IDs only).
+// Derives in-app notifications directly from portfolio store data.
+//
+// DESIGN (rewamped):
+//   - This hook performs ONLY pure derivation: build the raw list of
+//     notifications that are currently "active" (not expired, conditions met).
+//   - Read / dismissed / clearedAt state are NOT applied here. Instead the
+//     consuming components (NotificationBell, NotificationsPage) call
+//     `useNotificationStore.getState().enrichAndFilter(raw)` which is the
+//     SINGLE truth pipeline that:
+//        1. Applies Zustand readIds/dismissedIds on top
+//        2. Filters out anything createdAt <= store.clearedAt
+//        3. Filters out expired items
+//        4. Dedupes + sorts newest-first
+//   - No store write operations happen during render (eliminates the
+//     "Cannot update a component while rendering a different component"
+//     React warning entirely).
+//   - NO stale-ID cleanup: previously the hook was deleting IDs from readIds
+//     whenever a derived notification "wasn't firing today", which caused
+//     the intermittent "mark read works / doesn't work" behaviour because
+//     the next day the same logical notification (same stable ID) would
+//     lose its read state.
 
 import { useMemo } from 'react';
 import {
@@ -14,7 +32,6 @@ import {
 } from 'date-fns';
 
 import { usePortfolioStore } from '../store/portfolioStore';
-import { useNotificationStore } from '../store/notificationStore';
 import { useSubscriptionOptional } from '../context/SubscriptionContext';
 import type { NotifType, AppNotification } from '../store/notificationStore';
 import { daysUntilDue, buildPaymentReminderMessage } from '../utils/paymentTracker';
@@ -73,19 +90,15 @@ function makeNotif(
     actionPath: opts.actionPath,
     periodKey: opts.dueDate,
     severity: opts.severity,
+    expiresAt: opts.expiresAt,
   };
 }
 
-export function useDerivedNotifications() {
+export function useDerivedNotifications(): AppNotification[] {
   const portfolio = usePortfolioStore();
-  const notifStore = useNotificationStore();
   const subscription = useSubscriptionOptional();
 
-  const readIds = new Set(notifStore.readIds);
-  const dismissedIds = new Set(notifStore.dismissedIds);
-  const clearedDerivedIds = new Set(notifStore.clearedDerivedIds);
-
-  const derived = useMemo(() => {
+  return useMemo(() => {
     const notifs: AppNotification[] = [];
     const t = today();
 
@@ -887,45 +900,7 @@ export function useDerivedNotifications() {
       }
     }
 
-    // ── Apply read/dismissed state ──────────────────────────────────────────
-    const validIds = new Set(notifs.map((n) => n.id));
-    const cleanedReadIds = new Set([...readIds].filter((id) => validIds.has(id)));
-    const cleanedDismissedIds = new Set([...dismissedIds].filter((id) => validIds.has(id)));
-
-    const enriched = notifs.map((n) => ({
-      ...n,
-      read: cleanedReadIds.has(n.id),
-      dismissed: cleanedDismissedIds.has(n.id),
-    }));
-
-    // Filter out expired notifications
-    const now = new Date().toISOString();
-    const filtered = enriched.filter(
-      (n) => !n.expiresAt || new Date(n.expiresAt) >= new Date(now),
-    );
-
-    // Filter out dismissed notifications
-    const active = filtered.filter((n) => !n.dismissed);
-
-    // Filter out notifications that existed before the user clicked "Clear All".
-    // Uses stable IDs stored at clear time — works regardless of createdAt timestamps.
-    const afterClear = clearedDerivedIds.size > 0
-      ? active.filter((n) => !clearedDerivedIds.has(n.id))
-      : active;
-
-    // Sort newest first
-    const sorted = afterClear.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-
-    // Clean stale read/dismissed IDs
-    if (cleanedReadIds.size !== readIds.size || cleanedDismissedIds.size !== dismissedIds.size) {
-      const validReadIds = [...cleanedReadIds];
-      const validDismissedIds = [...cleanedDismissedIds];
-      useNotificationStore.getState().setReadState(validReadIds, validDismissedIds);
-    }
-
-    return sorted;
+    return notifs;
   }, [
     portfolio.insurancePolicies,
     portfolio.liabilities,
@@ -944,10 +919,5 @@ export function useDerivedNotifications() {
     subscription?.hasPremiumAccess,
     subscription?.loading,
     subscription?.userSubscription,
-    notifStore.readIds,
-    notifStore.dismissedIds,
-    notifStore.clearedDerivedIds,
   ]);
-
-  return derived;
 }

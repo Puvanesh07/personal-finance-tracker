@@ -1,6 +1,12 @@
 /* src/index.css */
 @import 'tailwindcss';
 
+/* ── Geist variable font ────────────────────────────────────────────────
+   Loaded via npm package @fontsource-variable/geist in main.tsx:
+     import '@fontsource-variable/geist';
+   (This avoids PostCSS @import-order issues with CDN imports.)
+──────────────────────────────────────────────────────────────────────── */
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -33,6 +39,7 @@ body,
   height: 100%;
   width: 100%;
   font-family:
+    'Geist Variable',
     'Geist',
     system-ui,
     -apple-system,
@@ -42,6 +49,8 @@ body,
   background-color: var(--app-bg);
   color: var(--app-fg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   line-height: 1.5;
   font-size: 13px;
   overflow-x: clip;
@@ -59,9 +68,13 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: 'Geist', system-ui, sans-serif;
+  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  /* 800 now renders as a true weight from the variable font instead of
+     browser-synthesized ("faux") bold, which is what was causing the blur. */
   font-weight: 800;
-  letter-spacing: -0.04em;
+  /* Dialed back slightly from -0.04em — very tight tracking on a heavy
+     weight still reads as crowded/blurry even with the real font loaded. */
+  letter-spacing: -0.02em;
   line-height: 1.15;
 }
 

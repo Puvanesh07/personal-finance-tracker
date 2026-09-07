@@ -1,8 +1,23 @@
 // src/components/notifications/NotificationBell.tsx
-// Modern, professional notification panel for Fintrackly
-// Uses derived notifications from useDerivedNotifications hook.
+// Modern, professional notification panel for Fintrackly (Rewamped).
+//
+// PIPELINE (shared with NotificationsPage — keep them in sync):
+//   1. useDerivedNotifications() → raw derived AppNotification[] (pure, no read state)
+//   2. subscription.notifications → raw Firestore sub_* notifications
+//   3. combine: dedupe derived-vs-firestore by TYPE to avoid duplicate events
+//   4. store.enrichAndFilter() → SINGLE truth for read/dismissed/cleared/expired/dedup/sort
+//   5. read state is ALWAYS from Zustand readIds (not firestore .read field) —
+//      so markRead / markAllRead / dismiss / clearAll ALL work uniformly for
+//      BOTH derived and Firestore-backed notifications.
+//
+// Semantics:
+//   - markRead(id):        adds id to readIds (badge drops; read styling)
+//   - markAllRead(ids[]):  atomically adds many (removes the "unread" accent)
+//   - dismiss(id):         adds id to dismissedIds AND readIds → GONE from list
+//   - clearAll(ids[]):     stores clearedAt = now (hides everything older),
+//                          AND marks ids read + dismissed so unread = 0 instantly
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   FiBell,
@@ -22,6 +37,7 @@ import {
   useNotificationStore,
   type AppNotification,
 } from '../../store/notificationStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useDerivedNotifications } from '../../hooks/useDerivedNotifications';
 import { useSubscription } from '../../context/SubscriptionContext';
 
@@ -46,6 +62,7 @@ const SEVERITY_BADGE: Record<string, string> = {
 // ─── Friendly timestamp ───────────────────────────────────────────────────────
 function relativeTime(iso: string): string {
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
   if (isToday(d)) return formatDistanceToNow(d, { addSuffix: true });
   if (isYesterday(d)) return `Yesterday ${format(d, 'h:mm a')}`;
   return format(d, 'dd MMM, h:mm a');
@@ -98,7 +115,6 @@ function NotifCard({
       }}
       aria-label={notif.title}
     >
-      {/* Left severity accent bar */}
       {!notif.read && (
         <span
           className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full ${severityBar}`}
@@ -106,7 +122,6 @@ function NotifCard({
         />
       )}
 
-      {/* Emoji icon */}
       <span
         className='shrink-0 text-base leading-none mt-0.5 select-none'
         aria-hidden='true'
@@ -114,9 +129,7 @@ function NotifCard({
         {icon}
       </span>
 
-      {/* Body */}
       <div className='min-w-0 flex-1'>
-        {/* Title row */}
         <div className='flex items-start justify-between gap-2'>
           <p
             className={`text-xs font-bold leading-snug ${
@@ -127,7 +140,6 @@ function NotifCard({
           >
             {notif.title}
           </p>
-          {/* Unread dot */}
           {!notif.read && (
             <span
               className='mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]'
@@ -136,7 +148,6 @@ function NotifCard({
           )}
         </div>
 
-        {/* Message */}
         <p
           className={`mt-0.5 text-[11px] leading-relaxed ${
             notif.read
@@ -147,7 +158,6 @@ function NotifCard({
           {notif.message}
         </p>
 
-        {/* Due date */}
         {notif.dueDate && (
           <p className='mt-1 text-[10px] font-medium text-slate-500 dark:text-slate-500'>
             Due{' '}
@@ -155,14 +165,10 @@ function NotifCard({
           </p>
         )}
 
-        {/* Footer row: category badge + severity + time */}
         <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
-          {/* Category pill */}
           <span className='rounded-full bg-slate-200/70 dark:bg-slate-700/60 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400'>
             {category}
           </span>
-
-          {/* Severity badge — only for non-info/non-read */}
           {notif.severity && notif.severity !== 'info' && !notif.read && (
             <span
               className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${severityBadge}`}
@@ -170,14 +176,11 @@ function NotifCard({
               {notif.severity}
             </span>
           )}
-
-          {/* Time */}
           <span className='ml-auto text-[9px] text-slate-400 dark:text-slate-600 tabular-nums'>
             {relativeTime(notif.createdAt)}
           </span>
         </div>
 
-        {/* Action button — only shown when unread and actionLabel exists */}
         {notif.actionLabel && !notif.read && notif.actionPath && (
           <button
             type='button'
@@ -195,7 +198,6 @@ function NotifCard({
         )}
       </div>
 
-      {/* Dismiss (×) button — always visible on hover */}
       <button
         type='button'
         onClick={onDismiss}
@@ -223,15 +225,85 @@ function EmptyState() {
       </div>
       <div>
         <p className='text-sm font-bold text-slate-800 dark:text-slate-200'>
-          You're all caught up!
+          You&apos;re all caught up!
         </p>
         <p className='mt-1 text-xs text-slate-400 dark:text-slate-500 leading-relaxed max-w-[200px] mx-auto'>
-          No new notifications right now. We'll let you know when something
+          No new notifications right now. We&apos;ll let you know when something
           needs your attention.
         </p>
       </div>
     </motion.div>
   );
+}
+
+// ─── Helpers shared between Bell and NotificationsPage ────────────────────────
+export function mapFirestoreNotifs(subscriptionNotifications: any[]): AppNotification[] {
+  return subscriptionNotifications.map(
+    (n): AppNotification => {
+      let createdAtIso: string;
+      const rawCreated = n.createdAt;
+      if (rawCreated && typeof rawCreated.toDate === 'function') {
+        createdAtIso = (rawCreated as any).toDate().toISOString();
+      } else if (rawCreated instanceof Date && !isNaN(rawCreated.getTime())) {
+        createdAtIso = rawCreated.toISOString();
+      } else if (typeof rawCreated === 'string') {
+        createdAtIso = rawCreated;
+      } else {
+        createdAtIso = new Date().toISOString();
+      }
+      let dismissed = false;
+      if (typeof n.dismissed === 'boolean') dismissed = !!n.dismissed;
+      // Treat a firestore-side clearedAt as "dismissed from perspective of this UI",
+      // because Zustand already enriches with local clearedAt — but if ANOTHER device
+      // cleared it, we need to reflect that here so this device's list also hides it.
+      if (n.clearedAt) {
+        const clearedAt =
+          typeof n.clearedAt.toDate === 'function'
+            ? (n.clearedAt as any).toDate()
+            : n.clearedAt instanceof Date
+              ? n.clearedAt
+              : typeof n.clearedAt === 'string'
+                ? new Date(n.clearedAt)
+                : null;
+        if (clearedAt && !isNaN(clearedAt.getTime())) {
+          dismissed = true;
+        }
+      }
+      return {
+        id: `sub_${String(n.id)}`,
+        title: n.title || '',
+        message: n.message || '',
+        type:
+          n.type === 'warning'
+            ? 'subscription_expiring'
+            : n.type === 'error'
+              ? 'subscription_expired'
+              : n.type === 'success'
+                ? 'subscription_activated'
+                : 'system',
+        read: !!n.read,
+        dismissed,
+        createdAt: createdAtIso,
+        updatedAt: createdAtIso,
+        actionPath: '/pricing',
+        actionLabel: 'View Subscription',
+        severity:
+          n.type === 'error' ? 'critical' : n.type === 'warning' ? 'high' : 'info',
+      };
+    },
+  );
+}
+
+export function mergeAndNormalizeNotifs(
+  derived: AppNotification[],
+  firestoreRaw: any[],
+): AppNotification[] {
+  const derivedTypeSet = new Set(derived.map((n) => n.type));
+  const firestore = mapFirestoreNotifs(firestoreRaw || []).filter(
+    (n) => !derivedTypeSet.has(n.type),
+  );
+  // Combine — store.enrichAndFilter will dedupe + sort + apply state
+  return [...derived, ...firestore];
 }
 
 // ─── Main bell component ──────────────────────────────────────────────────────
@@ -241,101 +313,76 @@ export function NotificationBell() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
-  const { notifications: subscriptionNotifications } = useSubscription();
+  const {
+    notifications: subscriptionNotifications,
+    markNotificationReadRemote,
+    markAllNotificationsReadRemote,
+    dismissNotificationRemote,
+    clearAllNotificationsRemote,
+  } = useSubscription();
   const derivedNotifications = useDerivedNotifications();
-  const markRead = useNotificationStore((s) => s.markRead);
-  const markAllRead = useNotificationStore((s) => s.markAllRead);
-  const dismiss = useNotificationStore((s) => s.dismiss);
-  const clearAll = useNotificationStore((s) => s.clearAll);
-  const clearedAt = useNotificationStore((s) => s.clearedAt);
-  const clearedDerivedIds = useNotificationStore((s) => s.clearedDerivedIds);
-  const clearedDerivedIdSet = new Set(clearedDerivedIds);
-
-  // ── Merge derived + Firestore subscription notifications ─────────────────
-  // Strategy:
-  //   1. Start with all derived in-app notifications (stable IDs, already deduped).
-  //   2. Map Firestore subscription docs to AppNotification shape.
-  //   3. Drop any Firestore item whose *type* is already covered by a derived
-  //      notification — this prevents the same subscription event appearing twice
-  //      (once from useDerivedNotifications, once from the Firestore listener).
-  //   4. Final dedup on stable `id` to catch any remaining exact duplicates.
-  //   5. Sort newest-first.
-
-  const derivedTypeSet = new Set(derivedNotifications.map((n) => n.type));
-
-  const firestoreNotifs: AppNotification[] = subscriptionNotifications
-    .map(
-      (n): AppNotification => ({
-        id: `sub_${n.id}`,
-        title: n.title,
-        message: n.message,
-        type:
-          n.type === 'warning'
-            ? 'subscription_expiring'
-            : n.type === 'error'
-              ? 'subscription_expired'
-              : n.type === 'success'
-                ? 'subscription_activated'
-                : 'system',
-        read: n.read,
-        dismissed: false,
-        createdAt: n.createdAt.toISOString(),
-        updatedAt: n.createdAt.toISOString(),
-        actionPath: '/pricing',
-        actionLabel: 'View Subscription',
-        severity:
-          n.type === 'error' ? 'critical' : n.type === 'warning' ? 'high' : 'info',
-      }),
-    )
-    // Drop if the derived hook already covers the same notification type
-    .filter((n) => !derivedTypeSet.has(n.type))
-    // Hide if the ID was in the list when user last clicked "Clear All",
-    // or if the notification predates the clearedAt timestamp
-    .filter((n) => !clearedDerivedIdSet.has(n.id) && (!clearedAt || n.createdAt > clearedAt));
-
-  const seenIds = new Set<string>();
-  const mergedNotifications: AppNotification[] = [
-    ...derivedNotifications,
-    ...firestoreNotifs,
-  ]
-    .filter((n) => {
-      if (seenIds.has(n.id)) return false;
-      seenIds.add(n.id);
-      return true;
-    })
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  // IMPORTANT: Select the actual raw state arrays (not helper functions) so
+  // Zustand's shallow equality check fires a re-render whenever ANY of them
+  // change. Using selectors that only return the `enrichAndFilter` function
+  // would return the same fn reference every setState, so clicks appeared to
+  // do nothing because the component never re-rendered.
+  const { markRead, markAllRead, dismiss, clearAll, readIds, dismissedIds, clearedAt } =
+    useNotificationStore(
+      useShallow((s) => ({
+        markRead: s.markRead,
+        markAllRead: s.markAllRead,
+        dismiss: s.dismiss,
+        clearAll: s.clearAll,
+        readIds: s.readIds,
+        dismissedIds: s.dismissedIds,
+        clearedAt: s.clearedAt,
+      })),
     );
 
-  const unreadCount = mergedNotifications.filter((n) => !n.read).length;
+  const mergedNotifications = useMemo(() => {
+    const combined = mergeAndNormalizeNotifs(derivedNotifications, subscriptionNotifications);
+    // Always read the fresh helper from the store at render time (the helper
+    // is a method on getState() — it captures live state via `get()` inside).
+    return useNotificationStore.getState().enrichAndFilter(combined);
+  }, [derivedNotifications, subscriptionNotifications, readIds, dismissedIds, clearedAt]);
+
+  const unreadCount = useMemo(
+    () => mergedNotifications.filter((n) => !n.read).length,
+    [mergedNotifications],
+  );
   const hasAny = mergedNotifications.length > 0;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleRead = (notif: AppNotification) => {
     if (notif.read) return;
-    if (notif.id.startsWith('sub_')) return; // Firestore notifs don't need client-side mark
     markRead(notif.id);
+    markNotificationReadRemote(notif.id);
   };
 
   const handleDismiss = (notif: AppNotification, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (notif.id.startsWith('sub_')) return;
     dismiss(notif.id);
+    dismissNotificationRemote(notif.id);
   };
 
-  // Mark ALL visible notifications as read — both derived (via store IDs) and
-  // Firestore sub_ notifications (simply moved to readIds so the unread dot hides).
   const handleMarkAllRead = () => {
-    const allIds = mergedNotifications.filter((n) => !n.read).map((n) => n.id);
-    if (allIds.length > 0) markAllRead(allIds);
+    const unreadIds = mergedNotifications.filter((n) => !n.read).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    markAllRead(unreadIds);
+    markAllNotificationsReadRemote(unreadIds);
   };
 
-  // Clear All: records the current timestamp in the store.
-  // useDerivedNotifications and firestoreNotifs both filter out anything older,
-  // so every notification visually disappears immediately and the bell goes to 0.
   const handleClearAll = () => {
-    clearAll(mergedNotifications.map((n) => n.id)); // pass all current IDs
+    const allIds = mergedNotifications.map((n) => n.id);
+    clearAll(allIds);
+    clearAllNotificationsRemote(allIds);
+  };
+
+  const handleNavigate = (path: string) => {
+    if (path) {
+      navigate(path);
+      setOpen(false);
+    }
   };
 
   // ── Close on outside click / Escape ──────────────────────────────────────
@@ -362,12 +409,10 @@ export function NotificationBell() {
     };
   }, [open]);
 
-  // Show up to 25 most recent
   const visible = mergedNotifications.slice(0, 25);
 
   return (
     <div className='relative'>
-      {/* ── Bell button ──────────────────────────────────────────────────── */}
       <button
         ref={buttonRef}
         type='button'
@@ -382,8 +427,6 @@ export function NotificationBell() {
         }`}
       >
         <FiBell className='h-4 w-4' aria-hidden='true' />
-
-        {/* Unread badge */}
         <AnimatePresence>
           {unreadCount > 0 && (
             <motion.span
@@ -401,7 +444,6 @@ export function NotificationBell() {
         </AnimatePresence>
       </button>
 
-      {/* ── Panel ────────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -426,7 +468,6 @@ export function NotificationBell() {
               max-h-[min(580px,_calc(100dvh_-_80px))]
             `}
           >
-            {/* ── Header ─────────────────────────────────────────────────── */}
             <div className='flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-4 py-3'>
               <div className='flex items-center gap-2.5 min-w-0'>
                 <div className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20'>
@@ -443,7 +484,6 @@ export function NotificationBell() {
               </div>
 
               <div className='flex shrink-0 items-center gap-1'>
-                {/* Mark all as read */}
                 {unreadCount > 0 && (
                   <button
                     type='button'
@@ -456,8 +496,6 @@ export function NotificationBell() {
                     <span className='hidden sm:inline'>Mark all read</span>
                   </button>
                 )}
-
-                {/* Close panel */}
                 <button
                   type='button'
                   onClick={() => setOpen(false)}
@@ -470,7 +508,6 @@ export function NotificationBell() {
               </div>
             </div>
 
-            {/* ── Notification list ───────────────────────────────────────── */}
             <div
               className='min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 space-y-1.5'
               role='list'
@@ -487,12 +524,7 @@ export function NotificationBell() {
                         notif={n}
                         onRead={() => handleRead(n)}
                         onDismiss={(e) => handleDismiss(n, e)}
-                        onAction={() => {
-                          if (n.actionPath) {
-                            navigate(n.actionPath);
-                            setOpen(false);
-                          }
-                        }}
+                        onAction={() => handleNavigate(n.actionPath || '')}
                       />
                     </div>
                   ))
@@ -500,7 +532,6 @@ export function NotificationBell() {
               </AnimatePresence>
             </div>
 
-            {/* ── Footer ─────────────────────────────────────────────────── */}
             {hasAny && (
               <div className='shrink-0 border-t border-slate-100 dark:border-slate-800 px-3 py-2 flex items-center justify-between gap-2'>
                 <p className='text-[10px] text-slate-400 dark:text-slate-600'>
@@ -509,7 +540,6 @@ export function NotificationBell() {
                   {unreadCount > 0 ? ` · ${unreadCount} unread` : ' · all read'}
                 </p>
                 <div className='flex items-center gap-2'>
-                  {/* View All Notifications */}
                   <button
                     type='button'
                     onClick={() => {
@@ -521,7 +551,6 @@ export function NotificationBell() {
                     View All
                     <FiChevronRight className='h-3 w-3' />
                   </button>
-                  {/* Clear All */}
                   <button
                     type='button'
                     onClick={handleClearAll}
@@ -536,7 +565,6 @@ export function NotificationBell() {
               </div>
             )}
 
-            {/* All-read confirmation */}
             {hasAny && unreadCount === 0 && (
               <div className='shrink-0 border-t border-slate-100 dark:border-slate-800 px-4 py-2.5 flex items-center gap-2'>
                 <FiCheck

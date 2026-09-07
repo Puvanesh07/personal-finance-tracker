@@ -1,9 +1,10 @@
 // src/store/notificationStore.ts
-// Minimal read/dismissed state for derived notifications — no notification objects stored.
+// Minimal read/dismissed/cleared state for derived + subscription notifications.
+// Notification objects are NOT stored — they are computed fresh each render by
+// useDerivedNotifications + the Firestore subscription listener.
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
 export type NotifType =
   | 'welcome'
   | 'system'
@@ -64,25 +65,58 @@ export interface AppNotification {
 
 interface NotificationState {
   uid: string | null;
+  /** IDs of notifications that have been explicitly marked read */
   readIds: string[];
+  /** IDs of notifications that have been dismissed/swiped (hidden from UI) */
   dismissedIds: string[];
-  /** ISO timestamp — used for Firestore subscription notifications (which have real createdAt) */
+  /** ISO timestamp of the most recent "Clear All" press. Any notification
+   *  whose createdAt is <= this timestamp is hidden from the UI. */
   clearedAt: string | null;
-  /** IDs of derived notifications that were visible when "Clear All" was pressed */
+  /** IDs captured at clear-all time — legacy filter kept for safety; the
+   *  primary hidden mechanism is now clearedAt, so this field is a no-op but
+   *  still persisted for migration safety. */
   clearedDerivedIds: string[];
 
+  /** Per-uid scoping — each user gets their own persisted read/dismissed state */
   setScope: (uid: string) => void;
   clearScope: () => void;
 
+  /** Mark a single notification read. Idempotent. */
   markRead: (id: string) => void;
-  markAllRead: (ids: string[]) => void;
+  /** Atomically mark multiple notifications read. Idempotent. */
+  markAllRead: (ids: readonly string[]) => void;
+  /** Dismiss + mark read. Idempotent. */
   dismiss: (id: string) => void;
-  /** Pass all currently visible notification IDs so they can be hidden */
-  clearAll: (currentIds?: string[]) => void;
+  /**
+   * Clear All: atomically hides every notification currently visible in the
+   * UI. The semantics are:
+   *   1. Record clearedAt = now. Any notification whose createdAt <= clearedAt
+   *      is hidden everywhere (Bell + Notifications page, derived + firestore).
+   *   2. Mark every currently-visible notification read so the unread badge
+   *      immediately goes to 0.
+   *   3. Also mark them all dismissed so per-card swipe logic stays consistent.
+   *
+   * New notifications arriving AFTER clearAll (with newer createdAt / new
+   * stable IDs) still appear normally.
+   */
+  clearAll: (currentVisibleIds?: readonly string[]) => void;
+  /** Internal: replace arrays wholesale (used by old cleanup paths; preserved for compat) */
   setReadState: (readIds: string[], dismissedIds: string[]) => void;
 
-  unreadCount: (total: number) => number;
-  activeCount: (total: number) => number;
+  /**
+   * Utility helpers (read-only, no setters hidden inside).
+   * isRead / isDismissed are used by the UI layers so that Firestore-backed
+   * sub_* notifications and derived in-app notifications BOTH respect the
+   * Zustand state — Firestore's own `n.read` is treated as a fallback only,
+   * not the source of truth for the in-app UI.
+   */
+  isRead: (id: string, fallbackRead?: boolean) => boolean;
+  isDismissed: (id: string) => boolean;
+  /** Given an array of raw AppNotification (still with their own read flag),
+   *  return a copy enriched with correct read/dismissed flags from the store,
+   *  then filtered (dismissed + pre-clearedAt items removed). This is the
+   *  single entry point both NotificationBell and NotificationsPage use. */
+  enrichAndFilter: (raw: AppNotification[]) => AppNotification[];
 }
 
 const STORAGE_KEY = 'fintrackly-notifications';
@@ -107,11 +141,23 @@ export const useNotificationStore = create<NotificationState>()(
       setScope: (uid: string) => {
         const current = get();
         if (current.uid === uid) return;
-        set({ uid, readIds: [], dismissedIds: [], clearedAt: null, clearedDerivedIds: [] });
+        set({
+          uid,
+          readIds: [],
+          dismissedIds: [],
+          clearedAt: null,
+          clearedDerivedIds: [],
+        });
       },
 
       clearScope: () => {
-        set({ uid: null, readIds: [], dismissedIds: [], clearedAt: null, clearedDerivedIds: [] });
+        set({
+          uid: null,
+          readIds: [],
+          dismissedIds: [],
+          clearedAt: null,
+          clearedDerivedIds: [],
+        });
       },
 
       markRead: (id: string) =>
@@ -119,37 +165,113 @@ export const useNotificationStore = create<NotificationState>()(
           readIds: s.readIds.includes(id) ? s.readIds : [...s.readIds, id],
         })),
 
-      markAllRead: (ids: string[]) =>
-        set((s) => ({
-          readIds: Array.from(new Set([...s.readIds, ...ids])),
-        })),
+      markAllRead: (ids: readonly string[]) =>
+        set((s) => {
+          if (!ids || ids.length === 0) return {};
+          const incoming = new Set(ids);
+          const existing = new Set(s.readIds);
+          let changed = false;
+          for (const id of incoming) {
+            if (!existing.has(id)) {
+              existing.add(id);
+              changed = true;
+            }
+          }
+          return changed ? { readIds: Array.from(existing) } : {};
+        }),
 
       dismiss: (id: string) =>
-        set((s) => ({
-          dismissedIds: s.dismissedIds.includes(id) ? s.dismissedIds : [...s.dismissedIds, id],
-          readIds: s.readIds.includes(id) ? s.readIds : [...s.readIds, id],
-        })),
+        set((s) => {
+          const nextRead = s.readIds.includes(id) ? s.readIds : [...s.readIds, id];
+          const nextDismissed = s.dismissedIds.includes(id)
+            ? s.dismissedIds
+            : [...s.dismissedIds, id];
+          if (nextRead === s.readIds && nextDismissed === s.dismissedIds) return {};
+          return { readIds: nextRead, dismissedIds: nextDismissed };
+        }),
 
-      // Clear All: record the IDs of every currently-visible notification.
-      // Derived notifications use stable IDs (sourceType:sourceId:date), so storing
-      // them as a set reliably hides them. New notifications (new IDs) still appear.
-      // Also record clearedAt timestamp for Firestore subscription notifications.
-      clearAll: (currentIds: string[] = []) => set({
-        readIds: [],
-        dismissedIds: [],
-        clearedAt: new Date().toISOString(),
-        clearedDerivedIds: currentIds,
-      }),
+      clearAll: (currentVisibleIds: readonly string[] = []) =>
+        set((s) => {
+          const nowIso = new Date().toISOString();
+          const ids = Array.isArray(currentVisibleIds) && currentVisibleIds.length > 0
+            ? currentVisibleIds
+            : [];
+
+          if (ids.length === 0) {
+            // No specific IDs passed — at minimum move clearedAt forward so
+            // createdAt-based hiding kicks in for both derived + firestore.
+            return {
+              clearedAt: nowIso,
+              clearedDerivedIds: [],
+            };
+          }
+
+          const readSet = new Set(s.readIds);
+          const dismissedSet = new Set(s.dismissedIds);
+          for (const id of ids) {
+            readSet.add(id);
+            dismissedSet.add(id);
+          }
+          return {
+            readIds: Array.from(readSet),
+            dismissedIds: Array.from(dismissedSet),
+            clearedAt: nowIso,
+            clearedDerivedIds: ids.slice(),
+          };
+        }),
 
       setReadState: (readIds: string[], dismissedIds: string[]) =>
         set({ readIds, dismissedIds }),
 
-      unreadCount: (_total: number) => get().readIds.length,
-      activeCount: (_total: number) => get().dismissedIds.length,
+      isRead: (id: string, fallbackRead = false) => {
+        const { readIds } = get();
+        if (readIds.includes(id)) return true;
+        return !!fallbackRead;
+      },
+
+      isDismissed: (id: string) => {
+        return get().dismissedIds.includes(id);
+      },
+
+      enrichAndFilter: (raw: AppNotification[]) => {
+        const state = get();
+        const readSet = new Set(state.readIds);
+        const dismissedSet = new Set(state.dismissedIds);
+        const clearedAt = state.clearedAt ? new Date(state.clearedAt) : null;
+
+        const seen = new Set<string>();
+        const deduped: AppNotification[] = [];
+        for (const n of raw) {
+          if (!n || !n.id || seen.has(n.id)) continue;
+          seen.add(n.id);
+          deduped.push(n);
+        }
+
+        return deduped
+          .map((n) => {
+            const read = readSet.has(n.id) ? true : !!n.read;
+            const dismissed = dismissedSet.has(n.id) ? true : !!n.dismissed;
+            return { ...n, read, dismissed };
+          })
+          .filter((n) => {
+            if (n.dismissed) return false;
+            if (clearedAt && n.createdAt && new Date(n.createdAt) <= clearedAt) {
+              return false;
+            }
+            if (n.expiresAt && new Date(n.expiresAt) < new Date()) {
+              return false;
+            }
+            return true;
+          })
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+      },
     }),
     {
       name: STORAGE_KEY,
-      version: 5,
+      version: 6,
       partialize: (state: NotificationState) =>
         ({
           uid: state.uid,
@@ -168,9 +290,13 @@ export const useNotificationStore = create<NotificationState>()(
               return {
                 uid: parsed.uid ?? null,
                 readIds: Array.isArray(parsed.readIds) ? parsed.readIds : [],
-                dismissedIds: Array.isArray(parsed.dismissedIds) ? parsed.dismissedIds : [],
+                dismissedIds: Array.isArray(parsed.dismissedIds)
+                  ? parsed.dismissedIds
+                  : [],
                 clearedAt: typeof parsed.clearedAt === 'string' ? parsed.clearedAt : null,
-                clearedDerivedIds: Array.isArray(parsed.clearedDerivedIds) ? parsed.clearedDerivedIds : [],
+                clearedDerivedIds: Array.isArray(parsed.clearedDerivedIds)
+                  ? parsed.clearedDerivedIds
+                  : [],
               };
             }
             return null;
@@ -182,10 +308,22 @@ export const useNotificationStore = create<NotificationState>()(
           const live = useNotificationStore.getState();
           const uid = value?.uid || live.uid || 'orphan';
           const readIds = Array.isArray(value?.readIds) ? value.readIds : live.readIds;
-          const dismissedIds = Array.isArray(value?.dismissedIds) ? value.dismissedIds : live.dismissedIds;
-          const clearedAt = typeof value?.clearedAt === 'string' ? value.clearedAt : live.clearedAt;
-          const clearedDerivedIds = Array.isArray(value?.clearedDerivedIds) ? value.clearedDerivedIds : live.clearedDerivedIds;
-          const payload = JSON.stringify({ uid, readIds, dismissedIds, clearedAt, clearedDerivedIds });
+          const dismissedIds = Array.isArray(value?.dismissedIds)
+            ? value.dismissedIds
+            : live.dismissedIds;
+          const clearedAt = typeof value?.clearedAt === 'string'
+            ? value.clearedAt
+            : live.clearedAt;
+          const clearedDerivedIds = Array.isArray(value?.clearedDerivedIds)
+            ? value.clearedDerivedIds
+            : live.clearedDerivedIds;
+          const payload = JSON.stringify({
+            uid,
+            readIds,
+            dismissedIds,
+            clearedAt,
+            clearedDerivedIds,
+          });
           localStorage.setItem(name, payload);
         },
         removeItem: (name) => localStorage.removeItem(name),

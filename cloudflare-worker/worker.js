@@ -222,7 +222,27 @@ async function amfiData(budget) {
 async function mfNav(code, budget) {
   const txt = await amfiData(budget);
   if (!txt || !amfiByCode) return null;
-  return amfiByCode.get(String(code)) ?? null;
+  const c = String(code).trim();
+  let nav = amfiByCode.get(c);
+  if (nav == null && c.length < 6) {
+    nav = amfiByCode.get(c.padStart(6, '0'));
+  }
+  return nav ?? null;
+}
+
+async function mfMfapiNav(code, budget) {
+  try {
+    const c = String(code).trim();
+    if (!/^\d{5,6}$/.test(c)) return null;
+    const res = await guardedFetch(budget, `https://api.mfapi.in/mf/${encodeURIComponent(c)}`, { headers: { 'User-Agent': UA, 'Accept': 'application/json' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const navArr = data?.data ?? [];
+    if (!navArr.length) return null;
+    const latest = navArr[0];
+    const nav = parseFloat(latest?.nav);
+    return isNaN(nav) || nav <= 0 ? null : nav;
+  } catch { return null; }
 }
 
 async function mfSearch(name, budget) {
@@ -243,8 +263,16 @@ async function fetchPrice(rawSym, nseCookie, budget) {
 
   if (sym.startsWith('MF:')) {
     const c = sym.slice(3).trim();
-    const p = /^\d+$/.test(c) ? await mfNav(c, budget) : await mfSearch(c, budget);
-    return p != null ? { price: p, source: 'amfi', type: 'mutual_fund' } : { price: null, source: 'none', type: 'mutual_fund' };
+    if (/^\d+$/.test(c)) {
+      const p1 = await mfNav(c, budget);
+      if (p1 != null) return { price: p1, source: 'amfi', type: 'mutual_fund' };
+      const p2 = await mfMfapiNav(c, budget);
+      if (p2 != null) return { price: p2, source: 'mfapi', type: 'mutual_fund' };
+    } else {
+      const p1 = await mfSearch(c, budget);
+      if (p1 != null) return { price: p1, source: 'amfi_search', type: 'mutual_fund' };
+    }
+    return { price: null, source: budget.exceeded() ? 'budget_exceeded' : 'none', type: 'mutual_fund' };
   }
 
   if (sym.startsWith('US:')) {
@@ -270,7 +298,19 @@ async function fetchPrice(rawSym, nseCookie, budget) {
   const p2 = await tickertape(sym, budget);
   if (p2 != null) return { price: p2, source: 'tickertape', type: 'stock' };
 
-  // 3) NSE direct — last resort; frequently blocked from cloud IPs, and the
+  // 3) Yahoo BSE (.BO) suffix — fallback for stocks listed only on BSE
+  const p2b = await (async () => {
+    try {
+      const res = await guardedFetch(budget, `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}.BO?interval=1d&range=1d`, { headers: { 'User-Agent': UA, Accept: 'application/json', Referer: 'https://finance.yahoo.com/' } });
+      if (!res.ok) return null;
+      const d = await res.json();
+      const p = d?.chart?.result?.[0]?.meta?.regularMarketPrice ?? d?.chart?.result?.[0]?.meta?.previousClose ?? null;
+      return p && p > 0 ? Number(p) : null;
+    } catch { return null; }
+  })();
+  if (p2b != null) return { price: p2b, source: 'yahoo_bse', type: 'stock' };
+
+  // 4) NSE direct — last resort; frequently blocked from cloud IPs, and the
   //    most expensive path (cookie + up to 3 query variants).
   const p3 = await nseQuote(sym, nseCookie, budget);
   if (p3 != null) return { price: p3, source: 'nse', type: 'stock' };
@@ -278,9 +318,21 @@ async function fetchPrice(rawSym, nseCookie, budget) {
   const p4 = await nseSearch(sym, nseCookie, budget);
   if (p4 != null) return { price: p4, source: 'nse', type: 'stock' };
 
-  // 4) Bare Yahoo ticker — catches US-listed / ADR-style edge cases.
-  const p5 = await yahoo(sym, budget);
-  if (p5 != null) return { price: p5, source: 'yahoo', type: 'us_stock' };
+  // 5) Screener.in HTML scrape (expensive last resort)
+  const p5 = await (async () => {
+    try {
+      const res = await guardedFetch(budget, `https://www.screener.in/company/${encodeURIComponent(sym)}/consolidated/`, { headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-IN,en;q=0.9', 'Referer': 'https://www.screener.in/' } });
+      if (!res.ok) return null;
+      const html = await res.text();
+      const cp = parseFloat(extractTopRatio(html, 'Current Price')||'') || null;
+      return cp && cp > 0 ? cp : null;
+    } catch { return null; }
+  })();
+  if (p5 != null) return { price: p5, source: 'screener', type: 'stock' };
+
+  // 6) Bare Yahoo ticker — catches US-listed / ADR-style edge cases.
+  const p6 = await yahoo(sym, budget);
+  if (p6 != null) return { price: p6, source: 'yahoo', type: 'us_stock' };
 
   return { price: null, source: budget.exceeded() ? 'budget_exceeded' : 'none', type: 'stock' };
 }
