@@ -194,6 +194,7 @@ type PortfolioState = {
     patch: Partial<PendingPayment>,
   ) => Promise<void>;
   deletePendingPayment: (id: string) => Promise<void>;
+  markPendingPaymentReceived: (id: string) => Promise<void>;
 
   addTrackedPayment: (
     payment: Omit<
@@ -691,6 +692,53 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }));
   },
 
+  markPendingPaymentReceived: async (id) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().pendingPayments.find((x) => x.id === id);
+    if (!existing) return;
+    if (existing.status === 'received') return;
+
+    const receivedAt = todayISO();
+    const updated = clean({
+      ...existing,
+      status: 'received' as const,
+      receivedAt,
+      updatedAt: now(),
+    }) as PendingPayment;
+    await saveDoc(uid, 'pendingPayments', updated);
+
+    // ── Also write a cashflow income entry so it appears in Cashflow ────
+    const cfId = `cf_receivable_${existing.id}`;
+    const cashflowItem = clean({
+      type: 'income' as const,
+      date: receivedAt,
+      category: `Receivable — ${existing.buyerName}`,
+      amount: existing.amount,
+      notes: existing.itemDescription
+        ? `${existing.itemDescription}${existing.notes ? ` · ${existing.notes}` : ''}`
+        : existing.notes,
+      id: cfId,
+      createdAt: now(),
+      updatedAt: now(),
+      userId: uid,
+    }) as import('../types/investmentTypes').CashflowEntry;
+    // Only add if not already present (idempotent)
+    const alreadyInCF = get().cashflows.some((c) => c.id === cfId);
+    if (!alreadyInCF) {
+      await saveDoc(uid, 'cashflows', cashflowItem);
+    }
+
+    set((s) => ({
+      pendingPayments: s.pendingPayments
+        .map((x) => (x.id === id ? updated : x))
+        .sort((a, b) => safeCompare(a.expectedPaymentDate, b.expectedPaymentDate)),
+      cashflows: alreadyInCF
+        ? s.cashflows
+        : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
+    }));
+  },
+
   addTrackedPayment: async (payment) => {
     const uid = get().uid;
     if (!uid) return;
@@ -1153,10 +1201,36 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       userId: uid,
     }) as InsurancePayment;
     await saveDoc(uid, 'insurancePayments', withMeta);
+
+    // ── Also write a cashflow expense entry so it appears in Cashflow ────
+    const policy = get().insurancePolicies.find((p) => p.id === withMeta.policyId);
+    const policyName = policy?.policyName?.trim() || 'Insurance Policy';
+    const cfId = `cf_inspay_${withMeta.id}`;
+    const cashflowItem = clean({
+      type: 'expense' as const,
+      date: withMeta.paidAt,
+      category: `Insurance — ${policyName} Premium`,
+      amount: withMeta.amount,
+      notes: withMeta.note
+        ? `${policyName} premium payment · ${withMeta.note}`
+        : `${policyName} premium payment`,
+      id: cfId,
+      createdAt: t,
+      updatedAt: t,
+      userId: uid,
+    }) as CashflowEntry;
+    const alreadyInCF = get().cashflows.some((c) => c.id === cfId);
+    if (!alreadyInCF) {
+      await saveDoc(uid, 'cashflows', cashflowItem);
+    }
+
     set((s) => ({
       insurancePayments: [withMeta, ...s.insurancePayments].sort((a, b) =>
         safeCompare(b.paidAt, a.paidAt),
       ),
+      cashflows: alreadyInCF
+        ? s.cashflows
+        : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
     }));
   },
 

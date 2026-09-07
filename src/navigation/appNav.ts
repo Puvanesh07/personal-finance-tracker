@@ -60,14 +60,14 @@ export const NAV_GROUPS: AppNavGroup[] = [
       {
         to: '/liabilities',
         icon: FiCreditCard,
-        label: 'Liabilities',
+        label: 'Borrow & Lend',
         accent: 'text-rose-400',
         bg: 'bg-rose-500/10',
       },
       {
         to: '/payments',
         icon: FiBell,
-        label: 'Payments',
+        label: 'Bill Reminders',
         accent: 'text-sky-400',
         bg: 'bg-sky-500/10',
       },

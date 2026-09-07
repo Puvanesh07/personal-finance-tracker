@@ -69,8 +69,8 @@ function DueBadge({ payment }: { payment: PendingPayment }) {
 
 export function PendingPaymentsTab() {
   const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
-  const updatePendingPayment = usePortfolioStore((s) => s.updatePendingPayment);
   const deletePendingPayment = usePortfolioStore((s) => s.deletePendingPayment);
+  const markPendingPaymentReceived = usePortfolioStore((s) => s.markPendingPaymentReceived);
 
   const [filterTab, setFilterTab] = useState<FilterTab>('pending');
   const [modalOpen, setModalOpen] = useState(false);
@@ -107,10 +107,7 @@ export function PendingPaymentsTab() {
     }`;
 
   const markReceived = async (p: PendingPayment) => {
-    await updatePendingPayment(p.id, {
-      status: 'received',
-      receivedAt: new Date().toISOString().split('T')[0],
-    });
+    await markPendingPaymentReceived(p.id);
   };
 
   const confirmDelete = () => {
