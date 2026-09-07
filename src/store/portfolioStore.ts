@@ -18,7 +18,6 @@ import type {
   PortfolioSnapshot,
   SoldTrade,
 } from '../types/investmentTypes';
-import type { LedgerEntry } from '../types/ledgerTypes';
 import {
   collection,
   deleteDoc,
@@ -49,12 +48,6 @@ import {
   analyseAfterPayment,
   analyseAfterInvestment,
 } from '../services/financialEventEngine';
-import {
-  deleteLedgerEntry,
-  getDeterministicLedgerId,
-  saveLedgerEntry,
-} from '../services/ledgerService';
-import { runIdempotentLedgerMigration } from '../services/migrationService';
 import {
   checkFeatureLimit,
   checkCanCreateTransactions,
@@ -138,7 +131,6 @@ type PortfolioState = {
   pendingPayments: PendingPayment[];
   trackedPayments: TrackedPayment[];
   cashflows: CashflowEntry[];
-  ledgerEntries: LedgerEntry[];
   goals: Goal[];
   goalContributions: GoalContribution[];
   credentials: Credential[];
@@ -158,14 +150,12 @@ type PortfolioState = {
   _insurancePaymentsLoaded: boolean;
   _pendingPaymentsLoaded: boolean;
   _credentialsLoaded: boolean;
-  _ledgerEntriesLoaded: boolean;
 
   /** Lazy-load actions — call these from the relevant page on first mount */
   loadGoalContributions: () => Promise<void>;
   loadInsurancePayments: () => Promise<void>;
   loadPendingPayments: () => Promise<void>;
   loadCredentials: () => Promise<void>;
-  loadLedgerEntries: () => Promise<void>;
 
   /** User-defined category lists stored in Firestore, keyed by type */
   customCategories: { expense: string[]; income: string[] };
@@ -310,7 +300,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   pendingPayments: [],
   trackedPayments: [],
   cashflows: [],
-  ledgerEntries: [],
   goals: [],
   goalContributions: [],
   credentials: [],
@@ -330,7 +319,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   _insurancePaymentsLoaded: false,
   _pendingPaymentsLoaded: false,
   _credentialsLoaded: false,
-  _ledgerEntriesLoaded: false,
 
   loadGoalContributions: async () => {
     const { uid, _goalContributionsLoaded } = get();
@@ -356,12 +344,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const items = await fetchSub<Credential>(uid, 'credentials');
     set({ credentials: items.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)), _credentialsLoaded: true });
   },
-  loadLedgerEntries: async () => {
-    const { uid, _ledgerEntriesLoaded } = get();
-    if (!uid || _ledgerEntriesLoaded) return;
-    const items = await fetchSub<LedgerEntry>(uid, 'ledgerEntries');
-    set({ ledgerEntries: items.sort((a, b) => safeCompare(b.date, a.date) || safeCompare(b.updatedAt, a.updatedAt)), _ledgerEntriesLoaded: true });
-  },
 
   hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
@@ -369,10 +351,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
     set({ uid });
     try {
-      // Run background migration if required for legacy records
-      void runIdempotentLedgerMigration(uid).catch((err) =>
-        console.error('[PortfolioStore] ledger migration failed:', err),
-      );
 
       // Phase 1: dashboard-critical only — show UI as soon as this completes
       const [
@@ -490,7 +468,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           get().loadInsurancePayments().catch(() => {}),
           get().loadPendingPayments().catch(() => {}),
           get().loadCredentials().catch(() => {}),
-          get().loadLedgerEntries().catch(() => {}),
         ]);
       } else {
         // Phase 1b: other dashboard widgets — background
@@ -696,29 +673,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as PendingPayment;
     await saveDoc(uid, 'pendingPayments', updated);
 
-    let updatedLedgers = get().ledgerEntries;
-    if (updated.status === 'received' && updated.receivedAt) {
-      const ledgerItem = await saveLedgerEntry(uid, {
-        id: getDeterministicLedgerId('receivable', updated.id),
-        type: 'income',
-        date: updated.receivedAt,
-        amount: updated.amount,
-        category: `Receivable - ${updated.buyerName}`,
-        module: 'personal',
-        sourceType: 'receivable',
-        sourceId: updated.id,
-        notes: updated.itemDescription,
-      });
-      updatedLedgers = [ledgerItem, ...updatedLedgers.filter((x) => x.id !== ledgerItem.id)];
-    }
-
     set((s) => ({
       pendingPayments: s.pendingPayments
         .map((x) => (x.id === id ? updated : x))
         .sort((a, b) =>
           safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
         ),
-      ledgerEntries: updatedLedgers.sort((a, b) => safeCompare(b.date, a.date)),
     }));
   },
 
@@ -726,10 +686,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'pendingPayments', id));
-    await deleteLedgerEntry(uid, getDeterministicLedgerId('receivable', id));
     set((s) => ({
       pendingPayments: s.pendingPayments.filter((x) => x.id !== id),
-      ledgerEntries: s.ledgerEntries.filter((x) => x.id !== getDeterministicLedgerId('receivable', id)),
     }));
   },
 
@@ -781,10 +739,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'trackedPayments', id));
-    await deleteLedgerEntry(uid, getDeterministicLedgerId('payment', id));
     set((s) => ({
       trackedPayments: s.trackedPayments.filter((x) => x.id !== id),
-      ledgerEntries: s.ledgerEntries.filter((x) => x.id !== getDeterministicLedgerId('payment', id)),
     }));
   },
 
@@ -801,19 +757,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: now(),
     }) as TrackedPayment;
     await saveDoc(uid, 'trackedPayments', updated);
-
-    // Save ONE canonical ledger entry idempotently
-    const ledgerItem = await saveLedgerEntry(uid, {
-      id: getDeterministicLedgerId('payment', existing.id),
-      type: 'expense',
-      date: paidAt,
-      amount: existing.amount,
-      category: existing.title || existing.paymentType || 'Payment',
-      module: 'payment',
-      sourceType: 'payment',
-      sourceId: existing.id,
-      notes: existing.notes,
-    });
 
     // ── Also write a cashflow expense entry so it appears in Cashflow ────
     const cfId = `cf_payment_${existing.id}`;
@@ -865,9 +808,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         .map((x) => (x.id === id ? updated : x))
         .concat(nextPayments)
         .sort((a, b) => safeCompare(a.dueDate, b.dueDate)),
-      ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
-        (a, b) => safeCompare(b.date, a.date),
-      ),
       cashflows: alreadyInCF
         ? s.cashflows
         : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
@@ -889,19 +829,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as CashflowEntry;
     await saveDoc(uid, 'cashflows', withMeta);
 
-    const ledgerItem = await saveLedgerEntry(uid, {
-      id: `ledger_cf_${withMeta.id}`,
-      type: withMeta.type,
-      date: withMeta.date,
-      amount: withMeta.amount,
-      category: withMeta.category,
-      accountId: withMeta.accountId,
-      module: 'personal',
-      sourceType: 'manual',
-      sourceId: withMeta.id,
-      notes: withMeta.notes,
-    });
-
     // ── Auto-update linked account balance ────────────────────────────────
     let updatedAccounts = get().accounts;
     if (withMeta.accountId) {
@@ -918,9 +845,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({
       cashflows: [withMeta, ...s.cashflows].sort((a, b) =>
         safeCompare(b.date, a.date),
-      ),
-      ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
-        (a, b) => safeCompare(b.date, a.date),
       ),
       accounts: updatedAccounts,
     }));
@@ -943,22 +867,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as CashflowEntry;
     await saveDoc(uid, 'cashflows', updated);
 
-    const ledgerItem = await saveLedgerEntry(uid, {
-      id: `ledger_cf_${updated.id}`,
-      type: updated.type,
-      date: updated.date,
-      amount: updated.amount,
-      category: updated.category,
-      accountId: updated.accountId,
-      module: 'personal',
-      sourceType: 'manual',
-      sourceId: updated.id,
-      notes: updated.notes,
-    });
-
     set((s) => ({
       cashflows: s.cashflows.map((x) => (x.id === id ? updated : x)),
-      ledgerEntries: s.ledgerEntries.map((x) => (x.id === ledgerItem.id ? ledgerItem : x)),
     }));
   },
 
@@ -966,10 +876,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     await deleteDoc(userDoc(uid, 'cashflows', id));
-    await deleteLedgerEntry(uid, `ledger_cf_${id}`);
     set((s) => ({
       cashflows: s.cashflows.filter((x) => x.id !== id),
-      ledgerEntries: s.ledgerEntries.filter((x) => x.id !== `ledger_cf_${id}`),
     }));
   },
 
@@ -1152,28 +1060,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as import('../types/investmentTypes').CashflowEntry;
     await saveDoc(uid, 'cashflows', sellCashflow);
 
-    // ── Also write to ledgerEntries ───────────────────────────────────────
-    const ledgerItem = await saveLedgerEntry(uid, {
-      id: getDeterministicLedgerId('investment', raw.id),
-      type: 'income',
-      date: trade.soldDate,
-      amount: trade.sellPrice * (trade.quantity ?? 1),
-      category: `Investment Sale — ${trade.investmentName ?? 'Asset'}`,
-      module: 'investment',
-      sourceType: 'investment',
-      sourceId: raw.id,
-      notes: sellCashflow.notes,
-    });
-
     set((s) => ({
       soldTrades: [raw, ...s.soldTrades].sort((a, b) =>
         safeCompare(b.soldDate, a.soldDate),
       ),
       cashflows: [sellCashflow, ...s.cashflows].sort((a, b) =>
         safeCompare(b.date, a.date),
-      ),
-      ledgerEntries: [ledgerItem, ...s.ledgerEntries.filter((x) => x.id !== ledgerItem.id)].sort(
-        (a, b) => safeCompare(b.date, a.date),
       ),
     }));
   },
@@ -1582,7 +1474,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       'pendingPayments',
       'trackedPayments',
       'cashflows',
-      'ledgerEntries',
       'goals',
       'goalContributions',
       'credentials',
@@ -1620,7 +1511,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         pendingPayments: [],
         trackedPayments: [],
         cashflows: [],
-        ledgerEntries: [],
         goals: [],
         goalContributions: [],
         credentials: [],
@@ -1651,7 +1541,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       pendingPayments: [],
       trackedPayments: [],
       cashflows: [],
-      ledgerEntries: [],
       goals: [],
       goalContributions: [],
       credentials: [],
@@ -1669,7 +1558,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       _insurancePaymentsLoaded: false,
       _pendingPaymentsLoaded: false,
       _credentialsLoaded: false,
-      _ledgerEntriesLoaded: false,
     });
   },
 }));

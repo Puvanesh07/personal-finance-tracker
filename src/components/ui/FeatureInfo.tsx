@@ -74,7 +74,6 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
     how: 'Tap "+ Add Entry" and record: type (Income/Expense), amount, category, date, and optionally link it to a bank account. Use the Quick Add bar in AI Coach to type naturally: "Spent ₹450 on dinner Sep 12".',
     questions: [
       { q: 'What categories should I use?', a: 'Use whatever matches your life — Salary, Rent, Groceries, EMI, Entertainment, Freelance, etc. You can create custom categories in Settings.' },
-      { q: 'What is a Ledger Entry?', a: 'A ledger entry is automatically created when you link a cashflow to an account. It keeps your account balances accurate without manual updates.' },
       { q: 'Can I import bank statements?', a: 'Yes — use the Import button to upload CSV files from major banks. FinTrackly maps the columns automatically.' },
       { q: 'How is my Savings Rate calculated?', a: 'Savings Rate = (Total Income − Total Expenses) / Total Income × 100. A rate above 20% is healthy; above 40% is excellent.' },
       { q: 'What is the Forecast tab?', a: 'It projects your account balances 6 months ahead based on your recurring income and expense patterns.' },

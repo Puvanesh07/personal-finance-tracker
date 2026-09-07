@@ -25,7 +25,6 @@ import type {
   PendingPayment,
   TrackedPayment,
 } from '../types/investmentTypes';
-import type { LedgerEntry } from '../types/ledgerTypes';
 import { db } from './firebase';
 import { doc, writeBatch } from 'firebase/firestore';
 import { encryptDoc } from './encryptionService';
@@ -405,20 +404,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   await batchWrite(uid, 'networthSnapshots', nwSnapshots);
   counts['networthSnapshots'] = nwSnapshots.length;
 
-  // 16. Ledger Entries
-  const ledgerEntries: LedgerEntry[] = [];
-
-  for (const cf of cashflowDocs.slice(0, 7)) {
-    ledgerEntries.push({
-      id: `ledger_cf_${cf.id}`, type: cf.type, date: cf.date, amount: cf.amount,
-      category: cf.category, accountId: cf.accountId, module: 'personal',
-      sourceType: 'manual', sourceId: cf.id, userId: uid,
-      createdAt: cf.createdAt, updatedAt: today,
-    });
-  }
-
-  await batchWrite(uid, 'ledgerEntries', ledgerEntries);
-  counts['ledgerEntries'] = ledgerEntries.length;
+  // 16. Sold Trades + SIP (skipped above, already counted)
 
   counts['total'] = Object.values(counts).reduce((a, b) => a + b, 0) - (counts['total'] || 0);
   counts['grandTotal'] = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -441,7 +427,6 @@ export function getDummyDataPreview(): Record<string, number> {
   counts['credentials'] = 2;
   counts['snapshots'] = 5;
   counts['networthSnapshots'] = 3;
-  counts['ledgerEntries'] = 7;
   counts['grandTotal'] = Object.values(counts).reduce((a, b) => a + b, 0);
   return counts;
 }

@@ -39,7 +39,6 @@ export type BackupPayload = {
   investments: Investment[];
   liabilities: Liability[];
   cashflows: CashflowEntry[];
-  ledgerEntries?: any[];
   goals: Goal[];
   goalContributions?: GoalContribution[];
   credentials?: Credential[]; // ← NEW
@@ -103,7 +102,6 @@ export async function exportFullBackup(uid: string) {
     soldTrades,
     pendingPayments,
     trackedPayments,
-    ledgerEntries,
   ] = await Promise.all([
     fetchSub<Investment>(uid, 'investments'),
     fetchSub<Liability>(uid, 'liabilities'),
@@ -120,7 +118,6 @@ export async function exportFullBackup(uid: string) {
     fetchSub<any>(uid, 'soldTrades'),
     fetchSub<PendingPayment>(uid, 'pendingPayments'),
     fetchSub<TrackedPayment>(uid, 'trackedPayments'),
-    fetchSub<any>(uid, 'ledgerEntries'),
   ]);
 
   const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -134,7 +131,6 @@ export async function exportFullBackup(uid: string) {
     investments,
     liabilities,
     cashflows,
-    ledgerEntries,
     goals,
     goalContributions,
     credentials, // ← NEW
@@ -172,7 +168,6 @@ export async function importFullBackup(jsonText: string, uid: string) {
     batchSet(uid, 'investments', parsed.investments ?? []),
     batchSet(uid, 'liabilities', parsed.liabilities ?? []),
     batchSet(uid, 'cashflows', parsed.cashflows ?? []),
-    batchSet(uid, 'ledgerEntries', parsed.ledgerEntries ?? []),
     batchSet(uid, 'goals', parsed.goals ?? []),
     batchSet(uid, 'goalContributions', parsed.goalContributions ?? []),
     batchSet(uid, 'credentials', parsed.credentials ?? []), // ← NEW

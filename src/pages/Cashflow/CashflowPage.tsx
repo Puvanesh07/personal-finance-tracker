@@ -883,10 +883,6 @@ export function CashflowPage() {
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteCashflow = usePortfolioStore((s) => s.deleteCashflow);
   const accounts = usePortfolioStore((s) => s.accounts);
-  const loadLedgerEntries = usePortfolioStore((s) => s.loadLedgerEntries);
-
-  // Lazy-load ledger entries the first time the Cashflow page opens
-  useEffect(() => { void loadLedgerEntries(); }, [loadLedgerEntries]);
   const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const accountMap = useMemo(() => {
