@@ -99,7 +99,6 @@ export function SummaryCards() {
   const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
   const networthSnapshots = usePortfolioStore((s) => s.networthSnapshots);
   const soldTrades = usePortfolioStore((s) => s.soldTrades);
-  const navigate = useNavigate();
 
   const summary = useMemo(() => summarizePortfolio(investments), [investments]);
   const { totalAssets, totalLiabilities, netWorth, receivablesTotal, receivablesInterest } = useMemo(
@@ -187,7 +186,7 @@ export function SummaryCards() {
                 ? 'up'
                 : 'down'
           }
-          onClick={() => navigate('/profits')}
+          navigateTo='/investments'
           badge={
             soldTrades.length > 0 ? `${soldTrades.length} trades` : undefined
           }

@@ -558,8 +558,8 @@ export function useDerivedNotifications(): AppNotification[] {
               dueDate: inv.maturityDate,
               expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
               severity: 'info',
-              actionLabel: 'View Profits',
-              actionPath: '/profits',
+              actionLabel: 'View Investment',
+              actionPath: '/investments',
             },
           ),
         );
