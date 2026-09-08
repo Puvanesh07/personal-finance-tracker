@@ -4,6 +4,7 @@ import type {
   Goal,
   Investment,
   Liability,
+  PendingPayment,
 } from '../types/investmentTypes';
 import { calculateNetWorth, summarizePortfolio } from './calculations';
 
@@ -33,11 +34,12 @@ function monthlyAvg(entries: CashflowEntry[], t: 'income' | 'expense') {
 export function buildPortfolioAIContext(args: {
   investments: Investment[];
   liabilities: Liability[];
+  pendingPayments?: PendingPayment[];
   cashflows: CashflowEntry[];
   essentials: EssentialsConfig;
   goals: Goal[];
 }): PortfolioAIContext | null {
-  const { investments, liabilities, cashflows, essentials, goals } = args;
+  const { investments, liabilities, pendingPayments, cashflows, essentials, goals } = args;
   if (
     investments.length === 0 &&
     liabilities.length === 0 &&
@@ -50,6 +52,7 @@ export function buildPortfolioAIContext(args: {
   const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
     investments,
     liabilities,
+    pendingPayments,
   );
   const s = summarizePortfolio(investments);
   const equity = s.byType.stock.current + s.byType.mutual_fund.current;

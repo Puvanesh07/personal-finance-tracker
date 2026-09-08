@@ -40,8 +40,8 @@ function HealthRing({ score }: { score: number }) {
   );
 }
 
-function calcHealthScore(investments: any[], liabilities: any[], cashflows: any[], essentials: any): number {
-  const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities);
+function calcHealthScore(investments: any[], liabilities: any[], cashflows: any[], essentials: any, pendingPayments?: any[]): number {
+  const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities, pendingPayments);
   const debtRatio    = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
   const debtScore    = Math.max(0, 30 - Math.round(debtRatio * 60));
   const target       = essentials?.emergencyFundTarget  ?? 0;
@@ -65,7 +65,7 @@ function calcHealthScore(investments: any[], liabilities: any[], cashflows: any[
 export default function PersonalCFOPage() {
   const nav = useNavigate();
   const {
-    investments, liabilities, cashflows, goals, goalContributions,
+    investments, liabilities, pendingPayments, cashflows, goals, goalContributions,
     accounts, essentials, trackedPayments, networthSnapshots, sipPlans,
   } = usePortfolioStore();
 
@@ -74,11 +74,11 @@ export default function PersonalCFOPage() {
   const [planOpen, setPlanOpen] = useState(false);
 
   const { netWorth, totalAssets, totalLiabilities } = useMemo(
-    () => calculateNetWorth(investments, liabilities), [investments, liabilities],
+    () => calculateNetWorth(investments, liabilities, pendingPayments), [investments, liabilities, pendingPayments],
   );
   const healthScore = useMemo(
-    () => calcHealthScore(investments, liabilities, cashflows, essentials),
-    [investments, liabilities, cashflows, essentials],
+    () => calcHealthScore(investments, liabilities, cashflows, essentials, pendingPayments),
+    [investments, liabilities, pendingPayments, cashflows, essentials],
   );
   const velocity = useMemo(() => computeSpendingVelocity(cashflows), [cashflows]);
   const plan     = useMemo(
@@ -90,8 +90,8 @@ export default function PersonalCFOPage() {
     [cashflows, investments, liabilities, essentials],
   );
   const milestones = useMemo(
-    () => computeMilestones(investments, liabilities, cashflows, essentials, accounts),
-    [investments, liabilities, cashflows, essentials, accounts],
+    () => computeMilestones(investments, liabilities, cashflows, essentials, accounts, pendingPayments),
+    [investments, liabilities, pendingPayments, cashflows, essentials, accounts],
   );
 
   const now       = new Date();

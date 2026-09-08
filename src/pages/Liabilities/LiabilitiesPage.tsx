@@ -227,7 +227,7 @@ export function LiabilitiesPage() {
             onClick={() => setPageSection('pending_payments')}
           >
             <FiClock className='h-4 w-4' />
-            Pending Payments
+            Money Owed To Me
           </button>
         </div>
         <PendingPaymentsTab />
@@ -252,7 +252,7 @@ export function LiabilitiesPage() {
           onClick={() => setPageSection('pending_payments')}
         >
           <FiClock className='h-4 w-4' />
-          Pending Payments
+          Money Owed To Me
         </button>
       </div>
 
@@ -263,11 +263,11 @@ export function LiabilitiesPage() {
           </div>
           <div>
             <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2'>
-              Borrowed Money & Bills
+              Debts & Money Owed
               <FeatureInfo feature='liabilities' />
             </h1>
             <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
-              Track loans, personal debts, and upcoming credit card bills.
+              Track what you owe (loans, cards) and what's owed to you — all in one place.
             </p>
           </div>
         </div>

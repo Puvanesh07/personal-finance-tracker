@@ -1,7 +1,7 @@
 // src/utils/assetClassification.ts
 
-import type { Investment } from '../types/investmentTypes';
-import { currentValue } from './calculations';
+import type { Investment, PendingPayment } from '../types/investmentTypes';
+import { currentValue, getReceivablesTotals } from './calculations';
 
 export type DashboardHoldingFilter =
   | 'all'
@@ -20,7 +20,8 @@ export type AllocationBucket =
   | 'gold'
   | 'silver'
   | 'bonds'
-  | 'other';
+  | 'other'
+  | 'receivables';
 
 type ExposureFlags = {
   isGold: boolean;
@@ -116,7 +117,7 @@ export function includeHoldingByFilter(
   }
 }
 
-export function getAllocationTotals(investments: Investment[]) {
+export function getAllocationTotals(investments: Investment[], pendingPayments?: PendingPayment[]) {
   const totals = {
     overall: 0,
     stocks: 0,
@@ -126,6 +127,7 @@ export function getAllocationTotals(investments: Investment[]) {
     silver: 0,
     bonds: 0,
     other: 0,
+    receivables: 0,
   };
 
   for (const inv of investments) {
@@ -133,6 +135,12 @@ export function getAllocationTotals(investments: Investment[]) {
     totals.overall += value;
     const bucket = classifyInvestmentBucket(inv);
     totals[bucket] += value;
+  }
+
+  if (pendingPayments) {
+    const rec = getReceivablesTotals(pendingPayments);
+    totals.receivables = rec.total;
+    totals.overall += rec.total;
   }
 
   return totals;

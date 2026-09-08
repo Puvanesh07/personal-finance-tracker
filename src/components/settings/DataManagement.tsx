@@ -157,7 +157,7 @@ export function ExportImport() {
         Investments:            parsed.investments?.length ?? 0,
         'Profits (Sold)':       parsed.soldTrades?.length ?? 0,
         Liabilities:            parsed.liabilities?.length ?? 0,
-        'Pending Payments':     parsed.pendingPayments?.length ?? 0,
+        'Money Owed To Me':     parsed.pendingPayments?.length ?? 0,
         'Payment Tracker':      parsed.trackedPayments?.length ?? 0,
         Cashflows:              parsed.cashflows?.length ?? 0,
         Goals:                  parsed.goals?.length ?? 0,

@@ -1,4 +1,4 @@
-﻿// src/pages/Reports/ReportsPage.tsx
+// src/pages/Reports/ReportsPage.tsx
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import {
@@ -166,7 +166,7 @@ export function ReportsPage() {
     totalAssets: netWorthAssets,
     totalLiabilities: liabilitiesTotal,
     netWorth,
-  } = calculateNetWorth(portStore.investments, portStore.liabilities);
+  } = calculateNetWorth(portStore.investments, portStore.liabilities, portStore.pendingPayments);
   const totalAccountBalance = portStore.accounts.reduce(
     (a, acc) => a + (acc.balance || 0),
     0,

@@ -97,27 +97,28 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
 
   liabilities: {
     emoji: '🏦',
-    summary: 'Keep track of all your loans — home loan, car loan, personal loan, credit cards — and their EMIs.',
-    what: 'Liabilities are debts you owe: bank loans, credit card outstanding, personal loans, or any money you borrowed. Track the original amount, outstanding balance, interest rate, EMI, and due date.',
-    why: 'Debt costs money every day via interest. Knowing exactly what you owe, at what rate, helps you prioritise repayment — pay the highest-interest debt first to minimise total interest paid over your lifetime.',
-    how: 'Tap "+ Add Liability" and fill in the loan name, type, principal, outstanding amount, interest rate, EMI amount, and EMI date. FinTrackly will remind you 3 days before each EMI.',
+    summary: 'Track both sides: what you owe (loans, credit cards) AND what\'s owed to you (receivables from buyers, friends, vendors).',
+    what: 'This page covers two directions of money flow. (1) DEBTS: Bank loans, credit card balances, personal loans — anything you borrowed and need to repay. Track principal, outstanding, interest, EMI, and due date. (2) MONEY OWED TO YOU: Customer payments, friend IOUs, vendor receivables — anything someone else needs to pay you back. Track amount, expected date, and follow-up status.',
+    why: 'Debt costs daily interest — knowing rates helps you repay strategically (highest-rate first = minimal total interest). And tracking receivables ensures nothing slips through the cracks — unpaid invoices cost real money if forgotten.',
+    how: 'Use the two tabs at the top: "What I Owe" → tap "+ Add Record" for loans/cards. "Money Owed To Me" → tap "+ Add Expected Receipt" for incoming payments. FinTrackly sends reminders before due dates on both sides.',
     questions: [
       { q: 'What is the difference between Principal and Outstanding?', a: 'Principal is the original loan amount you borrowed. Outstanding is how much you still owe today after making payments.' },
       { q: 'What is EMI Day?', a: 'The day of the month your EMI is due (e.g. 5th = every 5th of the month). FinTrackly sends you a reminder before it.' },
       { q: 'How do I mark a loan as closed?', a: 'Open the liability → tap Edit → change Status to "Paid". It moves out of active liabilities and your net worth updates instantly.' },
       { q: 'What is the Debt-to-Asset Ratio?', a: 'Total Liabilities ÷ Total Assets. Below 30% is healthy. Above 50% means more than half your assets are financed by debt — a warning sign.' },
+      { q: 'What happens when I mark something "Received"?', a: 'It closes the receivable AND automatically logs the amount as income in Cashflow so your books stay balanced.' },
     ],
   },
 
   payments: {
     emoji: '🔔',
     summary: 'Never miss a bill or EMI again — schedule reminders for any recurring or one-time payment.',
-    what: 'The Payment Tracker is your bill reminder system. Add any upcoming payment — electricity, OTT subscription, insurance premium, EMI, rent — and FinTrackly will alert you before it\'s due.',
+    what: 'Bill Reminders is your calendar of outgoing payments: electricity, subscriptions, insurance premiums, EMIs, rent, school fees, or any one-time bill. Add once and FinTrackly alerts you before it\'s due.',
     why: 'Late payments cost money (late fees, interest) and hurt your credit score. A central reminder system prevents this even when you\'re busy.',
     how: 'Tap "+ Add Payment" with title, amount, due date, and recurrence (one-time / weekly / monthly / quarterly / half-yearly / yearly). Set reminder days (e.g. remind me 3 days before). Mark as paid when done.',
     questions: [
-      { q: 'What is the difference between Payments and Liabilities?', a: 'Liabilities are long-term debts (loans). Payments are one-time or recurring bills (electricity, subscriptions). Both generate reminders, but Liabilities also track your outstanding balance.' },
-      { q: 'What are Pending Payments?', a: 'Money people owe you — e.g. a friend who bought something and hasn\'t paid back yet. Track the expected receipt date and get reminders to follow up.' },
+      { q: 'What is the difference between Bill Reminders and Debts & Money Owed?', a: '"Debts & Money Owed" covers TWO things: (a) long-term debts that track a balance (loans, credit cards) and (b) money owed TO you (receivables). "Bill Reminders" is just short-term outgoing bills with no balance tracking (electricity, rent, subscriptions) — they generate reminders only.' },
+      { q: 'What is Money Owed To Me?', a: 'Money people owe you — e.g. a friend who bought something and hasn\'t paid back yet, or a customer payment you\'re waiting on. Track the expected receipt date and get reminders to follow up.' },
       { q: 'What does "Mark as Paid" do?', a: 'It closes the reminder and records the payment date. If it\'s a recurring payment, a new reminder is created for the next cycle automatically.' },
     ],
   },

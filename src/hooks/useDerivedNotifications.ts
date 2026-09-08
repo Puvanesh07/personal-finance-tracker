@@ -428,7 +428,7 @@ export function useDerivedNotifications(): AppNotification[] {
                   : days === 0
                     ? 'high'
                     : 'low',
-            actionLabel: 'Pending Payments',
+            actionLabel: 'Money Owed To Me',
             actionPath: '/liabilities?section=pending-payments',
           },
         ),

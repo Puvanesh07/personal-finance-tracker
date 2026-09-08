@@ -29,9 +29,10 @@ function calcHealthScore(
   liabilities: any[],
   cashflows: any[],
   essentials: any,
+  pendingPayments?: any[],
 ): number {
   // Debt score (0–30): lower debt ratio = better
-  const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities);
+  const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities, pendingPayments);
   const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
   const debtScore = Math.max(0, 30 - Math.round(debtRatio * 60));
 
@@ -106,6 +107,7 @@ export function CommandCenter() {
   // Specific selectors — only re-render when the data this component uses changes
   const investments      = usePortfolioStore((s) => s.investments);
   const liabilities      = usePortfolioStore((s) => s.liabilities);
+  const pendingPayments  = usePortfolioStore((s) => s.pendingPayments);
   const cashflows        = usePortfolioStore((s) => s.cashflows);
   const goals            = usePortfolioStore((s) => s.goals);
   const goalContributions = usePortfolioStore((s) => s.goalContributions);
@@ -117,13 +119,13 @@ export function CommandCenter() {
   const proactiveInsights = useProactiveInsights();
 
   const { totalAssets, totalLiabilities, netWorth } = useMemo(
-    () => calculateNetWorth(investments, liabilities),
-    [investments, liabilities],
+    () => calculateNetWorth(investments, liabilities, pendingPayments),
+    [investments, liabilities, pendingPayments],
   );
 
   const score = useMemo(
-    () => calcHealthScore(investments, liabilities, cashflows, essentials),
-    [investments, liabilities, cashflows, essentials],
+    () => calcHealthScore(investments, liabilities, cashflows, essentials, pendingPayments),
+    [investments, liabilities, cashflows, essentials, pendingPayments],
   );
 
   // Monthly cashflow

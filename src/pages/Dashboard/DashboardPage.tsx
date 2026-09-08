@@ -1,7 +1,6 @@
-﻿// src/pages/Dashboard/DashboardPage.tsx
+// src/pages/Dashboard/DashboardPage.tsx
 import {
   FiActivity,
-  FiCamera,
   FiHome,
   FiLayers,
   FiPieChart,
@@ -20,6 +19,7 @@ import { DashboardCashflowSummary }       from '../../components/dashboard/Dashb
 import { DashboardInsuranceSummary }      from '../../components/dashboard/DashboardInsuranceSummary';
 import { DashboardLiabilitiesSummary }    from '../../components/dashboard/DashboardLiabilitiesSummary';
 import { DashboardPaymentsSummary }       from '../../components/dashboard/DashboardPaymentsSummary';
+import { DashboardReceivablesSummary }    from '../../components/dashboard/DashboardReceivablesSummary';
 import { DashboardSIPSummary }            from '../../components/dashboard/DashboardSIPSummary';
 import { DashboardSkeleton }              from '../../components/loader/skeletons';
 import { DashboardSubscriptionBanner }    from '../../components/dashboard/DashboardSubscriptionBanner';
@@ -42,8 +42,8 @@ const QUICK_ACTIONS = [
   { label: 'Log Cashflow',    icon: FiActivity,     path: '/cashflow',              color: 'purple'  },
   { label: 'Set Goal',        icon: FiTarget,       path: '/goals',                 color: 'amber'   },
   { label: 'Add Liability',   icon: FiTrendingDown, path: '/liabilities',           color: 'rose'    },
+  { label: 'Money Owed',      icon: FiTrendingUp,   path: '/liabilities?section=pending_payments', color: 'indigo' },
   { label: 'SIP Plan',        icon: FiLayers,       path: '/investments?tab=sip-plan', color: 'teal' },
-  { label: 'Take Snapshot',   icon: FiCamera,       path: '/snapshots',             color: 'indigo'  },
 ] as const;
 
 const COLOR_MAP: Record<string, string> = {
@@ -145,11 +145,12 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Row 2: Liabilities · SIP ── */}
+      {/* ── Row 2: Liabilities · Receivables · SIP ── */}
       <section>
-        <SectionHeading icon={FiTrendingDown} label='Obligations & Planning' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-2'>
+        <SectionHeading icon={FiTrendingDown} label='Borrow, Lend & Planning' />
+        <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-3'>
           <DashboardLiabilitiesSummary />
+          <DashboardReceivablesSummary />
           <DashboardSIPSummary />
         </div>
       </section>

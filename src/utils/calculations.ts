@@ -6,6 +6,7 @@ import type {
   Liability,
   MutualFundInvestment,
   OtherInvestment,
+  PendingPayment,
   StockInvestment,
 } from '../types/investmentTypes';
 
@@ -510,18 +511,162 @@ export type NetWorthBreakdown = {
   totalAssets: number;
   totalLiabilities: number;
   netWorth: number;
+  receivablesTotal: number;
+  receivablesPrincipal: number;
+  receivablesInterest: number;
 };
 
-/** Net Worth = Total Assets − Total Liabilities */
+/** Sum of money owed to you (pending, not yet received):
+ *  - For loan-type receivables → principal + accrued interest
+ *  - For simple trade receivables → full amount
+ *  Excludes anything already marked `received`.
+ */
+export function getReceivablesTotals(pendingPayments: PendingPayment[]): {
+  total: number;
+  principal: number;
+  interest: number;
+  count: number;
+} {
+  let total = 0;
+  let principal = 0;
+  let interest = 0;
+  let count = 0;
+  for (const p of pendingPayments || []) {
+    if (p.status === 'received') continue;
+    count++;
+    if (p.isLoan && p.principal != null) {
+      principal += p.principal;
+      const i = p.interestAccruedToDate ?? 0;
+      interest += i;
+      total += p.principal + i;
+    } else {
+      principal += p.amount;
+      total += p.amount;
+    }
+  }
+  return { total, principal, interest, count };
+}
+
+/** Net Worth = Total Assets − Total Liabilities.
+ *  Assets = investments + money-owed-to-me (receivables).
+ */
 export function calculateNetWorth(
   investments: Investment[],
   liabilities: Liability[],
+  pendingPayments?: PendingPayment[],
 ): NetWorthBreakdown {
   const { totalValue } = summarizePortfolio(investments);
   const totalLiabilities = getActiveLiabilitiesTotal(liabilities);
+  const rec = getReceivablesTotals(pendingPayments ?? []);
+  const totalAssets = totalValue + rec.total;
   return {
-    totalAssets: totalValue,
+    totalAssets,
     totalLiabilities,
-    netWorth: totalValue - totalLiabilities,
+    netWorth: totalAssets - totalLiabilities,
+    receivablesTotal: rec.total,
+    receivablesPrincipal: rec.principal,
+    receivablesInterest: rec.interest,
+  };
+}
+
+// ── Loan Amortization (for Money Owed To Me interest-bearing receivables) ──
+/** Simple annual interest schedule: each year, interest = opening * rate.
+ *  If no EMI/repayment input, assume bullet (lump-sum) repayment at end.
+ *  Shows opening balance → interest accrued → closing balance year by year.
+ */
+export type AmortizationRow = {
+  year: number;
+  startDate: string;
+  endDate: string;
+  opening: number;
+  interest: number;
+  principalRepaid: number;
+  closing: number;
+  totalInterestPaidToDate: number;
+};
+
+export function buildYearlyAmortization(args: {
+  principal: number;
+  annualRatePct: number;
+  startDate: string;
+  tenureYears: number;
+  emiAmount?: number;
+}): AmortizationRow[] {
+  const { principal, annualRatePct, startDate, tenureYears, emiAmount } = args;
+  const rows: AmortizationRow[] = [];
+  let opening = principal;
+  let cumulativeInterest = 0;
+  const rate = Math.max(0, annualRatePct) / 100;
+  const tenure = Math.max(1, Math.round(tenureYears || 1));
+
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return rows;
+
+  for (let y = 1; y <= tenure; y++) {
+    const interest = round2(opening * rate);
+    let principalRepaid = 0;
+    let closing = opening + interest;
+
+    // If an EMI amount is provided, attempt to pay 12 × EMI per year
+    // (simplified annual model). Any balance >= opening+interest gets reduced.
+    if (emiAmount && emiAmount > 0) {
+      const yearlyPayment = round2(emiAmount * 12);
+      const towardsInterest = Math.min(interest, yearlyPayment);
+      principalRepaid = round2(Math.max(0, yearlyPayment - towardsInterest));
+      closing = round2(opening + interest - principalRepaid);
+      if (closing < 0) {
+        principalRepaid = round2(principalRepaid + closing);
+        closing = 0;
+      }
+    }
+
+    const yStart = new Date(start);
+    yStart.setFullYear(start.getFullYear() + (y - 1));
+    const yEnd = new Date(start);
+    yEnd.setFullYear(start.getFullYear() + y);
+
+    cumulativeInterest = round2(cumulativeInterest + interest);
+
+    rows.push({
+      year: y,
+      startDate: yStart.toISOString().split('T')[0],
+      endDate: yEnd.toISOString().split('T')[0],
+      opening: round2(opening),
+      interest,
+      principalRepaid,
+      closing,
+      totalInterestPaidToDate: cumulativeInterest,
+    });
+
+    if (closing <= 0) break;
+    opening = closing;
+  }
+
+  return rows;
+}
+
+export type AmortizationSummary = {
+  totalInterest: number;
+  totalRepayment: number;
+  maturityDate: string;
+  rows: AmortizationRow[];
+};
+
+export function summarizeAmortization(rows: AmortizationRow[]): AmortizationSummary {
+  if (rows.length === 0) {
+    return {
+      totalInterest: 0,
+      totalRepayment: 0,
+      maturityDate: '',
+      rows: [],
+    };
+  }
+  const last = rows[rows.length - 1];
+  const firstOpening = rows[0].opening;
+  return {
+    totalInterest: last.totalInterestPaidToDate,
+    totalRepayment: round2(firstOpening + last.totalInterestPaidToDate),
+    maturityDate: last.endDate,
+    rows,
   };
 }

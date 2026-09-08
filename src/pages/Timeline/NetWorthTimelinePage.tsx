@@ -1,4 +1,4 @@
-﻿/**
+/**
  * src/pages/Timeline/NetWorthTimelinePage.tsx
  *
  * Net Worth Timeline — Feature 3.
@@ -59,12 +59,13 @@ export default function NetWorthTimelinePage() {
   const networthSnapshots = usePortfolioStore((s) => s.networthSnapshots);
   const investments       = usePortfolioStore((s) => s.investments);
   const liabilities       = usePortfolioStore((s) => s.liabilities);
+  const pendingPayments   = usePortfolioStore((s) => s.pendingPayments);
   const [view, setView]   = useState<ViewMode>('monthly');
 
   // Inject live "today" point
   const { totalAssets, totalLiabilities, netWorth: liveNW } = useMemo(
-    () => calculateNetWorth(investments, liabilities),
-    [investments, liabilities],
+    () => calculateNetWorth(investments, liabilities, pendingPayments),
+    [investments, liabilities, pendingPayments],
   );
 
   const allPoints = useMemo(() => {

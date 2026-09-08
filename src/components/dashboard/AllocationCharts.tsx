@@ -14,11 +14,13 @@ const CATEGORY_META = [
   { key: 'gold', label: 'Gold', fill: '#F59E0B' },
   { key: 'silver', label: 'Silver', fill: '#94A3B8' },
   { key: 'bonds', label: 'Bonds', fill: '#8B5CF6' },
+  { key: 'receivables', label: 'Receivables', fill: '#F97316' },
 ] as const;
 
 export function AllocationCharts() {
   const investments = usePortfolioStore((s) => s.investments);
-  const totals = useMemo(() => getAllocationTotals(investments), [investments]);
+  const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
+  const totals = useMemo(() => getAllocationTotals(investments, pendingPayments), [investments, pendingPayments]);
 
   const data = useMemo(() => {
     return CATEGORY_META.map((item) => ({

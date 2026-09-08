@@ -360,12 +360,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         cashflows,
         goals,
         accounts,
+        pendingPayments,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<Liability>(uid, 'liabilities'),
         fetchSub<CashflowEntry>(uid, 'cashflows'),
         fetchSub<Goal>(uid, 'goals'),
         fetchSub<Account>(uid, 'accounts'),
+        fetchSub<PendingPayment>(uid, 'pendingPayments'),
       ]);
 
       const settingsSnap = await getDoc(settingsDocRef(uid));
@@ -398,6 +400,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
+        pendingPayments: pendingPayments.sort((a, b) =>
+          safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
+        ),
+        _pendingPaymentsLoaded: true,
       });
 
       // Auto-snapshot removed: GrowthChart now uses networthSnapshots (manual snapshots).
@@ -1420,9 +1426,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const state = get();
 
     // ── Core net worth ───────────────────────────────────────────────────────
-    const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
+    const { totalAssets, totalLiabilities, netWorth, receivablesTotal, receivablesPrincipal, receivablesInterest } = calculateNetWorth(
       state.investments,
       state.liabilities,
+      state.pendingPayments,
     );
 
     // ── Investment breakdown ─────────────────────────────────────────────────
@@ -1499,6 +1506,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       // Liabilities
       liabilitiesCount: activeLiabilities.length,
       totalEmiMonthly,
+      // Receivables
+      receivablesTotal,
+      receivablesPrincipal,
+      receivablesInterest,
+      receivablesCount: (state.pendingPayments ?? []).filter((p) => p.status !== 'received').length,
     }) as NetWorthSnapshot;
 
     await saveDoc(uid, 'networthSnapshots', snap);

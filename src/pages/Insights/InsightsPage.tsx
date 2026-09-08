@@ -1,10 +1,11 @@
-﻿// src/pages/Insights/InsightsPage.tsx
+// src/pages/Insights/InsightsPage.tsx
 
 import type {
   CashflowEntry,
   EssentialsConfig,
   Investment,
   Liability,
+  PendingPayment,
 } from '../../types/investmentTypes';
 import { FiInfo, FiSave, FiZap } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
@@ -244,18 +245,30 @@ function calcHealthScore(
   liabilities: Liability[],
   cashflows: CashflowEntry[],
   essentials: EssentialsConfig,
+  pendingPayments?: PendingPayment[],
 ) {
   const { totalValue } = summarizePortfolio(investments);
   const totalLiabilities = liabilities.reduce(
     (acc, l) => acc + (l.outstanding ?? 0),
     0,
   );
+  const recTotal = pendingPayments
+    ? pendingPayments
+        .filter((p) => p.status !== 'received')
+        .reduce((s, p) => {
+          if (p.isLoan && p.principal != null) {
+            return s + p.principal + (p.interestAccruedToDate ?? 0);
+          }
+          return s + p.amount;
+        }, 0)
+    : 0;
+  const effectiveAssets = totalValue + recTotal;
 
-  const hasAnyFinancialData = totalValue > 0 || totalLiabilities > 0;
+  const hasAnyFinancialData = effectiveAssets > 0 || totalLiabilities > 0;
   const debtRatio = !hasAnyFinancialData
     ? 0
-    : totalValue > 0
-      ? Math.min(1, totalLiabilities / totalValue)
+    : effectiveAssets > 0
+      ? Math.min(1, totalLiabilities / effectiveAssets)
       : 1;
   const debtScore = !hasAnyFinancialData ? 0 : Math.max(0, 30 - debtRatio * 60);
 
@@ -558,6 +571,7 @@ export default function InsightsPage() {
   const {
     investments,
     liabilities,
+    pendingPayments,
     cashflows,
     latestInsight,
     saveInsightSnapshot,
@@ -575,6 +589,7 @@ export default function InsightsPage() {
     const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
       investments,
       liabilities,
+      pendingPayments,
     );
     const totalValue = totalAssets;
     const health = calcHealthScore(
@@ -582,6 +597,7 @@ export default function InsightsPage() {
       liabilities,
       cashflows,
       essentials,
+      pendingPayments,
     );
     const avgIncome = calcMonthlyAvg(cashflows, 'income');
     const avgExpense = calcMonthlyAvg(cashflows, 'expense');
@@ -632,7 +648,7 @@ export default function InsightsPage() {
       topSector: topSector?.[0] || '—',
       topSectorPct,
     };
-  }, [investments, liabilities, cashflows, essentials, latestInsight]);
+  }, [investments, liabilities, pendingPayments, cashflows, essentials, latestInsight]);
 
   const { health, fire } = metrics;
   const healthLabel =

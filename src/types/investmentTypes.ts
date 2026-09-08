@@ -254,6 +254,11 @@ export type NetWorthSnapshot = {
   // Liabilities
   liabilitiesCount?: number;
   totalEmiMonthly?: number;
+  // Receivables (Money Owed To Me)
+  receivablesTotal?: number;
+  receivablesPrincipal?: number;
+  receivablesInterest?: number;
+  receivablesCount?: number;
 };
 
 // ── Liabilities ────────────────────────────────────────────────────────────
@@ -349,7 +354,7 @@ export type TrackedPayment = {
   userId?: string;
 };
 
-// ── Pending Payments (buyer/vendor receivables) ───────────────────────────
+// ── Pending Payments (buyer/vendor receivables + interest-bearing loans receivable) ─
 export type PendingPaymentStatus = 'pending' | 'received';
 
 export type PendingPayment = {
@@ -366,6 +371,13 @@ export type PendingPayment = {
   createdAt: string;
   updatedAt: string;
   userId?: string;
+
+  // Loan / interest-bearing receivable fields (optional — null for simple trade receivables)
+  isLoan?: boolean;
+  principal?: number;
+  interestRate?: number;
+  loanTenureYears?: number;
+  interestAccruedToDate?: number;
 };
 
 // ── Goals ──────────────────────────────────────────────────────────────────

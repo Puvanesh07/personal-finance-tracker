@@ -1,4 +1,4 @@
-﻿// src/pages/Snapshots/SnapshotsPage.tsx
+// src/pages/Snapshots/SnapshotsPage.tsx
 //
 // REVAMPED: Full snapshot coverage — investments, cashflow, accounts, goals,
 // insurance, lending, SIP, liabilities, realized profits, and net worth.
@@ -453,6 +453,7 @@ export function SnapshotsPage() {
   const takeNetWorthSnapshot = usePortfolioStore((s) => s.takeNetWorthSnapshot);
   const investments         = usePortfolioStore((s) => s.investments);
   const liabilities         = usePortfolioStore((s) => s.liabilities);
+  const pendingPayments     = usePortfolioStore((s) => s.pendingPayments);
   const cashflows           = usePortfolioStore((s) => s.cashflows);
   const accounts            = usePortfolioStore((s) => s.accounts);
   const goals               = usePortfolioStore((s) => s.goals);
@@ -466,8 +467,8 @@ export function SnapshotsPage() {
   // ── Live preview numbers ─────────────────────────────────────────────────
   const portfolioSummary = useMemo(() => summarizePortfolio(investments), [investments]);
   const { totalAssets, totalLiabilities, netWorth } = useMemo(
-    () => calculateNetWorth(investments, liabilities),
-    [investments, liabilities],
+    () => calculateNetWorth(investments, liabilities, pendingPayments),
+    [investments, liabilities, pendingPayments],
   );
 
   const accountBalance = useMemo(

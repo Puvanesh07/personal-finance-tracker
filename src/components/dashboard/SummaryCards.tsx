@@ -96,14 +96,15 @@ function MetricCard({
 export function SummaryCards() {
   const investments = usePortfolioStore((s) => s.investments);
   const liabilities = usePortfolioStore((s) => s.liabilities);
+  const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
   const networthSnapshots = usePortfolioStore((s) => s.networthSnapshots);
   const soldTrades = usePortfolioStore((s) => s.soldTrades);
   const navigate = useNavigate();
 
   const summary = useMemo(() => summarizePortfolio(investments), [investments]);
-  const { totalAssets, totalLiabilities, netWorth } = useMemo(
-    () => calculateNetWorth(investments, liabilities),
-    [investments, liabilities],
+  const { totalAssets, totalLiabilities, netWorth, receivablesTotal, receivablesInterest } = useMemo(
+    () => calculateNetWorth(investments, liabilities, pendingPayments),
+    [investments, liabilities, pendingPayments],
   );
   const isProfit = summary.profitLossTotal >= 0;
 
@@ -195,6 +196,16 @@ export function SummaryCards() {
           label='Expected Interest'
           value={formatINR(summary.expectedInterest.total)}
           navigateTo='/investments'
+        />
+        <MetricCard
+          label='Money Owed To Me'
+          value={formatINR(receivablesTotal)}
+          navigateTo='/liabilities?section=pending_payments'
+          badge={
+            receivablesInterest > 0
+              ? `+${formatINR(receivablesInterest)} interest`
+              : undefined
+          }
         />
       </div>
     </div>

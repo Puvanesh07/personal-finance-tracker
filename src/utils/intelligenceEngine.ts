@@ -1,14 +1,16 @@
-import type { Investment, Liability, CashflowEntry } from '../types/investmentTypes';
+import type { Investment, Liability, CashflowEntry, PendingPayment } from '../types/investmentTypes';
 import { calculateNetWorth } from './calculations';
 
 export function calculateFinancialHealthScore(
   investments: Investment[],
   liabilities: Liability[],
-  cashflows: CashflowEntry[]
+  cashflows: CashflowEntry[],
+  pendingPayments?: PendingPayment[],
 ) {
   const { totalAssets, totalLiabilities } = calculateNetWorth(
     investments,
     liabilities,
+    pendingPayments,
   );
   
   // 1. Debt Score (30 pts)

@@ -2,7 +2,7 @@
  * src/utils/milestones.ts — Money Milestones (Tier 3).
  * Detects achieved and in-progress financial milestones from store data.
  */
-import type { Investment, Liability, CashflowEntry } from '../types/investmentTypes';
+import type { Investment, Liability, CashflowEntry, PendingPayment } from '../types/investmentTypes';
 import { calculateNetWorth, investedValue } from '../utils/calculations';
 
 export interface Milestone {
@@ -27,9 +27,10 @@ export function computeMilestones(
   cashflows: CashflowEntry[],
   essentials: { emergencyFundCurrent?: number; emergencyFundTarget?: number },
   accounts: { balance: number }[],
+  pendingPayments?: PendingPayment[],
 ): Milestone[] {
 
-  const { netWorth, totalAssets } = calculateNetWorth(investments, liabilities);
+  const { netWorth, totalAssets } = calculateNetWorth(investments, liabilities, pendingPayments);
   const totalInvested = investments.reduce((a, i) => a + investedValue(i), 0);
   const activeLiab    = liabilities.filter(l => !l.status || l.status === 'active');
   const totalDebt     = activeLiab.reduce((a, l) => a + (l.outstanding ?? 0), 0);

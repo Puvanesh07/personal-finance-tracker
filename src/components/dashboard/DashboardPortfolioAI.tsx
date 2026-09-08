@@ -7,12 +7,13 @@ import { buildPortfolioAIContext } from '../../utils/portfolioAIContext';
 export function DashboardPortfolioAI() {
   const investments = usePortfolioStore((s) => s.investments);
   const liabilities = usePortfolioStore((s) => s.liabilities);
+  const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const essentials = usePortfolioStore((s) => s.essentials);
   const goals = usePortfolioStore((s) => s.goals);
   const context = useMemo(
-    () => buildPortfolioAIContext({ investments, liabilities, cashflows, essentials, goals }),
-    [investments, liabilities, cashflows, essentials, goals],
+    () => buildPortfolioAIContext({ investments, liabilities, pendingPayments, cashflows, essentials, goals }),
+    [investments, liabilities, pendingPayments, cashflows, essentials, goals],
   );
   if (!context) return null;
   return (

@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { computeMilestones } from '../../utils/milestones';
 import { formatNumber } from '../../utils/format';
@@ -14,10 +14,10 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 export default function MilestonesPage() {
-  const { investments, liabilities, cashflows, essentials, accounts } = usePortfolioStore();
+  const { investments, liabilities, pendingPayments, cashflows, essentials, accounts } = usePortfolioStore();
   const milestones = useMemo(
-    () => computeMilestones(investments, liabilities, cashflows, essentials, accounts),
-    [investments, liabilities, cashflows, essentials, accounts],
+    () => computeMilestones(investments, liabilities, cashflows, essentials, accounts, pendingPayments),
+    [investments, liabilities, pendingPayments, cashflows, essentials, accounts],
   );
 
   const unlocked = milestones.filter(m => m.unlocked);
