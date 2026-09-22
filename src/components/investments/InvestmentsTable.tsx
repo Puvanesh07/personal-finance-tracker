@@ -6,6 +6,7 @@ import {
   FiBookmark,
   FiBox,
   FiBriefcase,
+  FiCalendar,
   FiCheck,
   FiCheckSquare,
   FiChevronDown,
@@ -33,6 +34,7 @@ import type {
   FundamentalData,
 } from '../../utils/folioSyncEngine';
 import { currentValue, investedValue } from '../../utils/calculations';
+import { PAYOUT_FREQUENCY_LABELS } from '../../utils/bondSchedule';
 import { differenceInDays, parseISO } from 'date-fns';
 import {
   ensureCsvExtension,
@@ -41,6 +43,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { FolioSyncCell } from './FolioSyncScore';
+import { BondTrackingModal } from './BondTrackingModal';
 import { Modal } from '../ui/Modal';
 import { SellInvestmentModal } from './SellInvestmentModal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
@@ -620,6 +623,14 @@ function FixedIncomeDetails({ inv }: { inv: any }) {
         label: 'Rate',
         value: `${inv.interestRate}% p.a.`,
         highlight: true,
+      });
+    if (inv.type === 'bond' && inv.payoutFrequency)
+      rows.push({
+        label: 'Payout',
+        value:
+          PAYOUT_FREQUENCY_LABELS[
+            inv.payoutFrequency as keyof typeof PAYOUT_FREQUENCY_LABELS
+          ] ?? String(inv.payoutFrequency),
       });
     if (inv.maturityDate) {
       const days = differenceInDays(parseISO(inv.maturityDate), new Date());
@@ -1251,6 +1262,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   // ── Selection & Edit State ─────────────────────────────────────────────
   const [edit, setEdit] = useState<any | null>(null);
   const [sellTarget, setSellTarget] = useState<any | null>(null);
+  const [bondTrack, setBondTrack] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
@@ -1961,6 +1973,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               className='flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all'
                             >
                               <FiDollarSign size={12} />
+                            </button>
+                          )}
+                          {inv.type === 'bond' && (
+                            <button
+                              onClick={() => setBondTrack(inv)}
+                              title='Track bond interest'
+                              className='flex items-center justify-center w-7 h-7 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 hover:bg-violet-500/20 transition-all'
+                            >
+                              <FiCalendar size={12} />
                             </button>
                           )}
                           <button
@@ -2687,6 +2708,15 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 <FiDollarSign size={12} />
                               </button>
                             )}
+                            {inv.type === 'bond' && (
+                              <button
+                                onClick={() => setBondTrack(inv)}
+                                title='Track bond interest'
+                                className='btn-icon btn-icon-edit h-7 w-7 text-violet-600 dark:text-violet-400'
+                              >
+                                <FiCalendar size={12} />
+                              </button>
+                            )}
                             <button
                               onClick={() => setEdit(inv)}
                               title='Edit'
@@ -2966,6 +2996,14 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
           open={!!sellTarget}
           onClose={() => setSellTarget(null)}
           investment={sellTarget}
+        />
+      )}
+
+      {bondTrack && (
+        <BondTrackingModal
+          open={!!bondTrack}
+          onClose={() => setBondTrack(null)}
+          bond={bondTrack}
         />
       )}
 

@@ -19,7 +19,14 @@ import {
   FiTrendingUp,
   FiZap,
 } from 'react-icons/fi';
-import type { Investment, InvestmentType } from '../../types/investmentTypes';
+import type { BondPayoutFrequency, Investment, InvestmentType } from '../../types/investmentTypes';
+import {
+  MONTHS_PER_PERIOD,
+  PAYOUT_FREQUENCY_LABELS,
+  PAYOUT_FREQUENCY_OPTIONS,
+  bondInterestPerPeriod,
+} from '../../utils/bondSchedule';
+import { addMonths as addMonthsStr } from '../../services/dateService';
 import {
   addMonths,
   eachDayOfInterval,
@@ -602,6 +609,9 @@ type FormState = {
   startDate: string;
   maturityDate: string;
   bankName: string;
+  // bond interest tracking
+  payoutFrequency: BondPayoutFrequency;
+  accountId: string;
   // other
   currentValue: string;
 };
@@ -614,6 +624,7 @@ function toNumber(v: string) {
 export function UpsertInvestmentModal(props: Props) {
   const addInvestment = usePortfolioStore((s) => s.addInvestment);
   const updateInvestment = usePortfolioStore((s) => s.updateInvestment);
+  const accounts = usePortfolioStore((s) => s.accounts);
 
   const initial = useMemo<FormState>(() => {
     const base: FormState = {
@@ -641,6 +652,8 @@ export function UpsertInvestmentModal(props: Props) {
       startDate: todayISO(),
       maturityDate: todayISO(),
       bankName: '',
+      payoutFrequency: 'monthly',
+      accountId: '',
       currentValue: '0',
     };
 
@@ -691,6 +704,8 @@ export function UpsertInvestmentModal(props: Props) {
         base.durationMonths = String(inv.durationMonths);
         base.startDate = inv.startDate;
         base.maturityDate = inv.maturityDate;
+        base.payoutFrequency = inv.payoutFrequency ?? 'monthly';
+        base.accountId = inv.accountId ?? '';
       }
       if (inv.type === 'fixed_deposit') {
         base.bankName = inv.bankName;
@@ -739,6 +754,41 @@ export function UpsertInvestmentModal(props: Props) {
       setDetectMsg(null);
     }
   }, [props.open, initial]);
+
+  // Auto-fill maturity date for bonds from start date + tenure.
+  useEffect(() => {
+    if (state.type !== 'bond') return;
+    const dur = toNumber(state.durationMonths);
+    if (!state.startDate || dur <= 0) return;
+    const computed = addMonthsStr(state.startDate, dur);
+    setState((s) => (s.maturityDate === computed ? s : { ...s, maturityDate: computed }));
+  }, [state.type, state.startDate, state.durationMonths]);
+
+  // Live preview of the bond interest schedule.
+  const bondPreview = useMemo(() => {
+    if (state.type !== 'bond') return null;
+    const per = bondInterestPerPeriod({
+      investedAmount: toNumber(state.investedAmount),
+      interestRate: toNumber(state.interestRate),
+      payoutFrequency: state.payoutFrequency,
+    } as never);
+    const step = MONTHS_PER_PERIOD[state.payoutFrequency];
+    const dur = toNumber(state.durationMonths);
+    const count = dur > 0 && step > 0 ? Math.floor(dur / step) : 0;
+    const totalInterest = per * count;
+    return {
+      per,
+      count,
+      totalInterest,
+      maturity: toNumber(state.investedAmount) + totalInterest,
+    };
+  }, [
+    state.type,
+    state.investedAmount,
+    state.interestRate,
+    state.payoutFrequency,
+    state.durationMonths,
+  ]);
 
   async function refreshUsdRate() {
     setFetchingRate(true);
@@ -816,6 +866,8 @@ export function UpsertInvestmentModal(props: Props) {
           durationMonths: toNumber(state.durationMonths),
           startDate: state.startDate,
           maturityDate: state.maturityDate,
+          payoutFrequency: state.payoutFrequency,
+          accountId: state.accountId || undefined,
         };
       } else if (state.type === 'fixed_deposit') {
         payload = {
@@ -1220,6 +1272,103 @@ export function UpsertInvestmentModal(props: Props) {
                 </div>
               </div>
             </>
+          )}
+
+          {/* ── Bond interest auto-tracking ── */}
+          {state.type === 'bond' && (
+            <div className='rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-4'>
+              <div className='flex items-center gap-2'>
+                <FiBriefcase className='h-4 w-4 text-violet-400' />
+                <span className='text-xs font-bold uppercase tracking-widest text-violet-400'>
+                  Interest Auto-Tracking
+                </span>
+              </div>
+
+              <div>
+                <label className={labelCls}>Payout Frequency</label>
+                <div className='grid grid-cols-2 gap-2 md:grid-cols-4'>
+                  {PAYOUT_FREQUENCY_OPTIONS.map((f) => {
+                    const active = state.payoutFrequency === f;
+                    return (
+                      <button
+                        key={f}
+                        type='button'
+                        onClick={() =>
+                          setState((s) => ({ ...s, payoutFrequency: f }))
+                        }
+                        className={`rounded-xl border px-3 py-2.5 text-xs font-bold transition-all ${
+                          active
+                            ? 'border-violet-500/50 bg-violet-500/15 text-violet-500 dark:text-violet-300'
+                            : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 hover:border-violet-400/40'
+                        }`}
+                      >
+                        {PAYOUT_FREQUENCY_LABELS[f]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Credit Interest To (Account)</label>
+                <select
+                  className={inputCls}
+                  value={state.accountId}
+                  onChange={(e) =>
+                    setState((s) => ({ ...s, accountId: e.target.value }))
+                  }
+                >
+                  <option value=''>— No linked account —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({a.type === 'credit' ? 'Credit' : 'Bank'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {bondPreview && bondPreview.count > 0 && (
+                <div className='grid grid-cols-2 gap-3 rounded-lg bg-slate-200/70 dark:bg-slate-800/60 p-3'>
+                  <div>
+                    <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
+                      Interest / {PAYOUT_FREQUENCY_LABELS[state.payoutFrequency].replace('-Yearly', 'Yr').replace('Half-Yr', 'Half-Yr')}
+                    </p>
+                    <p className='text-sm font-bold text-violet-500 dark:text-violet-300'>
+                      ₹{bondPreview.per.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
+                      Total Payouts
+                    </p>
+                    <p className='text-sm font-bold text-slate-900 dark:text-slate-100'>
+                      {bondPreview.count}
+                    </p>
+                  </div>
+                  <div>
+                    <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
+                      Total Interest
+                    </p>
+                    <p className='text-sm font-bold text-emerald-500 dark:text-emerald-400'>
+                      ₹{bondPreview.totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
+                      Maturity Amount
+                    </p>
+                    <p className='text-sm font-bold text-slate-900 dark:text-slate-100'>
+                      ₹{bondPreview.maturity.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <p className='text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-snug'>
+                Each due coupon is posted automatically to Cashflow as income and
+                credited to the linked account. The principal is recorded on the
+                maturity date.
+              </p>
+            </div>
           )}
 
           {state.type === 'other' && (

@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FiActivity, FiAlertCircle, FiArrowRight, FiBarChart2,
   FiCalendar, FiCheckCircle, FiCpu, FiFlag, FiRefreshCw,
-  FiShield, FiTrendingUp, FiZap,
+  FiShield, FiTrendingUp, FiZap, FiChevronDown, FiChevronUp,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useProactiveInsights } from '../../hooks/useProactiveInsights';
@@ -14,6 +14,16 @@ import { computeFinancialDNA } from '../../utils/financialDNA';
 import { generateMonthlyPlan } from '../../utils/aiFinancialPlan';
 import { computeMilestones } from '../../utils/milestones';
 import { formatINR, formatNumber } from '../../utils/format';
+import { FeatureInfo } from '../../components/ui/FeatureInfo';
+
+const CAT_COLORS: Record<string, string> = {
+  investment: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700/40',
+  networth:   'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700/40',
+  savings:    'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-700/40',
+  debt:       'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-700/40',
+  cashflow:   'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700/40',
+  goal:       'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/40',
+};
 
 const CATEGORY_COLORS: Record<string, string> = {
   essential:  'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200',
@@ -64,6 +74,7 @@ function calcHealthScore(investments: any[], liabilities: any[], cashflows: any[
 
 export default function PersonalCFOPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const {
     investments, liabilities, pendingPayments, cashflows, goals, goalContributions,
     accounts, essentials, trackedPayments, networthSnapshots, sipPlans,
@@ -72,6 +83,17 @@ export default function PersonalCFOPage() {
   const proactive  = useProactiveInsights();
   const anomalies  = useFinancialAnomalies();
   const [planOpen, setPlanOpen] = useState(false);
+  const [milestonesOpen, setMilestonesOpen] = useState(false);
+  const milestonesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (location.hash === '#milestones') {
+      setMilestonesOpen(true);
+      setTimeout(() => {
+        milestonesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }, [location.hash]);
 
   const { netWorth, totalAssets, totalLiabilities } = useMemo(
     () => calculateNetWorth(investments, liabilities, pendingPayments), [investments, liabilities, pendingPayments],
@@ -101,7 +123,8 @@ export default function PersonalCFOPage() {
   const prevSnap  = [...networthSnapshots].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   const nwDelta   = prevSnap ? netWorth - prevSnap.netWorth : 0;
   const overdue   = trackedPayments.filter(p => p.status === 'pending' && p.dueDate < now.toISOString().slice(0, 10));
-  const unlockedMilestones = milestones.filter(m => m.unlocked).length;
+  const unlockedMilestones = milestones.filter(m => m.unlocked);
+  const lockedMilestones   = milestones.filter(m => !m.unlocked);
   void sipPlans;
 
   const activeGoals = goals.filter(g => !g.status || g.status === 'active');
@@ -150,7 +173,7 @@ export default function PersonalCFOPage() {
         {[
           { label: 'Net Worth',    value: formatINR(netWorth),   sub: nwDelta !== 0 ? `${nwDelta >= 0 ? '+' : ''}${formatINR(nwDelta)} vs last snap` : 'Total wealth',    color: netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500' },
           { label: 'Income (MTD)', value: formatINR(income),     sub: `Expenses: ${formatINR(expense)}`,  color: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'Milestones',   value: `${unlockedMilestones}/${milestones.length}`, sub: 'achievements', color: 'text-amber-600 dark:text-amber-400' },
+          { label: 'Milestones',   value: `${unlockedMilestones.length}/${milestones.length}`, sub: 'achievements', color: 'text-amber-600 dark:text-amber-400' },
         ].map(({ label, value, sub, color }) => (
           <div key={label} className='rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
             <p className='text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1'>{label}</p>
@@ -248,7 +271,7 @@ export default function PersonalCFOPage() {
               <p className='text-[10px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-400'>Your Archetype</p>
               <p className='text-sm font-bold text-slate-800 dark:text-slate-200 truncate'>{dna.archetype}</p>
             </div>
-            <button type='button' onClick={() => nav('/dna')} className='text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline shrink-0 flex items-center gap-0.5'>
+            <button type='button' onClick={() => nav('/insights?tab=dna')} className='text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline shrink-0 flex items-center gap-0.5'>
               View DNA <FiArrowRight className='h-3 w-3' />
             </button>
           </div>
@@ -292,8 +315,6 @@ export default function PersonalCFOPage() {
           <p className='text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 mb-3'><FiZap className='h-3.5 w-3.5 text-violet-500' /> Quick Access</p>
           <div className='grid grid-cols-2 gap-1.5'>
             {[
-              { label: 'DNA', path: '/dna', emoji: '🧬' },
-              { label: 'Milestones', path: '/milestones', emoji: '🏆' },
               { label: 'Forecast', path: '/forecast', emoji: '📈' },
               { label: 'Simulator', path: '/simulator', emoji: '🧮' },
               { label: 'Insights', path: '/insights', emoji: '💡' },
@@ -324,6 +345,134 @@ export default function PersonalCFOPage() {
           <span>{formatNumber(totalAssets + totalLiabilities > 0 ? (totalAssets / (totalAssets + totalLiabilities)) * 100 : 0, 0)}% assets</span>
           <span>Net Worth: <strong className={netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}>{formatINR(netWorth)}</strong></span>
         </div>
+      </div>
+
+      {/* ── Money Milestones Section ── */}
+      <div id='milestones' ref={milestonesRef} className='rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 overflow-hidden'>
+        <button
+          type='button'
+          onClick={() => setMilestonesOpen(p => !p)}
+          className='w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors'
+        >
+          <div className='flex items-center gap-3'>
+            <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 text-white text-lg shadow'>🏆</div>
+            <div className='text-left'>
+              <p className='text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2'>
+                Money Milestones <FeatureInfo feature='milestones' />
+              </p>
+              <p className='text-[11px] text-slate-500 dark:text-slate-400'>
+                Track your financial achievements · {unlockedMilestones.length}/{milestones.length} unlocked
+              </p>
+            </div>
+          </div>
+          <div className='flex items-center gap-3'>
+            <div className='hidden sm:block w-32'>
+              <div className='h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden'>
+                <div
+                  className='h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-700'
+                  style={{ width: `${milestones.length > 0 ? (unlockedMilestones.length / milestones.length) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+            {milestonesOpen ? (
+              <FiChevronUp className='h-4 w-4 text-slate-500 shrink-0' />
+            ) : (
+              <FiChevronDown className='h-4 w-4 text-slate-500 shrink-0' />
+            )}
+          </div>
+        </button>
+
+        {milestonesOpen && (
+          <div className='px-5 pb-5 pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-5'>
+            {/* Progress summary */}
+            <div className='rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 p-4'>
+              <div className='flex justify-between text-xs mb-2'>
+                <span className='font-bold text-slate-700 dark:text-slate-200'>Overall Progress</span>
+                <span className='font-black text-amber-600 dark:text-amber-400'>
+                  {unlockedMilestones.length} / {milestones.length}
+                </span>
+              </div>
+              <div className='h-3 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden'>
+                <div
+                  className='h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-700'
+                  style={{ width: `${milestones.length > 0 ? (unlockedMilestones.length / milestones.length) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Unlocked */}
+            {unlockedMilestones.length > 0 && (
+              <div>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+                  🏆 Achieved ({unlockedMilestones.length})
+                </p>
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>
+                  {unlockedMilestones.map(m => (
+                    <div
+                      key={m.id}
+                      className={`rounded-2xl border p-4 relative overflow-hidden ${CAT_COLORS[m.category]}`}
+                    >
+                      <div className='absolute top-0 right-0 w-16 h-16 rounded-full bg-white/20 -translate-y-4 translate-x-4' />
+                      <div className='flex items-start gap-3'>
+                        <span className='text-3xl'>{m.emoji}</span>
+                        <div className='min-w-0'>
+                          <p className='text-sm font-black text-slate-900 dark:text-slate-100'>{m.title}</p>
+                          <p className='text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5'>{m.reward}</p>
+                          <p className='text-[11px] text-slate-600 dark:text-slate-400 mt-1'>{m.description}</p>
+                        </div>
+                      </div>
+                      <div className='mt-3 flex items-center gap-2'>
+                        <div className='h-1.5 flex-1 rounded-full bg-white/40 overflow-hidden'>
+                          <div className='h-full rounded-full bg-white/90' style={{ width: '100%' }} />
+                        </div>
+                        <span className='text-[10px] font-bold'>100%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Locked */}
+            {lockedMilestones.length > 0 && (
+              <div>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+                  🔒 In Progress ({lockedMilestones.length})
+                </p>
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>
+                  {lockedMilestones.map(m => (
+                    <div
+                      key={m.id}
+                      className='rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4 opacity-75'
+                    >
+                      <div className='flex items-start gap-3'>
+                        <span className='text-3xl grayscale'>{m.emoji}</span>
+                        <div className='min-w-0'>
+                          <p className='text-sm font-bold text-slate-700 dark:text-slate-300'>{m.title}</p>
+                          <p className='text-[11px] text-slate-500 dark:text-slate-400 mt-1'>{m.description}</p>
+                        </div>
+                      </div>
+                      {m.progress > 0 && (
+                        <div className='mt-3'>
+                          <div className='flex justify-between text-[10px] text-slate-400 mb-1'>
+                            <span>{m.progressLabel}</span>
+                            <span className='font-bold'>{formatNumber(m.progress, 0)}%</span>
+                          </div>
+                          <div className='h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden'>
+                            <div
+                              className='h-full rounded-full bg-amber-400 transition-all duration-700'
+                              style={{ width: `${m.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <p className='text-[10px] text-center text-slate-400 dark:text-slate-600'>

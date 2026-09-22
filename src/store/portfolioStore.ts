@@ -1,6 +1,7 @@
 // src/store/portfolioStore.ts
 import type {
   Account,
+  BondInvestment,
   CashflowEntry,
   Credential,
   EssentialsConfig,
@@ -43,6 +44,10 @@ import { db } from '../services/firebase';
 import { calculateNetWorth, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { nextDueDate } from '../utils/paymentTracker';
+import {
+  generateBondSchedule,
+  PAYOUT_FREQUENCY_LABELS,
+} from '../utils/bondSchedule';
 import {
   analyseAfterTransaction,
   analyseAfterPayment,
@@ -167,6 +172,9 @@ type PortfolioState = {
   toggleHiddenCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
 
   hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
+
+  /** Materialise due bond coupon/maturity payments into Cashflow (idempotent). */
+  syncBondInterest: () => Promise<void>;
 
   addInvestment: (
     investment: Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>,
@@ -409,6 +417,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       // Auto-snapshot removed: GrowthChart now uses networthSnapshots (manual snapshots).
       // Investment edits no longer trigger a daily write to `snapshots`.
 
+      // Auto-post any due bond interest / maturity payments into Cashflow.
+      void get()
+        .syncBondInterest()
+        .catch((err) =>
+          console.error('[PortfolioStore] bond interest sync failed:', err),
+        );
+
       const loadPhase1b = async () => {
         const [trackedPayments, soldTrades, insurancePolicies] =
           await Promise.all([
@@ -493,6 +508,109 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }
   },
 
+  syncBondInterest: async () => {
+    const uid = get().uid;
+    if (!uid) return;
+    const bonds = get().investments.filter(
+      (i): i is BondInvestment => i.type === 'bond' && !!i.payoutFrequency,
+    );
+    if (bonds.length === 0) return;
+
+    const today = todayISO();
+    const t = now();
+    const presentIds = new Set(get().cashflows.map((c) => c.id));
+    const accounts = get().accounts;
+    const touchedAccounts = new Map<string, Account>();
+    const newCashflows: CashflowEntry[] = [];
+    const maturedBondIds = new Set<string>();
+
+    for (const bond of bonds) {
+      const schedule = generateBondSchedule(bond);
+      for (const item of schedule) {
+        if (item.date > today) continue; // only materialise due payments
+        if (presentIds.has(item.cashflowId)) continue; // idempotent
+        presentIds.add(item.cashflowId);
+
+        const isMaturity = item.kind === 'maturity';
+        if (isMaturity) maturedBondIds.add(bond.id);
+
+        const cf = clean({
+          type: 'income' as const,
+          date: item.date,
+          category: isMaturity
+            ? `Bond Maturity — ${bond.name}`
+            : `Bond Interest — ${bond.name}`,
+          amount: item.amount,
+          notes: isMaturity
+            ? `Principal ₹${item.principal.toLocaleString('en-IN')}` +
+              (item.interest > 0
+                ? ` + final interest ₹${item.interest.toLocaleString('en-IN')}`
+                : '') +
+              ' on maturity'
+            : `${PAYOUT_FREQUENCY_LABELS[bond.payoutFrequency!]} coupon #${item.index + 1}`,
+          accountId: bond.accountId,
+          id: item.cashflowId,
+          createdAt: t,
+          updatedAt: t,
+          userId: uid,
+        }) as CashflowEntry;
+        newCashflows.push(cf);
+        await saveDoc(uid, 'cashflows', cf);
+
+        // Credit the linked bank account balance.
+        if (bond.accountId) {
+          const base =
+            touchedAccounts.get(bond.accountId) ??
+            accounts.find((a) => a.id === bond.accountId);
+          if (base) {
+            const nextBal = (base.balance ?? 0) + item.amount;
+            touchedAccounts.set(
+              bond.accountId,
+              clean({ ...base, balance: nextBal, updatedAt: t }) as Account,
+            );
+          }
+        }
+      }
+    }
+
+    if (newCashflows.length === 0) return;
+
+    for (const acc of touchedAccounts.values()) {
+      await saveDoc(uid, 'accounts', acc);
+    }
+
+    // Flag fully-settled bonds as matured.
+    const statusPatches: Promise<void>[] = [];
+    if (maturedBondIds.size > 0) {
+      for (const id of maturedBondIds) {
+        const bond = bonds.find((b) => b.id === id);
+        if (bond && bond.status !== 'matured') {
+          const updated = clean({
+            ...bond,
+            status: 'matured' as const,
+            updatedAt: t,
+          }) as Investment;
+          statusPatches.push(saveDoc(uid, 'investments', updated));
+        }
+      }
+    }
+    if (statusPatches.length) await Promise.all(statusPatches);
+
+    set((s) => ({
+      cashflows: [...newCashflows, ...s.cashflows].sort((a, b) =>
+        safeCompare(b.date, a.date),
+      ),
+      accounts: s.accounts.map(
+        (a) => touchedAccounts.get(a.id) ?? a,
+      ),
+      investments: s.investments.map((inv) =>
+        maturedBondIds.has(inv.id) && inv.status !== 'matured'
+          ? ({ ...inv, status: 'matured' as const, updatedAt: t } as Investment)
+          : inv,
+      ),
+    }));
+  },
+
   addInvestment: async (investment) => {
     const uid = get().uid;
     if (!uid) return;
@@ -508,6 +626,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'investments', withMeta);
     set((s) => ({ investments: [withMeta, ...s.investments] }));
     void analyseAfterInvestment(withMeta);
+    if (withMeta.type === 'bond') {
+      void get()
+        .syncBondInterest()
+        .catch((err) =>
+          console.error('[PortfolioStore] bond interest sync failed:', err),
+        );
+    }
   },
 
   importInvestments: async (drafts) => {
@@ -597,6 +722,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({
       investments: s.investments.map((x) => (x.id === id ? updated : x)),
     }));
+    if (updated.type === 'bond') {
+      void get()
+        .syncBondInterest()
+        .catch((err) =>
+          console.error('[PortfolioStore] bond interest sync failed:', err),
+        );
+    }
   },
 
   deleteInvestment: async (id) => {

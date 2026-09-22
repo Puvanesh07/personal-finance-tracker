@@ -9,12 +9,14 @@ import type {
 } from '../../types/investmentTypes';
 import { FiInfo, FiSave, FiZap } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { InsightsLoader } from '../../components/ui/SectionLoader';
 import { Modal } from '../../components/ui/Modal';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 import { computeAlpha, projectFutureValue } from '../../utils/advancedInsights';
+import { computeFinancialDNA } from '../../utils/financialDNA';
 import { LifestyleInflationCard }   from './components/LifestyleInflationCard';
 import { SpendingVelocityCard }     from './components/SpendingVelocityCard';
 import { MerchantIntelligenceCard } from './components/MerchantIntelligenceCard';
@@ -26,6 +28,16 @@ import {
 } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
+
+const DNA_COLOR_CLASSES: Record<string, { bar: string; text: string; bg: string; border: string }> = {
+  emerald: { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-700/40' },
+  amber:   { bar: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-50 dark:bg-amber-900/20',     border: 'border-amber-200 dark:border-amber-700/40' },
+  rose:    { bar: 'bg-rose-500',     text: 'text-rose-600 dark:text-rose-400',       bg: 'bg-rose-50 dark:bg-rose-900/20',       border: 'border-rose-200 dark:border-rose-700/40' },
+  indigo:  { bar: 'bg-indigo-500',   text: 'text-indigo-600 dark:text-indigo-400',   bg: 'bg-indigo-50 dark:bg-indigo-900/20',   border: 'border-indigo-200 dark:border-indigo-700/40' },
+  violet:  { bar: 'bg-violet-500',   text: 'text-violet-600 dark:text-violet-400',   bg: 'bg-violet-50 dark:bg-violet-900/20',   border: 'border-violet-200 dark:border-violet-700/40' },
+  sky:     { bar: 'bg-sky-500',      text: 'text-sky-600 dark:text-sky-400',         bg: 'bg-sky-50 dark:bg-sky-900/20',         border: 'border-sky-200 dark:border-sky-700/40' },
+  slate:   { bar: 'bg-slate-400',    text: 'text-slate-600 dark:text-slate-400',     bg: 'bg-slate-50 dark:bg-slate-800/40',     border: 'border-slate-200 dark:border-slate-700' },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EDUCATIONAL CONTENT DICTIONARY
@@ -579,11 +591,49 @@ export default function InsightsPage() {
     essentials,
   } = usePortfolioStore();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'dna' ? 'dna' : 'overview';
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'dna'>(initialTab);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') === 'dna' ? 'dna' : 'overview';
+    setActiveTab(tab);
+    const reset = () => {
+      const mainEl = document.querySelector('main');
+      if (mainEl) mainEl.scrollTop = 0;
+      window.scrollTo(0, 0);
+    };
+    reset();
+    requestAnimationFrame(reset);
+  }, [searchParams]);
+
+  function handleTabChange(tab: 'overview' | 'dna') {
+    setActiveTab(tab);
+    if (tab === 'dna') {
+      setSearchParams({ tab: 'dna' }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+    const reset = () => {
+      const mainEl = document.querySelector('main');
+      if (mainEl) mainEl.scrollTop = 0;
+      window.scrollTo(0, 0);
+    };
+    reset();
+    requestAnimationFrame(reset);
+  }
 
   // Single state to manage which metric's info modal is open
   const [infoModalKey, setInfoModalKey] = useState<string | null>(null);
+
+  const dna = useMemo(
+    () => computeFinancialDNA(cashflows, investments, liabilities, essentials),
+    [cashflows, investments, liabilities, essentials],
+  );
+  const dnaNoData = !cashflows.length && !investments.length && !liabilities.length;
 
   const metrics = useMemo(() => {
     const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(
@@ -741,27 +791,133 @@ export default function InsightsPage() {
           <div>
             <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>
               Financial Insights
-              <FeatureInfo feature='insights' />
+              <FeatureInfo feature={activeTab === 'dna' ? 'dna' : 'insights'} />
             </h1>
             <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
-              {latestInsight
-                ? `Last snapshot saved ${new Date(latestInsight.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                : 'Track your financial health, emergency fund, and FIRE progress.'}
+              {activeTab === 'dna'
+                ? 'Your 5 financial behaviour dimensions based on actual data.'
+                : latestInsight
+                  ? `Last snapshot saved ${new Date(latestInsight.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : 'Track your financial health, emergency fund, and FIRE progress.'}
             </p>
           </div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving || investments.length === 0}
-          className='flex items-center gap-2 cursor-pointer rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg disabled:opacity-40 hover:-translate-y-0.5 transition-all'
-          type='button'
-        >
-          <FiSave className='h-4 w-4' />
-          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Snapshot'}
-        </button>
+        <div className='flex items-center gap-3'>
+          {/* Tabs */}
+          <div className='inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-1 shadow-sm'>
+            <button
+              type='button'
+              onClick={() => handleTabChange('overview')}
+              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${
+                activeTab === 'overview'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type='button'
+              onClick={() => handleTabChange('dna')}
+              className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 ${
+                activeTab === 'dna'
+                  ? 'bg-violet-500 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              🧬 DNA
+            </button>
+          </div>
+          {activeTab === 'overview' && (
+            <button
+              onClick={handleSave}
+              disabled={saving || investments.length === 0}
+              className='flex items-center gap-2 cursor-pointer rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg disabled:opacity-40 hover:-translate-y-0.5 transition-all'
+              type='button'
+            >
+              <FiSave className='h-4 w-4' />
+              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Snapshot'}
+            </button>
+          )}
+        </div>
       </header>
 
-      {noData ? (
+      {activeTab === 'dna' ? (
+        // ── DNA Tab ──
+        dnaNoData ? (
+          <div className='rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center'>
+            <p className='text-2xl mb-2'>🧬</p>
+            <p className='text-sm font-semibold text-slate-500 dark:text-slate-400'>
+              Add cashflows, investments and liabilities to unlock your Financial DNA.
+            </p>
+          </div>
+        ) : (
+            <div className='flex flex-col gap-6'>
+              {/* Archetype card */}
+              <div className='rounded-2xl border border-violet-200 dark:border-violet-700/50 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/10 p-6'>
+                <div className='flex items-center gap-4'>
+                  <span className='text-4xl'>{dna.overallEmoji}</span>
+                  <div>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mb-0.5'>Your Archetype</p>
+                    <h2 className='text-xl font-black text-slate-900 dark:text-white'>{dna.archetype}</h2>
+                    <p className='text-sm text-slate-600 dark:text-slate-400 mt-0.5'>
+                      Overall: <strong className={
+                        dna.overallProfile === 'Excellent'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : dna.overallProfile === 'Good'
+                            ? 'text-sky-600 dark:text-sky-400'
+                            : 'text-amber-600 dark:text-amber-400'
+                      }>{dna.overallProfile}</strong>
+                    </p>
+                  </div>
+                </div>
+                {(dna.strengths.length > 0 || dna.improvements.length > 0) && (
+                  <div className='grid grid-cols-2 gap-3 mt-4'>
+                    {dna.strengths.length > 0 && (
+                      <div className='rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 px-3 py-2'>
+                        <p className='text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1'>Strengths</p>
+                        {dna.strengths.map(s => <p key={s} className='text-xs text-emerald-700 dark:text-emerald-300'>✓ {s}</p>)}
+                      </div>
+                    )}
+                    {dna.improvements.length > 0 && (
+                      <div className='rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 px-3 py-2'>
+                        <p className='text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1'>Improve</p>
+                        {dna.improvements.map(s => <p key={s} className='text-xs text-amber-700 dark:text-amber-300'>↑ {s}</p>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Dimensions */}
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                {dna.dimensions.map(d => {
+                  const cc = DNA_COLOR_CLASSES[d.color] ?? DNA_COLOR_CLASSES.slate;
+                  return (
+                    <div key={d.key} className={`rounded-2xl border ${cc.border} ${cc.bg} p-5`}>
+                      <div className='flex items-center justify-between mb-3'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-xl'>{d.emoji}</span>
+                          <div>
+                            <p className='text-xs font-bold text-slate-500 dark:text-slate-400'>{d.label}</p>
+                            <p className={`text-sm font-black ${cc.text}`}>{d.verdict}</p>
+                          </div>
+                        </div>
+                        <span className={`text-2xl font-black tabular-nums ${cc.text}`}>{formatNumber(d.score, 0)}</span>
+                      </div>
+                      {/* Score bar */}
+                      <div className='h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden mb-3'>
+                        <div className={`h-full rounded-full transition-all duration-700 ${cc.bar}`} style={{ width: `${d.score}%` }} />
+                      </div>
+                      <p className='text-[11px] text-slate-600 dark:text-slate-400 mb-1'>{d.description}</p>
+                      <p className={`text-[11px] font-semibold ${cc.text}`}>💡 {d.tip}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
+      ) : noData ? (
         <div className='rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/40 p-14 text-center'>
           <div className='text-5xl mb-4'>📊</div>
           <p className='text-base font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300 mb-1'>

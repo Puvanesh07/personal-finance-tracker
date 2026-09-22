@@ -110,6 +110,13 @@ export type MutualFundInvestment = BaseInvestment & {
   }>;
 };
 
+/** How often a bond pays its coupon (interest). */
+export type BondPayoutFrequency =
+  | 'monthly'
+  | 'quarterly'
+  | 'half_yearly'
+  | 'yearly';
+
 export type BondInvestment = BaseInvestment & {
   type: 'bond';
   investedAmount: number;
@@ -117,6 +124,10 @@ export type BondInvestment = BaseInvestment & {
   durationMonths: number;
   startDate: ISODateString;
   maturityDate: ISODateString;
+  /** Interest payout cadence. When set, interest is auto-tracked & posted to Cashflow. */
+  payoutFrequency?: BondPayoutFrequency;
+  /** Bank account the interest / maturity proceeds are credited to. */
+  accountId?: string;
 };
 
 export type FixedDepositInvestment = BaseInvestment & {
