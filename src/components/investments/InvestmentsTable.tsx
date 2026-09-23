@@ -47,7 +47,7 @@ import { BondTrackingModal } from './BondTrackingModal';
 import { Modal } from '../ui/Modal';
 import { SellInvestmentModal } from './SellInvestmentModal';
 import { UpsertInvestmentModal } from './UpsertInvestmentModal';
-import { createPortal } from 'react-dom';
+import { Popover } from '../ui/Popover';
 import { exportInvestmentsCSV } from '../../utils/exportUtils';
 import { fetchLivePrices } from '../../services/livePriceService';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
@@ -143,45 +143,10 @@ function BulkCategoryDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   const selected =
     BULK_CATEGORIES.find((c) => c.id === value) || BULK_CATEGORIES[0];
   const Icon = selected.icon;
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    setPos({
-      top: r.bottom + 8 + window.scrollY,
-      left: r.left + window.scrollX,
-      width: r.width,
-    });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
 
   return (
     <>
@@ -206,19 +171,15 @@ function BulkCategoryDropdown({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 99999,
-            }}
-            className='max-h-60 overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 shadow-2xl custom-scrollbar py-1.5'
-          >
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        minWidth={200}
+        maxHeight={260}
+        title='Select category'
+        bodyClassName='py-1.5'
+      >
             {BULK_CATEGORIES.map((cat) => {
               const CatIcon = cat.icon;
               const isSelected = cat.id === value;
@@ -246,9 +207,7 @@ function BulkCategoryDropdown({
                 </button>
               );
             })}
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </>
   );
 }
@@ -265,55 +224,16 @@ function SectorCapCell({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
 
   const [sector, setSector] = useState(inv.sector || '');
   const [cap, setCap] = useState(marketCap || '');
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const panelWidth = 240;
-
-    let left = r.left + window.scrollX;
-    if (left + panelWidth > window.innerWidth) {
-      left = window.innerWidth - panelWidth - 16;
-    }
-
-    setPos({
-      top: r.bottom + 8 + window.scrollY,
-      left: Math.max(8, left),
-    });
-  }, []);
 
   useEffect(() => {
     if (open) {
       setSector(inv.sector || '');
       setCap(marketCap || '');
-      updatePos();
     }
-  }, [open, inv.sector, marketCap, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
+  }, [open, inv.sector, marketCap]);
 
   if (inv.type !== 'stock') {
     return (
@@ -361,21 +281,21 @@ function SectorCapCell({
         />
       </div>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              zIndex: 99999,
-            }}
-            className='w-[240px] p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 shadow-2xl backdrop-blur-xl animate-in fade-in cursor-default'
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className='flex flex-col gap-3'>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        width={240}
+        minWidth={240}
+        maxHeight={360}
+        title='Edit sector & cap'
+        bodyClassName='p-3'
+      >
+            <div
+              className='flex flex-col gap-3 cursor-default'
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <div>
                 <label className='text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1 block'>
                   Sector
@@ -423,9 +343,7 @@ function SectorCapCell({
                 </button>
               </div>
             </div>
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </>
   );
 }

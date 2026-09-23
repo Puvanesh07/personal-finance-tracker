@@ -10,7 +10,7 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { ALL_NAV_ITEMS, NAV_GROUPS } from '../../navigation/appNav';
@@ -82,6 +82,7 @@ export function AppLayout() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
   const user = auth.currentUser;
+  const mainRef = useRef<HTMLElement>(null);
 
   const focusInvestmentsSearch = useCallback(() => {
     window.dispatchEvent(new CustomEvent('fintrackly:focus-investments-search'));
@@ -109,6 +110,9 @@ export function AppLayout() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setPaletteOpen(false);
+    // Always open a newly-navigated page at the top — never carry over the
+    // previous page's scroll position.
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [location.pathname]);
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
@@ -271,7 +275,7 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main className='relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]'>
+      <main ref={mainRef} className='relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]'>
         <div className='sticky top-0 z-50 flex items-center justify-end gap-2 px-4 py-2.5 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/60 dark:bg-slate-950/80 dark:border-slate-800/40 md:px-6'>
           <button
             type='button'

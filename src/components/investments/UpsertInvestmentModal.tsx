@@ -3,11 +3,8 @@
 import {
   FiBox,
   FiBriefcase,
-  FiCalendar,
   FiCheck,
   FiChevronDown,
-  FiChevronLeft,
-  FiChevronRight,
   FiGlobe,
   FiHome,
   FiMonitor,
@@ -27,25 +24,12 @@ import {
   bondInterestPerPeriod,
 } from '../../utils/bondSchedule';
 import { addMonths as addMonthsStr } from '../../services/dateService';
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  isToday,
-  isValid,
-  parse,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
 import { NumericInput } from '../ui/NumericInput';
-import { createPortal } from 'react-dom';
+import { CalendarPicker } from '../ui/CalendarPicker';
+import { Popover } from '../ui/Popover';
 import { fetchStockMetadata } from '../../services/stockMetadataService';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -224,52 +208,9 @@ function RichAssetDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   const allOptions = ASSET_CATEGORIES.flatMap((g) => g.options);
   const selected = allOptions.find((o) => o.id === value) || allOptions[0];
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const panelW = 340;
-    const panelH = panelRef.current ? panelRef.current.offsetHeight : 400;
-    const rawLeft = r.left + window.scrollX;
-    const clampedLeft = Math.min(
-      rawLeft,
-      window.innerWidth + window.scrollX - panelW - 16,
-    );
-    const spaceBelow = window.innerHeight - r.bottom;
-    let top = r.bottom + 8 + window.scrollY;
-    if (spaceBelow < panelH && r.top > spaceBelow) {
-      top = r.top - panelH - 8 + window.scrollY;
-    }
-    setPos({ top, left: Math.max(8, clampedLeft), width: panelW });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
 
   const Icon = selected.icon;
 
@@ -303,20 +244,16 @@ function RichAssetDropdown({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 99999,
-            }}
-            className='overflow-hidden rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl'
-          >
-            <div className='max-h-[400px] overflow-y-auto custom-scrollbar p-2'>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        width={340}
+        minWidth={300}
+        maxHeight={420}
+        title='Select asset type'
+      >
+            <div className='p-2'>
               {ASSET_CATEGORIES.map((group, gIdx) => (
                 <div key={group.group} className={gIdx > 0 ? 'mt-3' : ''}>
                   <div className='px-3 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
@@ -370,198 +307,8 @@ function RichAssetDropdown({
                 </div>
               ))}
             </div>
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </div>
-  );
-}
-
-// ── Smart Calendar Picker ─────────────────────────────────────────────────
-function CalendarPicker({
-  value,
-  onChange,
-  placeholder = 'Pick a date',
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [viewDate, setViewDate] = useState<Date>(() => {
-    const d = value ? parse(value, 'yyyy-MM-dd', new Date()) : new Date();
-    return isValid(d) ? d : new Date();
-  });
-
-  const selectedDate = useMemo(() => {
-    if (!value) return null;
-    const d = parse(value, 'yyyy-MM-dd', new Date());
-    return isValid(d) ? d : null;
-  }, [value]);
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const panelW = 280;
-    const panelH = panelRef.current ? panelRef.current.offsetHeight : 340;
-    const rawLeft = r.left + window.scrollX;
-    const clampedLeft = Math.min(
-      rawLeft,
-      window.innerWidth + window.scrollX - panelW - 16,
-    );
-    const spaceBelow = window.innerHeight - r.bottom;
-    let top = r.bottom + 8 + window.scrollY;
-    if (spaceBelow < panelH && r.top > spaceBelow) {
-      top = r.top - panelH - 8 + window.scrollY;
-    }
-    setPos({ top, left: Math.max(8, clampedLeft) });
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      updatePos();
-      setTimeout(updatePos, 10);
-    }
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
-
-  const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(viewDate), { weekStartsOn: 0 });
-    const end = endOfWeek(endOfMonth(viewDate), { weekStartsOn: 0 });
-    return eachDayOfInterval({ start, end });
-  }, [viewDate]);
-
-  const selectDay = (d: Date) => {
-    onChange(format(d, 'yyyy-MM-dd'));
-    setOpen(false);
-  };
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type='button'
-        onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-200/70 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'}`}
-      >
-        <FiCalendar
-          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}
-        />
-        <span
-          className={`flex-1 text-left ${!selectedDate ? 'text-slate-500 dark:text-slate-400' : ''}`}
-        >
-          {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
-        </span>
-        <FiChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 text-slate-500 dark:text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
-        />
-      </button>
-
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              zIndex: 99999,
-              width: 280,
-            }}
-            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
-          >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
-              <button
-                type='button'
-                onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
-              >
-                <FiChevronLeft className='h-4 w-4' />
-              </button>
-              <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
-                {format(viewDate, 'MMMM yyyy')}
-              </span>
-              <button
-                type='button'
-                onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
-              >
-                <FiChevronRight className='h-4 w-4' />
-              </button>
-            </div>
-            <div className='grid grid-cols-7 px-3 pt-3 pb-1'>
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-                <div
-                  key={d}
-                  className='text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 pb-1'
-                >
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className='grid grid-cols-7 px-3 pb-3 gap-y-0.5'>
-              {days.map((day) => {
-                const isSelected = selectedDate
-                  ? isSameDay(day, selectedDate)
-                  : false;
-                const isCurMonth = isSameMonth(day, viewDate);
-                const isTodayDay = isToday(day);
-                return (
-                  <button
-                    key={day.toISOString()}
-                    type='button'
-                    onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurMonth ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50'}`}
-                  >
-                    {format(day, 'd')}
-                  </button>
-                );
-              })}
-            </div>
-            <div className='px-3 pb-3 flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2'>
-              <button
-                type='button'
-                onClick={() => {
-                  onChange('');
-                  setOpen(false);
-                }}
-                className='text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors px-2 py-1'
-              >
-                Clear
-              </button>
-              <button
-                type='button'
-                onClick={() => selectDay(new Date())}
-                className='text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors px-2 py-1'
-              >
-                Today
-              </button>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </>
   );
 }
 

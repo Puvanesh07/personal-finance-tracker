@@ -8,11 +8,8 @@
 
 import type { CashflowEntry, CashflowType } from '../../types/investmentTypes';
 import {
-  FiCalendar,
   FiCheck,
   FiChevronDown,
-  FiChevronLeft,
-  FiChevronRight,
   FiEye,
   FiEyeOff,
   FiPlus,
@@ -22,25 +19,12 @@ import {
   FiTrash2,
   FiX,
 } from 'react-icons/fi';
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  isToday,
-  isValid,
-  parse,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
 import { NumericInput } from '../ui/NumericInput';
-import { createPortal } from 'react-dom';
+import { CalendarPicker } from '../ui/CalendarPicker';
+import { Popover } from '../ui/Popover';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
@@ -309,8 +293,6 @@ function CategoryDropdown({
   const [newCatMode, setNewCatMode] = useState(false);
   const [newCatVal,  setNewCatVal]  = useState('');
   const triggerRef  = useRef<HTMLButtonElement>(null);
-  const panelRef    = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   const defaults = type === 'expense' ? DEFAULT_EXPENSE_CATEGORIES : DEFAULT_INCOME_CATEGORIES;
   const customs  = customCategories[type];
@@ -327,36 +309,6 @@ function CategoryDropdown({
       c.key.toLowerCase().includes(search.toLowerCase()),
     );
   }, [allCategories, search]);
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r      = triggerRef.current.getBoundingClientRect();
-    const panelW = Math.max(r.width, 280);
-    const left   = Math.min(r.left + window.scrollX, window.innerWidth + window.scrollX - panelW - 16);
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top    = spaceBelow > 380
-      ? r.bottom + 8 + window.scrollY
-      : r.top - 380 - 8 + window.scrollY;
-    setPos({ top, left: Math.max(8, left), width: panelW });
-  }, []);
-
-  useEffect(() => { if (open) updatePos(); }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current   && !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current && !triggerRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
 
   const selectedCat = allCategories.find((c) => c.key === value) ??
     (value ? { key: value, icon: '🏷️' } : null);
@@ -397,13 +349,15 @@ function CategoryDropdown({
         <FiChevronDown className={`h-3.5 w-3.5 text-slate-400 dark:text-slate-500 transition-transform ${open ? 'rotate-180 text-emerald-500' : ''}`} />
       </button>
 
-      {/* Portal dropdown */}
-      {open && createPortal(
-        <div
-          ref={panelRef}
-          style={{ position: 'absolute', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, maxHeight: 400 }}
-          className='flex flex-col rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden'
-        >
+      {/* Category dropdown */}
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        minWidth={280}
+        maxHeight={400}
+        title='Select category'
+      >
           {/* Search */}
           <div className='flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 dark:border-slate-800'>
             <FiSearch className='h-3.5 w-3.5 text-slate-400 dark:text-slate-500 shrink-0' />
@@ -479,158 +433,12 @@ function CategoryDropdown({
               <FiSettings className='h-4 w-4' /> Manage categories
             </button>
           </div>
-        </div>,
-        document.body,
-      )}
+      </Popover>
     </>
   );
 }
 
 // ── Calendar Picker ───────────────────────────────────────────────────────
-
-function CalendarPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open,     setOpen]     = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef   = useRef<HTMLDivElement>(null);
-  const [pos,      setPos]      = useState({ top: 0, left: 0 });
-  const [viewDate, setViewDate] = useState<Date>(() => {
-    const d = value ? parse(value, 'yyyy-MM-dd', new Date()) : new Date();
-    return isValid(d) ? d : new Date();
-  });
-
-  const selectedDate = useMemo(() => {
-    if (!value) return null;
-    const d = parse(value, 'yyyy-MM-dd', new Date());
-    return isValid(d) ? d : null;
-  }, [value]);
-
-  const displayLabel = selectedDate ? format(selectedDate, 'dd MMM yyyy') : 'Pick a date';
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r      = triggerRef.current.getBoundingClientRect();
-    const panelW = 280;
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top    = spaceBelow > 320
-      ? r.bottom + 8 + window.scrollY
-      : r.top - 320 - 8 + window.scrollY;
-    const left   = Math.min(r.left + window.scrollX, window.innerWidth + window.scrollX - panelW - 16);
-    setPos({ top, left: Math.max(8, left) });
-  }, []);
-
-  useEffect(() => { if (open) updatePos(); }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current   && !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current && !triggerRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
-
-  const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(viewDate), { weekStartsOn: 0 });
-    const end   = endOfWeek(endOfMonth(viewDate),   { weekStartsOn: 0 });
-    return eachDayOfInterval({ start, end });
-  }, [viewDate]);
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type='button'
-        onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
-          open
-            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400'
-            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600'
-        }`}
-      >
-        <FiCalendar className={`h-4 w-4 shrink-0 ${open ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'}`} />
-        <span className='flex-1 text-left'>{displayLabel}</span>
-        <FiChevronDown className={`h-3.5 w-3.5 text-slate-400 dark:text-slate-500 transition-transform ${open ? 'rotate-180 text-emerald-500' : ''}`} />
-      </button>
-
-      {open && createPortal(
-        <div
-          ref={panelRef}
-          style={{ position: 'absolute', top: pos.top, left: pos.left, zIndex: 9999, width: 280 }}
-          className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden'
-        >
-          {/* Month nav */}
-          <div className='flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800'>
-            <button type='button' onClick={() => setViewDate((d) => addMonths(d, -1))}
-              className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300'>
-              <FiChevronLeft className='h-4 w-4' />
-            </button>
-            <span className='text-sm font-bold text-slate-800 dark:text-slate-200'>
-              {format(viewDate, 'MMMM yyyy')}
-            </span>
-            <button type='button' onClick={() => setViewDate((d) => addMonths(d, 1))}
-              className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300'>
-              <FiChevronRight className='h-4 w-4' />
-            </button>
-          </div>
-
-          {/* Day headers */}
-          <div className='grid grid-cols-7 px-3 pt-3 pb-1'>
-            {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d) => (
-              <div key={d} className='text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 pb-1'>{d}</div>
-            ))}
-          </div>
-
-          {/* Days */}
-          <div className='grid grid-cols-7 px-3 pb-3 gap-y-0.5'>
-            {days.map((day) => {
-              const isSelected   = selectedDate ? isSameDay(day, selectedDate) : false;
-              const isCurMonth   = isSameMonth(day, viewDate);
-              const isTodayDay   = isToday(day);
-              return (
-                <button
-                  key={day.toISOString()}
-                  type='button'
-                  onClick={() => { onChange(format(day, 'yyyy-MM-dd')); setOpen(false); }}
-                  className={`flex h-8 w-8 mx-auto items-center justify-center rounded-lg text-xs font-medium transition-all ${
-                    isSelected
-                      ? 'bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/30'
-                      : isTodayDay
-                        ? 'border border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400'
-                        : isCurMonth
-                          ? 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          : 'text-slate-300 dark:text-slate-600'
-                  }`}
-                >
-                  {format(day, 'd')}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick actions */}
-          <div className='px-3 pb-3 pt-2 flex justify-between border-t border-slate-100 dark:border-slate-800'>
-            <button type='button' onClick={() => { onChange(''); setOpen(false); }}
-              className='text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 px-2 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800'>
-              Clear
-            </button>
-            <button type='button' onClick={() => { onChange(format(new Date(), 'yyyy-MM-dd')); setOpen(false); }}
-              className='text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 px-2 py-1 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20'>
-              Today
-            </button>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
-  );
-}
 
 // ── Main modal ────────────────────────────────────────────────────────────
 

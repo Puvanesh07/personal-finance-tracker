@@ -17,7 +17,7 @@ import {
   FiTrendingDown,
   FiTrendingUp,
 } from 'react-icons/fi';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { usePremiumActions } from '../../hooks/usePremiumActions';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
@@ -30,7 +30,7 @@ import { InvestmentsSkeleton } from '../../components/loader/skeletons';
 import { InvestmentsTable } from '../../components/investments/InvestmentsTable';
 import { MonthlySipPlanPage } from './MonthlySipPlanPage';
 import { UpsertInvestmentModal } from '../../components/investments/UpsertInvestmentModal';
-import { createPortal } from 'react-dom';
+import { Popover } from '../../components/ui/Popover';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { useStockMetadata } from '../../hooks/useStockMetadata';
@@ -102,44 +102,9 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   const selected = options.find((o) => o.id === value) || options[0];
   const Icon = selected.icon;
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    setPos({
-      top: r.bottom + 8 + window.scrollY,
-      left: r.left + window.scrollX,
-      width: r.width,
-    });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
 
   const ringColor =
     accentColor === 'blue'
@@ -173,19 +138,15 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 99999,
-            }}
-            className='max-h-[350px] overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 shadow-2xl custom-scrollbar py-1.5 animate-in fade-in zoom-in-95 duration-200'
-          >
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        minWidth={200}
+        maxHeight={350}
+        title='Select option'
+        bodyClassName='py-1.5'
+      >
             {options.map((opt) => {
               const OptIcon = opt.icon;
               const isSelected = opt.id === value;
@@ -213,9 +174,7 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
                 </button>
               );
             })}
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </>
   );
 }

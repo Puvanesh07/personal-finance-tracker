@@ -15,8 +15,6 @@ import {
   FiCalendar,
   FiCheck,
   FiChevronDown,
-  FiChevronLeft,
-  FiChevronRight,
   FiDollarSign,
   FiDownload,
   FiEdit2,
@@ -28,35 +26,23 @@ import {
   FiTrendingUp,
   FiUpload,
 } from 'react-icons/fi';
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  isToday,
-  isValid,
-  parse,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
+import { endOfMonth, format, startOfMonth } from 'date-fns';
 import {
   ensureCsvExtension,
   expandExportFilenamePattern,
 } from '../../utils/exportFilename';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AsyncButton } from '../../components/ui/AsyncButton';
 import type { CashflowEntry } from '../../types/investmentTypes';
 import { CashflowSkeleton } from '../../components/loader/skeletons';
 import { ImportCashflowModal } from '../../components/cashflow/ImportCashflowModal';
 import { Modal } from '../../components/ui/Modal';
+import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
 import { buildCashflowAdvancedInsights } from '../../utils/advancedInsights';
-import { createPortal } from 'react-dom';
+import { Popover } from '../../components/ui/Popover';
 import { exportCashflowsCSV } from '../../utils/exportUtils';
 import { formatINR } from '../../utils/format';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
@@ -249,48 +235,6 @@ function CategoryFilterButton({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 208 });
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const panelW = 208;
-    let left = r.left + window.scrollX;
-    if (left + panelW > window.innerWidth)
-      left = window.innerWidth - panelW - 16;
-    setPos({
-      top: r.bottom + 6 + window.scrollY,
-      left: Math.max(8, left),
-      width: panelW,
-    });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    window.addEventListener('scroll', updatePos, true);
-    window.addEventListener('resize', updatePos);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      window.removeEventListener('scroll', updatePos, true);
-      window.removeEventListener('resize', updatePos);
-    };
-  }, [open, updatePos]);
 
   return (
     <>
@@ -313,19 +257,15 @@ function CategoryFilterButton({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 9999,
-            }}
-            className='max-h-64 overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl'
-          >
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        width={208}
+        minWidth={208}
+        maxHeight={280}
+        title='Filter by category'
+      >
             <button
               type='button'
               onClick={() => {
@@ -357,9 +297,7 @@ function CategoryFilterButton({
                 No categories
               </div>
             )}
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </>
   );
 }
@@ -373,8 +311,6 @@ function SortButton({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 192 });
 
   const options: { value: SortKey; label: string; icon: React.ReactNode }[] = [
     {
@@ -401,41 +337,6 @@ function SortButton({
 
   const selected = options.find((o) => o.value === value)!;
 
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const panelW = 192;
-    let left = r.right + window.scrollX - panelW;
-    if (left < 8) left = 8;
-    setPos({ top: r.bottom + 6 + window.scrollY, left: left, width: panelW });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    window.addEventListener('scroll', updatePos, true);
-    window.addEventListener('resize', updatePos);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      window.removeEventListener('scroll', updatePos, true);
-      window.removeEventListener('resize', updatePos);
-    };
-  }, [open, updatePos]);
-
   return (
     <>
       <button
@@ -452,19 +353,16 @@ function SortButton({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 9999,
-            }}
-            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden'
-          >
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        align='right'
+        width={192}
+        minWidth={192}
+        maxHeight={240}
+        title='Sort by'
+      >
             {options.map((opt) => (
               <button
                 key={opt.value}
@@ -482,9 +380,7 @@ function SortButton({
                 )}
               </button>
             ))}
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </>
   );
 }
@@ -502,42 +398,7 @@ function InvDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const selected = options.find((o) => o.key === value);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    setPos({
-      top: r.bottom + 8 + window.scrollY,
-      left: r.left + window.scrollX,
-      width: r.width,
-    });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
 
   return (
     <>
@@ -560,19 +421,14 @@ function InvDropdown({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              zIndex: 9999,
-            }}
-            className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 shadow-2xl backdrop-blur-xl'
-          >
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
+        minWidth={180}
+        maxHeight={300}
+        title={label}
+      >
             <div className='p-1.5 flex flex-col'>
               {options.map((opt) => (
                 <button
@@ -591,200 +447,8 @@ function InvDropdown({
                 </button>
               ))}
             </div>
-          </div>,
-          document.body,
-        )}
+      </Popover>
     </>
-  );
-}
-
-function CalendarPicker({
-  value,
-  onChange,
-  label,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  label: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [viewDate, setViewDate] = useState<Date>(() => {
-    const d = value ? parse(value, 'yyyy-MM-dd', new Date()) : new Date();
-    return isValid(d) ? d : new Date();
-  });
-
-  const selectedDate = useMemo(() => {
-    if (!value) return null;
-    const d = parse(value, 'yyyy-MM-dd', new Date());
-    return isValid(d) ? d : null;
-  }, [value]);
-
-  useEffect(() => {
-    if (value) {
-      const d = parse(value, 'yyyy-MM-dd', new Date());
-      if (isValid(d)) setViewDate(d);
-    } else {
-      setViewDate(new Date());
-    }
-  }, [value]);
-
-  const displayLabel = selectedDate
-    ? format(selectedDate, 'dd MMM yyyy')
-    : 'Pick a date';
-
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - r.bottom;
-    const panelH = 320;
-    const top =
-      spaceBelow > panelH
-        ? r.bottom + 8 + window.scrollY
-        : r.top - panelH - 8 + window.scrollY;
-    setPos({ top, left: r.left + window.scrollX });
-  }, []);
-
-  useEffect(() => {
-    if (open) updatePos();
-  }, [open, updatePos]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onMouse = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', onMouse);
-    window.addEventListener('scroll', updatePos, true);
-    return () => {
-      document.removeEventListener('mousedown', onMouse);
-      window.removeEventListener('scroll', updatePos, true);
-    };
-  }, [open, updatePos]);
-
-  const days = useMemo(() => {
-    const start = startOfWeek(startOfMonth(viewDate), { weekStartsOn: 0 });
-    const end = endOfWeek(endOfMonth(viewDate), { weekStartsOn: 0 });
-    return eachDayOfInterval({ start, end });
-  }, [viewDate]);
-
-  const selectDay = (d: Date) => {
-    onChange(format(d, 'yyyy-MM-dd'));
-    setOpen(false);
-  };
-
-  return (
-    <div className='flex flex-col gap-1'>
-      <label className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1'>
-        {label}
-      </label>
-      <button
-        ref={triggerRef}
-        type='button'
-        onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer text-sm font-medium transition-all duration-300 min-w-[160px] ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)] text-emerald-400' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:hover:bg-slate-800/60 text-slate-900 dark:text-slate-200'}`}
-      >
-        <FiCalendar
-          className={`h-4 w-4 shrink-0 transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
-        />
-        <span>{displayLabel}</span>
-        <FiChevronDown
-          className={`ml-auto h-3.5 w-3.5 transition-transform duration-300 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'absolute',
-              top: pos.top,
-              left: pos.left,
-              zIndex: 9999,
-              width: 280,
-            }}
-            className='rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl backdrop-blur-xl overflow-hidden'
-          >
-            <div className='flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800'>
-              <button
-                type='button'
-                onClick={() => setViewDate((d) => addMonths(d, -1))}
-                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
-              >
-                <FiChevronLeft className='h-4 w-4' />
-              </button>
-              <span className='text-sm font-bold text-slate-900 dark:text-slate-200'>
-                {format(viewDate, 'MMMM yyyy')}
-              </span>
-              <button
-                type='button'
-                onClick={() => setViewDate((d) => addMonths(d, 1))}
-                className='flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100 transition-colors'
-              >
-                <FiChevronRight className='h-4 w-4' />
-              </button>
-            </div>
-            <div className='grid grid-cols-7 px-3 pt-3 pb-1'>
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-                <div
-                  key={d}
-                  className='text-center text-[10px] font-bold text-slate-900 dark:text-slate-500 pb-1'
-                >
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className='grid grid-cols-7 px-3 pb-3 gap-y-0.5'>
-              {days.map((day) => {
-                const isSelected = selectedDate
-                  ? isSameDay(day, selectedDate)
-                  : false;
-                const isCurrentMonth = isSameMonth(day, viewDate);
-                const isTodayDay = isToday(day);
-                return (
-                  <button
-                    key={day.toISOString()}
-                    type='button'
-                    onClick={() => selectDay(day)}
-                    className={`flex h-8 w-8 mx-auto items-center cursor-pointer justify-center rounded-lg text-xs font-medium transition-all ${isSelected ? 'bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/30' : isTodayDay ? 'border border-emerald-500/40 text-emerald-400' : isCurrentMonth ? 'text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:bg-slate-800/50'}`}
-                  >
-                    {format(day, 'd')}
-                  </button>
-                );
-              })}
-            </div>
-            <div className='px-3 pb-3 flex justify-between gap-2 border-t border-slate-200 dark:border-slate-800 pt-2'>
-              <button
-                type='button'
-                onClick={() => {
-                  onChange('');
-                  setOpen(false);
-                }}
-                className='text-xs font-bold text-slate-900 dark:text-slate-500 cursor-pointer hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 transition-colors px-2 py-1'
-              >
-                Clear
-              </button>
-              <button
-                type='button'
-                onClick={() => selectDay(new Date())}
-                className='text-xs font-bold text-emerald-400 cursor-pointer hover:text-emerald-300 transition-colors px-2 py-1'
-              >
-                Today
-              </button>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </div>
   );
 }
 
@@ -1298,6 +962,7 @@ export function CashflowPage() {
                   value={customStart}
                   onChange={setCustomStart}
                   label='From'
+                  fullWidth={false}
                 />
                 <div className='self-end pb-3'>
                   <span className='text-sm font-bold text-slate-900 dark:text-slate-500 select-none'>
@@ -1308,6 +973,7 @@ export function CashflowPage() {
                   value={customEnd}
                   onChange={setCustomEnd}
                   label='To'
+                  fullWidth={false}
                 />
                 <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
                   <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />

@@ -6,10 +6,9 @@ import {
   FiCalendar,
   FiCheckCircle,
   FiClock,
-  FiRefreshCw,
   FiTrendingUp,
 } from 'react-icons/fi';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import type { BondInvestment } from '../../types/investmentTypes';
 import { Modal } from '../ui/Modal';
@@ -94,12 +93,9 @@ export function BondTrackingModal({
   onClose: () => void;
   bond: BondInvestment;
 }) {
-  const cashflows = usePortfolioStore((s) => s.cashflows);
   const accounts = usePortfolioStore((s) => s.accounts);
-  const syncBondInterest = usePortfolioStore((s) => s.syncBondInterest);
-  const [syncing, setSyncing] = useState(false);
 
-  const summary = useMemo(() => summarizeBond(bond, cashflows), [bond, cashflows]);
+  const summary = useMemo(() => summarizeBond(bond), [bond]);
   const account = accounts.find((a) => a.id === bond.accountId);
   const freq = bond.payoutFrequency ?? 'monthly';
 
@@ -111,44 +107,24 @@ export function BondTrackingModal({
         )
       : 0;
 
-  async function handleSync() {
-    setSyncing(true);
-    try {
-      await syncBondInterest();
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   return (
     <Modal open={open} onClose={onClose} title='Bond Interest Tracker'>
       <div className='space-y-5'>
         {/* Header */}
-        <div className='flex items-start justify-between gap-3'>
-          <div className='flex items-center gap-3'>
-            <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-500 dark:text-violet-300'>
-              <FiBriefcase className='h-5 w-5' />
-            </div>
-            <div>
-              <h2 className='text-base font-bold text-slate-900 dark:text-slate-100 leading-tight'>
-                {bond.name}
-              </h2>
-              <p className='text-[11px] font-medium text-slate-500 dark:text-slate-400'>
-                {bond.interestRate}% p.a. · {PAYOUT_FREQUENCY_LABELS[freq]} ·{' '}
-                {bond.durationMonths} mo
-                {account ? ` · → ${account.name}` : ''}
-              </p>
-            </div>
+        <div className='flex items-center gap-3'>
+          <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-500 dark:text-violet-300'>
+            <FiBriefcase className='h-5 w-5' />
           </div>
-          <button
-            type='button'
-            onClick={() => void handleSync()}
-            disabled={syncing}
-            className='flex items-center gap-1.5 rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-[10px] font-bold text-violet-500 dark:text-violet-300 transition-colors hover:bg-violet-500/20 disabled:opacity-50'
-          >
-            <FiRefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing…' : 'Sync Now'}
-          </button>
+          <div>
+            <h2 className='text-base font-bold text-slate-900 dark:text-slate-100 leading-tight'>
+              {bond.name}
+            </h2>
+            <p className='text-[11px] font-medium text-slate-500 dark:text-slate-400'>
+              {bond.interestRate}% p.a. · {PAYOUT_FREQUENCY_LABELS[freq]} ·{' '}
+              {bond.durationMonths} mo
+              {account ? ` · → ${account.name}` : ''}
+            </p>
+          </div>
         </div>
 
         {/* Summary stats */}
@@ -292,7 +268,7 @@ export function BondTrackingModal({
               <tbody className='divide-y divide-slate-200 dark:divide-slate-800'>
                 {summary.schedule.map((row, i) => (
                   <tr
-                    key={row.cashflowId}
+                    key={row.id}
                     className={
                       row.kind === 'maturity'
                         ? 'bg-violet-500/5'
@@ -325,9 +301,9 @@ export function BondTrackingModal({
             </table>
           </div>
           <p className='mt-2 text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-snug'>
-            Due coupons post automatically to Cashflow as income and credit the
-            linked account. Use “Sync Now” to record any payment that has just
-            become due.
+            Interest is tracked here in the Investments section only. Nothing is
+            posted to Cashflow or Accounts automatically — add an entry manually
+            if you want a payment reflected there.
           </p>
         </div>
       </div>

@@ -4,8 +4,9 @@
  *
  * Given a bond's principal, rate, tenure, start date and payout frequency this
  * module derives the full coupon schedule (each interest payment) plus the
- * maturity settlement, and reconciles it against the user's Cashflow entries so
- * every payment can be shown as Received / Upcoming / Missed.
+ * maturity settlement. Every payment is shown as Received / Upcoming based on
+ * today's date alone — bond interest lives inside the Investments section and
+ * is never posted to Cashflow or Accounts automatically.
  *
  * Coupon timing follows the product spec: the first coupon lands on the
  * investment (start) date, then every full period after that. A tenured bond of
@@ -17,7 +18,6 @@
 import type {
   BondInvestment,
   BondPayoutFrequency,
-  CashflowEntry,
   ISODateString,
 } from '../types/investmentTypes';
 import { addMonths, monthKey, parseBusinessDate } from '../services/dateService';
@@ -58,8 +58,8 @@ export type BondScheduleItem = {
   /** Total credited on this date (interest + principal). */
   amount: number;
   kind: 'interest' | 'maturity';
-  /** Deterministic Cashflow id so materialisation is idempotent. */
-  cashflowId: string;
+  /** Stable unique id for the row (used as a list key). */
+  id: string;
 };
 
 export type BondPaymentStatus = 'received' | 'upcoming' | 'missed';
@@ -68,13 +68,13 @@ export type BondScheduleRow = BondScheduleItem & {
   status: BondPaymentStatus;
 };
 
-/** Deterministic Cashflow id for a coupon. */
-export function bondInterestCashflowId(bondId: string, index: number): string {
+/** Stable id for a coupon schedule row. */
+export function bondCouponId(bondId: string, index: number): string {
   return `cf_bondint_${bondId}_${index}`;
 }
 
-/** Deterministic Cashflow id for the maturity settlement. */
-export function bondMaturityCashflowId(bondId: string): string {
+/** Stable id for the maturity settlement row. */
+export function bondMaturityItemId(bondId: string): string {
   return `cf_bondmat_${bondId}`;
 }
 
@@ -125,7 +125,7 @@ export function generateBondSchedule(bond: BondInvestment): BondScheduleItem[] {
       principal: 0,
       amount: perPeriod,
       kind: 'interest',
-      cashflowId: bondInterestCashflowId(bond.id, k),
+      id: bondCouponId(bond.id, k),
     });
   }
 
@@ -144,7 +144,7 @@ export function generateBondSchedule(bond: BondInvestment): BondScheduleItem[] {
     principal,
     amount: round2(principal + finalInterest),
     kind: 'maturity',
-    cashflowId: bondMaturityCashflowId(bond.id),
+    id: bondMaturityItemId(bond.id),
   });
 
   return items.sort((a, b) => a.date.localeCompare(b.date));
@@ -169,32 +169,22 @@ export type BondSummary = {
 };
 
 /**
- * Reconciles a bond's schedule against existing Cashflow entries and today's
- * date to derive per-payment status and roll-up totals.
+ * Derives a bond's roll-up totals and per-payment status purely from its
+ * schedule and today's date. Bond interest is tracked inside the Investments
+ * section only — nothing is posted to Cashflow or Accounts automatically.
  *
- * Status rules (auto-record product):
- *  - date <= today and the linked Cashflow exists  -> received
- *  - date <= today and the linked Cashflow missing -> missed (sync will heal it)
- *  - date >  today                                 -> upcoming
+ * Status rules:
+ *  - date <= today -> received
+ *  - date >  today -> upcoming
  */
-export function summarizeBond(
-  bond: BondInvestment,
-  cashflows: CashflowEntry[],
-): BondSummary {
+export function summarizeBond(bond: BondInvestment): BondSummary {
   const schedule = generateBondSchedule(bond);
   const today = todayISO();
-  const presentIds = new Set(cashflows.map((c) => c.id));
 
-  const rows: BondScheduleRow[] = schedule.map((item) => {
-    const isPast = item.date <= today;
-    const recorded = presentIds.has(item.cashflowId);
-    const status: BondPaymentStatus = !isPast
-      ? 'upcoming'
-      : recorded
-        ? 'received'
-        : 'missed';
-    return { ...item, status };
-  });
+  const rows: BondScheduleRow[] = schedule.map((item) => ({
+    ...item,
+    status: item.date <= today ? 'received' : 'upcoming',
+  }));
 
   const coupons = rows.filter((r) => r.kind === 'interest');
   const maturityRow = rows.find((r) => r.kind === 'maturity');

@@ -1,7 +1,6 @@
 // src/store/portfolioStore.ts
 import type {
   Account,
-  BondInvestment,
   CashflowEntry,
   Credential,
   EssentialsConfig,
@@ -44,10 +43,6 @@ import { db } from '../services/firebase';
 import { calculateNetWorth, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { nextDueDate } from '../utils/paymentTracker';
-import {
-  generateBondSchedule,
-  PAYOUT_FREQUENCY_LABELS,
-} from '../utils/bondSchedule';
 import {
   analyseAfterTransaction,
   analyseAfterPayment,
@@ -173,8 +168,10 @@ type PortfolioState = {
 
   hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
 
-  /** Materialise due bond coupon/maturity payments into Cashflow (idempotent). */
-  syncBondInterest: () => Promise<void>;
+  /** One-time cleanup: remove bond interest/maturity entries a previous build
+   *  auto-posted to Cashflow, and reverse the account credits they created.
+   *  Bond interest is now tracked only inside the Investments section. */
+  cleanupLegacyBondCashflows: () => Promise<void>;
 
   addInvestment: (
     investment: Omit<Investment, 'id' | 'createdAt' | 'updatedAt'>,
@@ -417,11 +414,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       // Auto-snapshot removed: GrowthChart now uses networthSnapshots (manual snapshots).
       // Investment edits no longer trigger a daily write to `snapshots`.
 
-      // Auto-post any due bond interest / maturity payments into Cashflow.
+      // Remove any bond interest a previous build auto-posted to Cashflow.
       void get()
-        .syncBondInterest()
+        .cleanupLegacyBondCashflows()
         .catch((err) =>
-          console.error('[PortfolioStore] bond interest sync failed:', err),
+          console.error('[PortfolioStore] bond cashflow cleanup failed:', err),
         );
 
       const loadPhase1b = async () => {
@@ -508,106 +505,58 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }
   },
 
-  syncBondInterest: async () => {
+  cleanupLegacyBondCashflows: async () => {
     const uid = get().uid;
     if (!uid) return;
-    const bonds = get().investments.filter(
-      (i): i is BondInvestment => i.type === 'bond' && !!i.payoutFrequency,
+
+    // Only the deterministic ids this feature ever wrote — never user entries.
+    const legacy = get().cashflows.filter(
+      (c) => c.id.startsWith('cf_bondint_') || c.id.startsWith('cf_bondmat_'),
     );
-    if (bonds.length === 0) return;
+    if (legacy.length === 0) return;
 
-    const today = todayISO();
     const t = now();
-    const presentIds = new Set(get().cashflows.map((c) => c.id));
-    const accounts = get().accounts;
+    const legacyIds = new Set(legacy.map((c) => c.id));
+
+    // Reverse the balance credit each legacy entry applied to its account.
+    const deltas = new Map<string, number>();
+    for (const cf of legacy) {
+      if (!cf.accountId) continue;
+      deltas.set(
+        cf.accountId,
+        (deltas.get(cf.accountId) ?? 0) - (cf.amount ?? 0),
+      );
+    }
+
+    // Delete the auto-posted entries from Firestore.
+    await Promise.all(
+      legacy.map((cf) =>
+        deleteDoc(userDoc(uid, 'cashflows', cf.id)).catch((err) =>
+          console.error(
+            '[PortfolioStore] legacy bond cashflow delete failed:',
+            err,
+          ),
+        ),
+      ),
+    );
+
+    // Persist the reversed account balances.
     const touchedAccounts = new Map<string, Account>();
-    const newCashflows: CashflowEntry[] = [];
-    const maturedBondIds = new Set<string>();
-
-    for (const bond of bonds) {
-      const schedule = generateBondSchedule(bond);
-      for (const item of schedule) {
-        if (item.date > today) continue; // only materialise due payments
-        if (presentIds.has(item.cashflowId)) continue; // idempotent
-        presentIds.add(item.cashflowId);
-
-        const isMaturity = item.kind === 'maturity';
-        if (isMaturity) maturedBondIds.add(bond.id);
-
-        const cf = clean({
-          type: 'income' as const,
-          date: item.date,
-          category: isMaturity
-            ? `Bond Maturity — ${bond.name}`
-            : `Bond Interest — ${bond.name}`,
-          amount: item.amount,
-          notes: isMaturity
-            ? `Principal ₹${item.principal.toLocaleString('en-IN')}` +
-              (item.interest > 0
-                ? ` + final interest ₹${item.interest.toLocaleString('en-IN')}`
-                : '') +
-              ' on maturity'
-            : `${PAYOUT_FREQUENCY_LABELS[bond.payoutFrequency!]} coupon #${item.index + 1}`,
-          accountId: bond.accountId,
-          id: item.cashflowId,
-          createdAt: t,
-          updatedAt: t,
-          userId: uid,
-        }) as CashflowEntry;
-        newCashflows.push(cf);
-        await saveDoc(uid, 'cashflows', cf);
-
-        // Credit the linked bank account balance.
-        if (bond.accountId) {
-          const base =
-            touchedAccounts.get(bond.accountId) ??
-            accounts.find((a) => a.id === bond.accountId);
-          if (base) {
-            const nextBal = (base.balance ?? 0) + item.amount;
-            touchedAccounts.set(
-              bond.accountId,
-              clean({ ...base, balance: nextBal, updatedAt: t }) as Account,
-            );
-          }
-        }
-      }
+    for (const [accId, delta] of deltas) {
+      const base = get().accounts.find((a) => a.id === accId);
+      if (!base) continue;
+      const next = clean({
+        ...base,
+        balance: Math.round(((base.balance ?? 0) + delta) * 100) / 100,
+        updatedAt: t,
+      }) as Account;
+      touchedAccounts.set(accId, next);
+      await saveDoc(uid, 'accounts', next);
     }
-
-    if (newCashflows.length === 0) return;
-
-    for (const acc of touchedAccounts.values()) {
-      await saveDoc(uid, 'accounts', acc);
-    }
-
-    // Flag fully-settled bonds as matured.
-    const statusPatches: Promise<void>[] = [];
-    if (maturedBondIds.size > 0) {
-      for (const id of maturedBondIds) {
-        const bond = bonds.find((b) => b.id === id);
-        if (bond && bond.status !== 'matured') {
-          const updated = clean({
-            ...bond,
-            status: 'matured' as const,
-            updatedAt: t,
-          }) as Investment;
-          statusPatches.push(saveDoc(uid, 'investments', updated));
-        }
-      }
-    }
-    if (statusPatches.length) await Promise.all(statusPatches);
 
     set((s) => ({
-      cashflows: [...newCashflows, ...s.cashflows].sort((a, b) =>
-        safeCompare(b.date, a.date),
-      ),
-      accounts: s.accounts.map(
-        (a) => touchedAccounts.get(a.id) ?? a,
-      ),
-      investments: s.investments.map((inv) =>
-        maturedBondIds.has(inv.id) && inv.status !== 'matured'
-          ? ({ ...inv, status: 'matured' as const, updatedAt: t } as Investment)
-          : inv,
-      ),
+      cashflows: s.cashflows.filter((c) => !legacyIds.has(c.id)),
+      accounts: s.accounts.map((a) => touchedAccounts.get(a.id) ?? a),
     }));
   },
 
@@ -626,13 +575,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await saveDoc(uid, 'investments', withMeta);
     set((s) => ({ investments: [withMeta, ...s.investments] }));
     void analyseAfterInvestment(withMeta);
-    if (withMeta.type === 'bond') {
-      void get()
-        .syncBondInterest()
-        .catch((err) =>
-          console.error('[PortfolioStore] bond interest sync failed:', err),
-        );
-    }
   },
 
   importInvestments: async (drafts) => {
@@ -722,13 +664,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({
       investments: s.investments.map((x) => (x.id === id ? updated : x)),
     }));
-    if (updated.type === 'bond') {
-      void get()
-        .syncBondInterest()
-        .catch((err) =>
-          console.error('[PortfolioStore] bond interest sync failed:', err),
-        );
-    }
   },
 
   deleteInvestment: async (id) => {
