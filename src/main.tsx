@@ -44,6 +44,14 @@ function recoverFromStaleChunkLoad() {
 
 recoverFromStaleChunkLoad();
 
+// This SPA manages scroll itself (AppLayout resets to the top on every route
+// change), so disable the browser's native scroll restoration — otherwise it
+// re-applies the previous offset on reload / back-forward and pages open lower
+// down instead of at the top.
+if ('scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
+
 /**
  * PWA Update Logic:
  * Since vite.config.ts is set to 'autoUpdate', this will automatically

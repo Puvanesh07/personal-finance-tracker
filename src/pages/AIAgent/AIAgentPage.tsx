@@ -24,6 +24,7 @@ import { executeAction } from '../../services/aiAgentActionExecutor';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useContextualSuggestions } from '../../hooks/useContextualSuggestions';
+import { useVisualViewport } from '../../hooks/useVisualViewport';
 import { auth } from '../../services/firebase';
 import type { AgentResponse } from '../../services/aiAgentResponseTypes';
 import { severityColor, severityBg } from '../../services/aiAgentResponseTypes';
@@ -577,6 +578,17 @@ export default function AIAgentPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const navigate  = useNavigate();
 
+  // Size the chat shell to the *visible* viewport so the input bar, quick
+  // actions and buttons stay above the soft keyboard on mobile. `100dvh` does
+  // not shrink when the keyboard opens — the visual viewport height does. When
+  // the keyboard is up we drop the bottom clearance reserved for the floating
+  // mobile nav (which sits behind the keyboard anyway).
+  const vv = useVisualViewport();
+  const chatShellHeight = Math.max(
+    200,
+    Math.round(vv.height - (vv.isKeyboardOpen ? 84 : 140)),
+  );
+
   // Pre-fill from ?q= (from AskAIButton on any module page)
   useEffect(() => {
     const q = searchParams.get('q');
@@ -597,7 +609,10 @@ export default function AIAgentPage() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll only the message thread — never the page's <main> container, which
+    // would shift the input bar relative to the soft keyboard.
+    const thread = bottomRef.current?.parentElement;
+    if (thread) thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   const appendMessage = useCallback((msg: Message) => {
@@ -932,7 +947,7 @@ export default function AIAgentPage() {
 
   return (
     <SubscriptionGuard feature='ai_insights'>
-      <div className='flex flex-col max-w-3xl mx-auto h-[calc(100dvh-140px)] md:h-[calc(100dvh-120px)] gap-2'>
+      <div className='flex flex-col max-w-3xl mx-auto gap-2' style={{ height: chatShellHeight }}>
 
         {/* Header */}
         <header className='flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-transparent px-4 py-2.5 border border-violet-500/20 shadow-sm shrink-0'>

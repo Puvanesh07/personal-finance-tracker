@@ -10,7 +10,7 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { ALL_NAV_ITEMS, NAV_GROUPS } from '../../navigation/appNav';
@@ -83,6 +83,13 @@ export function AppLayout() {
   const location = useLocation();
   const user = auth.currentUser;
   const mainRef = useRef<HTMLElement>(null);
+  // The content wrapper below <main> — NOT <main> itself — is the element that
+  // actually scrolls the page. Its `overflow-x-hidden` computes `overflow-y` to
+  // `auto`, and as a `min-h-full` flex child it is clamped to <main>'s height,
+  // so tall pages scroll *inside* it while <main> only moves by the header
+  // height. It stays mounted across navigation (only <Outlet/> swaps), so its
+  // scrollTop is what carries over between pages.
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const focusInvestmentsSearch = useCallback(() => {
     window.dispatchEvent(new CustomEvent('fintrackly:focus-investments-search'));
@@ -107,12 +114,30 @@ export function AppLayout() {
     window.location.href = '/';
   };
 
-  useEffect(() => {
+  // Always open a newly-navigated page at the top — never carry over the
+  // previous page's scroll position. `useLayoutEffect` runs before paint so the
+  // incoming page is never shown at the old offset. <main> is the app's scroll
+  // container, but mobile browsers can also scroll the document, so both are
+  // reset — forcing `behavior: 'instant'` to override the global
+  // `html { scroll-behavior: smooth }` (a smooth reset can stall when the new
+  // page's content height changes mid-animation, leaving it stuck lower down).
+  // Re-asserted on the next frame to cover lazy-loaded routes.
+  useLayoutEffect(() => {
     setIsMobileMenuOpen(false);
     setPaletteOpen(false);
-    // Always open a newly-navigated page at the top — never carry over the
-    // previous page's scroll position.
-    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const resetScroll = () => {
+      // Reset the real scroller (the content wrapper) first, then every other
+      // candidate, so the incoming page always starts at the top no matter
+      // which element moved. 'instant' overrides the global
+      // `html { scroll-behavior: smooth }`, which can otherwise stall a reset.
+      contentRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.body.scrollTop = 0;
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    };
+    resetScroll();
+    const raf = requestAnimationFrame(resetScroll);
+    return () => cancelAnimationFrame(raf);
   }, [location.pathname]);
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
@@ -300,7 +325,7 @@ export function AppLayout() {
           <ThemeToggle />
           <NotificationBell />
         </div>
-        <div className='mx-auto min-h-full w-full max-w-7xl overflow-x-hidden p-4 pb-28 md:p-6 md:pb-8'>
+        <div ref={contentRef} className='mx-auto min-h-full w-full max-w-7xl overflow-x-hidden p-4 pb-28 md:p-6 md:pb-8'>
           <TrialBanner />
           <Outlet />
 
