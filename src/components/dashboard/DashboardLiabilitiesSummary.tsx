@@ -34,7 +34,7 @@ export function DashboardLiabilitiesSummary() {
           Liabilities
         </h2>
         <button
-          onClick={() => navigate('/liabilities')}
+          onClick={() => navigate('/wealth?tab=liabilities')}
           title='Go to Liabilities'
           className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-rose-400 transition-colors'
         >

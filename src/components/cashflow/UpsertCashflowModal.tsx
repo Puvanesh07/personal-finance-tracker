@@ -22,6 +22,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
+import { Select } from '../ui/Select';
 import { NumericInput } from '../ui/NumericInput';
 import { CalendarPicker } from '../ui/CalendarPicker';
 import { Popover } from '../ui/Popover';
@@ -584,7 +585,7 @@ export function UpsertCashflowModal(props: Props) {
           {accounts.length > 0 && (
             <div>
               <label className={LABEL_CLS}>Account (Optional)</label>
-              <select
+              <Select
                 className={INPUT_CLS}
                 value={state.accountId}
                 onChange={(e) => setState((s) => ({ ...s, accountId: e.target.value }))}
@@ -593,7 +594,7 @@ export function UpsertCashflowModal(props: Props) {
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 

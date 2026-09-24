@@ -1,5 +1,6 @@
 ﻿import { useMemo } from 'react';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { computeFinancialDNA } from '../../utils/financialDNA';
 import { formatNumber } from '../../utils/format';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
@@ -15,7 +16,14 @@ const COLOR_CLASSES: Record<string, { bar: string; text: string; bg: string; bor
 };
 
 export default function FinancialDNAPage() {
-  const { cashflows, investments, liabilities, essentials } = usePortfolioStore();
+  const { cashflows, investments, liabilities, essentials } = usePortfolioStore(
+    useShallow((s) => ({
+      cashflows: s.cashflows,
+      investments: s.investments,
+      liabilities: s.liabilities,
+      essentials: s.essentials,
+    })),
+  );
   const dna = useMemo(
     () => computeFinancialDNA(cashflows, investments, liabilities, essentials),
     [cashflows, investments, liabilities, essentials],

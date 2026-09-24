@@ -17,6 +17,7 @@ import {
   isSameMonth, isToday, addMonths, subMonths,
 } from 'date-fns';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { formatINR } from '../../utils/format';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
@@ -64,7 +65,15 @@ export default function FinancialCalendarPage() {
 
   const {
     trackedPayments, liabilities, cashflows, insurancePolicies, sipPlans,
-  } = usePortfolioStore();
+  } = usePortfolioStore(
+    useShallow((s) => ({
+      trackedPayments: s.trackedPayments,
+      liabilities: s.liabilities,
+      cashflows: s.cashflows,
+      insurancePolicies: s.insurancePolicies,
+      sipPlans: s.sipPlans,
+    })),
+  );
 
   const today = new Date();
   const todayISO = today.toISOString().slice(0, 10);

@@ -4,9 +4,11 @@
 //   1. Profile tab  — edit display name, view email, avatar
 //   2. Export/Import tab — CSV export, JSON backup/restore
 //   3. App tab       — PWA install, encryption toggle
-//   4. Essentials tab — emergency fund config
-//   5. Integrations tab — Notion sync
-//   6. Danger Zone tab — clear data, delete account
+//   4. Integrations tab — Notion sync
+//   5. Danger Zone tab — clear data, delete account
+//
+// NOTE: The old "Essentials" tab (emergency fund + financial profile config)
+//       moved to the Essentials page (/essentials) — single source of truth.
 //
 // Responsive: stacked pill-tabs on mobile, icon-tabs on desktop sidebar
 
@@ -28,7 +30,6 @@ import {
   FiMail,
   FiSave,
   FiSettings,
-  FiShield,
   FiSmartphone,
   FiUser,
   FiTool,
@@ -37,7 +38,6 @@ import { signOut, updateProfile } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 
 import EncryptionSettings from './EncryptionSettings';
-import { EssentialsSettings } from '../../components/settings/EssentialsSettings';
 import { InstallAppModal } from '../../components/InstallAppModal';
 import { Modal } from '../../components/ui/Modal';
 import { NotionSettings } from '../../components/settings/NotionSettings';
@@ -56,7 +56,6 @@ type TabId =
   | 'subscription'
   | 'data'
   | 'app'
-  | 'essentials'
   | 'notifications'
   | 'integrations'
   | 'danger'
@@ -72,7 +71,6 @@ const TABS: {
   { id: 'subscription', label: 'Subscription', icon: FiCreditCard },
   { id: 'data', label: 'Export / Import', icon: FiDatabase },
   { id: 'app', label: 'App & Security', icon: FiSmartphone },
-  { id: 'essentials', label: 'Essentials', icon: FiShield },
   { id: 'notifications', label: 'Notifications', icon: FiBell },
   { id: 'integrations', label: 'Integrations', icon: FiCloud },
   {
@@ -285,7 +283,7 @@ function ProfileTab() {
 // ─── App & Security Tab (PWA + Encryption) ───────────────────────────────────
 
 function AppSecurityTab() {
-  const { uid } = usePortfolioStore();
+  const uid = usePortfolioStore((s) => s.uid);
   const [installOpen, setInstallOpen] = useState(false);
   const [isInstalled, setIsInstalled] = useState(
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -419,8 +417,6 @@ export function SettingsPage() {
         );
       case 'app':
         return <AppSecurityTab />;
-      case 'essentials':
-        return <EssentialsSettings />;
       case 'notifications':
         return (
           <div className='animate-in fade-in slide-in-from-bottom-2 duration-500'>

@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import { Modal } from '../../components/ui/Modal';
+import { Select } from '../../components/ui/Select';
 import { UpsertInsuranceModal } from '../../components/insurance/UpsertInsuranceModal';
 import { buildInsuranceInsights } from '../../utils/advancedInsights';
 import { formatCurrency } from '../../utils/format';
@@ -411,7 +412,7 @@ function PoliciesTab({
           className='flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none transition-colors'
         />
         <div className='flex gap-3'>
-          <select
+          <Select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
             className='flex-1 md:flex-none rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 px-3 py-3 text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 focus:outline-none transition-colors'
@@ -422,7 +423,7 @@ function PoliciesTab({
                 {v.label}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             onClick={onAdd}
             className='shrink-0 inline-flex items-center cursor-pointer justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20'
@@ -624,7 +625,7 @@ function RecordPaymentModal({
       <div className='flex flex-col gap-5'>
         <div>
           <label className={labelCls}>Select Policy</label>
-          <select
+          <Select
             value={policyId}
             onChange={(e) => handlePolicyChange(e.target.value)}
             className={inputCls}
@@ -634,7 +635,7 @@ function RecordPaymentModal({
                 {p.policyName} ({formatCurrency(p.premiumAmount)})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-5'>
@@ -753,7 +754,7 @@ function PaymentsTab({
       {/* Action Bar */}
       <div className='flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl'>
         <div className='flex-1 max-w-md'>
-          <select
+          <Select
             value={selectedPolicyId}
             onChange={(e) => setSelectedPolicyId(e.target.value)}
             className='w-full rounded-xl cursor-pointer border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-emerald-500/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
@@ -764,7 +765,7 @@ function PaymentsTab({
                 {p.policyName}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <button
           onClick={() => setShowAdd(true)}

@@ -12,6 +12,7 @@
  */
 
 import { usePortfolioStore } from '../store/portfolioStore';
+import { calcLiveAccountBalances } from '../utils/calculations';
 import type { ParsedAction } from './aiAgentActionParser';
 
 export interface ExecuteResult {
@@ -76,7 +77,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Goal "${action.name}" created — target ₹${fmt(action.targetAmount)}${action.dueDate ? ` by ${action.dueDate}` : ''}.`,
-          linkTo: '/goals',
+          linkTo: '/essentials?tab=goals',
         };
       }
 
@@ -94,7 +95,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Liability "${action.name}" of ₹${fmt(action.principal)} added.`,
-          linkTo: '/liabilities',
+          linkTo: '/wealth?tab=liabilities',
         };
       }
 
@@ -119,7 +120,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           return {
             success: true,
             message: `✅ Stock ${action.name} added — ${action.quantity} shares @ ₹${fmt(action.buyPrice ?? 0)}.`,
-            linkTo: '/investments',
+            linkTo: '/wealth?tab=assets',
           };
         }
 
@@ -134,7 +135,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           return {
             success: true,
             message: `✅ Mutual fund "${action.name}" added — ₹${fmt(action.investedAmount ?? 0)} invested.`,
-            linkTo: '/investments',
+            linkTo: '/wealth?tab=assets',
           };
         }
 
@@ -159,7 +160,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           return {
             success: true,
             message: `✅ FD of ₹${fmt(action.investedAmount ?? 0)} added${action.interestRate ? ` at ${action.interestRate}%` : ''}.`,
-            linkTo: '/investments',
+            linkTo: '/wealth?tab=assets',
           };
         }
 
@@ -183,7 +184,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           return {
             success: true,
             message: `✅ Bond "${action.name}" of ₹${fmt(action.investedAmount ?? 0)} added.`,
-            linkTo: '/investments',
+            linkTo: '/wealth?tab=assets',
           };
         }
 
@@ -198,7 +199,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Investment "${action.name}" of ₹${fmt(action.investedAmount ?? 0)} added.`,
-          linkTo: '/investments',
+          linkTo: '/wealth?tab=assets',
         };
       }
 
@@ -233,7 +234,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Account "${action.name}" added with balance ₹${fmt(action.balance)}.`,
-          linkTo: '/accounts',
+          linkTo: '/cashflow?tab=accounts',
         };
       }
 
@@ -273,7 +274,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           (g) => g.name.toLowerCase().includes(hint),
         );
         if (!matches.length) {
-          return { success: false, message: `❌ No goal matching "${action.nameHint}" found.`, linkTo: '/goals' };
+          return { success: false, message: `❌ No goal matching "${action.nameHint}" found.`, linkTo: '/essentials?tab=goals' };
         }
         const target = matches[0];
         await store.updateGoal(target.id, {
@@ -285,7 +286,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Goal "${target.name}" updated.`,
-          linkTo: '/goals',
+          linkTo: '/essentials?tab=goals',
         };
       }
 
@@ -296,7 +297,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           (l) => l.name.toLowerCase().includes(hint),
         );
         if (!matches.length) {
-          return { success: false, message: `❌ No liability matching "${action.nameHint}" found.`, linkTo: '/liabilities' };
+          return { success: false, message: `❌ No liability matching "${action.nameHint}" found.`, linkTo: '/wealth?tab=liabilities' };
         }
         const target = matches[0];
         await store.updateLiability(target.id, {
@@ -310,7 +311,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Liability "${target.name}" updated.`,
-          linkTo: '/liabilities',
+          linkTo: '/wealth?tab=liabilities',
         };
       }
 
@@ -323,7 +324,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
             (i.symbol ?? '').toLowerCase().includes(hint),
         );
         if (!matches.length) {
-          return { success: false, message: `❌ No investment matching "${action.nameHint}" found.`, linkTo: '/investments' };
+          return { success: false, message: `❌ No investment matching "${action.nameHint}" found.`, linkTo: '/wealth?tab=assets' };
         }
         const target = matches[0];
         await store.updateInvestment(target.id, {
@@ -336,7 +337,7 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         return {
           success: true,
           message: `✅ Investment "${target.name}" updated.`,
-          linkTo: '/investments',
+          linkTo: '/wealth?tab=assets',
         };
       }
 
@@ -356,10 +357,10 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         const hint  = action.nameHint.toLowerCase();
         const match = store.goals.find((g) => g.name.toLowerCase().includes(hint));
         if (!match) {
-          return { success: false, message: `❌ No goal matching "${action.nameHint}" found.`, linkTo: '/goals' };
+          return { success: false, message: `❌ No goal matching "${action.nameHint}" found.`, linkTo: '/essentials?tab=goals' };
         }
         await store.deleteGoal(match.id);
-        return { success: true, message: `✅ Goal "${match.name}" deleted.`, linkTo: '/goals' };
+        return { success: true, message: `✅ Goal "${match.name}" deleted.`, linkTo: '/essentials?tab=goals' };
       }
 
       // ── DELETE liability ───────────────────────────────────────────────────
@@ -367,10 +368,10 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         const hint  = action.nameHint.toLowerCase();
         const match = store.liabilities.find((l) => l.name.toLowerCase().includes(hint));
         if (!match) {
-          return { success: false, message: `❌ No liability matching "${action.nameHint}" found.`, linkTo: '/liabilities' };
+          return { success: false, message: `❌ No liability matching "${action.nameHint}" found.`, linkTo: '/wealth?tab=liabilities' };
         }
         await store.deleteLiability(match.id);
-        return { success: true, message: `✅ Liability "${match.name}" deleted.`, linkTo: '/liabilities' };
+        return { success: true, message: `✅ Liability "${match.name}" deleted.`, linkTo: '/wealth?tab=liabilities' };
       }
 
       // ── DELETE investment ──────────────────────────────────────────────────
@@ -380,10 +381,10 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           (i) => i.name.toLowerCase().includes(hint) || (i.symbol ?? '').toLowerCase().includes(hint),
         );
         if (!match) {
-          return { success: false, message: `❌ No investment matching "${action.nameHint}" found.`, linkTo: '/investments' };
+          return { success: false, message: `❌ No investment matching "${action.nameHint}" found.`, linkTo: '/wealth?tab=assets' };
         }
         await store.deleteInvestment(match.id);
-        return { success: true, message: `✅ Investment "${match.name}" deleted.`, linkTo: '/investments' };
+        return { success: true, message: `✅ Investment "${match.name}" deleted.`, linkTo: '/wealth?tab=assets' };
       }
 
       // ── DELETE insurance ───────────────────────────────────────────────────
@@ -406,10 +407,10 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
         const hint  = action.nameHint.toLowerCase();
         const match = store.accounts.find((a) => a.name.toLowerCase().includes(hint));
         if (!match) {
-          return { success: false, message: `❌ No account matching "${action.nameHint}" found.`, linkTo: '/accounts' };
+          return { success: false, message: `❌ No account matching "${action.nameHint}" found.`, linkTo: '/cashflow?tab=accounts' };
         }
         await store.deleteAccount(match.id);
-        return { success: true, message: `✅ Account "${match.name}" deleted.`, linkTo: '/accounts' };
+        return { success: true, message: `✅ Account "${match.name}" deleted.`, linkTo: '/cashflow?tab=accounts' };
       }
 
       // ── MARK payment paid ──────────────────────────────────────────────────
@@ -463,8 +464,9 @@ export async function executeAction(action: ParsedAction): Promise<ExecuteResult
           results.push(...hits.map((p) => `🛡️ ${p.policyName} — ${p.provider}`));
         }
         if (mod.includes('account') || mod === 'records') {
+          const live = calcLiveAccountBalances(store.accounts, store.cashflows);
           const hits = store.accounts.filter((a) => a.name.toLowerCase().includes(q));
-          results.push(...hits.map((a) => `🏦 ${a.name} — ₹${fmt(a.balance)}`));
+          results.push(...hits.map((a) => `🏦 ${a.name} — ₹${fmt(live[a.id] ?? a.balance ?? 0)}`));
         }
 
         if (!results.length) {

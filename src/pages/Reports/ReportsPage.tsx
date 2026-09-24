@@ -23,11 +23,14 @@ import {
 } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import {
+  calcLiveAccountBalances,
   calculateNetWorth,
+  getLiveBankTotal,
   summarizePortfolio,
 } from '../../utils/calculations';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { useThemeStore } from '../../store/themeStore';
 import { SubscriptionGuard } from '../../components/subscription/SubscriptionGuard';
@@ -114,7 +117,18 @@ function SectionCard({
 // ─── Main Reports Page ───────────────────────────────────────────────────────
 
 export function ReportsPage() {
-  const portStore = usePortfolioStore();
+  const portStore = usePortfolioStore(
+    useShallow((s) => ({
+      investments: s.investments,
+      soldTrades: s.soldTrades,
+      liabilities: s.liabilities,
+      pendingPayments: s.pendingPayments,
+      accounts: s.accounts,
+      cashflows: s.cashflows,
+      insurancePolicies: s.insurancePolicies,
+      goals: s.goals,
+    })),
+  );
   const themeMode = useThemeStore((s) => s.mode);
 
   const [timeframe, setTimeframe] = useState<'all' | 'ytd' | 'month'>('all');
@@ -166,11 +180,16 @@ export function ReportsPage() {
     totalAssets: netWorthAssets,
     totalLiabilities: liabilitiesTotal,
     netWorth,
-  } = calculateNetWorth(portStore.investments, portStore.liabilities, portStore.pendingPayments);
-  const totalAccountBalance = portStore.accounts.reduce(
-    (a, acc) => a + (acc.balance || 0),
-    0,
+  } = calculateNetWorth(
+    portStore.investments,
+    portStore.liabilities,
+    portStore.pendingPayments,
+    portStore.accounts,
+    portStore.cashflows,
   );
+  // Live balances (opening ± linked cashflows) — same rule as Accounts page
+  const liveBalances = calcLiveAccountBalances(portStore.accounts, portStore.cashflows);
+  const totalAccountBalance = getLiveBankTotal(portStore.accounts, portStore.cashflows);
 
   // ── 2. Cashflow (Time Filtered)
   const filteredCashflows = useMemo(
@@ -526,7 +545,7 @@ export function ReportsPage() {
           icon={<FiTrendingUp className='h-5 w-5 text-emerald-400' />}
           title='Investments'
           color='bg-emerald-500/10'
-          to='/investments'
+          to='/wealth?tab=assets'
         >
           <StatRow
             label='Current Portfolio Value'
@@ -558,7 +577,7 @@ export function ReportsPage() {
           icon={<FiPieChart className='h-5 w-5 text-violet-400' />}
           title='Asset Allocation'
           color='bg-violet-500/10'
-          to='/investments'
+          to='/wealth?tab=assets'
         >
           <div className='h-[200px] w-full'>
             <ResponsiveContainer width='100%' height='100%'>
@@ -602,7 +621,7 @@ export function ReportsPage() {
           icon={<FiTrendingDown className='h-5 w-5 text-rose-400' />}
           title='Liabilities'
           color='bg-rose-500/10'
-          to='/liabilities'
+          to='/wealth?tab=liabilities'
         >
           <StatRow
             label='Total Loans'
@@ -637,7 +656,7 @@ export function ReportsPage() {
           icon={<FiCreditCard className='h-5 w-5 text-blue-400' />}
           title='Bank Accounts'
           color='bg-blue-500/10'
-          to='/accounts'
+          to='/cashflow?tab=accounts'
         >
           <StatRow
             label='Linked Accounts'
@@ -647,7 +666,7 @@ export function ReportsPage() {
             <StatRow
               key={acc.id}
               label={acc.name}
-              value={formatINR(acc.balance || 0)}
+              value={formatINR(liveBalances[acc.id] ?? acc.balance ?? 0)}
             />
           ))}
           <StatRow
@@ -662,7 +681,7 @@ export function ReportsPage() {
           icon={<FiFlag className='h-5 w-5 text-amber-400' />}
           title='Financial Goals'
           color='bg-amber-500/10'
-          to='/goals'
+          to='/essentials?tab=goals'
         >
           <StatRow label='Active Goals' value={`${portStore.goals.length}`} />
           <StatRow

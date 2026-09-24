@@ -53,7 +53,7 @@ export function DashboardReceivablesSummary() {
           Money Owed To Me
         </h2>
         <button
-          onClick={() => navigate('/liabilities?section=pending_payments')}
+          onClick={() => navigate('/wealth?tab=liabilities&section=pending_payments')}
           title='Go to Money Owed To Me'
           className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-indigo-500 transition-colors'
         >

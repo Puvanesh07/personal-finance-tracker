@@ -55,7 +55,7 @@ export function DashboardCashflowSummary() {
           Net Savings
         </p>
         <p
-          className={`text-2xl font-bold ${savings >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+          className={`text-2xl font-bold ${savings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
         >
           {savings >= 0 ? '+' : ''}
           {formatCurrency(savings)}
@@ -67,7 +67,7 @@ export function DashboardCashflowSummary() {
           <p className='flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1'>
             <FiArrowUpRight className='text-emerald-500' /> Income
           </p>
-          <p className='text-sm font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+          <p className='text-sm font-bold text-emerald-700 dark:text-emerald-400'>
             {formatCurrency(income)}
           </p>
         </div>
@@ -75,7 +75,7 @@ export function DashboardCashflowSummary() {
           <p className='flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 mb-1'>
             <FiArrowDownRight className='text-rose-500' /> Expense
           </p>
-          <p className='text-sm font-semibold text-slate-900 dark:text-slate-800 dark:text-slate-200'>
+          <p className='text-sm font-bold text-rose-700 dark:text-rose-400'>
             {formatCurrency(expense)}
           </p>
         </div>

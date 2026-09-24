@@ -15,6 +15,8 @@ import {
   FiArrowLeft, FiLoader,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { Select } from './Select';
+import { calcLiveAccountBalances } from '../../utils/calculations';
 import { formatINR } from '../../utils/format';
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../cashflow/UpsertCashflowModal';
 import toast from 'react-hot-toast';
@@ -76,7 +78,7 @@ function CategorySelect({
 
   return (
     <div className='relative'>
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={`${FIELD_CLS} appearance-none pr-9`}
@@ -85,8 +87,7 @@ function CategorySelect({
         {all.map((c) => (
           <option key={c.key} value={c.key}>{c.icon} {c.key}</option>
         ))}
-      </select>
-      <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500' />
+      </Select>
     </div>
   );
 }
@@ -98,18 +99,23 @@ function AccountSelect({
   onChange: (v: string) => void;
 }) {
   const accounts = usePortfolioStore((s) => s.accounts);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
+  // Live balance (opening ± linked cashflows) — same rule as Accounts page
+  const live = useMemo(
+    () => calcLiveAccountBalances(accounts, cashflows),
+    [accounts, cashflows],
+  );
   if (!accounts.length) return null;
   return (
     <div>
       <label className={LABEL_CLS}>Account</label>
       <div className='relative'>
-        <select value={value} onChange={(e) => onChange(e.target.value)} className={`${FIELD_CLS} appearance-none pr-9`}>
+        <Select value={value} onChange={(e) => onChange(e.target.value)} className={`${FIELD_CLS} appearance-none pr-9`}>
           <option value=''>No account</option>
           {accounts.map((a) => (
-            <option key={a.id} value={a.id}>{a.name} ({formatINR(a.balance)})</option>
+            <option key={a.id} value={a.id}>{a.name} ({formatINR(live[a.id] ?? a.balance ?? 0)})</option>
           ))}
-        </select>
-        <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500' />
+        </Select>
       </div>
     </div>
   );
@@ -248,7 +254,7 @@ function PaymentForm({ onDone }: { onDone: () => void }) {
         <div>
           <label className={LABEL_CLS}>Recurrence</label>
           <div className='relative'>
-            <select value={recur} onChange={(e) => setRecur(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
+            <Select value={recur} onChange={(e) => setRecur(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
               <option value='none'>One-time</option>
               <option value='weekly'>Weekly</option>
               <option value='every_2_weeks'>Every 2 weeks</option>
@@ -257,8 +263,7 @@ function PaymentForm({ onDone }: { onDone: () => void }) {
               <option value='quarterly'>Quarterly (3 months)</option>
               <option value='half_yearly'>Half-yearly (6 months)</option>
               <option value='yearly'>Yearly</option>
-            </select>
-            <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
+            </Select>
           </div>
         </div>
       </div>
@@ -431,14 +436,13 @@ function InsuranceForm({ onDone }: { onDone: () => void }) {
         <div>
           <label className={LABEL_CLS}>Type</label>
           <div className='relative'>
-            <select value={insType} onChange={(e) => setInsType(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
+            <Select value={insType} onChange={(e) => setInsType(e.target.value as any)} className={`${FIELD_CLS} appearance-none pr-9`}>
               <option value='life'>Life</option>
               <option value='health'>Health</option>
               <option value='vehicle'>Vehicle</option>
               <option value='property'>Property</option>
               <option value='other'>Other</option>
-            </select>
-            <FiChevronDown className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400' />
+            </Select>
           </div>
         </div>
         <div>

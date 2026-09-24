@@ -14,6 +14,7 @@ import type {
   Liability,
 } from '../types/investmentTypes';
 import {
+  calcLiveAccountBalances,
   currentValue,
   investedValue,
   profitLoss,
@@ -60,11 +61,11 @@ export function toFlatInvestmentRows(investments: Investment[]) {
 
 // ── Account row flattening ────────────────────────────────────────────────────
 
-function toFlatAccountRows(accounts: Account[]) {
+function toFlatAccountRows(accounts: Account[], live?: Record<string, number>) {
   return accounts.map((a) => ({
     Name: a.name,
     Type: a.type === 'bank' ? 'Bank Account' : 'Credit Card',
-    Balance: a.balance,
+    Balance: live?.[a.id] ?? a.balance,
     'Created At': a.createdAt,
   }));
 }
@@ -323,9 +324,10 @@ export function buildAllCSVBlobs(
 
   // ── Accounts ─────────────────────────────────────────────────────────────
   if (accounts.length) {
+    const liveBalances = calcLiveAccountBalances(accounts, state.cashflows ?? []);
     attachments.push({
       filename: 'accounts.csv',
-      content: toCSVString(toFlatAccountRows(accounts)),
+      content: toCSVString(toFlatAccountRows(accounts, liveBalances)),
     });
   }
 

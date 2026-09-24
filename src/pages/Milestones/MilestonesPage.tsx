@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { computeMilestones } from '../../utils/milestones';
 import { formatNumber } from '../../utils/format';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
@@ -14,7 +15,17 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 export default function MilestonesPage() {
-  const { investments, liabilities, pendingPayments, cashflows, essentials, accounts } = usePortfolioStore();
+  const { investments, liabilities, pendingPayments, cashflows, essentials, accounts } =
+    usePortfolioStore(
+      useShallow((s) => ({
+        investments: s.investments,
+        liabilities: s.liabilities,
+        pendingPayments: s.pendingPayments,
+        cashflows: s.cashflows,
+        essentials: s.essentials,
+        accounts: s.accounts,
+      })),
+    );
   const milestones = useMemo(
     () => computeMilestones(investments, liabilities, cashflows, essentials, accounts, pendingPayments),
     [investments, liabilities, pendingPayments, cashflows, essentials, accounts],

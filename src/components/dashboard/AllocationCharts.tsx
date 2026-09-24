@@ -51,8 +51,8 @@ export function AllocationCharts() {
           {formatINR(totals.overall)}
         </p>
       </div>
-      <div className='grid min-h-0 grid-cols-1 gap-4 sm:grid-cols-[220px_1fr]'>
-        <div className='h-56 min-h-[224px] w-full'>
+      <div className='flex min-h-0 flex-col gap-4'>
+        <div className='mx-auto h-56 w-full max-w-[260px]'>
           <ResponsiveContainer width='100%' height={224}>
             <PieChart>
               <Pie
@@ -82,7 +82,7 @@ export function AllocationCharts() {
           </ResponsiveContainer>
         </div>
 
-        <div className='flex flex-col gap-2 rounded-xl bg-slate-50/50 p-3 dark:bg-slate-800/30'>
+        <div className='flex min-w-0 flex-col gap-2 rounded-xl bg-slate-50/50 p-3 dark:bg-slate-800/30'>
           {data.length === 0 ? (
             <div className='grid h-full place-items-center text-sm font-medium text-slate-900 dark:text-slate-500'>
               No assets to display.
@@ -93,12 +93,12 @@ export function AllocationCharts() {
                 key={d.key}
                 className='flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white dark:hover:bg-slate-800/80'
               >
-                <div className='flex items-center gap-2.5'>
+                <div className='flex min-w-0 items-center gap-2.5'>
                   <span
                     className='inline-block h-3 w-3 rounded-full shadow-sm'
                     style={{ background: d.fill }}
                   />
-                  <span className='text-sm font-semibold text-slate-700 dark:text-slate-300'>
+                  <span className='truncate text-sm font-semibold text-slate-700 dark:text-slate-300'>
                     {d.name}
                   </span>
                 </div>

@@ -16,7 +16,7 @@ import { PendingPaymentsTab } from '../../components/liabilities/PendingPayments
 import type { Liability } from '../../types/investmentTypes';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
-import { UpsertLiabilityModal } from '../../components/liabilities/UpsertLiabilityModal';
+import { UpsertLiabilityModal, liabilityTypeLabel } from '../../components/liabilities/UpsertLiabilityModal';
 import { buildLiabilityInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { exportLiabilitiesCSV } from '../../utils/exportUtils';
@@ -32,7 +32,7 @@ import { FeatureInfo } from '../../components/ui/FeatureInfo';
 type FilterTab = 'all' | 'active' | 'settled';
 type PageSection = 'debts' | 'pending_payments';
 
-export function LiabilitiesPage() {
+export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
   const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const liabilities = usePortfolioStore((s) => s.liabilities);
@@ -51,7 +51,7 @@ export function LiabilitiesPage() {
   );
 
   const loanTotal = activeliabilities
-    .filter((l) => l.type === 'loan')
+    .filter((l) => l.type !== 'credit_card' && l.type !== 'other')
     .reduce((a, l) => a + (l.outstanding || 0), 0);
   const ccTotal = activeliabilities
     .filter((l) => l.type === 'credit_card')
@@ -164,12 +164,7 @@ export function LiabilitiesPage() {
     return true;
   });
 
-  const getTypeLabel = (type: string) => {
-    if (type === 'other') return 'Personal';
-    if (type === 'loan') return 'Bank Loan';
-    if (type === 'credit_card') return 'Credit Card';
-    return type;
-  };
+  const getTypeLabel = (type: string) => liabilityTypeLabel(type);
 
   const getDaysLeft = (endDate?: string, outstanding?: number) => {
     if (endDate && (outstanding || 0) > 0) {
@@ -256,7 +251,8 @@ export function LiabilitiesPage() {
         </button>
       </div>
 
-      <header className='flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm'>
+      <header className={`flex ${embedded ? 'justify-end' : 'flex-col md:flex-row md:items-center justify-between'} gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm`}>
+        {!embedded && (
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
             <FiCreditCard className='h-6 w-6' />
@@ -271,6 +267,7 @@ export function LiabilitiesPage() {
             </p>
           </div>
         </div>
+        )}
         <button
           {...premiumActionProps}
           className='group relative flex items-center cursor-pointer justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
@@ -500,9 +497,9 @@ export function LiabilitiesPage() {
                     <div>
                       <span
                         className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider
-                        ${l.type === 'loan' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/10 dark:border-indigo-500/20' : ''}
                         ${l.type === 'credit_card' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/10 dark:border-rose-500/20' : ''}
                         ${l.type === 'other' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/10 dark:border-emerald-500/20' : ''}
+                        ${l.type !== 'credit_card' && l.type !== 'other' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 border border-indigo-500/10 dark:border-indigo-500/20' : ''}
                       `}
                       >
                         {getTypeLabel(l.type)}

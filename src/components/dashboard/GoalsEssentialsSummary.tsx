@@ -45,7 +45,7 @@ export function GoalsEssentialsSummary() {
           </h2>
           {/* ✅ Redirect icon */}
           <button
-            onClick={() => navigate('/goals')}
+            onClick={() => navigate('/essentials?tab=goals')}
             title='Go to Goals'
             className='flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-emerald-400 transition-colors group'
           >
@@ -60,7 +60,7 @@ export function GoalsEssentialsSummary() {
           <div className='flex flex-col h-36 items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 gap-3'>
             <p className='text-sm text-slate-900 dark:text-slate-500'>No goals set yet.</p>
             <button
-              onClick={() => navigate('/goals')}
+              onClick={() => navigate('/essentials?tab=goals')}
               className='text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
             >
               Set your first goal →
@@ -113,7 +113,7 @@ export function GoalsEssentialsSummary() {
             })}
             {goals.length > 4 && (
               <button
-                onClick={() => navigate('/goals')}
+                onClick={() => navigate('/essentials?tab=goals')}
                 className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors w-full text-center pt-1'
               >
                 +{goals.length - 4} more goals →
@@ -162,10 +162,10 @@ export function GoalsEssentialsSummary() {
             </div>
             {efTarget === 0 && (
               <button
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/essentials')}
                 className='mt-1 text-[11px] font-bold text-slate-900 dark:text-slate-500 hover:text-blue-400 transition-colors'
               >
-                Set a target in Settings →
+                Set a target in Essentials →
               </button>
             )}
           </div>

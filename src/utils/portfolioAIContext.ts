@@ -1,4 +1,5 @@
 import type {
+  Account,
   CashflowEntry,
   EssentialsConfig,
   Goal,
@@ -38,8 +39,9 @@ export function buildPortfolioAIContext(args: {
   cashflows: CashflowEntry[];
   essentials: EssentialsConfig;
   goals: Goal[];
+  accounts?: Account[];
 }): PortfolioAIContext | null {
-  const { investments, liabilities, pendingPayments, cashflows, essentials, goals } = args;
+  const { investments, liabilities, pendingPayments, cashflows, essentials, goals, accounts } = args;
   if (
     investments.length === 0 &&
     liabilities.length === 0 &&
@@ -53,6 +55,8 @@ export function buildPortfolioAIContext(args: {
     investments,
     liabilities,
     pendingPayments,
+    accounts,
+    cashflows,
   );
   const s = summarizePortfolio(investments);
   const equity = s.byType.stock.current + s.byType.mutual_fund.current;

@@ -8,12 +8,9 @@ import {
   FiTrendingDown,
   FiTrendingUp,
 } from 'react-icons/fi';
-import { Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { AllocationCharts }               from '../../components/dashboard/AllocationCharts';
-import { CashflowForecastCard }           from '../../components/dashboard/CashflowForecastCard';
-import { CommandCenter }                  from '../../components/dashboard/CommandCenter';
 import { DashboardAccountsSummary }       from '../../components/dashboard/DashboardAccountsSummary';
 import { DashboardCashflowSummary }       from '../../components/dashboard/DashboardCashflowSummary';
 import { DashboardInsuranceSummary }      from '../../components/dashboard/DashboardInsuranceSummary';
@@ -26,24 +23,19 @@ import { DashboardSubscriptionBanner }    from '../../components/dashboard/Dashb
 import { DashboardTopHoldingsInsights }   from '../../components/dashboard/DashboardTopHoldingsInsights';
 import { GoalsEssentialsSummary }         from '../../components/dashboard/GoalsEssentialsSummary';
 import { GrowthChart }                    from '../../components/dashboard/GrowthChart';
+import { MarketCapAllocationChart }       from '../../components/dashboard/MarketCapAllocationChart';
 import { MaturityTimeline }               from '../../components/dashboard/MaturityTimeline';
 import { SummaryCards }                   from '../../components/dashboard/SummaryCards';
 import { usePortfolioStore }              from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
-const MarketCapAllocationChart = lazy(() =>
-  import('../../components/dashboard/MarketCapAllocationChart').then((m) => ({
-    default: m.MarketCapAllocationChart,
-  })),
-);
-
 const QUICK_ACTIONS = [
-  { label: 'Add Investment',  icon: FiTrendingUp,   path: '/investments',           color: 'emerald' },
+  { label: 'Add Investment',  icon: FiTrendingUp,   path: '/wealth?tab=assets',     color: 'emerald' },
   { label: 'Log Cashflow',    icon: FiActivity,     path: '/cashflow',              color: 'purple'  },
-  { label: 'Set Goal',        icon: FiTarget,       path: '/goals',                 color: 'amber'   },
-  { label: 'Add Liability',   icon: FiTrendingDown, path: '/liabilities',           color: 'rose'    },
-  { label: 'Money Owed',      icon: FiTrendingUp,   path: '/liabilities?section=pending_payments', color: 'indigo' },
-  { label: 'SIP Plan',        icon: FiLayers,       path: '/investments?tab=sip-plan', color: 'teal' },
+  { label: 'Set Goal',        icon: FiTarget,       path: '/essentials?tab=goals',  color: 'amber'   },
+  { label: 'Add Liability',   icon: FiTrendingDown, path: '/wealth?tab=liabilities', color: 'rose'   },
+  { label: 'Money Owed',      icon: FiTrendingUp,   path: '/wealth?tab=liabilities&section=pending_payments', color: 'indigo' },
+  { label: 'SIP Plan',        icon: FiLayers,       path: '/wealth?tab=allocation&sub=sip', color: 'teal' },
 ] as const;
 
 const COLOR_MAP: Record<string, string> = {
@@ -55,12 +47,6 @@ const COLOR_MAP: Record<string, string> = {
   indigo:  'text-indigo-500',
   violet:  'text-violet-500',
 };
-
-function SectionFallback() {
-  return (
-    <div className='h-48 animate-pulse rounded-2xl border border-slate-200/70 bg-slate-100 dark:border-slate-800 dark:bg-slate-900/40' />
-  );
-}
 
 function SectionHeading({
   icon: Icon,
@@ -124,17 +110,39 @@ export function DashboardPage() {
         ))}
       </section>
 
-      {/* ── Hero KPI cards ── */}
+      {/* ── 4 · Net Worth KPI cards ── */}
       <section>
         <SummaryCards />
       </section>
 
-      {/* ── Top holdings + AI insights ── */}
-      <section>
-        <DashboardTopHoldingsInsights />
+      {/* ── 5 · Portfolio Insights deep dive ── */}
+      <section className='rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 to-white p-4 shadow-lg md:p-6 dark:border-slate-800/60 dark:from-slate-900/60 dark:to-slate-900/20'>
+        <div className='mb-4 flex items-center gap-2.5'>
+          <div className='flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500'>
+            <FiPieChart className='h-5 w-5' />
+          </div>
+          <div>
+            <h2 className='text-base font-bold tracking-tight text-slate-900 md:text-lg dark:text-white'>
+              Portfolio Insights
+            </h2>
+            <p className='text-[11px] font-medium text-slate-500 md:text-xs dark:text-slate-400'>
+              Top holdings, allocation and smart recommendations at a glance
+            </p>
+          </div>
+        </div>
+        <div className='flex flex-col gap-4 md:gap-5'>
+          {/* Top holdings + insights (side by side) */}
+          <DashboardTopHoldingsInsights />
+          {/* Allocation donut · market-cap split · compact maturity timeline */}
+          <div className='grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-3'>
+            <AllocationCharts />
+            <MarketCapAllocationChart />
+            <MaturityTimeline />
+          </div>
+        </div>
       </section>
 
-      {/* ── Row 1: Accounts · Cashflow · Payments · Insurance ── */}
+      {/* ── 6 · Activity & Accounts ── */}
       <section>
         <SectionHeading icon={FiActivity} label='Activity & Accounts' />
         <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-4'>
@@ -145,7 +153,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Row 2: Liabilities · Receivables · SIP ── */}
+      {/* ── 7 · Borrow, Lend & Planning ── */}
       <section>
         <SectionHeading icon={FiTrendingDown} label='Borrow, Lend & Planning' />
         <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-3'>
@@ -155,40 +163,14 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Asset allocation + maturity timeline ── */}
-      <section>
-        <SectionHeading icon={FiPieChart} label='Asset Allocation' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-2'>
-          <AllocationCharts />
-          <MaturityTimeline />
-        </div>
-      </section>
-
-      {/* ── Goals + emergency fund ── */}
+      {/* ── 8 · Goals + emergency fund ── */}
       <section>
         <GoalsEssentialsSummary />
       </section>
 
-      {/* ── Market-cap allocation (lazy) ── */}
-      <section>
-        <Suspense fallback={<SectionFallback />}>
-          <MarketCapAllocationChart />
-        </Suspense>
-      </section>
-
-      {/* ── Portfolio growth chart ── */}
+      {/* ── 9 · Net-worth growth trend ── */}
       <section className='pt-1'>
         <GrowthChart />
-      </section>
-
-      {/* ── Cashflow forecast ── */}
-      <section>
-        <CashflowForecastCard compact />
-      </section>
-
-      {/* ── Command center ── */}
-      <section>
-        <CommandCenter />
       </section>
 
     </div>

@@ -9,17 +9,18 @@ export function DashboardPortfolioAI() {
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
   const cashflows = usePortfolioStore((s) => s.cashflows);
+  const accounts = usePortfolioStore((s) => s.accounts);
   const essentials = usePortfolioStore((s) => s.essentials);
   const goals = usePortfolioStore((s) => s.goals);
   const context = useMemo(
-    () => buildPortfolioAIContext({ investments, liabilities, pendingPayments, cashflows, essentials, goals }),
-    [investments, liabilities, pendingPayments, cashflows, essentials, goals],
+    () => buildPortfolioAIContext({ investments, liabilities, pendingPayments, cashflows, essentials, goals, accounts }),
+    [investments, liabilities, pendingPayments, cashflows, essentials, goals, accounts],
   );
   if (!context) return null;
   return (
     <section className='min-w-0'>
       <div className='mb-2 flex justify-end'>
-        <Link to='/insights' className='text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline'>
+        <Link to='/cashflow?tab=insights' className='text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline'>
           Full insights &amp; custom questions →
         </Link>
       </div>

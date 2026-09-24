@@ -22,7 +22,7 @@
  * can pick the right subset.
  */
 
-import { calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
+import { calcLiveAccountBalances, calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
 import type { Investment, StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
 
@@ -59,11 +59,12 @@ export function buildAgentContext(): Record<string, unknown> {
     goalContributions,
     accounts,
     trackedPayments,
+    pendingPayments,
     insurancePolicies,
     essentials,
   } = usePortfolioStore.getState();
 
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const avgIncome  = monthlyAvg(cashflows, 'income');
   const avgExpense = monthlyAvg(cashflows, 'expense');
   const surplus    = avgIncome - avgExpense;
@@ -168,11 +169,11 @@ export function buildAgentContext(): Record<string, unknown> {
   // ── Payments ─────────────────────────────────────────────────────────────
   const today    = now.toISOString().slice(0, 10);
   const in30days = new Date(now.getTime() + 30 * 86400000).toISOString().slice(0, 10);
-  const pendingPayments = trackedPayments.filter((p) => p.status === 'pending');
-  const paymentsCtx = pendingPayments.length > 0 ? {
-    pendingCount: pendingPayments.length,
-    totalPending: pendingPayments.reduce((a, p) => a + p.amount, 0),
-    items: pendingPayments
+  const pendingTracked = trackedPayments.filter((p) => p.status === 'pending');
+  const paymentsCtx = pendingTracked.length > 0 ? {
+    pendingCount: pendingTracked.length,
+    totalPending: pendingTracked.reduce((a, p) => a + p.amount, 0),
+    items: pendingTracked
       .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
       .slice(0, 20)
       .map((p) => ({
@@ -220,12 +221,13 @@ export function buildAgentContext(): Record<string, unknown> {
   } : undefined;
 
   // ── Accounts ─────────────────────────────────────────────────────────────
+  const liveBalances = calcLiveAccountBalances(accounts, cashflows);
   const accountsCtx = accounts.length > 0 ? {
-    totalBalance: accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0),
+    totalBalance: accounts.reduce((a, ac) => a + (liveBalances[ac.id] ?? ac.balance ?? 0), 0),
     accounts: accounts.map((ac) => ({
       name:    ac.name,
       type:    ac.type,
-      balance: ac.balance ?? 0,
+      balance: liveBalances[ac.id] ?? ac.balance ?? 0,
     })),
   } : undefined;
 

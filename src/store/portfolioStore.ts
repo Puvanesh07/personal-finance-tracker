@@ -15,6 +15,7 @@ import type {
   TrackedPayment,
   NetWorthSnapshot,
   NotionConfig,
+  PaymentRecurrence,
   PortfolioSnapshot,
   SoldTrade,
 } from '../types/investmentTypes';
@@ -40,9 +41,14 @@ import {
 import { create } from 'zustand';
 import { createId } from '../utils/id';
 import { db } from '../services/firebase';
-import { calculateNetWorth, summarizePortfolio } from '../utils/calculations';
+import { calculateNetWorth, getLiveBankTotal, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
-import { nextDueDate } from '../utils/paymentTracker';
+import { policyStatusOf } from '../utils/financialProfile';
+import {
+  nextDueDate,
+  nextSeriesAmount,
+  withinSeriesEnd,
+} from '../utils/paymentTracker';
 import {
   analyseAfterTransaction,
   analyseAfterPayment,
@@ -112,12 +118,109 @@ async function saveDoc<
   await setDoc(userDoc(uid, col, data.id), payload);
 }
 
+// ── Insurance ↔ Bill Reminder sync ───────────────────────────────────────
+// Insurance is the single source of truth: every policy automatically owns
+// one recurring Bill Reminder. Edits update only PENDING linked bills (paid
+// history is never touched) and deleting a policy removes its future bills.
+
+const PREMIUM_RECURRENCE: Record<
+  InsurancePolicy['premiumFrequency'],
+  PaymentRecurrence
+> = {
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  'half-yearly': 'half_yearly',
+  yearly: 'yearly',
+};
+
+/** Create-or-update the pending Bill Reminder linked to an insurance policy.
+ *  Idempotent — one linked pending bill per policy, so no duplicates. */
+async function syncInsuranceBill(
+  uid: string,
+  get: () => { trackedPayments: TrackedPayment[] },
+  policy: InsurancePolicy,
+): Promise<void> {
+  if (!policy.renewalDate || !(policy.premiumAmount > 0)) return;
+  const recurrence = PREMIUM_RECURRENCE[policy.premiumFrequency] ?? 'yearly';
+  const title = `Insurance Premium — ${policy.policyName || policy.provider || 'Policy'}`;
+  const linked = get().trackedPayments.find(
+    (p) =>
+      p.insurancePolicyId === policy.id && p.status === 'pending',
+  );
+  if (linked) {
+    const updated = clean({
+      ...linked,
+      title,
+      paymentType: 'insurance' as const,
+      amount: policy.premiumAmount,
+      dueDate: policy.renewalDate,
+      recurrence,
+      endDate: policy.maturityDate,
+      // A premium change re-anchors the escalation base for future bills.
+      seriesStartDate: policy.renewalDate,
+      seriesBaseAmount: policy.premiumAmount,
+      notes: `Auto-synced from insurance policy ${policy.policyNumber || policy.id}`,
+      insurancePolicyId: policy.id,
+      updatedAt: now(),
+    }) as TrackedPayment;
+    await saveDoc(uid, 'trackedPayments', updated);
+    usePortfolioStore.setState((s) => ({
+      trackedPayments: s.trackedPayments
+        .map((x) => (x.id === updated.id ? updated : x))
+        .sort((a, b) => safeCompare(a.dueDate, b.dueDate)),
+    }));
+    return;
+  }
+  const t = now();
+  const bill = clean({
+    id: createId('tp'),
+    title,
+    paymentType: 'insurance' as const,
+    amount: policy.premiumAmount,
+    dueDate: policy.renewalDate,
+    status: 'pending' as const,
+    reminderDays: [1, 3, 7],
+    recurrence,
+    endDate: policy.maturityDate,
+    seriesStartDate: policy.renewalDate,
+    seriesIndex: 0,
+    seriesBaseAmount: policy.premiumAmount,
+    insurancePolicyId: policy.id,
+    notes: `Auto-created from insurance policy ${policy.policyNumber || policy.id}`,
+    createdAt: t,
+    updatedAt: t,
+    userId: uid,
+  }) as TrackedPayment;
+  await saveDoc(uid, 'trackedPayments', bill);
+  usePortfolioStore.setState((s) => ({
+    trackedPayments: [...s.trackedPayments, bill].sort((a, b) =>
+      safeCompare(a.dueDate, b.dueDate),
+    ),
+  }));
+}
+
+/** Target asset-allocation percentages (macro buckets) persisted in the
+ *  settings doc. `null` in state means "use DEFAULT_ALLOCATION_TARGETS". */
+export type AllocationTargets = Record<
+  'equity' | 'debt' | 'realEstate' | 'commodities' | 'cash',
+  number
+>;
+
+export const DEFAULT_ALLOCATION_TARGETS: AllocationTargets = {
+  equity: 55,
+  debt: 20,
+  realEstate: 10,
+  commodities: 10,
+  cash: 5,
+};
+
 export type SettingsRecord = {
   notion: NotionConfig;
   essentials?: EssentialsConfig;
   encryptionEnabled?: boolean;
   customCategories?: { expense: string[]; income: string[] };
   hiddenCategories?: { expense: string[]; income: string[] };
+  allocationTargets?: AllocationTargets;
 };
 
 type PortfolioState = {
@@ -219,6 +322,8 @@ type PortfolioState = {
   ) => Promise<void>;
   updateCashflow: (id: string, patch: Partial<CashflowEntry>) => Promise<void>;
   deleteCashflow: (id: string) => Promise<void>;
+  /** Atomic bulk delete — one state update so totals/charts refresh once. */
+  deleteCashflows: (ids: string[]) => Promise<void>;
 
   addGoal: (
     goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>,
@@ -285,6 +390,8 @@ type PortfolioState = {
   resetSession: () => void;
   setNotionConfig: (patch: Partial<NotionConfig>) => Promise<void>;
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
+  allocationTargets: AllocationTargets;
+  setAllocationTargets: (targets: AllocationTargets) => Promise<void>;
   recordSnapshotIfNeeded: () => Promise<void>;
   recordSnapshotNow: () => Promise<void>;
   takeNetWorthSnapshot: (label?: string) => Promise<void>;
@@ -313,6 +420,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   latestInsight: null,
   notion: DEFAULT_NOTION,
   essentials: DEFAULT_ESSENTIALS,
+  allocationTargets: DEFAULT_ALLOCATION_TARGETS,
   accounts: [],
   soldTrades: [],
   insurancePolicies: [],
@@ -402,6 +510,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
         customCategories: settings.customCategories ?? { expense: [], income: [] },
         hiddenCategories: settings.hiddenCategories ?? { expense: [], income: [] },
+        allocationTargets: { ...DEFAULT_ALLOCATION_TARGETS, ...(settings.allocationTargets ?? {}) },
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
@@ -439,6 +548,22 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             safeCompare(a.renewalDate, b.renewalDate),
           ),
         });
+
+        // ── Backfill: policies saved before auto-sync get their linked bill ──
+        // Idempotent — any policy that already owns a pending bill is skipped,
+        // so this writes once per legacy policy and is a no-op afterwards.
+        // Lapsed (renewal already past) policies are left alone so we never
+        // revive a cancelled policy or raise a phantom "overdue" bill.
+        const today = todayISO();
+        for (const pol of insurancePolicies) {
+          if (!pol.renewalDate || !(pol.premiumAmount > 0)) continue;
+          if (policyStatusOf(pol.renewalDate, today) === 'expired') continue;
+          const hasPending = trackedPayments.some(
+            (p) => p.insurancePolicyId === pol.id && p.status === 'pending',
+          );
+          if (hasPending) continue;
+          await syncInsuranceBill(uid, get, pol);
+        }
       };
 
       const loadPhase2 = async () => {
@@ -817,12 +942,22 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     if (blockIfLimited('payments', get().pendingPayments.length + get().trackedPayments.length)) return;
     const t = now();
+    const recurring = (payment.recurrence ?? 'none') !== 'none';
     const withMeta = clean({
       ...payment,
       reminderDays: payment.reminderDays?.length
         ? payment.reminderDays
         : [1, 3, 7],
       recurrence: payment.recurrence ?? 'none',
+      // Anchor a new recurring series at its first bill so later amounts
+      // escalate from the starting amount, never from drifted values.
+      ...(recurring
+        ? {
+            seriesStartDate: payment.dueDate,
+            seriesIndex: 0,
+            seriesBaseAmount: payment.amount,
+          }
+        : {}),
       id: createId('tp'),
       status: 'pending' as const,
       createdAt: t,
@@ -842,12 +977,24 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     const existing = get().trackedPayments.find((x) => x.id === id);
     if (!existing) return;
-    const updated = clean({
+    let updated = clean({
       ...existing,
       ...(patch as Partial<TrackedPayment>),
       id,
       updatedAt: now(),
     }) as TrackedPayment;
+    // Editing the FIRST bill of a series re-anchors the escalation base;
+    // already-created historical bills are separate docs and stay untouched.
+    if (
+      updated.recurrence !== 'none' &&
+      (updated.seriesIndex ?? 0) === 0
+    ) {
+      updated = clean({
+        ...updated,
+        seriesStartDate: updated.dueDate,
+        seriesBaseAmount: updated.amount,
+      }) as TrackedPayment;
+    }
     await saveDoc(uid, 'trackedPayments', updated);
     set((s) => ({
       trackedPayments: s.trackedPayments
@@ -902,17 +1049,49 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       existing.recurrence !== 'none'
         ? nextDueDate(existing.dueDate, existing.recurrence)
         : null;
+    // Stop generating once the series end date is reached.
+    const nextIndex = (existing.seriesIndex ?? 0) + 1;
+    const canGenerate =
+      nextDate !== null && withinSeriesEnd(existing.endDate, nextDate);
+
+    // ── Insurance-linked bill paid → advance the policy (source of truth) ──
+    let policyPatch: Partial<InsurancePolicy> | null = null;
+    let policyIdToSync: string | null = null;
+    if (existing.insurancePolicyId) {
+      const pol = get().insurancePolicies.find(
+        (p) => p.id === existing.insurancePolicyId,
+      );
+      if (pol) {
+        const recurrence = PREMIUM_RECURRENCE[pol.premiumFrequency] ?? 'yearly';
+        let renewal = pol.renewalDate;
+        // Advance renewalDate past the paid bill (handles missed/edited bills).
+        for (let i = 0; i < 400 && renewal <= existing.dueDate; i++) {
+          const nxt = nextDueDate(renewal, recurrence);
+          if (!nxt) break;
+          renewal = nxt;
+        }
+        policyPatch = { renewalDate: renewal, lastPaymentDate: paidAt };
+        policyIdToSync = pol.id;
+      }
+    }
 
     const nextPayments: TrackedPayment[] = [];
-    if (nextDate) {
+    if (nextDate && canGenerate) {
       const t = now();
       const next = clean({
         title: existing.title,
         paymentType: existing.paymentType,
-        amount: existing.amount,
+        amount: nextSeriesAmount(existing, nextDate, nextIndex),
         dueDate: nextDate,
         reminderDays: existing.reminderDays,
         recurrence: existing.recurrence,
+        endDate: existing.endDate,
+        increaseAmount: existing.increaseAmount,
+        increaseEvery: existing.increaseEvery,
+        seriesStartDate: existing.seriesStartDate ?? existing.dueDate,
+        seriesIndex: nextIndex,
+        seriesBaseAmount: existing.seriesBaseAmount ?? existing.amount,
+        insurancePolicyId: existing.insurancePolicyId,
         notes: existing.notes,
         id: createId('tp'),
         status: 'pending' as const,
@@ -933,6 +1112,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ? s.cashflows
         : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
     }));
+
+    // Persist the advanced policy and re-sync its next premium bill.
+    if (policyIdToSync && policyPatch) {
+      await get().updateInsurancePolicy(policyIdToSync, policyPatch);
+    }
+
     void analyseAfterPayment(existing);
   },
 
@@ -972,6 +1157,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     // ── Fire event engine ────────────────────────────────────────────────
     void analyseAfterTransaction(
       get().cashflows, get().investments, get().liabilities, get().trackedPayments, withMeta,
+      get().accounts, get().pendingPayments,
     );
   },
 
@@ -999,6 +1185,18 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     await deleteDoc(userDoc(uid, 'cashflows', id));
     set((s) => ({
       cashflows: s.cashflows.filter((x) => x.id !== id),
+    }));
+  },
+
+  deleteCashflows: async (ids) => {
+    const uid = get().uid;
+    if (!uid || ids.length === 0) return;
+    const idSet = new Set(ids);
+    await Promise.all(
+      ids.map((id) => deleteDoc(userDoc(uid, 'cashflows', id))),
+    );
+    set((s) => ({
+      cashflows: s.cashflows.filter((x) => !idSet.has(x.id)),
     }));
   },
 
@@ -1232,6 +1430,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         safeCompare(a.renewalDate, b.renewalDate),
       ),
     }));
+    // Insurance is the source of truth → auto-create its recurring Bill Reminder.
+    await syncInsuranceBill(uid, get, withMeta);
   },
 
   updateInsurancePolicy: async (id, patch) => {
@@ -1251,6 +1451,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         x.id === id ? updated : x,
       ),
     }));
+    // Propagate premium / date / frequency changes into the linked future bill.
+    await syncInsuranceBill(uid, get, updated);
   },
 
   deleteInsurancePolicy: async (id) => {
@@ -1260,6 +1462,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set((s) => ({
       insurancePolicies: s.insurancePolicies.filter((x) => x.id !== id),
     }));
+    // Remove the policy's PENDING bills; paid history stays untouched.
+    const linkedPending = get().trackedPayments.filter(
+      (p) => p.insurancePolicyId === id && p.status === 'pending',
+    );
+    for (const bill of linkedPending) {
+      await get().deleteTrackedPayment(bill.id);
+    }
   },
 
   addInsurancePayment: async (payment) => {
@@ -1275,8 +1484,21 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as InsurancePayment;
     await saveDoc(uid, 'insurancePayments', withMeta);
 
-    // ── Also write a cashflow expense entry so it appears in Cashflow ────
+    // ── Settle the linked pending Bill Reminder first. markTrackedPaymentPaid
+    //    writes its own cashflow entry, advances the policy renewal date and
+    //    generates the next premium bill — so nothing is duplicated here. ──
     const policy = get().insurancePolicies.find((p) => p.id === withMeta.policyId);
+    const linkedBill = get().trackedPayments.find(
+      (p) =>
+        p.insurancePolicyId === withMeta.policyId && p.status === 'pending',
+    );
+    let settledByBill = false;
+    if (linkedBill) {
+      await get().markTrackedPaymentPaid(linkedBill.id);
+      settledByBill = true;
+    }
+
+    // ── Cashflow expense entry (skipped when the bill reminder already wrote one)
     const policyName = policy?.policyName?.trim() || 'Insurance Policy';
     const cfId = `cf_inspay_${withMeta.id}`;
     const cashflowItem = clean({
@@ -1292,7 +1514,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as CashflowEntry;
-    const alreadyInCF = get().cashflows.some((c) => c.id === cfId);
+    const alreadyInCF = settledByBill || get().cashflows.some((c) => c.id === cfId);
     if (!alreadyInCF) {
       await saveDoc(uid, 'cashflows', cashflowItem);
     }
@@ -1450,6 +1672,17 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set({ essentials });
   },
 
+  setAllocationTargets: async (targets) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await setDoc(
+      settingsDocRef(uid),
+      { allocationTargets: targets },
+      { merge: true },
+    );
+    set({ allocationTargets: targets });
+  },
+
   recordSnapshotIfNeeded: async () => {
     const uid = get().uid;
     if (!uid) return;
@@ -1497,6 +1730,8 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       state.investments,
       state.liabilities,
       state.pendingPayments,
+      state.accounts,
+      state.cashflows,
     );
 
     // ── Investment breakdown ─────────────────────────────────────────────────
@@ -1511,7 +1746,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const monthExpense = thisMonthCf.filter((c) => c.type === 'expense').reduce((s, c) => s + c.amount, 0);
 
     // ── Liquid cash ──────────────────────────────────────────────────────────
-    const accountBalance = (state.accounts ?? []).reduce((s, a) => s + (a.balance || 0), 0);
+    const accountBalance = getLiveBankTotal(state.accounts ?? [], state.cashflows ?? []);
 
     // ── Goals ────────────────────────────────────────────────────────────────
     const goals = state.goals ?? [];
@@ -1701,6 +1936,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       latestInsight: null,
       notion: DEFAULT_NOTION,
       essentials: DEFAULT_ESSENTIALS,
+      allocationTargets: DEFAULT_ALLOCATION_TARGETS,
       accounts: [],
       soldTrades: [],
       insurancePolicies: [],

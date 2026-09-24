@@ -189,7 +189,7 @@ export function PortfolioAIAnalysisPanel({
           {compact && text.endsWith('…') && (
             <p className='mt-4 text-xs font-semibold'>
               <Link
-                to='/insights'
+                to='/cashflow?tab=insights'
                 className='text-violet-600 dark:text-violet-400 hover:underline'
               >
                 Open Insights for the full briefing &amp; custom questions →

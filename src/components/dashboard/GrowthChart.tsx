@@ -39,7 +39,7 @@ export function GrowthChart() {
           busy={busy}
           loadingLabel="Going…"
           className="group flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50/50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
-          onClick={() => void run(() => { navigate('/snapshots'); return Promise.resolve(); })}
+          onClick={() => void run(() => { navigate('/wealth?tab=networth'); return Promise.resolve(); })}
         >
           <FiCamera className="h-3.5 w-3.5" />
           <span>Take Snapshot</span>

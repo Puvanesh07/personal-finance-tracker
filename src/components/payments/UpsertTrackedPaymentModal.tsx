@@ -2,6 +2,7 @@ import { FiPlus, FiSave } from 'react-icons/fi';
 import { useEffect, useMemo, useState } from 'react';
 
 import type {
+  PaymentIncreaseFrequency,
   PaymentRecurrence,
   PaymentTrackerType,
   TrackedPayment,
@@ -10,10 +11,13 @@ import { Dropdown } from '../ui/Dropdown';
 import { Modal } from '../ui/Modal';
 import { NumericInput } from '../ui/NumericInput';
 import {
+  INCREASE_FREQUENCY_LABELS,
   PAYMENT_TYPE_OPTIONS,
   REMINDER_PRESETS,
   paymentTypePlaceholder,
+  previewSeries,
 } from '../../utils/paymentTracker';
+import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 type Props =
@@ -35,6 +39,9 @@ export function UpsertTrackedPaymentModal(props: Props) {
         reminderDays: [...p.reminderDays],
         customReminder: '',
         recurrence: p.recurrence,
+        endDate: p.endDate ?? '',
+        increaseAmount: p.increaseAmount ? String(p.increaseAmount) : '',
+        increaseEvery: (p.increaseEvery ?? 'recurrence') as PaymentIncreaseFrequency,
         notes: p.notes || '',
       };
     }
@@ -47,6 +54,9 @@ export function UpsertTrackedPaymentModal(props: Props) {
       reminderDays: [...REMINDER_PRESETS],
       customReminder: '',
       recurrence: 'none' as PaymentRecurrence,
+      endDate: '',
+      increaseAmount: '',
+      increaseEvery: 'recurrence' as PaymentIncreaseFrequency,
       notes: '',
     };
   }, [props.mode, props.payment]);
@@ -88,6 +98,9 @@ export function UpsertTrackedPaymentModal(props: Props) {
     const amount = Number(state.amount);
     if (!state.title.trim() || !Number.isFinite(amount) || amount <= 0) return;
     if (!state.dueDate || state.reminderDays.length === 0) return;
+    const recurring = state.recurrence !== 'none';
+    const increase = Number(state.increaseAmount) || 0;
+    if (recurring && state.endDate && state.endDate < state.dueDate) return;
 
     setSaving(true);
     try {
@@ -98,6 +111,9 @@ export function UpsertTrackedPaymentModal(props: Props) {
         dueDate: state.dueDate,
         reminderDays: state.reminderDays,
         recurrence: state.recurrence,
+        endDate: recurring && state.endDate ? state.endDate : undefined,
+        increaseAmount: recurring && increase > 0 ? increase : undefined,
+        increaseEvery: recurring && increase > 0 ? state.increaseEvery : undefined,
         notes: state.notes.trim() || undefined,
       };
 
@@ -232,6 +248,90 @@ export function UpsertTrackedPaymentModal(props: Props) {
             }
           />
         </div>
+
+        {state.recurrence !== 'none' && (
+          <div className='flex flex-col gap-4 rounded-xl border border-sky-500/25 bg-sky-500/5 dark:bg-sky-500/10 p-4'>
+            <div>
+              <label className={labelCls}>End Date (optional)</label>
+              <input
+                type='date'
+                className={inputCls}
+                value={state.endDate}
+                min={state.dueDate}
+                onChange={(e) =>
+                  setState((s) => ({ ...s, endDate: e.target.value }))
+                }
+              />
+              <p className='mt-1.5 text-[11px] text-slate-500 dark:text-slate-400'>
+                Recurring bills are generated only until this date. Leave empty
+                to repeat forever.
+              </p>
+            </div>
+
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div>
+                <label className={labelCls}>Auto Increase Amount (₹)</label>
+                <NumericInput
+                  value={state.increaseAmount}
+                  onChange={(v) => setState((s) => ({ ...s, increaseAmount: v }))}
+                  className={inputCls}
+                  placeholder='e.g. 100'
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Increase Frequency</label>
+                <Dropdown
+                  value={state.increaseEvery}
+                  options={(
+                    Object.keys(INCREASE_FREQUENCY_LABELS) as PaymentIncreaseFrequency[]
+                  ).map((k) => ({
+                    value: k,
+                    label: INCREASE_FREQUENCY_LABELS[k],
+                  }))}
+                  onChange={(v) =>
+                    setState((s) => ({
+                      ...s,
+                      increaseEvery: v as PaymentIncreaseFrequency,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            {Number(state.amount) > 0 && (
+              <div>
+                <p className={labelCls}>Upcoming bills preview</p>
+                <div className='flex flex-col gap-1'>
+                  {previewSeries({
+                    dueDate: state.dueDate,
+                    recurrence: state.recurrence,
+                    endDate: state.endDate || undefined,
+                    baseAmount: Number(state.amount),
+                    increaseAmount: Number(state.increaseAmount) || 0,
+                    increaseEvery: state.increaseEvery,
+                  }).map((o, i) => (
+                    <div
+                      key={o.date}
+                      className='flex items-center justify-between text-[12px] text-slate-600 dark:text-slate-300'
+                    >
+                      <span>
+                        {i === 0 ? 'Start' : `#${i + 1}`} · {o.date}
+                      </span>
+                      <span className='font-bold tabular-nums text-slate-900 dark:text-slate-100'>
+                        {formatINR(o.amount)}
+                      </span>
+                    </div>
+                  ))}
+                  {state.endDate && (
+                    <p className='mt-1 text-[11px] font-semibold text-sky-600 dark:text-sky-400'>
+                      Series stops after {state.endDate} — no bills beyond it.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <label className={labelCls}>Notes (optional)</label>

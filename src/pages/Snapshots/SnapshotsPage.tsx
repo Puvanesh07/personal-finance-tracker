@@ -27,6 +27,7 @@ import { SnapshotsSkeleton } from '../../components/loader/skeletons';
 import { formatINR } from '../../utils/format';
 import {
   calculateNetWorth,
+  getLiveBankTotal,
   summarizePortfolio,
 } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -447,7 +448,7 @@ function SnapshotMobileCard({
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export function SnapshotsPage() {
+export function SnapshotsPage({ embedded = false }: { embedded?: boolean }) {
   const ready               = usePortfolioStore((s) => s.ready);
   const networthSnapshots   = usePortfolioStore((s) => s.networthSnapshots);
   const takeNetWorthSnapshot = usePortfolioStore((s) => s.takeNetWorthSnapshot);
@@ -467,13 +468,13 @@ export function SnapshotsPage() {
   // ── Live preview numbers ─────────────────────────────────────────────────
   const portfolioSummary = useMemo(() => summarizePortfolio(investments), [investments]);
   const { totalAssets, totalLiabilities, netWorth } = useMemo(
-    () => calculateNetWorth(investments, liabilities, pendingPayments),
-    [investments, liabilities, pendingPayments],
+    () => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows),
+    [investments, liabilities, pendingPayments, accounts, cashflows],
   );
 
   const accountBalance = useMemo(
-    () => accounts.reduce((a, acc) => a + (acc.balance || 0), 0),
-    [accounts],
+    () => getLiveBankTotal(accounts, cashflows),
+    [accounts, cashflows],
   );
 
   const now = new Date();
@@ -529,6 +530,7 @@ export function SnapshotsPage() {
       {/* ── Header ── */}
       <header className='rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5 border border-emerald-500/20 shadow-sm'>
         <div className='flex flex-col xl:flex-row xl:items-center justify-between gap-5'>
+          {!embedded && (
           <div className='flex items-center gap-4'>
             <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
               <FiCamera className='h-6 w-6' />
@@ -543,6 +545,7 @@ export function SnapshotsPage() {
               </p>
             </div>
           </div>
+          )}
           <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3'>
             <div className='relative group'>
               <FiTag className='absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors' />

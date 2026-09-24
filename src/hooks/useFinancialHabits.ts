@@ -5,6 +5,7 @@
  */
 import { useMemo } from 'react';
 import { usePortfolioStore } from '../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export interface HabitStreak {
   label: string;
@@ -33,7 +34,9 @@ function thisMonthKey() {
 }
 
 export function useFinancialHabits(): FinancialHabitsResult {
-  const { cashflows, investments } = usePortfolioStore();
+  const { cashflows, investments } = usePortfolioStore(
+    useShallow((s) => ({ cashflows: s.cashflows, investments: s.investments })),
+  );
 
   return useMemo(() => {
     const today     = todayISO();

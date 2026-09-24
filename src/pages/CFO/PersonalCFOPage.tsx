@@ -6,6 +6,7 @@ import {
   FiShield, FiTrendingUp, FiZap, FiChevronDown, FiChevronUp,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useProactiveInsights } from '../../hooks/useProactiveInsights';
 import { useFinancialAnomalies } from '../../hooks/useFinancialAnomalies';
 import { calculateNetWorth } from '../../utils/calculations';
@@ -50,8 +51,8 @@ function HealthRing({ score }: { score: number }) {
   );
 }
 
-function calcHealthScore(investments: any[], liabilities: any[], cashflows: any[], essentials: any, pendingPayments?: any[]): number {
-  const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities, pendingPayments);
+function calcHealthScore(investments: any[], liabilities: any[], cashflows: any[], essentials: any, pendingPayments?: any[], accounts?: any[]): number {
+  const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const debtRatio    = totalAssets > 0 ? totalLiabilities / totalAssets : 0;
   const debtScore    = Math.max(0, 30 - Math.round(debtRatio * 60));
   const target       = essentials?.emergencyFundTarget  ?? 0;
@@ -78,7 +79,21 @@ export default function PersonalCFOPage() {
   const {
     investments, liabilities, pendingPayments, cashflows, goals, goalContributions,
     accounts, essentials, trackedPayments, networthSnapshots, sipPlans,
-  } = usePortfolioStore();
+  } = usePortfolioStore(
+    useShallow((s) => ({
+      investments: s.investments,
+      liabilities: s.liabilities,
+      pendingPayments: s.pendingPayments,
+      cashflows: s.cashflows,
+      goals: s.goals,
+      goalContributions: s.goalContributions,
+      accounts: s.accounts,
+      essentials: s.essentials,
+      trackedPayments: s.trackedPayments,
+      networthSnapshots: s.networthSnapshots,
+      sipPlans: s.sipPlans,
+    })),
+  );
 
   const proactive  = useProactiveInsights();
   const anomalies  = useFinancialAnomalies();
@@ -96,11 +111,11 @@ export default function PersonalCFOPage() {
   }, [location.hash]);
 
   const { netWorth, totalAssets, totalLiabilities } = useMemo(
-    () => calculateNetWorth(investments, liabilities, pendingPayments), [investments, liabilities, pendingPayments],
+    () => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows), [investments, liabilities, pendingPayments, accounts, cashflows],
   );
   const healthScore = useMemo(
-    () => calcHealthScore(investments, liabilities, cashflows, essentials, pendingPayments),
-    [investments, liabilities, pendingPayments, cashflows, essentials],
+    () => calcHealthScore(investments, liabilities, cashflows, essentials, pendingPayments, accounts),
+    [investments, liabilities, pendingPayments, cashflows, essentials, accounts],
   );
   const velocity = useMemo(() => computeSpendingVelocity(cashflows), [cashflows]);
   const plan     = useMemo(
@@ -271,7 +286,7 @@ export default function PersonalCFOPage() {
               <p className='text-[10px] font-bold uppercase tracking-wider text-violet-500 dark:text-violet-400'>Your Archetype</p>
               <p className='text-sm font-bold text-slate-800 dark:text-slate-200 truncate'>{dna.archetype}</p>
             </div>
-            <button type='button' onClick={() => nav('/insights?tab=dna')} className='text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline shrink-0 flex items-center gap-0.5'>
+            <button type='button' onClick={() => nav('/cashflow?tab=dna')} className='text-[10px] font-bold text-violet-600 dark:text-violet-400 hover:underline shrink-0 flex items-center gap-0.5'>
               View DNA <FiArrowRight className='h-3 w-3' />
             </button>
           </div>
@@ -296,7 +311,7 @@ export default function PersonalCFOPage() {
         <div className='rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
           <p className='text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 mb-3'><FiFlag className='h-3.5 w-3.5 text-amber-500' /> Goals ({activeGoals.length})</p>
           {activeGoals.length === 0 ? (
-            <p className='text-xs text-slate-400'>No active goals. <button type='button' onClick={() => nav('/goals')} className='text-violet-500 hover:underline'>Add one</button></p>
+            <p className='text-xs text-slate-400'>No active goals. <button type='button' onClick={() => nav('/essentials?tab=goals')} className='text-violet-500 hover:underline'>Add one</button></p>
           ) : (
             <>
               <div className='h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-1'>
@@ -317,8 +332,8 @@ export default function PersonalCFOPage() {
             {[
               { label: 'Forecast', path: '/forecast', emoji: '📈' },
               { label: 'Simulator', path: '/simulator', emoji: '🧮' },
-              { label: 'Insights', path: '/insights', emoji: '💡' },
-              { label: 'Budget', path: '/budget', emoji: '🎯' },
+              { label: 'Insights', path: '/cashflow?tab=insights', emoji: '💡' },
+              { label: 'Budget', path: '/cashflow?tab=budget', emoji: '🎯' },
             ].map(({ label, path, emoji }) => (
               <button key={path} type='button' onClick={() => nav(path)}
                 className='flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-700/60 px-2.5 py-2 text-left transition-colors'>

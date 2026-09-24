@@ -5,7 +5,8 @@
 import { useState, useMemo } from 'react';
 import { FiCalendar, FiAlertCircle } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import { calculateNetWorth } from '../../utils/calculations';
+import { useShallow } from 'zustand/react/shallow';
+import { calculateNetWorth, getLiveBankTotal } from '../../utils/calculations';
 import { futureValue } from '../../utils/goalProbability';
 import { formatINR } from '../../utils/format';
 
@@ -42,8 +43,17 @@ export function LifeEventPlannerCard() {
   const [cost,  setCost]  = useState(2000000);
   const [years, setYears] = useState(2);
 
-  const { investments, liabilities, cashflows, accounts } = usePortfolioStore();
-  const { netWorth } = useMemo(() => calculateNetWorth(investments, liabilities), [investments, liabilities]);
+  const { investments, liabilities, cashflows, accounts, pendingPayments } =
+    usePortfolioStore(
+      useShallow((s) => ({
+        investments: s.investments,
+        liabilities: s.liabilities,
+        cashflows: s.cashflows,
+        accounts: s.accounts,
+        pendingPayments: s.pendingPayments,
+      })),
+    );
+  const { netWorth } = useMemo(() => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows), [investments, liabilities, pendingPayments, accounts, cashflows]);
 
   const event = EVENTS.find(e => e.id === activeEvent)!;
 
@@ -60,7 +70,7 @@ export function LifeEventPlannerCard() {
   }, [cashflows]);
 
   const surplus         = avgInc - avgExp;
-  const bankBalance     = accounts.reduce((s, a) => s + (a.balance ?? 0), 0);
+  const bankBalance     = getLiveBankTotal(accounts, cashflows);
   const ongoingImpact   = event.ongoingCostPerMonth;
 
   // Effective cost for house = down payment

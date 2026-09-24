@@ -8,8 +8,10 @@
 
 import { formatINR, formatNumber } from '../utils/format';
 import {
+  calcLiveAccountBalances,
   calculateNetWorth,
   currentValue,
+  getLiveBankTotal,
   investedValue,
 } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
@@ -49,9 +51,9 @@ function noData(module: string): AgentDataResult {
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 
 function fetchDashboard(): AgentDataResult {
-  const { investments, liabilities, cashflows, goals, trackedPayments, insurancePolicies } =
+  const { investments, liabilities, cashflows, goals, trackedPayments, insurancePolicies, accounts, pendingPayments } =
     usePortfolioStore.getState();
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const avgIncome  = monthlyAvg(cashflows, 'income');
   const avgExpense = monthlyAvg(cashflows, 'expense');
   const surplus    = avgIncome - avgExpense;
@@ -1119,8 +1121,8 @@ function fetchLiabilitiesPriority(): AgentDataResult {
 }
 
 function fetchLiabilitiesDebtRatio(): AgentDataResult {
-  const { investments, liabilities } = usePortfolioStore.getState();
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { investments, liabilities, accounts, cashflows, pendingPayments } = usePortfolioStore.getState();
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
   const lines = [
     `## 📊 Debt-to-Asset Ratio`,
@@ -1361,17 +1363,19 @@ function fetchGoalsNextFocus(): AgentDataResult {
 // ─── ACCOUNTS fetchers ────────────────────────────────────────────────────────
 
 function fetchAccountsData(): AgentDataResult {
-  const { accounts } = usePortfolioStore.getState();
+  const { accounts, cashflows } = usePortfolioStore.getState();
   if (!accounts.length) return noData('Accounts');
-  const total = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
-  const sorted = [...accounts].sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+  const live   = calcLiveAccountBalances(accounts, cashflows);
+  const bal    = (ac: (typeof accounts)[number]) => live[ac.id] ?? ac.balance ?? 0;
+  const total  = accounts.reduce((a, ac) => a + bal(ac), 0);
+  const sorted = [...accounts].sort((a, b) => bal(b) - bal(a));
   const lines = [
     `## 🏦 Your Accounts`,
     ``,
     `**Total Balance: ${formatINR(total)}** across ${accounts.length} account(s)`,
     ``,
     `| Account | Type | Balance | Share |`, `|---|---|---|---|`,
-    ...sorted.map((ac) => `| **${ac.name}** | ${ac.type} | ${formatINR(ac.balance ?? 0)} | ${pct(ac.balance ?? 0, total)} |`),
+    ...sorted.map((ac) => `| **${ac.name}** | ${ac.type} | ${formatINR(bal(ac))} | ${pct(bal(ac), total)} |`),
     ``, `*From your FinTrackly Accounts.*`,
   ];
   return { answer: lines.join('\n') };
@@ -1394,34 +1398,38 @@ function fetchAccountsCount(): AgentDataResult {
 }
 
 function fetchAccountsHighest(): AgentDataResult {
-  const { accounts } = usePortfolioStore.getState();
+  const { accounts, cashflows } = usePortfolioStore.getState();
   if (!accounts.length) return noData('Accounts');
-  const sorted = [...accounts].sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+  const live = calcLiveAccountBalances(accounts, cashflows);
+  const bal  = (ac: (typeof accounts)[number]) => live[ac.id] ?? ac.balance ?? 0;
+  const sorted = [...accounts].sort((a, b) => bal(b) - bal(a));
   const top    = sorted[0];
-  const total  = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
+  const total  = accounts.reduce((a, ac) => a + bal(ac), 0);
   const lines  = [
     `## 🥇 Account with Highest Balance`,
     ``,
-    `**${top.name}** — ${formatINR(top.balance ?? 0)}`,
+    `**${top.name}** — ${formatINR(bal(top))}`,
     ``,
     `| | |`, `|---|---|`,
     `| **Type** | ${top.type} |`,
-    `| **Balance** | ${formatINR(top.balance ?? 0)} |`,
-    `| **Share of Total** | ${pct(top.balance ?? 0, total)} |`,
+    `| **Balance** | ${formatINR(bal(top))} |`,
+    `| **Share of Total** | ${pct(bal(top), total)} |`,
     ``,
     sorted.length > 1 ? `All accounts by balance:` : '',
-    ...sorted.map((ac, i) => `${i + 1}. **${ac.name}** — ${formatINR(ac.balance ?? 0)}`),
+    ...sorted.map((ac, i) => `${i + 1}. **${ac.name}** — ${formatINR(bal(ac))}`),
     ``, `*From your FinTrackly Accounts.*`,
   ];
   return { answer: lines.filter((l) => l !== '').join('\n') };
 }
 
 function fetchAccountsDistribution(): AgentDataResult {
-  const { accounts, investments } = usePortfolioStore.getState();
-  const { totalAssets } = calculateNetWorth(investments, []);
+  const { accounts, investments, cashflows } = usePortfolioStore.getState();
+  const { totalAssets } = calculateNetWorth(investments, [], undefined, accounts, cashflows);
   if (!accounts.length) return noData('Accounts');
-  const total  = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
-  const sorted = [...accounts].sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+  const live   = calcLiveAccountBalances(accounts, cashflows);
+  const bal    = (ac: (typeof accounts)[number]) => live[ac.id] ?? ac.balance ?? 0;
+  const total  = accounts.reduce((a, ac) => a + bal(ac), 0);
+  const sorted = [...accounts].sort((a, b) => bal(b) - bal(a));
   const lines  = [
     `## 📊 Wealth Distribution Across Accounts`,
     ``,
@@ -1429,16 +1437,17 @@ function fetchAccountsDistribution(): AgentDataResult {
     totalAssets > 0 ? `That's ${pct(total, totalAssets)} of your total asset value.` : '',
     ``,
     `| Account | Balance | Share |`, `|---|---|---|`,
-    ...sorted.map((ac) => `| **${ac.name}** | ${formatINR(ac.balance ?? 0)} | ${pct(ac.balance ?? 0, total)} |`),
+    ...sorted.map((ac) => `| **${ac.name}** | ${formatINR(bal(ac))} | ${pct(bal(ac), total)} |`),
     ``, `*From your FinTrackly Accounts.*`,
   ];
   return { answer: lines.filter((l) => l !== '').join('\n') };
 }
 
 function fetchAccountsCash(): AgentDataResult {
-  const { accounts, essentials } = usePortfolioStore.getState();
+  const { accounts, essentials, cashflows } = usePortfolioStore.getState();
   const bankAccounts = accounts.filter((a) => a.type === 'bank');
-  const total  = bankAccounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
+  const live   = calcLiveAccountBalances(accounts, cashflows);
+  const total  = getLiveBankTotal(accounts, cashflows);
   const efCurr = essentials.emergencyFundCurrent ?? 0;
   const lines  = [
     `## 💵 Cash Position`,
@@ -1448,7 +1457,7 @@ function fetchAccountsCash(): AgentDataResult {
     `| **Emergency Fund (set aside)** | ${formatINR(efCurr)} |`,
     `| **Total Liquid Cash** | ${formatINR(total + efCurr)} |`,
     ``,
-    ...bankAccounts.map((ac) => `- **${ac.name}**: ${formatINR(ac.balance ?? 0)}`),
+    ...bankAccounts.map((ac) => `- **${ac.name}**: ${formatINR(live[ac.id] ?? ac.balance ?? 0)}`),
     ``, `*From your FinTrackly Accounts and Essentials.*`,
   ];
   return { answer: lines.join('\n') };
@@ -1457,8 +1466,8 @@ function fetchAccountsCash(): AgentDataResult {
 // ─── NET WORTH / STOCK LOOKUP helpers ────────────────────────────────────────
 
 function fetchNetWorthData(): AgentDataResult {
-  const { investments, liabilities } = usePortfolioStore.getState();
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { investments, liabilities, accounts, cashflows, pendingPayments } = usePortfolioStore.getState();
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   if (totalAssets === 0 && totalLiabilities === 0) return noData('financial');
   const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
   const lines = [
@@ -1562,9 +1571,9 @@ function fetchStockBySymbol(symbol: string): AgentDataResult {
 export function generateFullReport(): string {
   const {
     investments, liabilities, cashflows, goals, accounts,
-    trackedPayments, insurancePolicies,
+    trackedPayments, insurancePolicies, pendingPayments,
   } = usePortfolioStore.getState();
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const avgIncome  = monthlyAvg(cashflows, 'income');
   const avgExpense = monthlyAvg(cashflows, 'expense');
   const avgSurplus = avgIncome - avgExpense;

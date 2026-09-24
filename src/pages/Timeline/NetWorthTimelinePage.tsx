@@ -55,17 +55,23 @@ function formatCompact(n: number): string {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function NetWorthTimelinePage() {
+export default function NetWorthTimelinePage({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const networthSnapshots = usePortfolioStore((s) => s.networthSnapshots);
   const investments       = usePortfolioStore((s) => s.investments);
   const liabilities       = usePortfolioStore((s) => s.liabilities);
   const pendingPayments   = usePortfolioStore((s) => s.pendingPayments);
+  const accounts          = usePortfolioStore((s) => s.accounts);
+  const cashflows         = usePortfolioStore((s) => s.cashflows);
   const [view, setView]   = useState<ViewMode>('monthly');
 
   // Inject live "today" point
   const { totalAssets, totalLiabilities, netWorth: liveNW } = useMemo(
-    () => calculateNetWorth(investments, liabilities, pendingPayments),
-    [investments, liabilities, pendingPayments],
+    () => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows),
+    [investments, liabilities, pendingPayments, accounts, cashflows],
   );
 
   const allPoints = useMemo(() => {
@@ -145,6 +151,7 @@ export default function NetWorthTimelinePage() {
     <div className='flex flex-col gap-6 pb-12'>
 
       {/* Header */}
+      {!embedded && (
       <header className='rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20'>
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg'>
@@ -158,6 +165,7 @@ export default function NetWorthTimelinePage() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Summary cards */}
       <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>

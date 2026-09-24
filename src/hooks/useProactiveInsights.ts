@@ -38,6 +38,8 @@ export function useProactiveInsights(): ProactiveInsight[] {
     goals,
     goalContributions,
     essentials,
+    accounts,
+    pendingPayments,
   } = usePortfolioStore.getState();
 
   return useMemo(() => {
@@ -109,14 +111,14 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `Unrealized loss: ${formatINR(totalLoss)} across ${losingStocks.length} holding${losingStocks.length > 1 ? 's' : ''}`,
           severity: 'warning',
           question: 'Which of my investments is currently at the biggest loss?',
-          linkTo: '/investments',
+          linkTo: '/wealth?tab=assets',
         });
       }
     }
 
     // ── 5. High debt-to-asset ratio ────────────────────────────────────────
     if (investments.length || liabilities.length) {
-      const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities);
+      const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
       const ratio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
       if (ratio > 50) {
         insights.push({
@@ -126,7 +128,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatNumber(ratio, 1)}% of your assets are financed by debt`,
           severity: ratio > 70 ? 'danger' : 'warning',
           question: 'What is my debt-to-asset ratio?',
-          linkTo: '/liabilities',
+          linkTo: '/wealth?tab=liabilities',
         });
       }
     }
@@ -145,7 +147,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatINR(Math.max(0, g.targetAmount - saved))} remaining to reach your target of ${formatINR(g.targetAmount)}`,
           severity: 'good',
           question: 'Which of my financial goals is closest to completion?',
-          linkTo: '/goals',
+          linkTo: '/essentials?tab=goals',
         });
         break; // show at most one goal insight
       }
@@ -228,7 +230,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatINR(totalUsed)} used of ${formatINR(totalLimit)} limit — keep below 30% for good credit health`,
           severity: utilPct >= 70 ? 'danger' : 'warning',
           question: 'What is my credit card utilisation?',
-          linkTo: '/liabilities',
+          linkTo: '/wealth?tab=liabilities',
         });
       }
     }
@@ -280,7 +282,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `You have ${formatNumber(runwayMonths, 1)} months of runway — target is 6 months (${formatINR(expForRunway * 6)})`,
           severity: runwayMonths < 1 ? 'danger' : 'warning',
           question: 'How is my emergency fund?',
-          linkTo: '/insights',
+          linkTo: '/cashflow?tab=insights',
         });
       } else if (emergencyTarget > 0 && emergencyCurrent < emergencyTarget * 0.5) {
         const pct = (emergencyCurrent / emergencyTarget) * 100;
@@ -291,7 +293,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatINR(emergencyCurrent)} saved of ${formatINR(emergencyTarget)} goal`,
           severity: 'warning',
           question: 'How is my emergency fund?',
-          linkTo: '/insights',
+          linkTo: '/cashflow?tab=insights',
         });
       }
     }
@@ -324,7 +326,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatNumber(actualPct, 0)}% saved vs ${formatNumber(expectedPct, 0)}% expected at this point — you're ${formatNumber(lead, 0)}% ahead`,
           severity: 'good',
           question: 'Which of my goals is ahead of schedule?',
-          linkTo: '/goals',
+          linkTo: '/essentials?tab=goals',
         });
         break; // one goal-lead insight at a time
       }

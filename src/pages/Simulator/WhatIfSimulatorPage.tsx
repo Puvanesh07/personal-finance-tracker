@@ -14,8 +14,9 @@ import {
   FiCalendar,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
-import { calculateNetWorth, investedValue, currentValue } from '../../utils/calculations';
+import { calculateNetWorth, getLiveBankTotal, investedValue, currentValue } from '../../utils/calculations';
 import { futureValue, goalProbabilityResult } from '../../utils/goalProbability';
 import { formatINR } from '../../utils/format';
 import { LifeEventPlannerCard } from './LifeEventPlannerCard';
@@ -147,9 +148,9 @@ function computeImpact(
   param: number,
   state: ReturnType<typeof usePortfolioStore.getState>,
 ): ImpactResult {
-  const { investments, liabilities, cashflows, goals, goalContributions, accounts } = state;
+  const { investments, liabilities, cashflows, goals, goalContributions, accounts, pendingPayments } = state;
 
-  const { netWorth } = calculateNetWorth(investments, liabilities);
+  const { netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const avgInc   = calcMonthlyAvg(cashflows, 'income');
   const avgExp   = calcMonthlyAvg(cashflows, 'expense');
   const surplus  = avgInc - avgExp;
@@ -160,7 +161,7 @@ function computeImpact(
     .filter((l) => !l.status || l.status === 'active')
     .reduce((a, l) => a + (l.outstanding ?? 0), 0);
 
-  const totalCash = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
+  const totalCash = getLiveBankTotal(accounts, cashflows);
 
   // 5-year baseline projection (monthly surplus invested at 12%)
   const monthlyInvBase = Math.max(0, surplus);
@@ -389,18 +390,27 @@ export default function WhatIfSimulatorPage() {
   const colors  = COLOR_MAP[meta.color];
 
   const storeState = usePortfolioStore.getState();
-  const { investments, liabilities, cashflows, accounts } = usePortfolioStore();
+  const { investments, liabilities, cashflows, accounts, pendingPayments } =
+    usePortfolioStore(
+      useShallow((s) => ({
+        investments: s.investments,
+        liabilities: s.liabilities,
+        cashflows: s.cashflows,
+        accounts: s.accounts,
+        pendingPayments: s.pendingPayments,
+      })),
+    );
 
   const { netWorth } = useMemo(
-    () => calculateNetWorth(investments, liabilities),
-    [investments, liabilities],
+    () => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows),
+    [investments, liabilities, pendingPayments, accounts, cashflows],
   );
   const avgInc  = useMemo(() => calcMonthlyAvg(cashflows, 'income'),  [cashflows]);
   const avgExp  = useMemo(() => calcMonthlyAvg(cashflows, 'expense'), [cashflows]);
   const surplus = avgInc - avgExp;
   const totalCash = useMemo(
-    () => accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0),
-    [accounts],
+    () => getLiveBankTotal(accounts, cashflows),
+    [accounts, cashflows],
   );
   void totalCash;
 

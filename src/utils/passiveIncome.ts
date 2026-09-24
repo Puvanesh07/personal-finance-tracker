@@ -1,6 +1,6 @@
-﻿/**
+/**
  * src/utils/passiveIncome.ts
- * Passive Income Tracker â€” Tier 2.
+ * Passive Income Tracker — Tier 2.
  * Identifies passive income streams from cashflows + investments (dividends, interest, rental).
  */
 import type { CashflowEntry, Investment } from '../types/investmentTypes';
@@ -19,18 +19,18 @@ export interface PassiveIncomeResult {
   totalMonthly: number;
   totalAnnual: number;
   coverageOfExpensesPct: number;    // passive / avg monthly expense * 100
-  fiNumber: number;                 // 25Ã— annual expenses (FIRE corpus needed)
+  fiNumber: number;                 // 25× annual expenses (FIRE corpus needed)
   passiveTowardFIPct: number;       // (annual passive / FI number) * 100
 }
 
 const PASSIVE_KEYWORDS = [
-  { pattern: /dividend/i,        label: 'Dividends',      emoji: 'ðŸ“Š' },
-  { pattern: /interest/i,        label: 'Interest',       emoji: 'ðŸ¦' },
-  { pattern: /rental|rent.*received/i, label: 'Rental Income', emoji: 'ðŸ ' },
-  { pattern: /capital.?gain/i,   label: 'Capital Gains',  emoji: 'ðŸ“ˆ' },
-  { pattern: /royalt/i,          label: 'Royalties',      emoji: 'ðŸŽµ' },
-  { pattern: /pension/i,         label: 'Pension',        emoji: 'ðŸ‘´' },
-  { pattern: /annuit/i,          label: 'Annuity',        emoji: 'ðŸ“‹' },
+  { pattern: /dividend/i,        label: 'Dividends',      emoji: '📊' },
+  { pattern: /interest/i,        label: 'Interest',       emoji: '🏦' },
+  { pattern: /rental|rent.*received/i, label: 'Rental Income', emoji: '🏠' },
+  { pattern: /capital.?gain/i,   label: 'Capital Gains',  emoji: '📈' },
+  { pattern: /royalt/i,          label: 'Royalties',      emoji: '🎵' },
+  { pattern: /pension/i,         label: 'Pension',        emoji: '👴' },
+  { pattern: /annuit/i,          label: 'Annuity',        emoji: '📋' },
 ];
 
 export function computePassiveIncome(
@@ -65,7 +65,7 @@ export function computePassiveIncome(
     }, 0);
 
   if (fdBondInterest > 0) {
-    const existing = streamMap.get('FD/Bond Interest') ?? { total: 0, months: new Set(), lastDate: new Date().toISOString().slice(0,10), emoji: 'ðŸ¦' };
+    const existing = streamMap.get('FD/Bond Interest') ?? { total: 0, months: new Set(), lastDate: new Date().toISOString().slice(0,10), emoji: '🏦' };
     existing.total += fdBondInterest * 12; // annualise
     streamMap.set('FD/Bond Interest', existing);
   }

@@ -2,7 +2,7 @@
  * src/utils/milestones.ts — Money Milestones (Tier 3).
  * Detects achieved and in-progress financial milestones from store data.
  */
-import type { Investment, Liability, CashflowEntry, PendingPayment } from '../types/investmentTypes';
+import type { Account, Investment, Liability, CashflowEntry, PendingPayment } from '../types/investmentTypes';
 import { calculateNetWorth, investedValue } from '../utils/calculations';
 
 export interface Milestone {
@@ -26,15 +26,14 @@ export function computeMilestones(
   liabilities: Liability[],
   cashflows: CashflowEntry[],
   essentials: { emergencyFundCurrent?: number; emergencyFundTarget?: number },
-  accounts: { balance: number }[],
+  accounts: Account[],
   pendingPayments?: PendingPayment[],
 ): Milestone[] {
 
-  const { netWorth, totalAssets } = calculateNetWorth(investments, liabilities, pendingPayments);
+  const { netWorth, totalAssets } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const totalInvested = investments.reduce((a, i) => a + investedValue(i), 0);
   const activeLiab    = liabilities.filter(l => !l.status || l.status === 'active');
   const totalDebt     = activeLiab.reduce((a, l) => a + (l.outstanding ?? 0), 0);
-  const bankBalance   = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
   const efCurrent     = essentials.emergencyFundCurrent ?? 0;
   const expEntries    = cashflows.filter(e => e.type === 'expense');
   const avgMonthlyExp = expEntries.length
@@ -232,7 +231,6 @@ export function computeMilestones(
     },
   ];
 
-  void bankBalance;
   return milestones.sort((a, b) => {
     if (a.unlocked && !b.unlocked) return -1;
     if (!a.unlocked && b.unlocked)  return 1;

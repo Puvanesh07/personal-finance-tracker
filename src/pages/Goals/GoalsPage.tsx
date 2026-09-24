@@ -10,6 +10,7 @@
 import {
   FiDownload,
   FiEdit2,
+  FiEye,
   FiFlag,
   FiPlus,
   FiTarget,
@@ -24,12 +25,15 @@ import {
   GoalContributeModal,
   UpsertGoalModal,
 } from '../../components/goals/UpsertGoalModal';
+import { GoalDetailModal } from '../../components/goals/GoalDetailModal';
+import { effectiveGoalCurrent } from '../../utils/goalLinks';
 
 import { GoalsSkeleton } from '../../components/loader/skeletons';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
 import { buildGoalInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
+import { getMonthlySavings } from '../../utils/financialProfile';
 import { exportGoalsCSV } from '../../utils/exportUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
@@ -255,7 +259,9 @@ export function GoalsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const goals = usePortfolioStore((s) => s.goals);
   const cashflows = usePortfolioStore((s) => s.cashflows);
+  const essentials = usePortfolioStore((s) => s.essentials);
   const goalContributions = usePortfolioStore((s) => s.goalContributions);
+  const investments = usePortfolioStore((s) => s.investments);
   const loadGoalContributions = usePortfolioStore((s) => s.loadGoalContributions);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
   const updateGoal = usePortfolioStore((s) => s.updateGoal);
@@ -269,6 +275,9 @@ export function GoalsPage() {
 
   // Contribute modal state
   const [contributeGoal, setContributeGoal] = useState<Goal | null>(null);
+
+  // Detail modal state
+  const [detailGoal, setDetailGoal] = useState<Goal | null>(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
@@ -368,6 +377,16 @@ export function GoalsPage() {
     return Math.max(0, (totalInc - totalExp) / months);
   }, [cashflows]);
 
+  // ── Monthly investable surplus for the probability engine ───────────────
+  // Primary source: the shared Financial Profile (Essentials tab).
+  // Fallback: actual average surplus from cashflow history.
+  const profileSavings = useMemo(
+    () => getMonthlySavings(essentials),
+    [essentials],
+  );
+  const monthlyInvestment =
+    profileSavings > 0 ? profileSavings : avgMonthlySurplus;
+
   // ── Per-goal probability results ──────────────────────────────────────────
   const goalProbabilityMap = useMemo(() => {
     const map = new Map<string, GoalProbabilityResult>();
@@ -375,20 +394,20 @@ export function GoalsPage() {
       const contributions = goalContributions
         .filter((c) => c.goalId === g.id)
         .reduce((a, c) => a + c.amount, 0);
-      const currentSaved = g.currentAmount + contributions;
+      const currentSaved = effectiveGoalCurrent(g, investments, contributions);
       map.set(
         g.id,
         goalProbabilityResult({
           targetAmount:      g.targetAmount,
           currentSaved,
-          monthlyInvestment: avgMonthlySurplus,
+          monthlyInvestment,
           expectedReturnPct: 12,
           targetDate:        g.dueDate,
         }),
       );
     }
     return map;
-  }, [goals, goalContributions, avgMonthlySurplus]);
+  }, [goals, goalContributions, monthlyInvestment, investments]);
 
   const tabCls = (tab: FilterTab) =>
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -466,6 +485,14 @@ export function GoalsPage() {
         </div>
       )}
 
+      {/* Profile-driven projection note */}
+      {profileSavings > 0 && goals.length > 0 && (
+        <p className='rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400'>
+          📌 Goal projections use {formatINR(profileSavings)}/mo savings from
+          your Financial Profile (Essentials tab).
+        </p>
+      )}
+
       <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
         <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
           <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>Goal probability</p>
@@ -532,9 +559,10 @@ export function GoalsPage() {
           {/* 📱 Mobile Card View */}
           <div className='block md:hidden space-y-4'>
             {filteredGoals.map((g) => {
+              const cur = effectiveGoalCurrent(g, investments);
               const pct =
                 g.targetAmount > 0
-                  ? Math.min(100, (g.currentAmount / g.targetAmount) * 100)
+                  ? Math.min(100, (cur / g.targetAmount) * 100)
                   : 0;
               const isCompleted = pct >= 100;
               const isDone = g.status === 'completed' || g.status === 'success';
@@ -559,7 +587,13 @@ export function GoalsPage() {
                       <div className='min-w-0 flex-1'>
                         <div className='flex items-center gap-2 flex-wrap'>
                           <h3 className='truncate text-base font-bold text-slate-900 dark:text-slate-100'>
-                            {g.name}
+                            <button
+                              type='button'
+                              className='cursor-pointer truncate text-left hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors'
+                              onClick={() => setDetailGoal(g)}
+                            >
+                              {g.name}
+                            </button>
                           </h3>
                           <StatusBadge status={g.status} />
                         </div>
@@ -580,6 +614,15 @@ export function GoalsPage() {
                     </div>
                     {/* Action Buttons */}
                     <div className='flex shrink-0 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50'>
+                      {/* View detail */}
+                      <button
+                        type='button'
+                        title='View details'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                        onClick={() => setDetailGoal(g)}
+                      >
+                        <FiEye className='h-4 w-4' />
+                      </button>
                       {/* Contribute button — only for active goals */}
                       {(!g.status || g.status === 'active') && (
                         <button
@@ -645,7 +688,7 @@ export function GoalsPage() {
                         Current
                       </p>
                       <p className='mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100'>
-                        {formatINR(g.currentAmount)}
+                        {formatINR(cur)}
                       </p>
                     </div>
                     <div className='text-right'>
@@ -663,7 +706,7 @@ export function GoalsPage() {
                     <GoalProbabilityPanel
                       goal={g}
                       result={goalProbabilityMap.get(g.id)!}
-                      monthlyInvestment={avgMonthlySurplus}
+                      monthlyInvestment={monthlyInvestment}
                     />
                   )}
                 </div>
@@ -697,12 +740,10 @@ export function GoalsPage() {
 
                 <tbody className='divide-y divide-slate-100/60 dark:divide-slate-800/60'>
                   {filteredGoals.map((g) => {
+                    const cur = effectiveGoalCurrent(g, investments);
                     const pct =
                       g.targetAmount > 0
-                        ? Math.min(
-                            100,
-                            (g.currentAmount / g.targetAmount) * 100,
-                          )
+                        ? Math.min(100, (cur / g.targetAmount) * 100)
                         : 0;
                     const isCompleted = pct >= 100;
                     const isDone =
@@ -727,9 +768,13 @@ export function GoalsPage() {
                         </td>
                         <td className='px-5 py-5'>
                           <div className='flex items-center gap-2 flex-wrap'>
-                            <span className='font-bold text-slate-900 dark:text-slate-50'>
+                            <button
+                              type='button'
+                              className='cursor-pointer font-bold text-slate-900 transition-colors hover:text-emerald-600 dark:text-slate-50 dark:hover:text-emerald-400'
+                              onClick={() => setDetailGoal(g)}
+                            >
                               {g.name}
-                            </span>
+                            </button>
                             <StatusBadge status={g.status} />
                           </div>
                           {g.dueDate ? (
@@ -751,7 +796,7 @@ export function GoalsPage() {
                           <div className='flex flex-col gap-2'>
                             <div className='flex items-center justify-between text-xs font-bold'>
                               <span className='text-slate-700 dark:text-slate-300'>
-                                {formatINR(g.currentAmount)}
+                                {formatINR(cur)}
                               </span>
                               <span
                                 className={
@@ -796,6 +841,15 @@ export function GoalsPage() {
 
                         <td className='px-5 py-5'>
                           <div className='flex justify-center gap-2'>
+                            {/* View detail */}
+                            <button
+                              type='button'
+                              title='View details'
+                              className='flex h-9 w-9 items-center cursor-pointer justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'
+                              onClick={() => setDetailGoal(g)}
+                            >
+                              <FiEye className='h-4 w-4' />
+                            </button>
                             {/* Contribute — active goals only */}
                             {(!g.status || g.status === 'active') && (
                               <button
@@ -858,6 +912,31 @@ export function GoalsPage() {
           onClose={() => setContributeGoal(null)}
           goal={contributeGoal}
           onContribute={handleContribute}
+        />
+      )}
+
+      {/* Detail Modal */}
+      {detailGoal && (
+        <GoalDetailModal
+          open={!!detailGoal}
+          onClose={() => setDetailGoal(null)}
+          goal={detailGoal}
+          investments={investments}
+          onEdit={(g) => {
+            setDetailGoal(null);
+            setEdit(g);
+          }}
+          onMarkAchieved={(g) => {
+            void updateGoal(g.id, {
+              status: 'success',
+              completedAt: new Date().toISOString().split('T')[0],
+            } as any);
+            setDetailGoal(null);
+          }}
+          onDelete={(g) => {
+            setDetailGoal(null);
+            openDeleteModal(g.id);
+          }}
         />
       )}
 

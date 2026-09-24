@@ -9,9 +9,10 @@ import {
   FiActivity, FiCalendar, FiChevronRight, FiSearch, FiX,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useProactiveInsights } from '../../hooks/useProactiveInsights';
 import { useFinancialAnomalies } from '../../hooks/useFinancialAnomalies';
-import { calculateNetWorth } from '../../utils/calculations';
+import { calculateNetWorth, getLiveBankTotal } from '../../utils/calculations';
 import { computeForecast } from '../../utils/cashflowForecast';
 import { formatINR, formatNumber } from '../../utils/format';
 import { auth } from '../../services/firebase';
@@ -20,7 +21,16 @@ import { auth } from '../../services/firebase';
 export function SearchTab() {
   const [query, setQuery] = useState('');
   const nav = useNavigate();
-  const { cashflows, trackedPayments, investments, goals, insurancePolicies, liabilities } = usePortfolioStore();
+  const { cashflows, trackedPayments, investments, goals, insurancePolicies, liabilities } = usePortfolioStore(
+    useShallow((s) => ({
+      cashflows: s.cashflows,
+      trackedPayments: s.trackedPayments,
+      investments: s.investments,
+      goals: s.goals,
+      insurancePolicies: s.insurancePolicies,
+      liabilities: s.liabilities,
+    })),
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -31,9 +41,9 @@ export function SearchTab() {
     const items: R[] = [];
     cashflows.filter(e => e.category.toLowerCase().includes(q) || (e.notes ?? '').toLowerCase().includes(q)).slice(0, 5).forEach(e => items.push({ emoji: e.type === 'income' ? '💰' : '💸', title: e.category, sub: e.date, amount: e.amount, link: '/cashflow', type: 'Cashflow' }));
     trackedPayments.filter(p => p.title.toLowerCase().includes(q)).slice(0, 3).forEach(p => items.push({ emoji: '💳', title: p.title, sub: `Due ${p.dueDate}`, amount: p.amount, link: '/payments', type: 'Payment' }));
-    investments.filter(i => i.name.toLowerCase().includes(q) || (i.symbol ?? '').toLowerCase().includes(q)).slice(0, 3).forEach(i => items.push({ emoji: '📈', title: i.name, sub: i.type.replace('_', ' '), link: '/investments', type: 'Investment' }));
-    goals.filter(g => g.name.toLowerCase().includes(q)).slice(0, 3).forEach(g => items.push({ emoji: '🎯', title: g.name, sub: `Target ${formatINR(g.targetAmount)}`, link: '/goals', type: 'Goal' }));
-    liabilities.filter(l => l.name.toLowerCase().includes(q)).slice(0, 2).forEach(l => items.push({ emoji: '🏦', title: l.name, sub: `Outstanding ${formatINR(l.outstanding ?? 0)}`, link: '/liabilities', type: 'Liability' }));
+    investments.filter(i => i.name.toLowerCase().includes(q) || (i.symbol ?? '').toLowerCase().includes(q)).slice(0, 3).forEach(i => items.push({ emoji: '📈', title: i.name, sub: i.type.replace('_', ' '), link: '/wealth?tab=assets', type: 'Investment' }));
+    goals.filter(g => g.name.toLowerCase().includes(q)).slice(0, 3).forEach(g => items.push({ emoji: '🎯', title: g.name, sub: `Target ${formatINR(g.targetAmount)}`, link: '/essentials?tab=goals', type: 'Goal' }));
+    liabilities.filter(l => l.name.toLowerCase().includes(q)).slice(0, 2).forEach(l => items.push({ emoji: '🏦', title: l.name, sub: `Outstanding ${formatINR(l.outstanding ?? 0)}`, link: '/wealth?tab=liabilities', type: 'Liability' }));
     insurancePolicies.filter(p => p.policyName.toLowerCase().includes(q) || p.provider.toLowerCase().includes(q)).slice(0, 2).forEach(p => items.push({ emoji: '🛡️', title: p.policyName, sub: p.provider, link: '/insurance', type: 'Insurance' }));
     return items.slice(0, 10);
   }, [query, cashflows, trackedPayments, investments, goals, liabilities, insurancePolicies]);
@@ -76,7 +86,19 @@ export function SearchTab() {
 // ─── Today Brief Tab ──────────────────────────────────────────────────────────
 export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
   const nav = useNavigate();
-  const { cashflows, trackedPayments, accounts, investments, liabilities, goals, goalContributions, sipPlans } = usePortfolioStore();
+  const { cashflows, trackedPayments, accounts, investments, liabilities, pendingPayments, goals, goalContributions, sipPlans } = usePortfolioStore(
+    useShallow((s) => ({
+      cashflows: s.cashflows,
+      trackedPayments: s.trackedPayments,
+      accounts: s.accounts,
+      investments: s.investments,
+      liabilities: s.liabilities,
+      pendingPayments: s.pendingPayments,
+      goals: s.goals,
+      goalContributions: s.goalContributions,
+      sipPlans: s.sipPlans,
+    })),
+  );
   const anomalies = useFinancialAnomalies();
   const proactive = useProactiveInsights();
 
@@ -87,8 +109,8 @@ export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
   const income    = monthCF.filter(e => e.type === 'income').reduce((a, e) => a + e.amount, 0);
   const expense   = monthCF.filter(e => e.type === 'expense').reduce((a, e) => a + e.amount, 0);
   const savRate   = income > 0 ? Math.round(((income - expense) / income) * 100) : 0;
-  const { netWorth } = useMemo(() => calculateNetWorth(investments, liabilities), [investments, liabilities]);
-  const bankBal   = accounts.filter(a => a.type === 'bank').reduce((s, a) => s + (a.balance ?? 0), 0);
+  const { netWorth } = useMemo(() => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows), [investments, liabilities, pendingPayments, accounts, cashflows]);
+  const bankBal   = getLiveBankTotal(accounts, cashflows);
   const forecast  = useMemo(() => computeForecast(accounts, trackedPayments, liabilities, cashflows, sipPlans), [accounts, trackedPayments, liabilities, cashflows, sipPlans]);
   const overdue   = trackedPayments.filter(p => p.status === 'pending' && p.dueDate < today);
   const dueToday  = trackedPayments.filter(p => p.status === 'pending' && p.dueDate === today);
@@ -219,7 +241,7 @@ export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
         <div className='rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 overflow-hidden'>
           <div className='flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800'>
             <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>🎯 Goals</p>
-            <button type='button' onClick={() => nav('/goals')} className='text-[10px] font-bold text-violet-500 hover:underline flex items-center gap-0.5'>View all <FiChevronRight className='h-3 w-3' /></button>
+            <button type='button' onClick={() => nav('/essentials?tab=goals')} className='text-[10px] font-bold text-violet-500 hover:underline flex items-center gap-0.5'>View all <FiChevronRight className='h-3 w-3' /></button>
           </div>
           {goals.filter(g => !g.status || g.status === 'active').slice(0, 3).map(g => {
             const contrib = goalContributions.filter(c => c.goalId === g.id).reduce((a, c) => a + c.amount, 0);

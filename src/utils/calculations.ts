@@ -1,5 +1,7 @@
 import type {
+  Account,
   BondInvestment,
+  CashflowEntry,
   FixedDepositInvestment,
   Investment,
   InvestmentType,
@@ -514,6 +516,13 @@ export type NetWorthBreakdown = {
   receivablesTotal: number;
   receivablesPrincipal: number;
   receivablesInterest: number;
+  /** Liquid cash held in linked bank accounts — live balances
+   *  (opening ± linked cashflows). Part of totalAssets. */
+  liquidCash: number;
+  /** Cashflow Savings = Total Income − Total Expenses for entries NOT tied to
+   *  a tracked account (off-account cash). Linked entries already moved the
+   *  account's live balance, so counting them again would double-count. */
+  cashflowSavings: number;
 };
 
 /** Sum of money owed to you (pending, not yet received):
@@ -547,25 +556,88 @@ export function getReceivablesTotals(pendingPayments: PendingPayment[]): {
   return { total, principal, interest, count };
 }
 
-/** Net Worth = Total Assets − Total Liabilities.
- *  Assets = investments + money-owed-to-me (receivables).
+/** Live balance per account = openingBalance ± linked cashflows on/after the
+ *  opening-balance date. This is the app-wide canonical balance (same rule as
+ *  AccountsPage and the dashboard Liquid card) and self-heals when cashflows
+ *  are edited/deleted, unlike the stored `balance` field. */
+export function calcLiveAccountBalances(
+  accounts: Account[],
+  cashflows: CashflowEntry[],
+): Record<string, number> {
+  const balances: Record<string, number> = {};
+  for (const acc of accounts) {
+    balances[acc.id] = acc.openingBalance ?? acc.balance ?? 0;
+  }
+  for (const cf of cashflows || []) {
+    if (!cf.accountId) continue;
+    const acc = accounts.find((a) => a.id === cf.accountId);
+    if (!acc) continue;
+    // Only count cashflows on or after the account's opening balance date
+    const cutoff = acc.openingBalanceDate ?? '1900-01-01';
+    if (cf.date < cutoff) continue;
+    balances[acc.id] += cf.type === 'income' ? cf.amount : -cf.amount;
+  }
+  return balances;
+}
+
+/** Total live balance across all bank-type accounts (cash on hand). */
+export function getLiveBankTotal(
+  accounts: Account[],
+  cashflows: CashflowEntry[],
+): number {
+  const balances = calcLiveAccountBalances(accounts, cashflows);
+  return accounts
+    .filter((a) => a.type === 'bank')
+    .reduce((sum, a) => sum + (balances[a.id] ?? a.balance ?? 0), 0);
+}
+
+/** Cashflow Savings (Total Income − Total Expenses) for entries NOT linked to
+ *  a tracked account. Linked entries are already reflected in live account
+ *  balances, so including them here would double-count net worth. */
+export function getOffAccountCashflowNet(
+  cashflows: CashflowEntry[],
+  accounts: Account[],
+): number {
+  let net = 0;
+  for (const cf of cashflows || []) {
+    const linked = cf.accountId && accounts.some((a) => a.id === cf.accountId);
+    if (linked) continue;
+    net += cf.type === 'income' ? cf.amount : -cf.amount;
+  }
+  return net;
+}
+
+/** Net Worth = Total Assets − Total Liabilities + Cashflow Savings.
+ *  Total Assets  = live bank-account balances + investments + receivables.
+ *  Cashflow Savings = Total Income − Total Expenses (off-account entries;
+ *  account-linked entries already moved the live balances — no double count).
+ *
+ *  Example: Assets ₹1,00,000 · Liabilities ₹10,000 · off-account Income
+ *  ₹20,000 · Expense ₹10,000 · Bank balances ₹30,000
+ *  → Net Worth = 1,30,000 − 10,000 + 10,000 = ₹1,30,000 ✓
  */
 export function calculateNetWorth(
   investments: Investment[],
   liabilities: Liability[],
   pendingPayments?: PendingPayment[],
+  accounts?: Account[],
+  cashflows?: CashflowEntry[],
 ): NetWorthBreakdown {
   const { totalValue } = summarizePortfolio(investments);
   const totalLiabilities = getActiveLiabilitiesTotal(liabilities);
   const rec = getReceivablesTotals(pendingPayments ?? []);
-  const totalAssets = totalValue + rec.total;
+  const liquidCash = getLiveBankTotal(accounts ?? [], cashflows ?? []);
+  const cashflowSavings = getOffAccountCashflowNet(cashflows ?? [], accounts ?? []);
+  const totalAssets = liquidCash + totalValue + rec.total;
   return {
     totalAssets,
     totalLiabilities,
-    netWorth: totalAssets - totalLiabilities,
+    netWorth: totalAssets - totalLiabilities + cashflowSavings,
     receivablesTotal: rec.total,
     receivablesPrincipal: rec.principal,
     receivablesInterest: rec.interest,
+    liquidCash,
+    cashflowSavings,
   };
 }
 

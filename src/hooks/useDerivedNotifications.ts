@@ -32,6 +32,7 @@ import {
 } from 'date-fns';
 
 import { usePortfolioStore } from '../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useSubscriptionOptional } from '../context/SubscriptionContext';
 import type { NotifType, AppNotification } from '../store/notificationStore';
 import { daysUntilDue, buildPaymentReminderMessage } from '../utils/paymentTracker';
@@ -95,104 +96,28 @@ function makeNotif(
 }
 
 export function useDerivedNotifications(): AppNotification[] {
-  const portfolio = usePortfolioStore();
+  const portfolio = usePortfolioStore(
+    useShallow((s) => ({
+      liabilities: s.liabilities,
+      trackedPayments: s.trackedPayments,
+      pendingPayments: s.pendingPayments,
+      goals: s.goals,
+      goalContributions: s.goalContributions,
+      essentials: s.essentials,
+      investments: s.investments,
+      sipPlans: s.sipPlans,
+      credentials: s.credentials,
+      networthSnapshots: s.networthSnapshots,
+      cashflows: s.cashflows,
+      accounts: s.accounts,
+      insurancePolicies: s.insurancePolicies,
+    })),
+  );
   const subscription = useSubscriptionOptional();
 
   return useMemo(() => {
     const notifs: AppNotification[] = [];
     const t = today();
-
-    // ── Insurance renewals ──────────────────────────────────────────────────
-    portfolio.insurancePolicies?.forEach((p) => {
-      if (!p.renewalDate) return;
-      const days = differenceInDays(parseISO(p.renewalDate), t);
-      if (days < 0 && days >= -60) {
-        notifs.push(
-          makeNotif(
-            'insurance_expired',
-            `🚨 EXPIRED: ${p.policyName}`,
-            `${p.policyName} with ${p.provider} lapsed ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago on ${format(parseISO(p.renewalDate), 'dd MMM yyyy')}. Coverage: ${INR(p.coverageAmount)} — renew NOW to avoid lapse.`,
-            p.id,
-            'insurance',
-            {
-              dueDate: p.renewalDate,
-              expiresAt: new Date(t.getTime() - (days + 1) * 86_400_000).toISOString(),
-              severity: 'critical',
-              actionLabel: 'Renew Now',
-              actionPath: '/insurance',
-            },
-          ),
-        );
-      } else if (days === 0) {
-        notifs.push(
-          makeNotif(
-            'insurance_renewal',
-            '🔴 Insurance Renewal — TODAY',
-            `${p.policyName} (${p.provider}) expires TODAY. Premium ${INR(p.premiumAmount)}. Coverage ${INR(p.coverageAmount)}.`,
-            p.id,
-            'insurance',
-            {
-              dueDate: p.renewalDate,
-              expiresAt: endOfToday().toISOString(),
-              severity: 'high',
-              actionLabel: 'View Insurance',
-              actionPath: '/insurance',
-            },
-          ),
-        );
-      } else if (days === 1) {
-        notifs.push(
-          makeNotif(
-            'insurance_renewal',
-            '⏰ Renewal Tomorrow',
-            `${p.policyName} — premium ${INR(p.premiumAmount)} due tomorrow.`,
-            p.id,
-            'insurance',
-            {
-              dueDate: p.renewalDate,
-              expiresAt: new Date(t.getTime() + 2 * 86_400_000).toISOString(),
-              severity: 'high',
-              actionLabel: 'Insurance',
-              actionPath: '/insurance',
-            },
-          ),
-        );
-      } else if (days === 7) {
-        notifs.push(
-          makeNotif(
-            'insurance_renewal',
-            '🛡️ Insurance Due in 7 Days',
-            `${p.policyName} (${p.provider}) — ${INR(p.coverageAmount)} coverage renews in 7 days. Plan for ${INR(p.premiumAmount)}.`,
-            p.id,
-            'insurance',
-            {
-              dueDate: p.renewalDate,
-              expiresAt: new Date(t.getTime() + 8 * 86_400_000).toISOString(),
-              severity: 'medium',
-              actionLabel: 'Insurance',
-              actionPath: '/insurance',
-            },
-          ),
-        );
-      } else if (days === 30) {
-        notifs.push(
-          makeNotif(
-            'insurance_renewal',
-            '🛡️ Insurance Renewal Upcoming (30d)',
-            `${p.policyName} renews in 30 days. Expected premium: ${INR(p.premiumAmount)}.`,
-            p.id,
-            'insurance',
-            {
-              dueDate: p.renewalDate,
-              expiresAt: new Date(t.getTime() + 31 * 86_400_000).toISOString(),
-              severity: 'low',
-              actionLabel: 'Insurance',
-              actionPath: '/insurance',
-            },
-          ),
-        );
-      }
-    });
 
     // ── Liabilities ─────────────────────────────────────────────────────────
     portfolio.liabilities?.forEach((liab) => {
@@ -233,7 +158,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: endOfToday().toISOString(),
                 severity: 'high',
                 actionLabel: 'Liabilities',
-                actionPath: '/liabilities',
+                actionPath: '/wealth?tab=liabilities',
               },
             ),
           );
@@ -249,7 +174,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getTime() + 2 * 86_400_000).toISOString(),
                 severity: 'medium',
                 actionLabel: 'Liabilities',
-                actionPath: '/liabilities',
+                actionPath: '/wealth?tab=liabilities',
               },
             ),
           );
@@ -265,7 +190,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getTime() + 4 * 86_400_000).toISOString(),
                 severity: 'low',
                 actionLabel: 'Liabilities',
-                actionPath: '/liabilities',
+                actionPath: '/wealth?tab=liabilities',
               },
             ),
           );
@@ -287,7 +212,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: endOfToday().toISOString(),
                 severity: 'high',
                 actionLabel: 'Close Liability',
-                actionPath: '/liabilities',
+                actionPath: '/wealth?tab=liabilities',
               },
             ),
           );
@@ -304,7 +229,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getTime() + (days + 1) * 86_400_000).toISOString(),
                 severity: 'medium',
                 actionLabel: 'Liabilities',
-                actionPath: '/liabilities',
+                actionPath: '/wealth?tab=liabilities',
               },
             ),
           );
@@ -321,7 +246,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getTime() + (Math.abs(days) + 2) * 86_400_000).toISOString(),
                 severity: 'critical',
                 actionLabel: 'Pay Now',
-                actionPath: '/liabilities',
+                actionPath: '/wealth?tab=liabilities',
               },
             ),
           );
@@ -429,7 +354,7 @@ export function useDerivedNotifications(): AppNotification[] {
                     ? 'high'
                     : 'low',
             actionLabel: 'Money Owed To Me',
-            actionPath: '/liabilities?section=pending-payments',
+            actionPath: '/wealth?tab=liabilities&section=pending-payments',
           },
         ),
       );
@@ -452,7 +377,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
               severity: 'info',
               actionLabel: 'View Goal',
-              actionPath: '/goals',
+              actionPath: '/essentials?tab=goals',
             },
           ),
         );
@@ -476,7 +401,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
                 severity: s,
                 actionLabel: 'Goals',
-                actionPath: '/goals',
+                actionPath: '/essentials?tab=goals',
               },
             ),
           );
@@ -500,7 +425,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
                 severity: 'low',
                 actionLabel: 'Add Contribution',
-                actionPath: '/goals',
+                actionPath: '/essentials?tab=goals',
               },
             ),
           );
@@ -533,7 +458,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: pct < 15 ? 'critical' : 'medium',
               actionLabel: 'Top Up Now',
-              actionPath: efGoal ? '/goals' : '/reports',
+              actionPath: efGoal ? '/essentials?tab=goals' : '/reports',
             },
           ),
         );
@@ -559,7 +484,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
               severity: 'info',
               actionLabel: 'View Investment',
-              actionPath: '/investments',
+              actionPath: '/wealth?tab=assets',
             },
           ),
         );
@@ -576,7 +501,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getTime() + 8 * 86_400_000).toISOString(),
               severity: 'low',
               actionLabel: 'View Investment',
-              actionPath: '/investments',
+              actionPath: '/wealth?tab=assets',
             },
           ),
         );
@@ -593,7 +518,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getTime() + 31 * 86_400_000).toISOString(),
               severity: 'low',
               actionLabel: 'Investments',
-              actionPath: '/investments',
+              actionPath: '/wealth?tab=assets',
             },
           ),
         );
@@ -619,7 +544,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: 'low',
               actionLabel: 'Open SIP Plan',
-              actionPath: '/investments?tab=sip-plan',
+              actionPath: '/wealth?tab=allocation&sub=sip',
             },
           ),
         );
@@ -641,7 +566,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: totalPct > 100 ? 'high' : 'medium',
               actionLabel: 'Fix Allocation',
-              actionPath: '/investments?tab=sip-plan',
+              actionPath: '/wealth?tab=allocation&sub=sip',
             },
           ),
         );
@@ -705,7 +630,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: drop <= -0.2 ? 'critical' : 'high',
               actionLabel: 'View Insights',
-              actionPath: '/insights',
+              actionPath: '/cashflow?tab=insights',
             },
           ),
         );

@@ -1,9 +1,12 @@
 import type {
+  PaymentIncreaseFrequency,
   PaymentRecurrence,
   PaymentTrackerType,
   TrackedPayment,
 } from '../types/investmentTypes';
 import {
+  differenceInCalendarMonths,
+  differenceInCalendarYears,
   endOfMonth,
   isSameMonth,
   parseISO,
@@ -13,6 +16,23 @@ import {
   getDaysUntil,
   getNextRecurringDate,
 } from '../services/dateService';
+
+export const RECURRENCE_LABELS: Record<PaymentRecurrence, string> = {
+  none: 'One-time',
+  weekly: 'Weekly',
+  every_2_weeks: 'Every 2 weeks',
+  monthly: 'Monthly',
+  every_2_months: 'Every 2 months',
+  quarterly: 'Quarterly',
+  half_yearly: 'Half-yearly',
+  yearly: 'Yearly',
+};
+
+export const INCREASE_FREQUENCY_LABELS: Record<PaymentIncreaseFrequency, string> = {
+  recurrence: 'Every recurrence',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+};
 
 export const PAYMENT_TYPE_OPTIONS: {
   value: PaymentTrackerType;
@@ -117,5 +137,123 @@ export function nextDueDate(
   recurrence: PaymentRecurrence,
 ): string | null {
   return getNextRecurringDate(current, recurrence);
+}
+
+// ── Recurring series with end date + automatic amount increase ─────────────
+//
+// A series is anchored at its first bill: seriesStartDate + seriesBaseAmount.
+// Every generated occurrence carries seriesIndex (0-based) so the amount of
+// any occurrence is a pure function of the anchor — editing or deleting one
+// bill never rewrites history or drifts the escalation.
+
+export function computeSeriesAmount(args: {
+  baseAmount: number;
+  increaseAmount?: number;
+  increaseEvery?: PaymentIncreaseFrequency;
+  startDate: string;
+  date: string;
+  index: number;
+}): number {
+  const step = args.increaseAmount ?? 0;
+  if (step <= 0 || !args.increaseEvery) return args.baseAmount;
+  let steps: number;
+  if (args.increaseEvery === 'recurrence') {
+    steps = args.index;
+  } else {
+    const s = parseISO(args.startDate);
+    const d = parseISO(args.date);
+    steps =
+      args.increaseEvery === 'monthly'
+        ? differenceInCalendarMonths(d, s)
+        : differenceInCalendarYears(d, s);
+  }
+  steps = Math.max(0, steps);
+  return Math.round((args.baseAmount + step * steps) * 100) / 100;
+}
+
+/** Amount for the occurrence that follows `current` in its series. */
+export function nextSeriesAmount(
+  current: TrackedPayment,
+  nextDate: string,
+  nextIndex: number,
+): number {
+  return computeSeriesAmount({
+    baseAmount: current.seriesBaseAmount ?? current.amount,
+    increaseAmount: current.increaseAmount,
+    increaseEvery: current.increaseEvery,
+    startDate: current.seriesStartDate ?? current.dueDate,
+    date: nextDate,
+    index: nextIndex,
+  });
+}
+
+/** True when a recurrence may generate `date` (series end date respected). */
+export function withinSeriesEnd(endDate: string | undefined, date: string): boolean {
+  return !endDate || date <= endDate;
+}
+
+/** First `count` occurrences of a series (starting bill included) — used
+ *  for the live preview in the Add/Edit Payment dialog. */
+export function previewSeries(args: {
+  dueDate: string;
+  recurrence: PaymentRecurrence;
+  endDate?: string;
+  baseAmount: number;
+  increaseAmount?: number;
+  increaseEvery?: PaymentIncreaseFrequency;
+  count?: number;
+}): { date: string; amount: number }[] {
+  const out: { date: string; amount: number }[] = [];
+  const n = args.count ?? 4;
+  let date = args.dueDate;
+  let index = 0;
+  if (!withinSeriesEnd(args.endDate, date)) return out;
+  out.push({
+    date,
+    amount: computeSeriesAmount({
+      baseAmount: args.baseAmount,
+      increaseAmount: args.increaseAmount,
+      increaseEvery: args.increaseEvery,
+      startDate: args.dueDate,
+      date,
+      index,
+    }),
+  });
+  while (out.length < n) {
+    const next = getNextRecurringDate(date, args.recurrence);
+    if (!next || !withinSeriesEnd(args.endDate, next)) break;
+    index += 1;
+    out.push({
+      date: next,
+      amount: computeSeriesAmount({
+        baseAmount: args.baseAmount,
+        increaseAmount: args.increaseAmount,
+        increaseEvery: args.increaseEvery,
+        startDate: args.dueDate,
+        date: next,
+        index,
+      }),
+    });
+    date = next;
+  }
+  return out;
+}
+
+/** One-line summary of a recurring series for list rows. */
+export function seriesSummary(p: TrackedPayment): string | null {
+  if (!p.recurrence || p.recurrence === 'none') return null;
+  const parts = [RECURRENCE_LABELS[p.recurrence] ?? p.recurrence];
+  if (p.endDate) parts.push(`until ${p.endDate}`);
+  const step = p.increaseAmount ?? 0;
+  if (step > 0) {
+    const every =
+      p.increaseEvery === 'monthly'
+        ? 'month'
+        : p.increaseEvery === 'yearly'
+          ? 'year'
+          : 'cycle';
+    parts.push(`+₹${step.toLocaleString('en-IN')}/${every}`);
+  }
+  return parts.join(' · ');
 }
 

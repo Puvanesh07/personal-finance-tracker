@@ -1,5 +1,5 @@
-﻿/**
- * src/pages/AIAgent/AIAgentPage.tsx â€” Rewamped
+/**
+ * src/pages/AIAgent/AIAgentPage.tsx — Rewamped
  * Three tabs: Chat | Brief | Search
  * + AI Quick Add NLP bar, URL ?q= prefill from AskAIButton
  */
@@ -30,13 +30,13 @@ import type { AgentResponse } from '../../services/aiAgentResponseTypes';
 import { severityColor, severityBg } from '../../services/aiAgentResponseTypes';
 import { canIAfford, detectAffordabilityQuestion } from '../../utils/affordabilityEngine';
 import { parseNaturalLanguageTransaction } from '../../utils/smartCategorize';
-import { calculateNetWorth } from '../../utils/calculations';
+import { calculateNetWorth, getLiveBankTotal } from '../../utils/calculations';
 import { generateMonthlyPlan } from '../../utils/aiFinancialPlan';
 import { formatINR } from '../../utils/format';
 import { BriefTab, SearchTab } from './AICoachPanels';
 import { BulkAddPanel } from '../../components/ai/BulkAddPanel';
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = 'chat' | 'brief' | 'search';
 type MessageRole   = 'user' | 'assistant';
@@ -52,7 +52,7 @@ interface Message {
   loading?: boolean;
   /** Route to navigate after an action succeeds */
   actionLinkTo?: string;
-  /** Affordability engine result â€” renders AffordabilityCard */
+  /** Affordability engine result — renders AffordabilityCard */
   affordabilityResult?: import('../../utils/affordabilityEngine').AffordabilityResult;
 }
 
@@ -74,15 +74,15 @@ function fmtTime(d: Date) {
 
 const SCOPE_MESSAGE =
   "I'm FinTrackly's AI Coach. Here's what I can do:\n\n" +
-  '- **Add records** â€” "Add â‚¹2500 electricity bill for Sep 15"\n' +
-  '- **Update** â€” "Update TCS price to â‚¹3800"\n' +
-  '- **Delete** â€” "Delete my home loan"\n' +
-  '- **Your data** â€” "What is my net worth?" Â· "Show my investments"\n' +
-  '- **App help** â€” "How do I add a goal?"\n' +
-  '- **Finance education** â€” "What is SIP?" Â· "Explain XIRR"\n\n' +
-  'Try one of the quick actions below â†“';
+  '- **Add records** — "Add ₹2500 electricity bill for Sep 15"\n' +
+  '- **Update** — "Update TCS price to ₹3800"\n' +
+  '- **Delete** — "Delete my home loan"\n' +
+  '- **Your data** — "What is my net worth?" · "Show my investments"\n' +
+  '- **App help** — "How do I add a goal?"\n' +
+  '- **Finance education** — "What is SIP?" · "Explain XIRR"\n\n' +
+  'Try one of the quick actions below ↓';
 
-// â”€â”€â”€ Source badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Source badge ─────────────────────────────────────────────────────────────
 
 const SOURCE_CFG: Record<MessageSource, { label: string; cls: string }> = {
   groq:     { label: 'AI',           cls: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 border-violet-200/60 dark:border-violet-700/40' },
@@ -106,7 +106,7 @@ function SourceBadge({ source }: { source: MessageSource }) {
 
 
 
-// â”€â”€â”€ Structured response renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Structured response renderers ────────────────────────────────────────────
 // ─── Module quick-action pills ───────────────────────────────────────────────
 
 const MODULE_ACTIONS = [
@@ -308,7 +308,7 @@ function EmptyCard({ resp }: { resp: Extract<AgentResponse, { kind: 'empty' }> }
   );
 }
 
-// â”€â”€â”€ Action confirm card (standard + delete variant) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Action confirm card (standard + delete variant) ─────────────────────────
 
 function ActionConfirmCard({
   resp,
@@ -319,7 +319,7 @@ function ActionConfirmCard({
   onConfirm?: (payload: string) => void;
   onCancel?: () => void;
 }) {
-  // Detect delete action â€” use red destructive styling
+  // Detect delete action — use red destructive styling
   let payload: { kind?: string } = {};
   try { payload = JSON.parse(resp.actionPayload); } catch { /* */ }
   const isDelete = typeof payload.kind === 'string' && payload.kind.startsWith('delete_');
@@ -399,7 +399,7 @@ function ActionConfirmCard({
   );
 }
 
-// â”€â”€â”€ Affordability result card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Affordability result card ────────────────────────────────────────────────
 
 function AffordabilityCard({ result }: { result: import('../../utils/affordabilityEngine').AffordabilityResult }) {
   const borderColor =
@@ -445,7 +445,7 @@ function AffordabilityCard({ result }: { result: import('../../utils/affordabili
             <span className='text-xs font-semibold text-slate-500 dark:text-slate-400 w-28 shrink-0'>{d.label}</span>
             <div className='flex items-center gap-2 text-xs font-mono'>
               <span className='text-slate-700 dark:text-slate-300'>{d.before}</span>
-              <span className='text-slate-400'>â†’</span>
+              <span className='text-slate-400'>→</span>
               <span className={impactColor[d.impact] ?? 'text-slate-700 dark:text-slate-300'}>{d.after}</span>
             </div>
             {d.note && (
@@ -458,8 +458,8 @@ function AffordabilityCard({ result }: { result: import('../../utils/affordabili
       {result.recommendedBudget && (
         <div className='px-4 py-2.5 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800'>
           <p className='text-xs text-slate-600 dark:text-slate-400'>
-            ðŸ’¡ <strong>Recommended budget:</strong>{' '}
-            â‚¹{result.recommendedBudget.min.toLocaleString('en-IN')} â€“ â‚¹{result.recommendedBudget.max.toLocaleString('en-IN')}
+            💡 <strong>Recommended budget:</strong>{' '}
+            ₹{result.recommendedBudget.min.toLocaleString('en-IN')} – ₹{result.recommendedBudget.max.toLocaleString('en-IN')}
           </p>
         </div>
       )}
@@ -484,7 +484,7 @@ function StructuredRenderer({ resp, onConfirm, onCancel }: {
   }
 }
 
-// â”€â”€â”€ Markdown renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Markdown renderer ────────────────────────────────────────────────────────
 
 function MarkdownRenderer({ text }: { text: string }) {
   const lines = text.split('\n');
@@ -537,7 +537,7 @@ function inlineFmt(text: string): string {
     .replace(/`([^`]+)`/g,       '<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 py-0.5 font-mono text-[11px]">$1</code>');
 }
 
-// â”€â”€â”€ Thinking animation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Thinking animation ───────────────────────────────────────────────────────
 
 function ThinkingBubble() {
   return (
@@ -551,13 +551,13 @@ function ThinkingBubble() {
   );
 }
 
-// â”€â”€â”€ Proactive insight banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Proactive insight banner ─────────────────────────────────────────────────
 
-// â”€â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AIAgentPage() {
   const [searchParams]                      = useSearchParams();
-  const { ready }                           = usePortfolioStore();
+  const ready                               = usePortfolioStore((s) => s.ready);
   const suggestions                         = useContextualSuggestions();
 
   const [tab,             setTab]           = useState<Tab>('chat');
@@ -627,7 +627,7 @@ export default function AIAgentPage() {
     });
   }, []);
 
-  // â”€â”€ Send message â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Send message ────────────────────────────────────────────────────────
 
   const sendMessage = useCallback(async (rawQuestion: string) => {
     const question = enrichQuestion(rawQuestion.trim(), convCtx);
@@ -667,7 +667,7 @@ export default function AIAgentPage() {
         updateLastAssistant({ id: loadingId, textContent: planText, source: 'firebase', loading: false });
         return;
       }
-      // â”€â”€ Can I afford? â€” intercept before routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Can I afford? — intercept before routing ──────────────────────
       const affordAmount = detectAffordabilityQuestion(question);
       if (affordAmount !== null && affordAmount > 0) {
         const {
@@ -675,10 +675,10 @@ export default function AIAgentPage() {
           trackedPayments, goals, goalContributions, essentials,
         } = usePortfolioStore.getState();
 
-        const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities);
+        const { totalAssets, totalLiabilities } = calculateNetWorth(investments, liabilities, undefined, accounts, cashflows);
         void totalAssets; void totalLiabilities;
 
-        const totalCash        = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
+        const totalCash        = getLiveBankTotal(accounts, cashflows);
         const today            = new Date().toISOString().slice(0, 10);
         const in30             = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
         const upcomingBills    = trackedPayments
@@ -752,14 +752,14 @@ export default function AIAgentPage() {
 
       const route = routeQuestion(question);
 
-      // â”€â”€ Out of scope â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Out of scope ──────────────────────────────────────────────────
       if (route.type === 'OUT_OF_SCOPE') {
         updateLastAssistant({ id: loadingId, textContent: SCOPE_MESSAGE, source: 'scope', loading: false });
         setConvCtx({});
         return;
       }
 
-      // â”€â”€ Feature guide â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Feature guide ─────────────────────────────────────────────────
       if (route.type === 'FEATURE_GUIDE') {
         const guide = matchFeatureGuide(question);
         updateLastAssistant({
@@ -771,7 +771,7 @@ export default function AIAgentPage() {
         return;
       }
 
-      // â”€â”€ ACTION â€” parse, confirm, execute â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── ACTION — parse, confirm, execute ─────────────────────────────
       if (route.type === 'ACTION') {
         const parsed = parseAction(question);
 
@@ -789,13 +789,13 @@ export default function AIAgentPage() {
           return;
         }
 
-        // Clear the pending prefix â€” the action was successfully parsed
+        // Clear the pending prefix — the action was successfully parsed
         setConvCtx((prev) => ({ ...prev, pendingActionPrefix: undefined }));
 
         if (!parsed.action) {
           updateLastAssistant({
             id: loadingId,
-            textContent: "I understood you want to act on something, but couldn't parse the details.\n\nTry:\n- *\"Add â‚¹2500 electricity bill for Sep 15\"*\n- *\"I bought 10 TCS shares at â‚¹3200\"*\n- *\"Delete my home loan\"*",
+            textContent: "I understood you want to act on something, but couldn't parse the details.\n\nTry:\n- *\"Add ₹2500 electricity bill for Sep 15\"*\n- *\"I bought 10 TCS shares at ₹3200\"*\n- *\"Delete my home loan\"*",
             source: 'action', loading: false,
           });
           return;
@@ -803,7 +803,7 @@ export default function AIAgentPage() {
 
         const confirmCard: import('../../services/aiAgentResponseTypes').ActionConfirmResponse = {
           kind: 'action_confirm',
-          emoji: 'âœï¸',
+          emoji: '✏️',
           title: 'Confirm Action',
           summary: parsed.summary,
           assumptions: parsed.assumptions.length ? parsed.assumptions : undefined,
@@ -818,11 +818,11 @@ export default function AIAgentPage() {
         return;
       }
 
-      // â”€â”€ Personal data â€” store answer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Personal data — store answer ──────────────────────────────────
       if (route.type === 'PERSONAL_DATA') {
         if (!ready) {
           updateLastAssistant({
-            id: loadingId, textContent: 'â³ Your data is still loading. Please try again in a moment.',
+            id: loadingId, textContent: '⏳ Your data is still loading. Please try again in a moment.',
             source: 'firebase', loading: false,
           });
           return;
@@ -833,11 +833,11 @@ export default function AIAgentPage() {
         return;
       }
 
-      // â”€â”€ Personal + AI explanation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Personal + AI explanation ─────────────────────────────────────
       if (route.type === 'PERSONAL_EXPLAIN') {
         if (!ready) {
           updateLastAssistant({
-            id: loadingId, textContent: 'â³ Your data is still loading. Please try again in a moment.',
+            id: loadingId, textContent: '⏳ Your data is still loading. Please try again in a moment.',
             source: 'firebase', loading: false,
           });
           return;
@@ -849,7 +849,7 @@ export default function AIAgentPage() {
         return;
       }
 
-      // â”€â”€ General education â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── General education ─────────────────────────────────────────────
       const context = buildGeneralQuestionContext();
       const result  = await generateFinancialAI({ type: 'question', question, context });
       updateLastAssistant({ id: loadingId, textContent: result.text, source: 'groq', loading: false });
@@ -858,7 +858,7 @@ export default function AIAgentPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       updateLastAssistant({
-        id: loadingId, textContent: `âŒ ${msg.slice(0, 300)}`,
+        id: loadingId, textContent: `❌ ${msg.slice(0, 300)}`,
         source: 'scope', loading: false,
       });
       toast.error('Request failed. Please try again.');
@@ -868,7 +868,7 @@ export default function AIAgentPage() {
     }
   }, [loading, ready, convCtx, enrichQuestion, appendMessage, updateLastAssistant]);
 
-  // â”€â”€ Confirm action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Confirm action ──────────────────────────────────────────────────────
 
   const handleConfirmAction = useCallback(async (actionPayload: string) => {
     if (!actionPayload) return;
@@ -886,7 +886,7 @@ export default function AIAgentPage() {
         actionLinkTo: result.linkTo,
       });
     } catch {
-      updateLastAssistant({ id: execId, textContent: 'âŒ Action failed. Please try again.', source: 'scope', loading: false });
+      updateLastAssistant({ id: execId, textContent: '❌ Action failed. Please try again.', source: 'scope', loading: false });
     }
   }, [appendMessage, updateLastAssistant]);
 
@@ -902,19 +902,19 @@ export default function AIAgentPage() {
     setPendingActionId(null);
   }, [pendingActionId]);
 
-  // â”€â”€ Generate report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Generate report ─────────────────────────────────────────────────────
 
   const handleGenerateReport = useCallback(async () => {
     if (generatingReport || !ready) return;
     setGeneratingReport(true);
-    appendMessage({ id: genId(), role: 'user', textContent: 'ðŸ“Š Generate my complete financial report', source: 'firebase', timestamp: new Date() });
+    appendMessage({ id: genId(), role: 'user', textContent: '📊 Generate my complete financial report', source: 'firebase', timestamp: new Date() });
     const loadingId = genId();
     appendMessage({ id: loadingId, role: 'assistant', source: 'report', timestamp: new Date(), loading: true });
     try {
       const report = generateFullReport();
       updateLastAssistant({ id: loadingId, textContent: report, source: 'report', loading: false });
     } catch {
-      updateLastAssistant({ id: loadingId, textContent: 'âŒ Could not generate report.', source: 'scope', loading: false });
+      updateLastAssistant({ id: loadingId, textContent: '❌ Could not generate report.', source: 'scope', loading: false });
     } finally {
       setGeneratingReport(false);
     }

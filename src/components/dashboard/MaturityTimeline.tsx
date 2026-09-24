@@ -45,41 +45,41 @@ export function MaturityTimeline() {
         })
       }
     }
-    return list.sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)).slice(0, 8)
+    return list.sort((a, b) => a.maturityDate.localeCompare(b.maturityDate)).slice(0, 5)
   }, [investments])
 
   return (
     <Card 
       title={<div className="flex items-center gap-2"><FiClock className="text-amber-500"/> Maturity Timeline</div>} 
-      right={rows.length ? <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Next 8</span> : undefined}
+      right={rows.length ? <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Next 5</span> : undefined}
     >
       {rows.length === 0 ? (
-        <div className="flex h-full items-center justify-center rounded-xl bg-slate-50/50 p-6 text-sm font-medium text-slate-900 dark:text-slate-500 dark:bg-slate-800/30">
+        <div className="flex h-full items-center justify-center rounded-xl bg-slate-50/50 p-4 text-sm font-medium text-slate-600 dark:text-slate-300 dark:bg-slate-800/30">
           Add a bond or fixed deposit to track maturity dates.
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex max-h-[190px] flex-col gap-1.5 overflow-y-auto pr-0.5">
           {rows.map((r) => (
             <div
               key={r.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 transition-colors hover:bg-slate-50 dark:border-slate-800/50 dark:bg-slate-800/20 dark:hover:bg-slate-800/50"
+              className="flex items-center justify-between gap-2.5 rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2 transition-colors hover:bg-slate-50 dark:border-slate-800/50 dark:bg-slate-800/20 dark:hover:bg-slate-800/50"
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2.5">
-                  <span className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${r.type === 'FD' ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'}`}>
-                    {r.type}
-                  </span>
-                  <div className="truncate text-sm font-bold text-slate-900 dark:text-slate-50">{r.name}</div>
-                </div>
-                <div className="mt-1.5 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <span>Matures {formatISODateLabel(r.maturityDate)}</span>
-                  <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span className={r.daysLeft <= 30 && r.daysLeft >= 0 ? 'text-rose-500 font-bold' : ''}>
-                    {r.daysLeft >= 0 ? `${r.daysLeft} days left` : 'Matured'}
-                  </span>
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${r.type === 'FD' ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'}`}>
+                  {r.type}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-bold text-slate-900 dark:text-slate-50">{r.name}</div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                    <span>{formatISODateLabel(r.maturityDate)}</span>
+                    <span className="h-0.5 w-0.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                    <span className={r.daysLeft <= 30 && r.daysLeft >= 0 ? 'font-bold text-rose-500' : ''}>
+                      {r.daysLeft >= 0 ? `${r.daysLeft}d left` : 'Matured'}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="shrink-0 text-sm font-black tabular-nums text-slate-900 dark:text-slate-50">
+              <div className="shrink-0 text-xs font-black tabular-nums text-slate-900 dark:text-slate-50">
                 {formatINR(r.amount)}
               </div>
             </div>

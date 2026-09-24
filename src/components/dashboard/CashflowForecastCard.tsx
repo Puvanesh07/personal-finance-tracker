@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { FiArrowDown, FiArrowUp, FiTrendingUp, FiAlertTriangle, FiChevronRight } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { computeForecast } from '../../utils/cashflowForecast';
 import { formatINR } from '../../utils/format';
 
@@ -17,7 +18,16 @@ type Period = 7 | 30 | 90;
 
 export function CashflowForecastCard({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
-  const { accounts, trackedPayments, liabilities, cashflows, sipPlans } = usePortfolioStore();
+  const { accounts, trackedPayments, liabilities, cashflows, sipPlans } =
+    usePortfolioStore(
+      useShallow((s) => ({
+        accounts: s.accounts,
+        trackedPayments: s.trackedPayments,
+        liabilities: s.liabilities,
+        cashflows: s.cashflows,
+        sipPlans: s.sipPlans,
+      })),
+    );
   const [period, setPeriod] = useState<Period>(30);
 
   const forecast = useMemo(

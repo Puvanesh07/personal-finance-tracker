@@ -6,6 +6,7 @@ import type {
   Investment,
   Liability,
   PendingPayment,
+  Account,
 } from '../../types/investmentTypes';
 import { FiInfo, FiSave, FiZap } from 'react-icons/fi';
 import { formatINR, formatNumber } from '../../utils/format';
@@ -24,9 +25,11 @@ import { PassiveIncomeCard }        from './components/PassiveIncomeCard';
 import { HabitsCard }               from './components/HabitsCard';
 import {
   calculateNetWorth,
+  getLiveBankTotal,
   summarizePortfolio,
 } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 const DNA_COLOR_CLASSES: Record<string, { bar: string; text: string; bg: string; border: string }> = {
@@ -258,6 +261,7 @@ function calcHealthScore(
   cashflows: CashflowEntry[],
   essentials: EssentialsConfig,
   pendingPayments?: PendingPayment[],
+  accounts?: Account[],
 ) {
   const { totalValue } = summarizePortfolio(investments);
   const totalLiabilities = liabilities.reduce(
@@ -274,7 +278,8 @@ function calcHealthScore(
           return s + p.amount;
         }, 0)
     : 0;
-  const effectiveAssets = totalValue + recTotal;
+  const effectiveAssets =
+    totalValue + recTotal + getLiveBankTotal(accounts ?? [], cashflows);
 
   const hasAnyFinancialData = effectiveAssets > 0 || totalLiabilities > 0;
   const debtRatio = !hasAnyFinancialData
@@ -287,7 +292,8 @@ function calcHealthScore(
   const liquidInvestments = calcLiquidInvestments(investments);
   const emergencySaved = essentials.emergencyFundCurrent ?? 0;
   const emergencyTarget = essentials.emergencyFundTarget ?? 0;
-  const totalLiquid = liquidInvestments + emergencySaved;
+  const bankCash = getLiveBankTotal(accounts ?? [], cashflows);
+  const totalLiquid = liquidInvestments + emergencySaved + bankCash;
   const avgExpense = calcMonthlyAvg(cashflows, 'expense');
 
   let runway = 0;
@@ -579,26 +585,47 @@ function FireCard({
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function InsightsPage() {
+export default function InsightsPage({
+  embedded = false,
+  initialSubTab,
+}: {
+  embedded?: boolean;
+  initialSubTab?: 'overview' | 'dna';
+}) {
   const {
     investments,
     liabilities,
     pendingPayments,
     cashflows,
+    accounts,
     latestInsight,
     saveInsightSnapshot,
     ready,
     essentials,
-  } = usePortfolioStore();
+  } = usePortfolioStore(
+    useShallow((s) => ({
+      investments: s.investments,
+      liabilities: s.liabilities,
+      pendingPayments: s.pendingPayments,
+      cashflows: s.cashflows,
+      accounts: s.accounts,
+      latestInsight: s.latestInsight,
+      saveInsightSnapshot: s.saveInsightSnapshot,
+      ready: s.ready,
+      essentials: s.essentials,
+    })),
+  );
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'dna' ? 'dna' : 'overview';
+  const initialTab =
+    initialSubTab ?? (searchParams.get('tab') === 'dna' ? 'dna' : 'overview');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'dna'>(initialTab);
 
   useEffect(() => {
+    if (embedded) return;
     const tab = searchParams.get('tab') === 'dna' ? 'dna' : 'overview';
     setActiveTab(tab);
     const reset = () => {
@@ -608,10 +635,11 @@ export default function InsightsPage() {
     };
     reset();
     requestAnimationFrame(reset);
-  }, [searchParams]);
+  }, [searchParams, embedded]);
 
   function handleTabChange(tab: 'overview' | 'dna') {
     setActiveTab(tab);
+    if (embedded) return;
     if (tab === 'dna') {
       setSearchParams({ tab: 'dna' }, { replace: true });
     } else {
@@ -640,6 +668,8 @@ export default function InsightsPage() {
       investments,
       liabilities,
       pendingPayments,
+      accounts,
+      cashflows,
     );
     const totalValue = totalAssets;
     const health = calcHealthScore(
@@ -648,6 +678,7 @@ export default function InsightsPage() {
       cashflows,
       essentials,
       pendingPayments,
+      accounts,
     );
     const avgIncome = calcMonthlyAvg(cashflows, 'income');
     const avgExpense = calcMonthlyAvg(cashflows, 'expense');
@@ -698,7 +729,7 @@ export default function InsightsPage() {
       topSector: topSector?.[0] || '—',
       topSectorPct,
     };
-  }, [investments, liabilities, pendingPayments, cashflows, essentials, latestInsight]);
+  }, [investments, liabilities, pendingPayments, cashflows, accounts, essentials, latestInsight]);
 
   const { health, fire } = metrics;
   const healthLabel =
@@ -784,6 +815,7 @@ export default function InsightsPage() {
     <div className='flex flex-col gap-6 pb-10 max-w-5xl mx-auto'>
       {/* Header */}
       <header className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent p-5 border border-amber-500/20 shadow-sm'>
+        {!embedded && (
         <div className='flex items-center gap-4'>
           <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30'>
             <FiZap className='h-6 w-6' />
@@ -802,6 +834,7 @@ export default function InsightsPage() {
             </p>
           </div>
         </div>
+        )}
         <div className='flex items-center gap-3'>
           {/* Tabs */}
           <div className='inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-1 shadow-sm'>

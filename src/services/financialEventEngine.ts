@@ -68,7 +68,7 @@ export const financialEventEngine = new FinancialEventEngine();
 
 // ─── Core analysis functions called after every mutation ──────────────────────
 
-import type { CashflowEntry, Investment, Liability, TrackedPayment } from '../types/investmentTypes';
+import type { Account, CashflowEntry, Investment, Liability, PendingPayment, TrackedPayment } from '../types/investmentTypes';
 import { calculateNetWorth, currentValue, investedValue } from '../utils/calculations';
 import { computeSpendingVelocity } from '../utils/spendingVelocity';
 
@@ -81,6 +81,8 @@ export function analyseAfterTransaction(
   liabilities: Liability[],
   trackedPayments: TrackedPayment[],
   newEntry?: CashflowEntry,
+  accounts?: Account[],
+  pendingPayments?: PendingPayment[],
 ) {
   const now  = Date.now();
   const fmt  = (n: number) => '₹' + Math.round(Math.abs(n)).toLocaleString('en-IN');
@@ -101,7 +103,7 @@ export function analyseAfterTransaction(
         emoji: '⚠️',
         title: `"${newEntry.category}" budget exceeded`,
         body: `Spent ${fmt(catTotal)} of ${fmt(budget)} budget (${Math.round(pct)}%).`,
-        linkTo: '/budget',
+        linkTo: '/cashflow?tab=budget',
       });
     } else if (pct >= 80) {
       financialEventEngine.emit('alert', {
@@ -110,7 +112,7 @@ export function analyseAfterTransaction(
         emoji: '📊',
         title: `"${newEntry.category}" budget ${Math.round(pct)}% used`,
         body: `${fmt(budget - catTotal)} remaining this month.`,
-        linkTo: '/budget',
+        linkTo: '/cashflow?tab=budget',
       });
     }
   }
@@ -124,12 +126,12 @@ export function analyseAfterTransaction(
       emoji: '🔴',
       title: 'Spending critically above pace',
       body: velocity.message,
-      linkTo: '/insights',
+      linkTo: '/cashflow?tab=insights',
     });
   }
 
   // 3. Net worth change
-  const { netWorth } = calculateNetWorth(investments, liabilities);
+  const { netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   if (netWorth < 0) {
     financialEventEngine.emit('alert', {
       id: `negative_networth_${now}`,
@@ -137,7 +139,7 @@ export function analyseAfterTransaction(
       emoji: '🚨',
       title: 'Net worth is negative',
       body: `Your liabilities exceed your assets by ${fmt(Math.abs(netWorth))}.`,
-      linkTo: '/liabilities',
+      linkTo: '/wealth?tab=liabilities',
     });
   }
 
@@ -178,7 +180,7 @@ export function analyseAfterInvestment(investment: Investment) {
       emoji: '📈',
       title: `Investment added: ${investment.name}`,
       body: `Current value ₹${Math.round(val).toLocaleString('en-IN')}${pl > 0 ? ` (+₹${Math.round(pl).toLocaleString('en-IN')})` : ''}.`,
-      linkTo: '/investments',
+      linkTo: '/wealth?tab=assets',
     });
   }
 }

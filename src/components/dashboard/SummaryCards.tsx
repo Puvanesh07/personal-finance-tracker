@@ -5,10 +5,7 @@
 
 import { FiExternalLink } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
-import {
-  calculateNetWorth,
-  summarizePortfolio,
-} from '../../utils/calculations';
+import { calculateNetWorth } from '../../utils/calculations';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -21,6 +18,7 @@ function MetricCard({
   onClick,
   badge,
   navigateTo,
+  sub,
 }: {
   label: string;
   value: string;
@@ -29,6 +27,7 @@ function MetricCard({
   onClick?: () => void;
   badge?: string;
   navigateTo?: string;
+  sub?: string;
 }) {
   const navigate = useNavigate();
 
@@ -89,6 +88,19 @@ function MetricCard({
       >
         {value}
       </div>
+      {sub && (
+        <div
+          className={`mt-1 text-[11px] font-medium ${
+            variant === 'primary'
+              ? 'text-emerald-50/90'
+              : variant === 'danger'
+                ? 'text-rose-50/90'
+                : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
@@ -97,114 +109,68 @@ export function SummaryCards() {
   const investments = usePortfolioStore((s) => s.investments);
   const liabilities = usePortfolioStore((s) => s.liabilities);
   const pendingPayments = usePortfolioStore((s) => s.pendingPayments);
-  const networthSnapshots = usePortfolioStore((s) => s.networthSnapshots);
-  const soldTrades = usePortfolioStore((s) => s.soldTrades);
+  const accounts = usePortfolioStore((s) => s.accounts);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
+  const essentials = usePortfolioStore((s) => s.essentials);
 
-  const summary = useMemo(() => summarizePortfolio(investments), [investments]);
-  const { totalAssets, totalLiabilities, netWorth, receivablesTotal, receivablesInterest } = useMemo(
-    () => calculateNetWorth(investments, liabilities, pendingPayments),
-    [investments, liabilities, pendingPayments],
+  // Net Worth = Total Assets − Total Liabilities + Cashflow Savings
+  // (assets include live bank-account balances; savings = off-account cashflow net)
+  const { totalAssets, totalLiabilities, netWorth, cashflowSavings } = useMemo(
+    () => calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows),
+    [investments, liabilities, pendingPayments, accounts, cashflows],
   );
-  const isProfit = summary.profitLossTotal >= 0;
 
-  const realizedProfit = useMemo(
-    () => soldTrades.reduce((acc, t) => acc + t.profit, 0),
-    [soldTrades],
-  );
-  const isRealizedProfit = realizedProfit >= 0;
+  // ── Monthly Cash Flow (stock vs flow): Net Worth stays a point-in-time
+  //    snapshot; cash flow is shown alongside + as next-month projection. ──
+  const cashflow = useMemo(() => {
+    const ym = new Date().toISOString().slice(0, 7);
+    const thisMonth = cashflows.filter((c) => (c.date ?? '').startsWith(ym));
+    let income = thisMonth
+      .filter((c) => c.type === 'income')
+      .reduce((s, c) => s + c.amount, 0);
+    let expense = thisMonth
+      .filter((c) => c.type === 'expense')
+      .reduce((s, c) => s + c.amount, 0);
+    // No activity logged this month → fall back to the Financial Profile
+    if (income === 0 && expense === 0) {
+      income = essentials?.monthlyIncome ?? 0;
+      expense = essentials?.monthlyExpense ?? 0;
+      return { income, expense, net: income - expense, fromProfile: income > 0 || expense > 0 };
+    }
+    return { income, expense, net: income - expense, fromProfile: false };
+  }, [cashflows, essentials]);
 
   return (
     <div className='flex flex-col gap-6'>
-      {/* Top Level Metrics (Hero Cards) */}
-      <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
+      {/* Top Level Metrics (Hero Cards) — kept minimal per dashboard cleanup */}
+      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
         <MetricCard
           label='Total Assets'
           value={formatINR(totalAssets)}
-          navigateTo='/investments'
+          navigateTo='/wealth?tab=assets'
+          sub='Investments + bank balances + receivables'
         />
         <MetricCard
           label='Total Liabilities'
           value={formatINR(totalLiabilities)}
           variant={totalLiabilities > 0 ? 'danger' : 'default'}
-          navigateTo='/liabilities'
+          navigateTo='/wealth?tab=liabilities'
         />
         <MetricCard
           label='Net Worth'
           value={formatINR(netWorth)}
           variant='primary'
-          navigateTo='/snapshots'
-          badge='Assets − Liabilities'
+          navigateTo='/wealth?tab=networth'
+          badge='incl. cashflow savings'
+          sub={`Assets − Liabilities${cashflowSavings !== 0 ? ` + ${formatINR(cashflowSavings)} savings` : ''} · projected next month ${formatINR(netWorth + cashflow.net)}`}
         />
         <MetricCard
-          label='Snapshots Taken'
-          value={String(networthSnapshots.length)}
-          navigateTo='/snapshots'
-        />
-      </div>
-
-      {/* Secondary Metrics Grid */}
-      <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
-        <MetricCard
-          label='Stocks Value'
-          value={formatINR(summary.byType.stock.current)}
-          navigateTo='/investments'
-        />
-        <MetricCard
-          label='Mutual Funds'
-          value={formatINR(summary.byType.mutual_fund.current)}
-          navigateTo='/investments'
-        />
-        <MetricCard
-          label='Bonds Investment'
-          value={formatINR(summary.byType.bond.invested)}
-          navigateTo='/investments'
-        />
-        <MetricCard
-          label='Fixed Deposits'
-          value={formatINR(summary.byType.fixed_deposit.current)}
-          navigateTo='/investments'
-        />
-
-        <MetricCard
-          label='Invested Total'
-          value={formatINR(summary.investedTotal)}
-          navigateTo='/investments'
-        />
-        <MetricCard
-          label='Unrealized P&L'
-          value={`${isProfit ? '+' : ''}${formatINR(summary.profitLossTotal)}`}
-          trend={isProfit ? 'up' : 'down'}
-          navigateTo='/investments'
-        />
-        <MetricCard
-          label='Realized Profit'
-          value={`${isRealizedProfit ? '+' : ''}${formatINR(realizedProfit)}`}
-          trend={
-            soldTrades.length === 0
-              ? 'neutral'
-              : isRealizedProfit
-                ? 'up'
-                : 'down'
-          }
-          navigateTo='/investments'
-          badge={
-            soldTrades.length > 0 ? `${soldTrades.length} trades` : undefined
-          }
-        />
-        <MetricCard
-          label='Expected Interest'
-          value={formatINR(summary.expectedInterest.total)}
-          navigateTo='/investments'
-        />
-        <MetricCard
-          label='Money Owed To Me'
-          value={formatINR(receivablesTotal)}
-          navigateTo='/liabilities?section=pending_payments'
-          badge={
-            receivablesInterest > 0
-              ? `+${formatINR(receivablesInterest)} interest`
-              : undefined
-          }
+          label='Monthly Cash Flow'
+          value={`${cashflow.net >= 0 ? '+' : '−'}${formatINR(Math.abs(cashflow.net))}`}
+          trend={cashflow.net > 0 ? 'up' : cashflow.net < 0 ? 'down' : 'neutral'}
+          navigateTo='/cashflow'
+          badge={cashflow.fromProfile ? 'from profile' : 'this month'}
+          sub={`${formatINR(cashflow.income)} in · ${formatINR(cashflow.expense)} out`}
         />
       </div>
     </div>

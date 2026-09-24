@@ -1,10 +1,17 @@
 import { useMemo } from 'react';
 import { usePortfolioStore } from '../../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { computePassiveIncome } from '../../../utils/passiveIncome';
 import { formatINR, formatNumber } from '../../../utils/format';
 
 export function PassiveIncomeCard() {
-  const { cashflows, investments, essentials } = usePortfolioStore();
+  const { cashflows, investments, essentials } = usePortfolioStore(
+    useShallow((s) => ({
+      cashflows: s.cashflows,
+      investments: s.investments,
+      essentials: s.essentials,
+    })),
+  );
 
   const avgMonthlyExpense = useMemo(() => {
     const exp    = cashflows.filter(e => e.type === 'expense');

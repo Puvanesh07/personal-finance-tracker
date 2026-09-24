@@ -89,7 +89,7 @@ function HoldingCard({ inv }: { inv: Investment }) {
       {/* P&L */}
       {iv > 0 && (
         <p
-          className={`text-xs font-semibold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}
+          className={`text-xs font-semibold ${isProfit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
         >
           {isProfit ? '+' : ''}
           {formatShort(pl)}{' '}
@@ -130,7 +130,7 @@ function InsightRow({
   return (
     <div className='flex items-start gap-3 py-3 border-b border-slate-200/70 dark:border-slate-800/60 last:border-0'>
       {icon}
-      <p className='text-sm text-slate-600 dark:text-slate-700 dark:text-slate-300 flex-1 leading-snug'>{title}</p>
+      <p className='flex-1 text-sm leading-snug text-slate-700 dark:text-slate-200'>{title}</p>
       {action && onAction && (
         <button
           onClick={onAction}
@@ -182,7 +182,7 @@ export function DashboardTopHoldingsInsights() {
         severity: 'tip',
         title: 'Add your first investment to see portfolio insights.',
         action: 'Add investment',
-        route: '/investments',
+        route: '/wealth?tab=assets',
       });
       return result;
     }
@@ -207,7 +207,7 @@ export function DashboardTopHoldingsInsights() {
         severity: 'warning',
         title: `${fdBondPct.toFixed(0)}% in Debt — consider diversifying into equity for better long-term returns.`,
         action: 'View allocation',
-        route: '/investments',
+        route: '/wealth?tab=assets',
       });
     }
     if (equityPct > 80) {
@@ -215,7 +215,7 @@ export function DashboardTopHoldingsInsights() {
         severity: 'warning',
         title: `Heavy equity tilt at ${equityPct.toFixed(0)}%. Adding debt instruments reduces downside risk.`,
         action: 'View allocation',
-        route: '/investments',
+        route: '/wealth?tab=assets',
       });
     }
 
@@ -227,7 +227,7 @@ export function DashboardTopHoldingsInsights() {
           severity: 'warning',
           title: `Liabilities are ${(ratio * 100).toFixed(0)}% of your assets. Focus on debt repayment.`,
           action: 'View liabilities',
-          route: '/liabilities',
+          route: '/wealth?tab=liabilities',
         });
       }
     }
@@ -289,7 +289,7 @@ export function DashboardTopHoldingsInsights() {
         severity: 'tip',
         title: `Equity at ${equityPct.toFixed(0)}%. Adding Stocks or MFs can boost long-term returns.`,
         action: 'Add investment',
-        route: '/investments',
+        route: '/wealth?tab=assets',
       });
     }
 
@@ -306,7 +306,7 @@ export function DashboardTopHoldingsInsights() {
             Top Holdings
           </h2>
           <button
-            onClick={() => navigate('/investments')}
+            onClick={() => navigate('/wealth?tab=assets')}
             className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-800'
           >
             View all <FiArrowUpRight className='h-3.5 w-3.5' />
@@ -331,12 +331,12 @@ export function DashboardTopHoldingsInsights() {
 
         {topHoldings.length === 0 ? (
           <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
-            <FiTrendingUp className='h-8 w-8 text-slate-500 dark:text-slate-600 mb-2' />
-            <p className='text-sm text-slate-900 dark:text-slate-500'>
+            <FiTrendingUp className='mb-2 h-8 w-8 text-slate-400 dark:text-slate-600' />
+            <p className='text-sm font-medium text-slate-600 dark:text-slate-300'>
               No holdings found for this filter.
             </p>
             <button
-              onClick={() => navigate('/investments')}
+              onClick={() => navigate('/wealth?tab=assets')}
               className='mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
             >
               Add your first investment →
@@ -359,7 +359,7 @@ export function DashboardTopHoldingsInsights() {
             Insights
           </h2>
           <button
-            onClick={() => navigate('/insights')}
+            onClick={() => navigate('/cashflow?tab=insights')}
             className='flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-amber-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:hover:bg-slate-800'
           >
             Full analysis <FiArrowUpRight className='h-3.5 w-3.5' />
@@ -369,8 +369,8 @@ export function DashboardTopHoldingsInsights() {
         <div className='flex flex-col'>
           {insights.length === 0 ? (
             <div className='flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
-              <FiZap className='h-8 w-8 text-slate-500 dark:text-slate-600 mb-2' />
-              <p className='text-sm text-slate-900 dark:text-slate-500'>
+              <FiZap className='mb-2 h-8 w-8 text-slate-400 dark:text-slate-600' />
+              <p className='text-sm font-medium text-slate-600 dark:text-slate-300'>
                 No insights yet. Add data to get started.
               </p>
             </div>

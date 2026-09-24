@@ -375,6 +375,8 @@ function buildCSVAttachments(allData) {
           'Due Date': p.dueDate,
           Status: p.status,
           Recurrence: p.recurrence,
+          'End Date': p.endDate ?? '',
+          'Auto Increase': p.increaseAmount ? `${p.increaseAmount}/${p.increaseEvery ?? 'recurrence'}` : '',
           Notes: p.notes ?? '',
         })),
       ),
@@ -794,6 +796,29 @@ async function buildReportAndData(uid) {
       return (i.quantity || 0) * (i.currentPrice || i.buyPrice || 0);
     if (i.type === 'mutual_fund') return (i.units || 0) * (i.nav || 0);
     if (i.type === 'other') return i.currentValue || i.investedAmount || 0;
+    if (i.type === 'bond' || i.type === 'fixed_deposit') {
+      // Prorated accrued interest as of today — mirrors accruedInterestForBond /
+      // accruedInterestForFD in src/utils/calculations.ts so the report's
+      // investment value (and net worth) match the app exactly.
+      const totalInterest =
+        ((i.investedAmount || 0) * ((i.interestRate || 0) / 100) *
+          (i.durationMonths || 0)) / 12;
+      if (totalInterest <= 0) return i.investedAmount || 0;
+      const totalDays = (i.durationMonths || 0) * 30.4375; // avg days/month
+      if (totalDays <= 0) return (i.investedAmount || 0) + totalInterest;
+      const start = i.startDate ? new Date(i.startDate) : null;
+      if (!start || Number.isNaN(start.getTime()))
+        return (i.investedAmount || 0) + totalInterest;
+      const elapsedDays = Math.max(
+        0,
+        (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const accrued = Math.min(
+        totalInterest,
+        totalInterest * (elapsedDays / totalDays),
+      );
+      return (i.investedAmount || 0) + accrued;
+    }
     return i.investedAmount || 0;
   };
   const totalInvested = investments.reduce((s, i) => s + calcInvested(i), 0);
@@ -849,8 +874,59 @@ async function buildReportAndData(uid) {
     );
     netWorth = sortedNw[sortedNw.length - 1]?.netWorth || 0;
   } else {
+    // Mirror the app's canonical formula (calculateNetWorth in
+    // src/utils/calculations.ts):
+    //   Net Worth = (live bank balances + investments + receivables)
+    //               − active liabilities + off-account cashflow savings
+    // Live bank balance = openingBalance ± linked cashflows on/after the
+    // opening-balance date (self-heals when cashflows are edited/deleted,
+    // unlike the stored `balance` field).
+    const liveBalances = {};
+    for (const a of accounts) {
+      liveBalances[a.id] = a.openingBalance ?? a.balance ?? 0;
+    }
+    for (const cf of cashflows) {
+      if (!cf.accountId || !liveBalances.hasOwnProperty(cf.accountId)) continue;
+      const acc = accounts.find((a) => a.id === cf.accountId);
+      const cutoff = (acc && acc.openingBalanceDate) || '1900-01-01';
+      if ((cf.date || '') < cutoff) continue;
+      liveBalances[cf.accountId] +=
+        cf.type === 'income' ? cf.amount || 0 : -(cf.amount || 0);
+    }
+    const liveBankTotal = accounts
+      .filter((a) => a.type === 'bank')
+      .reduce((s, a) => s + (liveBalances[a.id] ?? a.balance ?? 0), 0);
+
+    // Receivables: loans → principal + accrued interest, others → amount
+    let receivablesTotal = 0;
+    for (const p of pendingPayments) {
+      if (p.status === 'received') continue;
+      receivablesTotal +=
+        p.isLoan && p.principal != null
+          ? (p.principal || 0) + (p.interestAccruedToDate || 0)
+          : p.amount || 0;
+    }
+
+    // Off-account cashflow savings (linked entries already moved live balances)
+    let cashflowSavings = 0;
+    for (const cf of cashflows) {
+      const linked =
+        cf.accountId && accounts.some((a) => a.id === cf.accountId);
+      if (linked) continue;
+      cashflowSavings += cf.type === 'income' ? cf.amount || 0 : -(cf.amount || 0);
+    }
+
+    const activeLiabOut = liabilities
+      .filter((l) => l.status !== 'returned' && l.status !== 'paid')
+      .reduce((s, l) => s + (l.outstanding || 0), 0);
+
     netWorth =
-      totalAccountBal + totalCurrent + lendingOutstanding - totalLiabOut;
+      liveBankTotal +
+      totalCurrent +
+      receivablesTotal +
+      lendingOutstanding -
+      activeLiabOut +
+      cashflowSavings;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

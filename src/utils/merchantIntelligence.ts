@@ -1,6 +1,6 @@
-﻿/**
+/**
  * src/utils/merchantIntelligence.ts
- * Merchant Intelligence â€” Tier 2.
+ * Merchant Intelligence — Tier 2.
  * Groups cashflow expenses by category, computes monthly + annual totals,
  * detects subscriptions and recurring merchants.
  */
@@ -21,17 +21,17 @@ export interface MerchantStat {
 }
 
 const EMOJI_MAP: Record<string, string> = {
-  'Food & Dining': 'ðŸ½ï¸', 'Groceries': 'ðŸ›’', 'Transport': 'ðŸš—', 'Petrol': 'â›½',
-  'Healthcare': 'ðŸ¥', 'Education': 'ðŸ“š', 'Entertainment': 'ðŸŽ¬', 'Shopping': 'ðŸ›ï¸',
-  'Subscriptions': 'ðŸ“±', 'Utilities': 'ðŸ’¡', 'Insurance': 'ðŸ›¡ï¸', 'EMI & Loans': 'ðŸ¦',
-  'Travel & Vacations': 'âœˆï¸', 'Personal Care': 'ðŸ’†', 'Housing & Rent': 'ðŸ ', 'Rent': 'ðŸ˜ï¸',
-  'Dining': 'ðŸœ', 'Investment': 'ðŸ“ˆ', 'Credit Card Payment': 'ðŸ’³',
-  'Taxes': 'ðŸ§¾', 'Cash Withdrawal': 'ðŸ’µ', 'Transfers & Remittance': 'ðŸ’¸',
-  'Childcare': 'ðŸ‘¶', 'Other Expense': 'ðŸ“¦',
+  'Food & Dining': '🍽️', 'Groceries': '🛒', 'Transport': '🚗', 'Petrol': '⛽',
+  'Healthcare': '🏥', 'Education': '📚', 'Entertainment': '🎬', 'Shopping': '🛍️',
+  'Subscriptions': '📱', 'Utilities': '💡', 'Insurance': '🛡️', 'EMI & Loans': '🏦',
+  'Travel & Vacations': '✈️', 'Personal Care': '💆', 'Housing & Rent': '🏠', 'Rent': '🏘️',
+  'Dining': '🍜', 'Investment': '📈', 'Credit Card Payment': '💳',
+  'Taxes': '🧾', 'Cash Withdrawal': '💵', 'Transfers & Remittance': '💸',
+  'Childcare': '👶', 'Other Expense': '📦',
 };
 
 function emojiFor(cat: string): string {
-  return EMOJI_MAP[cat] ?? 'ðŸ·ï¸';
+  return EMOJI_MAP[cat] ?? '🏷️';
 }
 
 export function computeMerchantIntelligence(cashflows: CashflowEntry[]): {

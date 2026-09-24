@@ -10,6 +10,8 @@
  */
 
 import type { TrackedPayment, Liability, CashflowEntry, Account } from '../types/investmentTypes';
+import { getLiveBankTotal } from './calculations';
+import { computeSeriesAmount } from './paymentTracker';
 
 export interface ForecastEvent {
   date: string;             // YYYY-MM-DD
@@ -110,13 +112,26 @@ function buildEvents(
 
       let d = new Date(p.dueDate);
       const maxIterations = 400; // safety cap
+      let idx = 0; // series index (0 = starting bill, already pushed above)
+      const seriesStart = p.seriesStartDate ?? p.dueDate;
+      const baseAmount = p.seriesBaseAmount ?? p.amount;
       for (let i = 0; i < maxIterations; i++) {
         d = addInterval(d);
         const iso = d.toISOString().slice(0, 10);
         if (iso > end) break;
+        if (p.endDate && iso > p.endDate) break; // series end date — stop generating
+        idx += 1;
         if (iso >= start) {
           events.push({
-            date: iso, label: p.title, amount: p.amount,
+            date: iso, label: p.title,
+            amount: computeSeriesAmount({
+              baseAmount,
+              increaseAmount: p.increaseAmount,
+              increaseEvery: p.increaseEvery,
+              startDate: seriesStart,
+              date: iso,
+              index: idx,
+            }),
             direction: 'out', category: 'payment', isPast: iso < todayStr,
           });
         }
@@ -224,9 +239,7 @@ export function computeForecast(
   sipPlans:        any[],
   lowBalanceThreshold = 20_000,
 ): ForecastResult {
-  const currentCash = accounts
-    .filter((a) => a.type === 'bank')
-    .reduce((s, a) => s + (a.balance ?? 0), 0);
+  const currentCash = getLiveBankTotal(accounts, cashflows);
 
   const avgInc  = avgMonthlyIncome(cashflows);
   const allEvts = buildEvents(90, trackedPayments, liabilities, sipPlans, avgInc);

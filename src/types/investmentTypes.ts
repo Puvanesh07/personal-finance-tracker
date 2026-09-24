@@ -221,6 +221,12 @@ export type InsurancePayment = {
 export type EssentialsConfig = {
   emergencyFundTarget?: number;
   emergencyFundCurrent?: number;
+  // ── Financial Profile (single source of truth, edited on Essentials tab) ──
+  // monthlySavings is always derived: monthlyIncome − monthlyExpense.
+  age?: number;
+  monthlyIncome?: number;
+  monthlyExpense?: number;
+  dependents?: number;
 };
 
 // ── Snapshots ──────────────────────────────────────────────────────────────
@@ -273,7 +279,16 @@ export type NetWorthSnapshot = {
 };
 
 // ── Liabilities ────────────────────────────────────────────────────────────
-export type LiabilityType = 'loan' | 'credit_card' | 'other';
+export type LiabilityType =
+  | 'loan'
+  | 'home_loan'
+  | 'vehicle_loan'
+  | 'education_loan'
+  | 'credit_card'
+  | 'gold_loan'
+  | 'business_loan'
+  | 'other'
+  | 'misc';
 export type LiabilityStatus = 'active' | 'paid' | 'paused' | 'returned';
 
 export type Liability = {
@@ -287,6 +302,10 @@ export type Liability = {
   endDate?: string;
   emiAmount?: number;
   emiDay?: number;
+  /** Date of the first EMI — when it fell more than a month after startDate. */
+  firstEmiDate?: string;
+  /** Display currency (default INR). */
+  currency?: string;
   status?: LiabilityStatus;
   returnedAt?: string;
   createdAt: string;
@@ -349,6 +368,8 @@ export type PaymentRecurrence =
   | 'half_yearly'
   | 'yearly';
 
+export type PaymentIncreaseFrequency = 'recurrence' | 'monthly' | 'yearly';
+
 export type TrackedPayment = {
   id: string;
   title: string;
@@ -359,6 +380,21 @@ export type TrackedPayment = {
   paidAt?: ISODateString;
   reminderDays: number[];
   recurrence: PaymentRecurrence;
+  /** Recurring series stops after this date (no further bills generated). */
+  endDate?: ISODateString;
+  /** ₹ added to the bill amount per increase step (0/undefined = fixed). */
+  increaseAmount?: number;
+  /** How the increase steps are counted. */
+  increaseEvery?: PaymentIncreaseFrequency;
+  /** Due date of the first bill in the series (amount-escalation anchor). */
+  seriesStartDate?: ISODateString;
+  /** 0-based occurrence number inside the series. */
+  seriesIndex?: number;
+  /** Starting amount of the series (escalation base). */
+  seriesBaseAmount?: number;
+  /** When set, this bill was auto-generated from an Insurance policy and
+   *  stays synced with it (Insurance is the source of truth). */
+  insurancePolicyId?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -413,6 +449,15 @@ export type Goal = {
   dueDate?: ISODateString;
   status?: GoalStatus;
   completedAt?: ISODateString;
+  /** Optional planner metadata (Inflation Calculator / form extras). */
+  notes?: string;
+  trackProgressBy?: 'net_worth' | 'investments' | 'cash';
+  template?: string;
+  todayValue?: number;
+  inflationPct?: number;
+  years?: number;
+  /** Investment ids whose live value auto-counts toward this goal. */
+  linkedAssetIds?: string[];
   createdAt: string;
   updatedAt: string;
   userId?: string;

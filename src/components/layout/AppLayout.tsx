@@ -99,7 +99,7 @@ export function AppLayout() {
     onOpenPalette: () => setPaletteOpen(true),
     onOpenShortcuts: () => setShortcutsOpen(true),
     onFocusInvestmentsSearch: focusInvestmentsSearch,
-    investmentsPath: '/investments',
+    investmentsPath: '/wealth',
     currentPath: location.pathname,
   });
 

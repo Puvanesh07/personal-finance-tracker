@@ -3,9 +3,9 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { FiTarget, FiAward, FiMinusCircle, FiAlertCircle, FiTrendingUp, FiActivity } from 'react-icons/fi'
 import { usePortfolioStore } from '../../store/portfolioStore'
-import { summarizePortfolio } from '../../utils/calculations'
+import { useShallow } from 'zustand/react/shallow'
+import { calculateNetWorth, summarizePortfolio } from '../../utils/calculations'
 import { formatINR, formatCurrency } from '../../utils/format'
-import type { Liability } from '../../types/investmentTypes'
 import { CardShell, InputField, ResultRow, ResultBtn } from '../Calculator/SIPCalculator'
 
 // ─── 1. Goal Planner ─────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export function GoalPlanner() {
 // FIXED: reads actual monthly expenses from cashflows — not hardcoded
 // FIXED: shows required monthly SIP to build that corpus, not just corpus needed
 export function RetirementPlanner() {
-  const { cashflows } = usePortfolioStore()
+  const cashflows = usePortfolioStore((s) => s.cashflows)
   const [currentAge, setCurrentAge] = useState(30)
   const [retireAge, setRetireAge] = useState(60)
   const [returnRate, setReturnRate] = useState(10)
@@ -111,10 +111,19 @@ export function RetirementPlanner() {
 // FIXED: original used hardcoded ₹2.5Cr target — now calculated from actual expenses
 // FIXED: now computes actual years to reach target using monthly simulation
 export function FIRECalculator() {
-  const { investments, liabilities, cashflows } = usePortfolioStore()
-  const { totalValue } = summarizePortfolio(investments)
-  const totalDebt = liabilities.reduce((acc: number, l: Liability) => acc + (l.outstanding || 0), 0)
-  const netWorth = totalValue - totalDebt
+  const { investments, liabilities, cashflows, accounts, pendingPayments } =
+    usePortfolioStore(
+      useShallow((s) => ({
+        investments: s.investments,
+        liabilities: s.liabilities,
+        cashflows: s.cashflows,
+        accounts: s.accounts,
+        pendingPayments: s.pendingPayments,
+      })),
+    )
+  // Same net worth formula as the rest of the app (assets incl. live bank
+  // balances − liabilities + off-account cashflow savings)
+  const { netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows)
 
   const avgExpense = useMemo(() => {
     const expenses = cashflows.filter((c: any) => c.type === 'expense')

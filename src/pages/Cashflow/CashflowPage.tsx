@@ -32,6 +32,11 @@ import {
   expandExportFilenamePattern,
 } from '../../utils/exportFilename';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
+import { AccountsPage } from '../Accounts/AccountsPage';
+import BudgetPage from '../Budget/BudgetPage';
+import InsightsPage from '../Insights/InsightsPage';
 
 import { AsyncButton } from '../../components/ui/AsyncButton';
 import type { CashflowEntry } from '../../types/investmentTypes';
@@ -540,12 +545,60 @@ function SortableHeader({
 
 // ─────────────────────────────────────────────────────────────────────────
 
+type ShellTab = 'cashflow' | 'accounts' | 'budget' | 'insights';
+
 export function CashflowPage() {
   const { premiumActionProps } = usePremiumActions();
+
+  // ── Tab shell: Cashflow | Accounts | Budget | Insights ──────────────────
+  // All four tabs share the same store/data — no duplicate sources or logic.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mapShellTab = (v: string | null): ShellTab =>
+    v === 'accounts'
+      ? 'accounts'
+      : v === 'budget'
+        ? 'budget'
+        : v === 'insights' || v === 'dna' || v === 'overview'
+          ? 'insights'
+          : 'cashflow';
+  const [shellTab, setShellTab] = useState<ShellTab>(() =>
+    mapShellTab(searchParams.get('tab')),
+  );
+  useEffect(() => {
+    setShellTab(mapShellTab(searchParams.get('tab')));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const switchShellTab = (next: ShellTab) => {
+    setShellTab(next);
+    setSearchParams(next === 'cashflow' ? {} : { tab: next }, { replace: true });
+  };
+  const shellTabCls = (id: ShellTab) =>
+    `cursor-pointer border-b-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+      shellTab === id
+        ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
+        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+    }`;
+  const shellTabs = (
+    <div className='flex gap-2 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800'>
+      <button type='button' className={shellTabCls('cashflow')} onClick={() => switchShellTab('cashflow')}>
+        Cashflow
+      </button>
+      <button type='button' className={shellTabCls('accounts')} onClick={() => switchShellTab('accounts')}>
+        Accounts
+      </button>
+      <button type='button' className={shellTabCls('budget')} onClick={() => switchShellTab('budget')}>
+        Budget
+      </button>
+      <button type='button' className={shellTabCls('insights')} onClick={() => switchShellTab('insights')}>
+        Insights
+      </button>
+    </div>
+  );
 
   const ready = usePortfolioStore((s) => s.ready);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const deleteCashflow = usePortfolioStore((s) => s.deleteCashflow);
+  const deleteCashflows = usePortfolioStore((s) => s.deleteCashflows);
   const accounts = usePortfolioStore((s) => s.accounts);
   const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
@@ -664,11 +717,12 @@ export function CashflowPage() {
     return rows;
   }, [periodFilteredRows, typeFilter, categoryFilter, sortKey]);
 
-  // SUMMARY LOGIC: Includes Average Monthly Income based on filtered period.
+  // SUMMARY LOGIC: every visible stat follows the FULL filter (period +
+  // type + category) so totals, counts, charts and the list never disagree.
   const summary = useMemo(() => {
     let income = 0,
       expense = 0;
-    for (const r of periodFilteredRows) {
+    for (const r of filteredRows) {
       if (r.type === 'income') income += r.amount;
       else expense += r.amount;
     }
@@ -685,10 +739,10 @@ export function CashflowPage() {
           (d2.getMonth() - d1.getMonth()) +
           1;
       }
-    } else if (filterMode === 'all' && periodFilteredRows.length > 0) {
-      let minDate = periodFilteredRows[0].date;
-      let maxDate = periodFilteredRows[0].date;
-      for (const r of periodFilteredRows) {
+    } else if (filterMode === 'all' && filteredRows.length > 0) {
+      let minDate = filteredRows[0].date;
+      let maxDate = filteredRows[0].date;
+      for (const r of filteredRows) {
         if (r.date < minDate) minDate = r.date;
         if (r.date > maxDate) maxDate = r.date;
       }
@@ -710,33 +764,42 @@ export function CashflowPage() {
       avgMonthlyIncome: income / months,
       monthsCount: months,
     };
-  }, [periodFilteredRows, filterMode, customStart, customEnd]);
+  }, [filteredRows, filterMode, customStart, customEnd]);
   const advanced = useMemo(
-    () => buildCashflowAdvancedInsights(periodFilteredRows),
-    [periodFilteredRows],
+    () => buildCashflowAdvancedInsights(filteredRows),
+    [filteredRows],
   );
 
   const incomeByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
-    periodFilteredRows.forEach((r) => {
+    filteredRows.forEach((r) => {
       if (r.type === 'income')
         grouped[r.category] = (grouped[r.category] || 0) + r.amount;
     });
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [periodFilteredRows]);
+  }, [filteredRows]);
 
   const expenseByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
-    periodFilteredRows.forEach((r) => {
+    filteredRows.forEach((r) => {
       if (r.type === 'expense')
         grouped[r.category] = (grouped[r.category] || 0) + r.amount;
     });
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [periodFilteredRows]);
+  }, [filteredRows]);
+
+  // Selection always tracks the visible (filtered) rows: switching filters
+  // drops hidden rows from the selection so bulk actions never touch them.
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const visible = new Set(filteredRows.map((r) => r.id));
+    const kept = [...selectedIds].filter((id) => visible.has(id));
+    if (kept.length !== selectedIds.size) setSelectedIds(new Set(kept));
+  }, [filteredRows, selectedIds]);
 
   const openDeleteModal = (id: string) => {
     setSelectedDeleteId(id);
@@ -768,7 +831,7 @@ export function CashflowPage() {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
     void runDelete(async () => {
-      await Promise.all(ids.map((id) => deleteCashflow(id)));
+      await deleteCashflows(ids);
       setSelectedIds(new Set());
       setBulkDeleteOpen(false);
     });
@@ -788,8 +851,25 @@ export function CashflowPage() {
 
   if (!ready) return <CashflowSkeleton />;
 
+  if (shellTab !== 'cashflow') {
+    return (
+      <div className='flex flex-col gap-6 pb-8 animate-in fade-in duration-500'>
+        {shellTabs}
+        {shellTab === 'accounts' && <AccountsPage />}
+        {shellTab === 'budget' && <BudgetPage />}
+        {shellTab === 'insights' && (
+          <InsightsPage
+            embedded
+            initialSubTab={searchParams.get('tab') === 'dna' ? 'dna' : 'overview'}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className='flex flex-col gap-6 pb-8'>
+      {shellTabs}
       {/* ── Recurring detection ── */}
       <RecurringBanner />
       {/* ── Tabs Top ── */}
@@ -950,8 +1030,8 @@ export function CashflowPage() {
                 <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
                   <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                   <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                    {periodFilteredRows.length} transaction
-                    {periodFilteredRows.length !== 1 ? 's' : ''}
+                    {filteredRows.length} transaction
+                    {filteredRows.length !== 1 ? 's' : ''}
                   </span>
                 </div>
               </>
@@ -978,8 +1058,8 @@ export function CashflowPage() {
                 <div className='ml-auto flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2.5 self-end'>
                   <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                   <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                    {periodFilteredRows.length} transaction
-                    {periodFilteredRows.length !== 1 ? 's' : ''}
+                    {filteredRows.length} transaction
+                    {filteredRows.length !== 1 ? 's' : ''}
                   </span>
                 </div>
               </>
@@ -992,7 +1072,7 @@ export function CashflowPage() {
                 <div className='flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10 px-4 py-2'>
                   <span className='h-1.5 w-1.5 rounded-full bg-emerald-400' />
                   <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
-                    {periodFilteredRows.length} total
+                    {filteredRows.length} total
                   </span>
                 </div>
               </div>
@@ -1347,6 +1427,25 @@ export function CashflowPage() {
           </div>
 
           <div className='block md:hidden'>
+            <div className='flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 px-4 py-2.5'>
+              <label className='flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300'>
+                <input
+                  type='checkbox'
+                  checked={
+                    filteredRows.length > 0 &&
+                    selectedIds.size === filteredRows.length
+                  }
+                  onChange={handleSelectAll}
+                  className='h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800'
+                />
+                Select all ({filteredRows.length})
+              </label>
+              {selectedIds.size > 0 && (
+                <span className='text-xs font-bold text-emerald-600 dark:text-emerald-400'>
+                  {selectedIds.size} selected
+                </span>
+              )}
+            </div>
             {filteredRows.length === 0 ? (
               <div className='px-5 py-14 text-center'>
                 <FiActivity className='h-10 w-10 mx-auto mb-3 text-slate-300 dark:text-slate-600' />

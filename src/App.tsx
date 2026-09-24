@@ -1,21 +1,18 @@
 // src/App.tsx
 
 import {
-  AccountsSkeleton,
   AIAgentSkeleton,
   CashflowSkeleton,
   DashboardSkeleton,
   GoalsSkeleton,
-  InsightsSkeleton,
   InvestmentsSkeleton,
   LiabilitiesSkeleton,
   NotificationsSkeleton,
   ReportsSkeleton,
   SettingsSkeleton,
-  SnapshotsSkeleton,
   ToolsSkeleton,
 } from './components/loader/skeletons';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 
 import { AppLayout } from './components/layout/AppLayout';
@@ -28,13 +25,9 @@ const DashboardPage = lazy(() =>
     default: m.DashboardPage,
   })),
 );
-const InvestmentsPage = lazy(() =>
-  import('./pages/Investments/InvestmentsPage').then((m) => ({
-    default: m.InvestmentsPage,
-  })),
-);const LiabilitiesPage = lazy(() =>
-  import('./pages/Liabilities/LiabilitiesPage').then((m) => ({
-    default: m.LiabilitiesPage,
+const WealthPage = lazy(() =>
+  import('./pages/Wealth/WealthPage').then((m) => ({
+    default: m.WealthPage,
   })),
 );
 const PaymentTrackerPage = lazy(() =>
@@ -47,28 +40,19 @@ const CashflowPage = lazy(() =>
     default: m.CashflowPage,
   })),
 );
-const AccountsPage = lazy(() =>
-  import('./pages/Accounts/AccountsPage').then((m) => ({
-    default: m.AccountsPage,
+const EssentialsPage = lazy(() =>
+  import('./pages/Essentials/EssentialsPage').then((m) => ({
+    default: m.EssentialsPage,
   })),
-);
-const GoalsPage = lazy(() =>
-  import('./pages/Goals/GoalsPage').then((m) => ({ default: m.GoalsPage })),
 );
 const CredentialsPage = lazy(() =>
   import('./pages/Credentials/CredentialsPage').then((m) => ({
     default: m.CredentialsPage,
   })),
 );
-const InsightsPage = lazy(() => import('./pages/Insights/InsightsPage'));
 const AIAgentPage = lazy(() => import('./pages/AIAgent/AIAgentPage'));
 const ToolsPage = lazy(() =>
   import('./Tools/ToolsPage').then((m) => ({ default: m.ToolsPage })),
-);
-const SnapshotsPage = lazy(() =>
-  import('./pages/Snapshots/SnapshotsPage').then((m) => ({
-    default: m.SnapshotsPage,
-  })),
 );
 const ReportsPage = lazy(() =>
   import('./pages/Reports/ReportsPage').then((m) => ({
@@ -128,14 +112,8 @@ const NotificationsPage = lazy(() =>
 const WhatIfSimulatorPage = lazy(() =>
   import('./pages/Simulator/WhatIfSimulatorPage'),
 );
-const NetWorthTimelinePage = lazy(() =>
-  import('./pages/Timeline/NetWorthTimelinePage'),
-);
 const FinancialCalendarPage = lazy(() =>
   import('./pages/Calendar/FinancialCalendarPage'),
-);
-const BudgetPage = lazy(() =>
-  import('./pages/Budget/BudgetPage'),
 );
 const ForecastPage = lazy(() =>
   import('./pages/Forecast/ForecastPage'),
@@ -143,6 +121,36 @@ const ForecastPage = lazy(() =>
 const PersonalCFOPage = lazy(() =>
   import('./pages/CFO/PersonalCFOPage'),
 );
+
+// ── Legacy route redirects ─────────────────────────────────────────────
+// Old deep links keep working by mapping onto the new tab shells.
+
+function InvestmentsRedirect() {
+  const [params] = useSearchParams();
+  const to =
+    params.get('tab') === 'sip-plan'
+      ? '/wealth?tab=allocation&sub=sip'
+      : '/wealth?tab=assets';
+  return <Navigate to={to} replace />;
+}
+
+function LiabilitiesRedirect() {
+  const [params] = useSearchParams();
+  const section = params.get('section');
+  const to = section
+    ? `/wealth?tab=liabilities&section=${encodeURIComponent(section)}`
+    : '/wealth?tab=liabilities';
+  return <Navigate to={to} replace />;
+}
+
+function InsightsRedirect() {
+  const [params] = useSearchParams();
+  const to =
+    params.get('tab') === 'dna'
+      ? '/cashflow?tab=dna'
+      : '/cashflow?tab=insights';
+  return <Navigate to={to} replace />;
+}
 
 function AppToaster() {
   const mode = useThemeStore((s) => s.mode);
@@ -181,21 +189,15 @@ export default function App() {
               }
             />
             <Route
-              path='/investments'
+              path='/wealth'
               element={
                 <Suspense fallback={<InvestmentsSkeleton />}>
-                  <InvestmentsPage />
+                  <WealthPage />
                 </Suspense>
               }
             />
-            <Route
-              path='/liabilities'
-              element={
-                <Suspense fallback={<LiabilitiesSkeleton />}>
-                  <LiabilitiesPage />
-                </Suspense>
-              }
-            />
+            <Route path='/investments' element={<InvestmentsRedirect />} />
+            <Route path='/liabilities' element={<LiabilitiesRedirect />} />
             <Route
               path='/payments'
               element={
@@ -214,11 +216,7 @@ export default function App() {
             />
             <Route
               path='/accounts'
-              element={
-                <Suspense fallback={<AccountsSkeleton />}>
-                  <AccountsPage />
-                </Suspense>
-              }
+              element={<Navigate to='/cashflow?tab=accounts' replace />}
             />
             <Route
               path='/insurance'
@@ -230,9 +228,13 @@ export default function App() {
             />
             <Route
               path='/goals'
+              element={<Navigate to='/essentials?tab=goals' replace />}
+            />
+            <Route
+              path='/essentials'
               element={
                 <Suspense fallback={<GoalsSkeleton />}>
-                  <GoalsPage />
+                  <EssentialsPage />
                 </Suspense>
               }
             />
@@ -244,14 +246,7 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route
-              path='/insights'
-              element={
-                <Suspense fallback={<InsightsSkeleton />}>
-                  <InsightsPage />
-                </Suspense>
-              }
-            />
+            <Route path='/insights' element={<InsightsRedirect />} />
             <Route
               path='/ai-agent'
               element={
@@ -270,11 +265,7 @@ export default function App() {
             />
             <Route
               path='/timeline'
-              element={
-                <Suspense fallback={<SnapshotsSkeleton />}>
-                  <NetWorthTimelinePage />
-                </Suspense>
-              }
+              element={<Navigate to='/wealth?tab=networth' replace />}
             />
             <Route
               path='/calendar'
@@ -286,11 +277,7 @@ export default function App() {
             />
             <Route
               path='/budget'
-              element={
-                <Suspense fallback={<ToolsSkeleton />}>
-                  <BudgetPage />
-                </Suspense>
-              }
+              element={<Navigate to='/cashflow?tab=budget' replace />}
             />
             <Route
               path='/forecast'
@@ -300,7 +287,7 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route path='/dna' element={<Navigate to='/insights?tab=dna' replace />} />
+            <Route path='/dna' element={<Navigate to='/cashflow?tab=dna' replace />} />
             <Route path='/milestones' element={<Navigate to='/cfo#milestones' replace />} />
             <Route
               path='/cfo'
@@ -320,11 +307,7 @@ export default function App() {
             />
             <Route
               path='/snapshots'
-              element={
-                <Suspense fallback={<SnapshotsSkeleton />}>
-                  <SnapshotsPage />
-                </Suspense>
-              }
+              element={<Navigate to='/wealth?tab=networth' replace />}
             />
             <Route
               path='/reports'

@@ -4,22 +4,18 @@ import {
   FiActivity,
   FiBarChart2,
   FiCalendar,
-  FiCamera,
-  FiCreditCard,
   FiCpu,
-  FiFlag,
+  FiTarget,
   FiBell,
   FiHome,
+  FiLayers,
   FiLock,
-  FiPieChart,
   FiSettings,
   FiShield,
   FiTrendingUp,
-  FiZap,
   FiGitBranch,
 } from 'react-icons/fi';
 import { AiFillCalculator } from 'react-icons/ai';
-import { BsBank2 } from 'react-icons/bs';
 
 export type AppNavItem = {
   to: string;
@@ -43,25 +39,18 @@ export const NAV_GROUPS: AppNavGroup[] = [
         bg: 'bg-sky-500/10',
       },
       {
+        to: '/wealth',
+        icon: FiLayers,
+        label: 'Wealth',
+        accent: 'text-indigo-400',
+        bg: 'bg-indigo-500/10',
+      },
+      {
         to: '/cashflow',
         icon: FiActivity,
         label: 'Cashflow',
         accent: 'text-teal-400',
         bg: 'bg-teal-500/10',
-      },
-      {
-        to: '/investments',
-        icon: FiTrendingUp,
-        label: 'Investments',
-        accent: 'text-indigo-400',
-        bg: 'bg-indigo-500/10',
-      },
-      {
-        to: '/liabilities',
-        icon: FiCreditCard,
-        label: 'Debts & Money Owed',
-        accent: 'text-rose-400',
-        bg: 'bg-rose-500/10',
       },
       {
         to: '/payments',
@@ -77,20 +66,12 @@ export const NAV_GROUPS: AppNavGroup[] = [
         accent: 'text-blue-400',
         bg: 'bg-blue-500/10',
       },
-      
       {
-        to: '/accounts',
-        icon: BsBank2,
-        label: 'Accounts',
-        accent: 'text-violet-400',
-        bg: 'bg-violet-500/10',
-      },
-      {
-        to: '/goals',
-        icon: FiFlag,
-        label: 'Goals',
-        accent: 'text-amber-400',
-        bg: 'bg-amber-500/10',
+        to: '/essentials',
+        icon: FiTarget,
+        label: 'Essentials',
+        accent: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
       },
       {
         to: '/forecast',
@@ -98,13 +79,6 @@ export const NAV_GROUPS: AppNavGroup[] = [
         label: 'Forecast',
         accent: 'text-emerald-400',
         bg: 'bg-emerald-500/10',
-      },
-      {
-        to: '/budget',
-        icon: FiPieChart,
-        label: 'Budget',
-        accent: 'text-teal-400',
-        bg: 'bg-teal-500/10',
       },
       {
         to: '/calendar',
@@ -125,13 +99,6 @@ export const NAV_GROUPS: AppNavGroup[] = [
   {
     label: 'Intelligence',
     items: [
-      {
-        to: '/insights',
-        icon: FiZap,
-        label: 'Insights',
-        accent: 'text-yellow-400',
-        bg: 'bg-yellow-500/10',
-      },
       {
         to: '/ai-agent',
         icon: FiCpu,
@@ -164,20 +131,6 @@ export const NAV_GROUPS: AppNavGroup[] = [
         label: 'Tools',
         accent: 'text-purple-400',
         bg: 'bg-purple-500/10',
-      },
-      {
-        to: '/timeline',
-        icon: FiTrendingUp,
-        label: 'NW Timeline',
-        accent: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
-      },
-      {
-        to: '/snapshots',
-        icon: FiCamera,
-        label: 'Snapshots',
-        accent: 'text-pink-400',
-        bg: 'bg-pink-500/10',
       },
       {
         to: '/reports',

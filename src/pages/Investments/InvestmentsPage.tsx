@@ -308,7 +308,7 @@ function AllocationBar({
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────
-export function InvestmentsPage() {
+export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
   const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
   const investments = usePortfolioStore((s) => s.investments);
@@ -450,6 +450,16 @@ export function InvestmentsPage() {
     BROKER_FILTERS.find((b) => b.id === brokerFilter)?.label ?? 'All Brokers';
   const showBrokerBadge = brokerFilter !== 'all';
 
+  // Broker import shortcuts — reused in the header (compact when embedded).
+  const importChips = (
+    <div className='flex items-center gap-2 rounded-xl border border-slate-300/60 bg-slate-100 p-1 dark:border-slate-700/50 dark:bg-slate-800/50'>
+      <ImportAngelOnePdfButton />
+      <ImportCsvButton />
+      <ImportIndmoneyButton />
+      <ImportGrowwButton />
+    </div>
+  );
+
   if (!ready || initializingView) {
     return <InvestmentsSkeleton />;
   }
@@ -469,9 +479,13 @@ export function InvestmentsPage() {
 
   return (
     <div className='flex flex-col gap-4 md:gap-5 pb-20 md:pb-8'>
-      {/* ── Header ── */}
-      <header className='flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-slate-100/80 dark:to-slate-900/50 p-4 md:p-6 border border-emerald-500/20 shadow-xl'>
-        <div className='flex items-center justify-between w-full'>
+      {/* ── Header (compact toolbar when embedded in Wealth) ── */}
+      {(!embedded || activeTab === 'investments') && (
+      <header className={`flex flex-col gap-4 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-slate-100/80 shadow-xl dark:to-slate-900/50 ${embedded ? 'p-3 md:p-4' : 'p-4 md:p-6'}`}>
+        <div className='flex w-full flex-wrap items-center justify-between gap-3'>
+          {embedded ? (
+            importChips
+          ) : (
           <div className='flex items-center gap-3'>
             <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'>
               <FiTrendingUp className='h-5 w-5' />
@@ -486,21 +500,25 @@ export function InvestmentsPage() {
               </p>
             </div>
           </div>
+          )}
 
           {activeTab === 'investments' && (
             <button
               {...premiumActionProps}
               onClick={() => setIsAddOpen(true)}
               disabled={isAddOpen || premiumActionProps.disabled}
-              className='flex h-10 w-10 items-center justify-center gap-2 rounded-xl bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-500/20 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-4'
+              type='button'
+              className='group relative flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'
             >
-              <FiPlus className='h-5 w-5' />
-              <span className='hidden md:inline'>Add Asset</span>
+              <div className='absolute inset-0 translate-y-full bg-white/20 transition-transform group-hover:translate-y-0' />
+              <FiPlus className='relative h-4 w-4' />
+              <span className='relative font-bold'>Add Asset</span>
             </button>
           )}
         </div>
 
         {/* Tab strip */}
+        {!embedded && (
         <div className='flex items-center gap-2'>
           <button
             onClick={() => setActiveTab('investments')}
@@ -524,19 +542,16 @@ export function InvestmentsPage() {
             Monthly SIP Plan
           </button>
         </div>
+        )}
 
         {/* Import buttons */}
-        {activeTab === 'investments' && (
+        {!embedded && activeTab === 'investments' && (
           <div className='flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar'>
-            <div className='flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800/50 p-1 border border-slate-300/60 dark:border-slate-700/50'>
-              <ImportAngelOnePdfButton />
-              <ImportCsvButton />
-              <ImportIndmoneyButton />
-              <ImportGrowwButton />
-            </div>
+            {importChips}
           </div>
         )}
       </header>
+      )}
 
       {/* ── Tab Content ── */}
       {activeTab === 'sip' ? (
@@ -578,7 +593,9 @@ export function InvestmentsPage() {
                 quickFilter,
               })}
               applyState={(s: Record<string, unknown>) => {
-                if (s.activeTab === 'investments' || s.activeTab === 'sip')
+                // When embedded (Wealth → Assets) the SIP tab lives elsewhere,
+                // so never let a saved view flip this into the SIP plan.
+                if (!embedded && (s.activeTab === 'investments' || s.activeTab === 'sip'))
                   setActiveTab(s.activeTab as 'investments' | 'sip');
                 if (typeof s.query === 'string') setQuery(s.query);
                 if (typeof s.typeFilter === 'string') setTypeFilter(s.typeFilter);

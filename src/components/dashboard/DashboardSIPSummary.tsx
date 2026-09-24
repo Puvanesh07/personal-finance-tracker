@@ -23,7 +23,7 @@ export function DashboardSIPSummary() {
           SIP Plan
         </h2>
         <button
-          onClick={() => navigate('/investments?tab=sip-plan')}
+          onClick={() => navigate('/wealth?tab=allocation&sub=sip')}
           title='Go to SIP Plan'
           className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-teal-400 transition-colors'
         >
@@ -36,7 +36,7 @@ export function DashboardSIPSummary() {
           <FiLayers className='h-6 w-6 text-slate-300 dark:text-slate-600' />
           <p className='text-xs text-slate-400 dark:text-slate-500'>No SIP plan set up yet</p>
           <button
-            onClick={() => navigate('/investments?tab=sip-plan')}
+            onClick={() => navigate('/wealth?tab=allocation&sub=sip')}
             className='text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors'
           >
             Set up SIP →

@@ -1,11 +1,13 @@
-﻿/**
- * Loan vs Cash Simulator â€” compare paying cash vs taking a loan.
+/**
+ * Loan vs Cash Simulator — compare paying cash vs taking a loan.
  * Shows impact on net worth, cashflow, emergency fund, investments.
  */
 import { useState, useMemo } from 'react';
 import { FiArrowRight } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { useShallow } from 'zustand/react/shallow';
 import { futureValue } from '../../utils/goalProbability';
+import { getLiveBankTotal } from '../../utils/calculations';
 import { formatINR, formatNumber } from '../../utils/format';
 
 export function LoanVsCashCard() {
@@ -15,7 +17,13 @@ export function LoanVsCashCard() {
   const [tenure,  setTenure]  = useState(36);      // months
   const [invRate, setInvRate] = useState(12);      // expected investment return %
 
-  const { cashflows, accounts, essentials } = usePortfolioStore();
+  const { cashflows, accounts, essentials } = usePortfolioStore(
+    useShallow((s) => ({
+      cashflows: s.cashflows,
+      accounts: s.accounts,
+      essentials: s.essentials,
+    })),
+  );
 
   const avgExp = useMemo(() => {
     const exp = cashflows.filter(e => e.type === 'expense');
@@ -23,7 +31,7 @@ export function LoanVsCashCard() {
     return exp.reduce((a, e) => a + e.amount, 0) / mos;
   }, [cashflows]);
 
-  const bankBalance = accounts.reduce((s, a) => s + (a.balance ?? 0), 0);
+  const bankBalance = getLiveBankTotal(accounts, cashflows);
   const efCurrent   = essentials.emergencyFundCurrent ?? 0;
   
   // Cash scenario
@@ -59,7 +67,7 @@ export function LoanVsCashCard() {
   return (
     <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 overflow-hidden'>
       <div className='px-5 py-4 border-b border-slate-100 dark:border-slate-800'>
-        <h2 className='text-sm font-bold text-slate-900 dark:text-slate-100'>âš–ï¸ Loan vs Cash Simulator</h2>
+        <h2 className='text-sm font-bold text-slate-900 dark:text-slate-100'>⚖️ Loan vs Cash Simulator</h2>
         <p className='text-[11px] text-slate-500 dark:text-slate-400 mt-0.5'>Should you pay cash or take a loan? Compare the true cost.</p>
       </div>
 
@@ -68,7 +76,7 @@ export function LoanVsCashCard() {
         <div className='space-y-3'>
           <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400'>Purchase Details</p>
           {[
-            { label: 'Purchase Amount (â‚¹)', value: cost, set: setCost, min: 10000, max: 10000000, step: 10000 },
+            { label: 'Purchase Amount (₹)', value: cost, set: setCost, min: 10000, max: 10000000, step: 10000 },
             { label: 'Loan % (0 = full cash)', value: loanPct, set: setLoanPct, min: 0, max: 100, step: 5 },
             { label: 'Interest Rate (% pa)', value: rate, set: setRate, min: 1, max: 24, step: 0.5 },
             { label: 'Loan Tenure (months)', value: tenure, set: setTenure, min: 6, max: 120, step: 6 },
@@ -78,7 +86,7 @@ export function LoanVsCashCard() {
               <div className='flex justify-between text-xs mb-1'>
                 <span className='text-slate-500 dark:text-slate-400'>{label}</span>
                 <span className='font-bold text-slate-800 dark:text-slate-200'>
-                  {label.includes('â‚¹') ? formatINR(value) : `${value}${label.includes('%') || label.includes('Loan %') ? '%' : ''}`}
+                  {label.includes('₹') ? formatINR(value) : `${value}${label.includes('%') || label.includes('Loan %') ? '%' : ''}`}
                 </span>
               </div>
               <input type='range' min={min} max={max} step={step} value={value}
@@ -97,11 +105,11 @@ export function LoanVsCashCard() {
             {/* Cash column */}
             <div className={`rounded-xl border p-3 space-y-2 ${recommendation === 'cash_better' ? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/10' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30'}`}>
               <p className='text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1'>
-                ðŸ’µ Pay Cash {recommendation === 'cash_better' && <span className='text-[9px] bg-emerald-500 text-white rounded px-1'>Better</span>}
+                💵 Pay Cash {recommendation === 'cash_better' && <span className='text-[9px] bg-emerald-500 text-white rounded px-1'>Better</span>}
               </p>
               {[
                 { label: 'Down Pay',    value: formatINR(downPayCash) },
-                { label: 'EMI',         value: 'â‚¹0/mo' },
+                { label: 'EMI',         value: '₹0/mo' },
                 { label: 'Cash Left',   value: formatINR(Math.max(0, cashRemaining)), danger: cashRemaining < 0 },
                 { label: 'EF Runway',   value: `${formatNumber(efRunwayCash, 1)} mo` },
                 { label: 'Opp. Cost',   value: formatINR(cashOpportunityCost - downPayCash), danger: true },
@@ -116,7 +124,7 @@ export function LoanVsCashCard() {
             {/* Loan column */}
             <div className={`rounded-xl border p-3 space-y-2 ${recommendation === 'loan_better' ? 'border-violet-400 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/10' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30'}`}>
               <p className='text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1'>
-                ðŸ¦ Take Loan {recommendation === 'loan_better' && <span className='text-[9px] bg-violet-500 text-white rounded px-1'>Better</span>}
+                🏦 Take Loan {recommendation === 'loan_better' && <span className='text-[9px] bg-violet-500 text-white rounded px-1'>Better</span>}
               </p>
               {[
                 { label: 'Down Pay',    value: formatINR(downPayLoan) },
@@ -136,7 +144,7 @@ export function LoanVsCashCard() {
           {/* Verdict */}
           <div className={`rounded-xl border px-4 py-3 ${recommendation === 'cash_better' ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-700/40' : 'bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-700/40'}`}>
             <p className='text-xs font-bold text-slate-800 dark:text-slate-200 mb-1'>
-              {recommendation === 'cash_better' ? 'ðŸ’µ Pay cash â€” saves more long-term' : 'ðŸ¦ Loan makes sense â€” interest < opportunity cost'}
+              {recommendation === 'cash_better' ? '💵 Pay cash — saves more long-term' : '🏦 Loan makes sense — interest < opportunity cost'}
             </p>
             <p className='text-[11px] text-slate-500 dark:text-slate-400'>
               {recommendation === 'cash_better'
@@ -150,7 +158,7 @@ export function LoanVsCashCard() {
             <span>Monthly cashflow impact:</span>
             <FiArrowRight className='h-3 w-3' />
             <span className={`font-bold ${loanPct > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-              {loanPct > 0 ? `âˆ’${formatINR(emi)}/mo` : 'No EMI'}
+              {loanPct > 0 ? `−${formatINR(emi)}/mo` : 'No EMI'}
             </span>
           </div>
         </div>

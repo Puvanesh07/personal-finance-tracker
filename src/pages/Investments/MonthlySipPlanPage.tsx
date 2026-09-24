@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from 'react';
 
 import { formatINR } from '../../utils/format';
+import { typeLabel } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 type SipBudgetDoc = {
@@ -107,12 +108,16 @@ function BudgetModal({
 
 function InstrumentForm({
   investmentNames,
+  budget,
+  usedNames,
   onSave,
   onCancel,
   saving,
   existing,
 }: {
-  investmentNames: { id: string; name: string }[];
+  investmentNames: { id: string; name: string; type: string }[];
+  budget: number;
+  usedNames: Set<string>;
   onSave: (name: string, pct: number, fromAsset: boolean) => void;
   onCancel: () => void;
   saving: boolean;
@@ -124,14 +129,30 @@ function InstrumentForm({
   const [name, setName] = useState(existing?.name ?? '');
   const [pct, setPct] = useState(existing ? String(existing.percentage) : '');
   const [selectedAssetId, setSelectedAssetId] = useState('');
+  // Amount input mode: % of budget (default) or direct ₹ amount (converted to %)
+  const [amtMode, setAmtMode] = useState<'pct' | 'inr'>('pct');
+  const [inrVal, setInrVal] = useState('');
+
+  // Exclude assets already in the plan (keep the one being edited)
+  const availableAssets = investmentNames.filter(
+    (inv) => !usedNames.has(inv.name) || inv.name === existing?.name,
+  );
+
+  const effectivePct =
+    amtMode === 'pct'
+      ? Number(pct) || 0
+      : budget > 0
+        ? Math.round(((Number(inrVal) || 0) / budget) * 10000) / 100
+        : 0;
+  const monthlyPreview = budget > 0 ? (budget * effectivePct) / 100 : 0;
 
   const handleSave = () => {
     const finalName =
       mode === 'asset'
-        ? (investmentNames.find((i) => i.id === selectedAssetId)?.name ?? name)
+        ? (availableAssets.find((i) => i.id === selectedAssetId)?.name ?? name)
         : name.trim();
-    if (!finalName || !pct) return;
-    onSave(finalName, Number(pct) || 0, mode === 'asset');
+    if (!finalName || effectivePct <= 0) return;
+    onSave(finalName, effectivePct, mode === 'asset');
   };
 
   return (
@@ -168,29 +189,62 @@ function InstrumentForm({
             onChange={(e) => setSelectedAssetId(e.target.value)}
             className='flex-1 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60'
           >
-            <option value=''>Select an investment…</option>
-            {investmentNames.map((inv) => (
+            <option value=''>Select an asset…</option>
+            {availableAssets.map((inv) => (
               <option key={inv.id} value={inv.id}>
-                {inv.name}
+                {inv.name} ({typeLabel(inv.type as never)})
               </option>
             ))}
           </select>
         )}
-        <span className='text-xs text-slate-900 dark:text-slate-500 font-medium shrink-0 hidden sm:block'>
-          Monthly amt
-        </span>
-        <div className='relative shrink-0'>
-          <input
-            type='number'
-            value={pct}
-            onChange={(e) => setPct(e.target.value)}
-            placeholder='%'
-            min={0}
-            max={100}
-            className='w-20 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 pr-6'
-          />
-          <FiPercent className='absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-900 dark:text-slate-500' />
+        {/* % / ₹ amount mode toggle */}
+        <div className='flex shrink-0 overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 text-[10px] font-bold'>
+          <button
+            type='button'
+            onClick={() => setAmtMode('pct')}
+            className={`px-2 py-1.5 transition-colors cursor-pointer ${amtMode === 'pct' ? 'bg-emerald-600 text-white' : 'text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800'}`}
+          >
+            %
+          </button>
+          <button
+            type='button'
+            onClick={() => setAmtMode('inr')}
+            disabled={budget <= 0}
+            title={budget > 0 ? 'Enter monthly amount in ₹' : 'Set a monthly budget first'}
+            className={`px-2 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${amtMode === 'inr' ? 'bg-emerald-600 text-white' : 'text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800'}`}
+          >
+            ₹
+          </button>
         </div>
+        {amtMode === 'pct' ? (
+          <div className='relative shrink-0'>
+            <input
+              type='number'
+              value={pct}
+              onChange={(e) => setPct(e.target.value)}
+              placeholder='%'
+              min={0}
+              max={100}
+              className='w-24 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 pr-6'
+            />
+            <FiPercent className='absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-900 dark:text-slate-500' />
+          </div>
+        ) : (
+          <div className='relative shrink-0'>
+            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500 dark:text-slate-400'>
+              ₹
+            </span>
+            <input
+              type='number'
+              value={inrVal}
+              onChange={(e) => setInrVal(e.target.value)}
+              placeholder='Amount'
+              min={0}
+              max={budget}
+              className='w-28 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-7 pr-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60'
+            />
+          </div>
+        )}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -210,6 +264,20 @@ function InstrumentForm({
           <FiX className='h-4 w-4' />
         </button>
       </div>
+      {/* Live monthly amount preview */}
+      {budget > 0 && effectivePct > 0 && (
+        <p className='mt-3 text-xs font-semibold text-slate-600 dark:text-slate-300'>
+          Monthly amount:{' '}
+          <span className='font-bold text-emerald-600 dark:text-emerald-400 tabular-nums'>
+            {formatINR(monthlyPreview)}
+          </span>
+          {amtMode === 'inr' && (
+            <span className='ml-1.5 text-slate-900 dark:text-slate-500'>
+              ({effectivePct.toFixed(1)}% of {formatINR(budget)})
+            </span>
+          )}
+        </p>
+      )}
     </div>
   );
 }
@@ -232,7 +300,7 @@ export function MonthlySipPlanPage() {
   const [savingInstrument, setSavingInstrument] = useState(false);
 
   const investmentNames = useMemo(
-    () => investments.map((i) => ({ id: i.id, name: i.name })),
+    () => investments.map((i) => ({ id: i.id, name: i.name, type: i.type })),
     [investments],
   );
 
@@ -245,6 +313,11 @@ export function MonthlySipPlanPage() {
   const budget = budgetDoc?.budget ?? 0;
   const totalPct = instruments.reduce((a, i) => a + i.percentage, 0);
   const remaining = 100 - totalPct;
+  // Names already allocated in the plan — excluded from the asset dropdown
+  const usedNames = useMemo(
+    () => new Set(instruments.filter((i) => i.fromAsset).map((i) => i.name)),
+    [instruments],
+  );
 
   const handleSaveBudget = async (v: number) => {
     setSavingBudget(true);
@@ -386,6 +459,8 @@ export function MonthlySipPlanPage() {
                 <div key={inst.id} className='p-4'>
                   <InstrumentForm
                     investmentNames={investmentNames}
+                    budget={budget}
+                    usedNames={usedNames}
                     existing={inst}
                     saving={savingInstrument}
                     onSave={(name, pct, fromAsset) =>
@@ -443,6 +518,8 @@ export function MonthlySipPlanPage() {
           <div className='p-4 border-t border-slate-200/70 dark:border-slate-800/60'>
             <InstrumentForm
               investmentNames={investmentNames}
+              budget={budget}
+              usedNames={usedNames}
               saving={savingInstrument}
               onSave={handleAddInstrument}
               onCancel={() => setShowAddForm(false)}

@@ -14,7 +14,7 @@
  */
 
 import { formatINR, formatNumber } from '../utils/format';
-import { calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
+import { calcLiveAccountBalances, calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
 import type { StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
 import type {
@@ -61,10 +61,10 @@ function goalSaved(
 export function getFinancialOverview(): AgentResponse {
   const {
     investments, liabilities, cashflows, goals,
-    trackedPayments, insurancePolicies,
+    trackedPayments, insurancePolicies, accounts, pendingPayments,
   } = usePortfolioStore.getState();
 
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const avgIncome   = monthlyAvg(cashflows, 'income');
   const avgExpense  = monthlyAvg(cashflows, 'expense');
   const surplus     = avgIncome - avgExpense;
@@ -126,8 +126,8 @@ export function getFinancialOverview(): AgentResponse {
 // ─── NET WORTH ────────────────────────────────────────────────────────────────
 
 export function getNetWorth(): AgentResponse {
-  const { investments, liabilities } = usePortfolioStore.getState();
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { investments, liabilities, accounts, cashflows, pendingPayments } = usePortfolioStore.getState();
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
 
   if (totalAssets === 0 && totalLiabilities === 0) {
     return emptyResponse('No financial data yet.', 'Add investments and liabilities to see your net worth.');
@@ -227,7 +227,7 @@ export function getLosingInvestments(): AgentResponse {
     subtitle: `${formatINR(i.iv)} → ${formatINR(i.cv)}`,
     valueSub: `Loss: ${formatINR(Math.abs(i.pl))}`,
     severity: 'danger',
-    linkTo: '/investments',
+    linkTo: '/wealth?tab=assets',
   }));
 
   return {
@@ -251,7 +251,7 @@ export function getTopInvestments(): AgentResponse {
     subtitle: `${formatINR(i.iv)} → ${formatINR(i.cv)}`,
     valueSub: `Profit: ${formatINR(i.pl)}`,
     severity: 'good',
-    linkTo: '/investments',
+    linkTo: '/wealth?tab=assets',
   }));
 
   return {
@@ -294,7 +294,7 @@ export function getInvestmentBySymbol(symbol: string): AgentResponse {
         value: `${plSign(pp)}${formatNumber(pp, 1)}%`,
         valueSub: `${plSign(pl)}${formatINR(pl)}`,
         severity: plSeverity(pl),
-        linkTo: '/investments',
+        linkTo: '/wealth?tab=assets',
       };
     }
 
@@ -307,7 +307,7 @@ export function getInvestmentBySymbol(symbol: string): AgentResponse {
         value: `${plSign(pp)}${formatNumber(pp, 1)}%`,
         valueSub: `${plSign(pl)}${formatINR(pl)}`,
         severity: plSeverity(pl),
-        linkTo: '/investments',
+        linkTo: '/wealth?tab=assets',
       };
     }
 
@@ -318,7 +318,7 @@ export function getInvestmentBySymbol(symbol: string): AgentResponse {
       value: `${plSign(pp)}${formatNumber(pp, 1)}%`,
       valueSub: `${plSign(pl)}${formatINR(pl)}`,
       severity: plSeverity(pl),
-      linkTo: '/investments',
+      linkTo: '/wealth?tab=assets',
     };
   });
 
@@ -645,7 +645,7 @@ export function getLiabilitiesSummary(): AgentResponse {
     subtitle: `${l.type}${l.interestRate ? ` · ${l.interestRate}% p.a.` : ''}${l.emiAmount ? ` · EMI ${formatINR(l.emiAmount)}` : ''}`,
     value: formatINR(l.outstanding ?? 0),
     severity: (l.interestRate ?? 0) > 18 ? 'danger' : (l.interestRate ?? 0) > 10 ? 'warning' : 'neutral',
-    linkTo: '/liabilities',
+    linkTo: '/wealth?tab=liabilities',
   }));
 
   return {
@@ -677,13 +677,13 @@ export function getHighestInterestLiability(): AgentResponse {
       { label: 'Monthly EMI', value: top.emiAmount ? formatINR(top.emiAmount) : '—' },
     ],
     footer: 'Pay this down first to minimise total interest cost.',
-    linkTo: '/liabilities',
+    linkTo: '/wealth?tab=liabilities',
   };
 }
 
 export function getDebtRatio(): AgentResponse {
-  const { investments, liabilities } = usePortfolioStore.getState();
-  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities);
+  const { investments, liabilities, accounts, cashflows, pendingPayments } = usePortfolioStore.getState();
+  const { totalAssets, totalLiabilities, netWorth } = calculateNetWorth(investments, liabilities, pendingPayments, accounts, cashflows);
   const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
   return {
     kind: 'stat_grid',
@@ -722,7 +722,7 @@ export function getGoalsSummary(): AgentResponse {
       valueSub: remain > 0 ? `${formatINR(remain)} remaining` : '✅ Achieved!',
       severity: sev,
       badge: remain === 0 ? '✅ Done' : undefined,
-      linkTo: '/goals',
+      linkTo: '/essentials?tab=goals',
     };
   });
 
@@ -762,7 +762,7 @@ export function getGoalClosestToCompletion(): AgentResponse {
       ...(top.dueDate ? [{ label: 'Due Date', value: top.dueDate }] : []),
     ],
     footer: 'From your FinTrackly Goals.',
-    linkTo: '/goals',
+    linkTo: '/essentials?tab=goals',
   };
 }
 
@@ -799,7 +799,7 @@ export function getGoalsOnTrack(): AgentResponse {
       subtitle: `${formatNumber(progress, 0)}% complete · ${formatINR(remain)} remaining${g.dueDate ? ` · Due ${g.dueDate}` : ''}`,
       value: onTrackText,
       severity: sev,
-      linkTo: '/goals',
+      linkTo: '/essentials?tab=goals',
     };
   });
 
@@ -816,20 +816,22 @@ export function getGoalsOnTrack(): AgentResponse {
 // ─── ACCOUNTS ─────────────────────────────────────────────────────────────────
 
 export function getAccountsSummary(): AgentResponse {
-  const { accounts } = usePortfolioStore.getState();
+  const { accounts, cashflows } = usePortfolioStore.getState();
   if (!accounts.length) return emptyResponse('No accounts recorded.', 'Add your bank accounts in the Accounts module.');
 
-  const total  = accounts.reduce((a, ac) => a + (ac.balance ?? 0), 0);
-  const sorted = [...accounts].sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+  const live   = calcLiveAccountBalances(accounts, cashflows);
+  const bal    = (ac: (typeof accounts)[number]) => live[ac.id] ?? ac.balance ?? 0;
+  const total  = accounts.reduce((a, ac) => a + bal(ac), 0);
+  const sorted = [...accounts].sort((a, b) => bal(b) - bal(a));
 
   const items: CardItem[] = sorted.map((ac) => ({
     emoji: '🏦',
     title: ac.name,
     subtitle: ac.type,
-    value: formatINR(ac.balance ?? 0),
-    valueSub: `${formatNumber(total > 0 ? ((ac.balance ?? 0) / total) * 100 : 0, 0)}% of total`,
+    value: formatINR(bal(ac)),
+    valueSub: `${formatNumber(total > 0 ? (bal(ac) / total) * 100 : 0, 0)}% of total`,
     severity: 'neutral',
-    linkTo: '/accounts',
+    linkTo: '/cashflow?tab=accounts',
   }));
 
   return {

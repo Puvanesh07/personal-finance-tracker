@@ -96,7 +96,7 @@ export function MarketCapAllocationChart() {
   // Navigate to investments page with marketCap filter via sessionStorage
   const handleCapClick = (cap: string) => {
     sessionStorage.setItem('inv_marketcap_filter', cap);
-    navigate('/investments');
+    navigate('/wealth?tab=assets');
   };
 
   const { chartData, pills } = useMemo(() => {
