@@ -66,6 +66,87 @@ html.dark {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   LIGHT THEME — pastel palette (revamp)
+
+   Tailwind v4 utilities resolve through the --color-* theme variables, so
+   redefining them here (scoped to :root:not(.dark)) re-skins every surface,
+   border and neutral text across ALL pages at once, while the .dark theme
+   keeps Tailwind's default values untouched. The ramp is a soft lilac→peri-
+   winkle wash for surfaces/borders (low end) and deep, high-contrast indigo
+   for text (high end) so everything stays clearly readable.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root:not(.dark) {
+  /* Neutral ramp → pastel surfaces + dark readable text */
+  --color-slate-50: #faf6ff;
+  --color-slate-100: #f4eafe;
+  --color-slate-200: #eadcfb;
+  --color-slate-300: #dcc7f6;
+  --color-slate-400: #9c82ce;
+  --color-slate-500: #6e56a6;
+  --color-slate-600: #55418a;
+  --color-slate-700: #3e2f6b;
+  --color-slate-800: #2a2050;
+  --color-slate-900: #181031;
+  --color-slate-950: #0e0922;
+
+  --color-gray-50: #faf6ff;
+  --color-gray-100: #f4eafe;
+  --color-gray-200: #eadcfb;
+  --color-gray-300: #dcc7f6;
+  --color-gray-400: #9c82ce;
+  --color-gray-500: #6e56a6;
+  --color-gray-600: #55418a;
+  --color-gray-700: #3e2f6b;
+  --color-gray-800: #2a2050;
+  --color-gray-900: #181031;
+  --color-gray-950: #0e0922;
+
+  --color-zinc-50: #faf6ff;
+  --color-zinc-100: #f4eafe;
+  --color-zinc-200: #eadcfb;
+  --color-zinc-300: #dcc7f6;
+  --color-zinc-400: #9c82ce;
+  --color-zinc-500: #6e56a6;
+  --color-zinc-600: #55418a;
+  --color-zinc-700: #3e2f6b;
+  --color-zinc-800: #2a2050;
+  --color-zinc-900: #181031;
+  --color-zinc-950: #0e0922;
+
+  /* App shell + chrome tokens */
+  --app-bg: #f6f1fe;
+  --app-fg: #181031;
+  --chart-tick: #6e56a6;
+  --scrollbar-thumb: #dcc7f6;
+  --scrollbar-thumb-hover: #b79bde;
+  --sk-bg: #f4eafe;
+  --sk-bone: #eadcfb;
+  --sk-shimmer: #dcc7f6;
+
+  /* Interaction tokens */
+  --fx-surface: #ffffff;
+  --fx-surface-muted: #f4eafe;
+  --fx-surface-hover: #efe3fd;
+  --fx-surface-active: #e7d8fb;
+  --fx-border: #e7daf8;
+  --fx-border-hover: #d4bcef;
+  --fx-fg: #181031;
+  --fx-fg-muted: #6e56a6;
+  --fx-fg-hover: #0e0922;
+  --fx-accent: #7c3aed;
+  --fx-accent-fg: #6d28d9;
+  --fx-accent-soft: rgb(124 58 237 / 0.1);
+  --fx-on-accent: #ffffff;
+  --fx-ring: rgb(124 58 237 / 0.35);
+}
+
+/* Soft pastel page wash (pink → lilac → periwinkle → cyan) behind cards. */
+:root:not(.dark) body {
+  background-image: linear-gradient(165deg, #fdf3ff 0%, #f6eefe 35%, #eef1fe 70%, #ecfcff 100%);
+  background-attachment: fixed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Theme-aware interaction system
 
    One place owns interactive-state colour so components stop re-inventing
@@ -396,8 +477,8 @@ body,
   height: 100%;
   width: 100%;
   font-family:
-    'Geist Variable',
-    'Geist',
+    'Instrument Sans Variable',
+    'Instrument Sans',
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -425,7 +506,7 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  font-family: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
   /* 800 now renders as a true weight from the variable font instead of
      browser-synthesized ("faux") bold, which is what was causing the blur. */
   font-weight: 800;
@@ -546,15 +627,15 @@ button:focus:not(:focus-visible) {
 .btn-icon-edit {
   height: 2.25rem;
   width: 2.25rem;
-  background-color: rgb(241 245 249);
-  color: rgb(71 85 105);
-  border: 1px solid rgb(226 232 240 / 0.8);
+  background-color: rgb(244 234 254);
+  color: rgb(90 71 144);
+  border: 1px solid rgb(234 220 251 / 0.9);
 }
 
 .btn-icon-edit:hover {
-  background-color: rgb(238 242 255);
-  color: rgb(79 70 229);
-  border-color: rgb(199 210 254 / 0.8);
+  background-color: rgb(243 234 255);
+  color: rgb(124 58 237);
+  border-color: rgb(221 199 246 / 0.9);
 }
 
 html.dark .btn-icon-edit {
@@ -572,9 +653,9 @@ html.dark .btn-icon-edit:hover {
 .btn-icon-delete {
   height: 2.25rem;
   width: 2.25rem;
-  background-color: rgb(241 245 249);
-  color: rgb(71 85 105);
-  border: 1px solid rgb(226 232 240 / 0.8);
+  background-color: rgb(244 234 254);
+  color: rgb(90 71 144);
+  border: 1px solid rgb(234 220 251 / 0.9);
 }
 
 .btn-icon-delete:hover {
@@ -625,7 +706,7 @@ body.subscription-locked [data-premium-action]:not([data-premium-exempt]):hover 
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: rgb(100 116 139);
+  color: rgb(110 86 166);
 }
 
 html.dark .net-worth-formula {

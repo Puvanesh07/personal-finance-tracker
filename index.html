@@ -21,7 +21,7 @@
         document.documentElement.classList.toggle('dark', mode === 'dark');
         document.documentElement.style.colorScheme = mode === 'dark' ? 'dark' : 'light';
         var m = document.querySelector('meta[name="theme-color"]');
-        if (m) m.setAttribute('content', mode === 'dark' ? '#020617' : '#f8fafc');
+        if (m) m.setAttribute('content', mode === 'dark' ? '#020617' : '#f6f1fe');
       } catch (e) {
         document.documentElement.classList.add('dark');
       }
@@ -142,9 +142,9 @@
   <link rel="preconnect" href="https://apis.google.com" crossorigin />
   <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
 
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet" />
   <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet" />
   </noscript>
 
@@ -156,14 +156,14 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      font-family: 'Geist', system-ui, -apple-system, sans-serif;
+      font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
       -webkit-font-smoothing: antialiased;
     }
 
     html:not(.dark) body,
     html:not(.dark) #root {
-      background-color: #f8fafc;
-      color: #0f172a;
+      background-color: #f6f1fe;
+      color: #181031;
       color-scheme: light;
     }
 

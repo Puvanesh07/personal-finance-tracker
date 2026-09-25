@@ -62,7 +62,7 @@ function SectionHeading({
 }) {
   return (
     <div className='mb-3 flex items-center gap-3 px-1'>
-      <span className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500'>
+      <span className='flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500'>
         <Icon className='h-4 w-4' />
       </span>
       <h2 className='text-sm font-bold tracking-tight text-slate-800 md:text-base dark:text-slate-100'>
@@ -93,9 +93,9 @@ export function DashboardPage() {
   return (
     <div className='flex flex-col gap-6 pb-10 md:gap-7'>
       {/* ── Header ── */}
-      <header className='flex flex-col gap-4 rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-6'>
+      <header className='flex flex-col gap-4 rounded-3xl border border-violet-500/20 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/5 to-transparent p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-6'>
         <div className='flex items-center gap-3'>
-          <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 md:h-12 md:w-12'>
+          <div className='flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20 md:h-12 md:w-12'>
             <FiHome className='h-5 w-5 md:h-6 md:w-6' />
           </div>
           <div>
@@ -116,7 +116,7 @@ export function DashboardPage() {
               key={a.path}
               type='button'
               onClick={() => navigate(a.path)}
-              className='flex flex-col items-center gap-1 rounded-xl border border-slate-200/70 bg-white/80 px-2.5 py-2 text-[10px] font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-md sm:flex-row sm:text-xs dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300 md:min-w-[7rem]'
+              className='flex flex-col items-center gap-1 rounded-xl border border-slate-200/70 bg-white/80 px-2.5 py-2 text-[10px] font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-500/30 hover:shadow-md sm:flex-row sm:text-xs dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-300 md:min-w-[7rem]'
             >
               <a.icon className={`h-4 w-4 shrink-0 ${a.color}`} />
               <span className='leading-tight'>{a.label}</span>

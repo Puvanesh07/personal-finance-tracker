@@ -41,11 +41,11 @@ function MetricCard({
   let subClass = 'text-slate-400 dark:text-slate-500';
 
   if (variant === 'primary') {
-    shell = 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/95 to-teal-600/95 shadow-emerald-500/20';
+    shell = 'border-violet-500/30 bg-gradient-to-br from-violet-500/95 to-fuchsia-600/95 shadow-violet-500/20';
     textClass = 'text-white';
-    labelClass = 'text-emerald-50';
+    labelClass = 'text-violet-50';
     chipClass = 'bg-white/20 text-white';
-    subClass = 'text-emerald-50/90';
+    subClass = 'text-violet-50/90';
   } else if (variant === 'danger') {
     shell = 'border-rose-500/30 bg-gradient-to-br from-rose-500/95 to-rose-600/95 shadow-rose-500/20';
     textClass = 'text-white';
