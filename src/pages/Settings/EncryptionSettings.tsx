@@ -99,7 +99,7 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
             Data Encryption
           </h3>
           <p className='text-xs text-slate-500 dark:text-slate-400'>
-            AES-256-GCM · Key derived from your account
+            AES-256-GCM · key derived from your account
           </p>
         </div>
       </div>
@@ -121,14 +121,38 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
             {enabled ? 'Encryption is ON' : 'Encryption is OFF'}
           </div>
 
+          <p className='mb-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400'>
+            When <strong className='text-slate-900 dark:text-slate-200'>ON</strong>,
+            each document is encrypted in your browser with AES-256-GCM before it
+            is saved, so the rows in Firebase read as random bytes. That protects
+            your records from a leaked database export, a misread backup file or
+            anyone browsing the raw store.
+          </p>
+
+          {/* Honest limits — the previous copy implied only this device could
+              read the data, which is not what this scheme does. */}
+          <p className='mb-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400'>
+            <strong className='text-slate-900 dark:text-slate-200'>What it is not:</strong>{' '}
+            this is not end-to-end encryption and there is no separate key or
+            passphrase to remember. The key is derived from your account id and an
+            application salt, so the app can always rebuild it — which also means
+            whoever runs the backend can. Treat it as defence in depth on top of
+            Firestore access control, not as a vault that hides data from us.
+          </p>
           <p className='mb-5 text-sm leading-relaxed text-slate-600 dark:text-slate-400'>
-            When <strong className='text-slate-900 dark:text-slate-200'>ON</strong>
-            , every document is encrypted client-side before leaving your browser
-            using AES-256-GCM. The raw data in Firebase looks like random bytes.
-            <br />
-            <br />
-            The flag <code className='rounded bg-slate-200 px-1 py-0.5 text-[11px] text-slate-800 dark:bg-slate-800 dark:text-slate-200'>encryptionEnabled</code>{' '}
-            lives at{' '}
+            Because a whole document becomes one opaque field, the app reads your
+            full history from the server instead of asking the database for “last
+            3 months”.{' '}
+            <span className='text-slate-500 dark:text-slate-500'>
+              A passphrase-derived key with a recovery kit (real zero-access
+              encryption) is on the roadmap; the Credentials vault is the first
+              place it will apply.
+            </span>
+          </p>
+
+          <p className='mb-5 text-xs text-slate-500 dark:text-slate-400'>
+            The <code className='rounded bg-slate-200 px-1 py-0.5 text-[11px] text-slate-800 dark:bg-slate-800 dark:text-slate-200'>encryptionEnabled</code>{' '}
+            flag lives at{' '}
             <code className='rounded bg-slate-200 px-1 py-0.5 text-[11px] text-slate-800 dark:bg-slate-800 dark:text-slate-200'>
               users/{uid}/settings/config
             </code>

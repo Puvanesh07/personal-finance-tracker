@@ -3,6 +3,7 @@ import '@fontsource-variable/geist';
 
 import App from './App';
 import AuthWrapper from './Auth/AuthWrapper';
+import ErrorBoundary from './components/ErrorBoundary';
 import { BrowserRouter } from 'react-router-dom';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -44,6 +45,23 @@ function recoverFromStaleChunkLoad() {
 
 recoverFromStaleChunkLoad();
 
+/**
+ * Error visibility (finding #18). Firebase Crashlytics has no Web SDK, so this
+ * is the lightweight surface: log render/async errors with enough context to
+ * reproduce, in a single place a real telemetry sink can later replace. In
+ * production `console.*` is stripped by the build, so this is a no-op there
+ * unless a reporter endpoint is wired in — it never crashes the app itself.
+ */
+function reportError(error: unknown, source: string) {
+  try {
+    console.error(`[fintrackly:${source}]`, error);
+  } catch {
+    /* logging must never throw */
+  }
+}
+window.addEventListener('error', (event) => reportError(event.error ?? event.message, 'window'));
+window.addEventListener('unhandledrejection', (event) => reportError(event.reason, 'promise'));
+
 // This SPA manages scroll itself (AppLayout resets to the top on every route
 // change), so disable the browser's native scroll restoration — otherwise it
 // re-applies the previous offset on reload / back-forward and pages open lower
@@ -68,10 +86,12 @@ const updateSW = registerSW({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthWrapper>
-        <App />
-      </AuthWrapper>
-    </BrowserRouter>
+    <ErrorBoundary report={(error, info) => reportError(`${error.message}\n${info.componentStack}`, 'render')}>
+      <BrowserRouter>
+        <AuthWrapper>
+          <App />
+        </AuthWrapper>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

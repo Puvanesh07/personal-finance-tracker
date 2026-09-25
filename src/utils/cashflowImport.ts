@@ -13,7 +13,9 @@
 import { isValid as isValidDateFns, parse as parseDateFns } from 'date-fns';
 
 import type { CashflowType } from '../types/investmentTypes';
-import ExcelJS from 'exceljs';
+// Type-only so the 900 kB workbook parser stays out of the Cashflow chunk; it
+// is `await import()`ed inside parseXlsxFile below.
+import type ExcelJS from 'exceljs';
 
 // ── Generic row/sheet types ─────────────────────────────────────────────
 
@@ -134,6 +136,7 @@ function excelCellToString(value: ExcelJS.CellValue): string {
 }
 
 export async function parseXlsxFile(file: File): Promise<ParsedFile> {
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(await file.arrayBuffer());
 

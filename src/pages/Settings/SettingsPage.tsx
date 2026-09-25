@@ -35,6 +35,7 @@ import {
   FiTool,
 } from 'react-icons/fi';
 import { signOut, updateProfile } from 'firebase/auth';
+import { useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 import EncryptionSettings from './EncryptionSettings';
@@ -394,7 +395,18 @@ function DangerZoneTab() {
 export function SettingsPage() {
   const currentUserEmail = auth.currentUser?.email?.trim().toLowerCase() ?? '';
   const isAdmin = currentUserEmail === OWNER_EMAIL;
-  const [activeTab, setActiveTab] = useState<TabId>('profile');
+  // The tab lives in the URL so the first-run checklist (and any bookmark or
+  // support link) can send someone straight to Notifications or Export/Import.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab') as TabId | null;
+  const activeTab: TabId =
+    requestedTab &&
+    TABS.some((t) => t.id === requestedTab) &&
+    (requestedTab !== 'admin' || isAdmin)
+      ? requestedTab
+      : 'profile';
+  const setActiveTab = (next: TabId) =>
+    setSearchParams(next === 'profile' ? {} : { tab: next }, { replace: true });
 
   const visibleTabs = TABS.filter((t) => t.id !== 'admin' || isAdmin);
 

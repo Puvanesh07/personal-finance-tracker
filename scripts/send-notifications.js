@@ -5,12 +5,17 @@
 // Runs once a day at 8:00 AM IST via GitHub Actions (no Cloud Scheduler cost).
 //
 // For every user:
-//   1. Reads notificationSettings.
-//   2. Checks all collections (payments, insurance, liabilities, investments) in parallel.
-//   3. Collects all triggered reminders for the day.
-//   4. Deduplicates against pushSent subcollection (7-day cooldown).
+//   1. Reads notificationSettings (master switch + per-category flags).
+//   2. Decrypts the five money collections in parallel.
+//   3. Runs the shared rule engine (shared/alertRules.mjs) — the exact code the
+//      in-app bell uses, so mail and bell can never disagree.
+//   4. Drops occurrences already recorded in the pushSent ledger (one send per
+//      real-world event, with a 7-day cooldown as a safety net).
 //   5. Sends ONE consolidated email digest.
-//   6. Writes sent keys back to pushSent.
+//   6. Writes the sent occurrence keys back to pushSent.
+//
+// `pushSent` keeps its historical collection name: it is the sent-ledger, not a
+// device registry — browser push was removed because nothing ever delivered it.
 
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
@@ -114,22 +119,6 @@ async function decryptDoc(uid, raw) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function daysDiff(dateStr) {
-  const target = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  target.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
-}
-
-function fmt(n) {
-  return '₹' + Math.abs(Math.round(n || 0)).toLocaleString('en-IN');
-}
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 async function fetchCol(uid, col) {
   try {
     const snap = await db.collection('users').doc(uid).collection(col).get();
@@ -143,7 +132,10 @@ async function fetchCol(uid, col) {
   }
 }
 
-// ── Deduplication (mirrors pushNotifications.ts shouldSend / markSent) ────────
+// ── Deduplication (one send per occurrence key) ─────────────────────────────
+// Keys are occurrence-scoped (`payment:due_today:{id}:{dueDate}`), so a bill
+// can only be mailed once per checkpoint and next month's EMI is a fresh key.
+// The 7-day cooldown is only a guard for legacy keys written before that.
 async function shouldSend(uid, key) {
   const snap = await db
     .collection('users')
@@ -156,7 +148,6 @@ async function shouldSend(uid, key) {
   const ageMs =
     Date.now() -
     (data.sentAt?.toMillis?.() || data.failedAt?.toMillis?.() || 0);
-  // 7-day cooldown — same as original function
   return ageMs > 7 * 86_400_000;
 }
 
@@ -179,166 +170,38 @@ async function markSent(uid, keys) {
   await batch.commit();
 }
 
-// ── Rule evaluators ───────────────────────────────────────────────────────────
+// ── Rule evaluation ─────────────────────────────────────────────────────────
+// Every "something is due" rule lives in shared/alertRules.mjs — the very same
+// file the in-app bell imports — so the digest and the notification centre can
+// never disagree about what is urgent, about the wording, or about the
+// occurrence keys used for de-duplication. Adding a rule here is forbidden:
+// add it to the engine and both channels get it.
 
-async function checkPayments(uid, settings) {
-  const msgs = [];
-  if (!settings.paymentReminders) return msgs;
+async function collectAlerts(uid, settings, buildMoneyAlerts) {
+  const [
+    trackedPayments,
+    pendingPayments,
+    liabilities,
+    investments,
+    insurancePolicies,
+  ] = await Promise.all([
+    fetchCol(uid, 'trackedPayments'),
+    fetchCol(uid, 'pendingPayments'),
+    fetchCol(uid, 'liabilities'),
+    fetchCol(uid, 'investments'),
+    fetchCol(uid, 'insurancePolicies'),
+  ]);
 
-  const payments = await fetchCol(uid, 'trackedPayments');
-  for (const p of payments) {
-    if (p.status === 'paid') continue;
-    const days = daysDiff(p.dueDate);
-    const reminderDays = p.reminderDays ?? [1, 3, 7];
-
-    if (days === 0) {
-      msgs.push({
-        key: `payment_due_today:${p.id}:${todayStr()}`,
-        title: '🔔 Payment Due Today',
-        body: `${p.title} — ${fmt(p.amount)} is due today.`,
-        severity: 'high',
-        clickUrl: '/payments',
-        notifType: 'payment_tracker_due',
-        entityId: p.id,
-        actionLabel: 'Pay Now',
-      });
-    } else if (days > 0 && reminderDays.includes(days)) {
-      msgs.push({
-        key: `payment_due_${days}d:${p.id}:${todayStr()}`,
-        title: `💳 Payment Due in ${days} Days`,
-        body: `"${p.title}" — ${fmt(p.amount)} is due on ${p.dueDate}.`,
-        severity: 'medium',
-        clickUrl: '/payments',
-        notifType: 'payment_tracker_due',
-        entityId: p.id,
-      });
-    } else if (days < 0 && [-1, -3, -6, -9, -12].includes(days)) {
-      const absDays = Math.abs(days);
-      msgs.push({
-        key: `payment_overdue_${absDays}d:${p.id}:${todayStr()}`,
-        title: '🚨 Payment OVERDUE',
-        body: `${p.title} — ${fmt(p.amount)} was due ${absDays} days ago.`,
-        severity: 'critical',
-        clickUrl: '/payments',
-        notifType: 'payment_tracker_overdue',
-        entityId: p.id,
-      });
-    }
-  }
-  return msgs;
-}
-
-async function checkInsurance(uid, settings) {
-  const msgs = [];
-  if (!settings.insuranceReminders) return msgs;
-
-  const policies = await fetchCol(uid, 'insurancePolicies');
-  for (const pol of policies) {
-    if (!pol.renewalDate) continue;
-    const days = daysDiff(pol.renewalDate);
-    if (pol.status === 'expired' && !(days < 0 && days >= -3)) continue;
-
-    if (days < 0 && days >= -3) {
-      msgs.push({
-        key: `insurance_expired:${pol.id}:${todayStr()}`,
-        title: '🚨 Insurance Expired',
-        body: `${pol.policyName} expired on ${pol.renewalDate}. Renew immediately!`,
-        severity: 'critical',
-        clickUrl: '/insurance',
-        notifType: 'insurance_expired',
-        entityId: pol.id,
-      });
-    } else if ([30, 15, 7, 3, 1, 0].includes(days)) {
-      msgs.push({
-        key: `insurance_due_${days}d:${pol.id}:${todayStr()}`,
-        title: `🛡️ Insurance Renewal: ${pol.policyName}`,
-        body: `Premium ${fmt(pol.premiumAmount)} is due in ${days} days.`,
-        severity: days <= 3 ? 'high' : 'medium',
-        clickUrl: '/insurance',
-        notifType: 'insurance_renewal',
-        entityId: pol.id,
-      });
-    }
-  }
-  return msgs;
-}
-
-async function checkLiabilities(uid, settings) {
-  const msgs = [];
-  if (!settings.emiReminders) return msgs;
-
-  const liabilities = await fetchCol(uid, 'liabilities');
-  const today = new Date();
-
-  for (const l of liabilities) {
-    if (['paid', 'returned', 'paused'].includes(l.status)) continue;
-    if ((l.outstanding ?? 0) <= 0) continue;
-
-    if (typeof l.emiDay === 'number' && l.emiDay >= 1 && l.emiDay <= 31) {
-      const emiDayDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        l.emiDay,
-      );
-      if (emiDayDate < today && today.getDate() !== l.emiDay) {
-        emiDayDate.setMonth(emiDayDate.getMonth() + 1);
-      }
-      const daysToEMI = Math.round(
-        (emiDayDate.getTime() - today.getTime()) / 86_400_000,
-      );
-
-      if ([0, 1, 3].includes(daysToEMI)) {
-        msgs.push({
-          key: `emi_${daysToEMI}d:${l.id}:${todayStr()}`,
-          title: `💸 EMI Alert: ${l.name}`,
-          body: `EMI of ${fmt(l.emiAmount)} is due in ${daysToEMI} days.`,
-          severity: daysToEMI === 0 ? 'high' : 'medium',
-          clickUrl: '/liabilities',
-          notifType: 'liability_emi',
-          entityId: l.id,
-        });
-      }
-    }
-  }
-  return msgs;
-}
-
-async function checkInvestments(uid, settings) {
-  const msgs = [];
-  if (!settings.investmentAlerts) return msgs;
-
-  const investments = await fetchCol(uid, 'investments');
-  for (const inv of investments) {
-    if (
-      !inv.maturityDate ||
-      (inv.type !== 'bond' && inv.type !== 'fixed_deposit')
-    )
-      continue;
-    const days = daysDiff(inv.maturityDate);
-
-    if (days <= 0) {
-      msgs.push({
-        key: `inv_matured:${inv.id}:${inv.maturityDate}`,
-        title: '🎉 Investment Matured',
-        body: `Your investment "${inv.name}" has matured.`,
-        severity: 'info',
-        clickUrl: '/investments',
-        notifType: 'investment_matured',
-        entityId: inv.id,
-      });
-    } else if (days === 7 || days === 30) {
-      msgs.push({
-        key: `inv_mat_upcoming_${days}d:${inv.id}:${todayStr()}`,
-        title: '⏰ Investment Maturing Soon',
-        body: `"${inv.name}" matures in ${days} days.`,
-        severity: 'low',
-        clickUrl: '/investments',
-        notifType: 'investment_upcoming',
-        entityId: inv.id,
-      });
-    }
-  }
-  return msgs;
+  return buildMoneyAlerts(
+    {
+      trackedPayments,
+      pendingPayments,
+      liabilities,
+      investments,
+      insurancePolicies,
+    },
+    settings,
+  );
 }
 
 // ── Email renderer ────────────────────────────────────────────────────────────
@@ -461,7 +324,7 @@ function renderConsolidatedHtmlEmail(messages) {
 }
 
 // ── Per-user processing ───────────────────────────────────────────────────────
-async function processUser(uid, userEmail, transporter) {
+async function processUser(uid, userEmail, transporter, engine) {
   // Load notification settings with safe defaults (all enabled)
   const settingsSnap = await db
     .collection('users')
@@ -480,7 +343,6 @@ async function processUser(uid, userEmail, transporter) {
     sipReminders: true,
     subscriptionAlerts: true,
     investmentAlerts: true,
-    quietHoursEnabled: false,
     ...(settingsSnap.exists ? settingsSnap.data() : {}),
   };
 
@@ -489,15 +351,10 @@ async function processUser(uid, userEmail, transporter) {
     return { skipped: true };
   }
 
-  // 1. Gather all triggered rules concurrently
-  const allMessages = (
-    await Promise.all([
-      checkPayments(uid, settings),
-      checkInsurance(uid, settings),
-      checkLiabilities(uid, settings),
-      checkInvestments(uid, settings),
-    ])
-  ).flat();
+  // 1. Run the shared rule engine over everything due for this user
+  const allMessages = engine.sortBySeverity(
+    await collectAlerts(uid, settings, engine.buildMoneyAlerts),
+  );
 
   if (allMessages.length === 0) {
     console.log(`  ↳ no alerts today → ${userEmail}`);
@@ -536,10 +393,28 @@ async function processUser(uid, userEmail, transporter) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+/** The alert engine is a single file shared with the browser bundle. It is ESM
+ *  (no build step) while this job is CommonJS, so it comes in through a
+ *  dynamic import resolved against this file's own directory. */
+async function loadAlertEngine() {
+  const path = require('path');
+  const { pathToFileURL } = require('url');
+  const moduleUrl = pathToFileURL(
+    path.join(__dirname, '..', 'shared', 'alertRules.mjs'),
+  ).href;
+  const engine = await import(moduleUrl);
+  if (typeof engine.buildMoneyAlerts !== 'function') {
+    throw new Error('shared/alertRules.mjs does not export buildMoneyAlerts');
+  }
+  return engine;
+}
+
 async function main() {
   console.log('=== FinTrackly Daily Notifications ===');
   console.log('Time (UTC):', new Date().toISOString());
   console.log('All env vars present ✓');
+
+  const engine = await loadAlertEngine();
 
   const transporter = createTransporter();
   try {
@@ -558,7 +433,7 @@ async function main() {
     try {
       const user = await admin.auth().getUserByEmail(testEmail);
       console.log(`Found uid: ${user.uid}`);
-      await processUser(user.uid, testEmail, transporter);
+      await processUser(user.uid, testEmail, transporter, engine);
     } catch (err) {
       console.error('ERROR:', err.message);
       process.exit(1);
@@ -588,7 +463,7 @@ async function main() {
     }
 
     try {
-      const result = await processUser(uid, userEmail, transporter);
+      const result = await processUser(uid, userEmail, transporter, engine);
       if (result.skipped) {
         skipped++;
       } else {

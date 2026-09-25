@@ -169,12 +169,12 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
 
   credentials: {
     emoji: '🔐',
-    summary: 'Securely store financial account numbers, PAN, Aadhaar, and login details — encrypted on your device.',
-    what: 'Credentials is an encrypted vault for sensitive financial information: bank account numbers, PAN card, Aadhaar, demat account IDs, brokerage logins, and insurance policy numbers.',
-    why: 'Financial credentials are scattered — PAN in one email, Aadhaar in another, bank account number memorised. Having them in one encrypted place means you always have them when needed (e.g. filing taxes, opening a new account).',
-    how: 'Tap "+ Add Credential" with title, category, identifier, and optional notes. All data is encrypted before being saved — even FinTrackly cannot read your stored values.',
+    summary: 'Store financial account numbers, PAN, Aadhaar and login details — encrypted before it is saved.',
+    what: 'Credentials is a stored vault for sensitive financial information: bank account numbers, PAN card, Aadhaar, demat account IDs, brokerage logins, and insurance policy numbers.',
+    why: 'Financial credentials are scattered — PAN in one email, Aadhaar in another, bank account number memorised. Having them in one place means you always have them when needed (e.g. filing taxes, opening a new account).',
+    how: 'Tap "+ Add Credential" with title, category, identifier, and optional notes. Everything is encrypted in your browser (AES-256-GCM) before it reaches Firestore.',
     questions: [
-      { q: 'Is it safe to store passwords here?', a: 'All credential data is encrypted using AES-256 with your personal encryption key before it reaches our servers. Only your device can decrypt it.' },
+      { q: 'Is it safe to store passwords here?', a: 'It keeps your records out of a plain database export, but the key is derived from your account, not from a passphrase only you know — so this is convenience storage, not a zero-knowledge vault. Use a real password manager for anything that unlocks money (net-banking or trading passwords). A passphrase-based key for this vault is planned.' },
       { q: 'What categories should I use?', a: 'Identity (PAN, Aadhaar, Passport), Finance (account numbers, demat IDs), Login (net banking usernames), and Note (policy numbers, tax info).' },
       { q: 'Will I get a reminder if a password is stale?', a: 'Yes — if a login credential hasn\'t been updated in over a year, FinTrackly notifies you to review and rotate it.' },
     ],
@@ -384,11 +384,11 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
     emoji: '⚙️',
     summary: 'Configure your account, subscription, data exports, notifications, encryption, and integrations.',
     what: 'Settings is your control centre: manage your profile, view subscription status, export/import data (CSV or JSON backup), configure notification preferences, enable encryption, set up Notion sync, and access admin tools.',
-    why: 'Your financial data belongs to you. Settings gives you full control — export at any time, enable military-grade encryption, set up automated reminders, and manage your subscription.',
+    why: 'Your financial data belongs to you. Settings gives you full control — export at any time, review how data is encrypted, set up automated reminders, and manage your subscription.',
     how: 'Navigate using the tab menu on the left. Key actions: Export/Import tab for backups, Notifications tab for alert preferences, App & Security for encryption.',
     questions: [
       { q: 'How do I back up my data?', a: 'Settings → Export/Import → "Export Full Backup (JSON)". Download the file and keep it safe. You can restore from it at any time.' },
-      { q: 'What is Encryption?', a: 'When enabled, all your financial data is encrypted with AES-256 before being saved to the database — even FinTrackly staff cannot read it. Requires you to remember your encryption key.' },
+      { q: 'What is Encryption?', a: 'When enabled, each document is encrypted with AES-256-GCM in your browser before it is saved, so a leaked database export reads as random bytes. The key comes from your account id plus an app salt, so this is defence in depth — not zero-access encryption. Settings → App & Security states the limits.' },
       { q: 'How do I cancel my subscription?', a: 'Settings → Subscription → the subscription details are shown there with options to manage your plan.' },
     ],
   },

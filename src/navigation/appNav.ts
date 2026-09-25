@@ -23,11 +23,27 @@ export type AppNavItem = {
   label: string;
   accent: string;
   bg: string;
+  /** Hidden behind the "More" disclosure. The nav used to advertise 14
+   *  destinations, most of them re-presenting the same numbers in a different
+   *  shape; the everyday screens stay visible and the occasional ones are
+   *  grouped, not deleted — every route and deep link still works. */
+  more?: boolean;
 };
 
 export type AppNavGroup = { label: string; items: AppNavItem[] };
 
-export const NAV_GROUPS: AppNavGroup[] = [
+/** Items parked under "More" (declared once, filtered out of the main list). */
+const MORE_DESTINATIONS = [
+  '/forecast',
+  '/calendar',
+  '/credentials',
+  '/simulator',
+  '/cfo',
+  '/tools',
+  '/reports',
+];
+
+const RAW_NAV_GROUPS: AppNavGroup[] = [
   {
     label: 'Portfolio',
     items: [
@@ -41,7 +57,7 @@ export const NAV_GROUPS: AppNavGroup[] = [
       {
         to: '/wealth',
         icon: FiLayers,
-        label: 'Wealth',
+        label: 'Investments & loans',
         accent: 'text-indigo-400',
         bg: 'bg-indigo-500/10',
       },
@@ -55,7 +71,7 @@ export const NAV_GROUPS: AppNavGroup[] = [
       {
         to: '/payments',
         icon: FiBell,
-        label: 'Bill Reminders',
+        label: 'Upcoming bills',
         accent: 'text-sky-400',
         bg: 'bg-sky-500/10',
       },
@@ -69,7 +85,7 @@ export const NAV_GROUPS: AppNavGroup[] = [
       {
         to: '/essentials',
         icon: FiTarget,
-        label: 'Essentials',
+        label: 'Goals',
         accent: 'text-emerald-400',
         bg: 'bg-emerald-500/10',
       },
@@ -116,7 +132,7 @@ export const NAV_GROUPS: AppNavGroup[] = [
       {
         to: '/cfo',
         icon: FiShield,
-        label: 'Personal CFO',
+        label: 'Monthly plan',
         accent: 'text-amber-400',
         bg: 'bg-amber-500/10',
       },
@@ -143,8 +159,23 @@ export const NAV_GROUPS: AppNavGroup[] = [
   },
 ];
 
+export const NAV_GROUPS: AppNavGroup[] = RAW_NAV_GROUPS.map((group) => ({
+  ...group,
+  items: group.items
+    .filter((item) => !MORE_DESTINATIONS.includes(item.to))
+    .map((item) => ({ ...item, more: false })),
+})).filter((group) => group.items.length > 0);
+
+/** The grouped leftovers, in the order they were listed above. */
+export const MORE_ITEMS: AppNavItem[] = RAW_NAV_GROUPS.flatMap((g) => g.items)
+  .filter((item) => MORE_DESTINATIONS.includes(item.to))
+  .map((item) => ({ ...item, more: true }));
+
+export const PRIMARY_NAV_ITEMS: AppNavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
 export const ALL_NAV_ITEMS: AppNavItem[] = [
-  ...NAV_GROUPS.flatMap((g) => g.items),
+  ...PRIMARY_NAV_ITEMS,
+  ...MORE_ITEMS,
   {
     to: '/settings',
     icon: FiSettings,

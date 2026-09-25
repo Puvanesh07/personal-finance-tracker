@@ -330,6 +330,10 @@ export type Account = {
   balance: number;
   openingBalance: number;
   openingBalanceDate: string;
+  /** Timestamp of the last edit that moved `openingBalanceDate`, i.e. the moment
+   *  cashflows started/ stopped counting toward the live balance. Kept so a
+   *  "where did my money go?" report has something to line up against. */
+  cutoffChangedAt?: string;
   createdAt: string;
   updatedAt: string;
   userId?: string;

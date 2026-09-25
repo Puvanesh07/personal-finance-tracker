@@ -11,9 +11,11 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
+import toast from 'react-hot-toast';
 import type { PaidPlan, SubscriptionNotification } from '../types/subscription';
 import { app, auth, db } from './firebase';
 
@@ -133,24 +135,52 @@ export async function getSubscriptionNotificationsOnce(
 }
 
 export async function markNotificationRead(uid: string, notificationId: string) {
-  await updateDoc(doc(db, 'notifications', uid, 'items', notificationId), { read: true });
+  try {
+    await updateDoc(doc(db, 'notifications', uid, 'items', notificationId), { read: true });
+  } catch (err) {
+    reportNotificationWriteFailure(err);
+  }
+}
+
+/** Chunked batch commits: one round trip per 400 items instead of N, and a
+ *  failure in the middle can no longer leave the list half-updated. */
+async function batchUpdateNotifications(
+  uid: string,
+  itemIds: string[],
+  buildPatch: () => Record<string, unknown>,
+) {
+  if (!itemIds.length) return;
+  const CHUNK = 400;
+  try {
+    for (let i = 0; i < itemIds.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      itemIds.slice(i, i + CHUNK).forEach((id) => {
+        batch.update(doc(db, 'notifications', uid, 'items', id), buildPatch());
+      });
+      await batch.commit();
+    }
+  } catch (err) {
+    reportNotificationWriteFailure(err);
+  }
+}
+
+/** Firestore rejects these writes when the rules and the client disagree — the
+ *  old behaviour was a silent catch that hid a permanently broken Dismiss button. */
+function reportNotificationWriteFailure(err: unknown) {
+  console.error('[notifications] write rejected:', err);
+  toast.error('Could not update your notifications. Sign out and back in if it keeps happening.');
 }
 
 export async function markAllNotificationsRead(uid: string, unreadIds: string[]) {
-  if (!unreadIds.length) return;
-  await Promise.all(
-    unreadIds.map((id) =>
-      updateDoc(doc(db, 'notifications', uid, 'items', id), { read: true }),
-    ),
-  );
+  await batchUpdateNotifications(uid, unreadIds, () => ({ read: true }));
 }
 
 export async function dismissNotification(uid: string, notificationId: string) {
-  await updateDoc(doc(db, 'notifications', uid, 'items', notificationId), {
+  await batchUpdateNotifications(uid, [notificationId], () => ({
     read: true,
     dismissed: true,
     dismissedAt: serverTimestamp(),
-  });
+  }));
 }
 
 export async function clearAllNotificationsFirestore(
@@ -158,16 +188,11 @@ export async function clearAllNotificationsFirestore(
   itemIds: string[],
   opts: { markRead?: boolean } = {},
 ) {
-  if (!itemIds.length) return;
   const markRead = opts.markRead !== false;
-  await Promise.all(
-    itemIds.map((id) =>
-      updateDoc(doc(db, 'notifications', uid, 'items', id), {
-        ...(markRead ? { read: true } : {}),
-        clearedAt: serverTimestamp(),
-      }),
-    ),
-  );
+  await batchUpdateNotifications(uid, itemIds, () => ({
+    ...(markRead ? { read: true } : {}),
+    clearedAt: serverTimestamp(),
+  }));
 }
 
 export async function initializeTrialIfMissing(): Promise<void> {
@@ -279,16 +304,28 @@ export async function createRazorpayOrder(plan: PaidPlan): Promise<{
 export async function adminManageSubscription(
   payload:
     | { action: 'setPremiumAccess'; email: string; enabled: boolean }
-    | { action: 'backfillPremiumGranted' },
+    | { action: 'backfillPremiumGranted' }
+    | { action: 'syncClaims' }
+    | { action: 'expireNow'; email: string }
+    | { action: 'reconcilePayments'; apply?: boolean },
 ): Promise<
   | {
       success: boolean;
       action: string;
-      email: string;
-      uid: string;
-      premiumGranted: boolean;
+      email?: string;
+      uid?: string;
+      premiumGranted?: boolean;
+      updated?: number;
+      total?: number;
+      checked?: number;
+      mismatches?: Array<{
+        paymentId: string;
+        orderId: string;
+        uid: string;
+        amount: number;
+        action: string;
+      }>;
     }
-  | { success: boolean; action: string; updated: number; total: number }
 > {
   const fn = httpsCallable<typeof payload, Awaited<ReturnType<typeof adminManageSubscription>>>(
     functions,
@@ -303,12 +340,15 @@ export async function verifyRazorpayPayment(payload: {
   razorpay_payment_id: string;
   razorpay_signature: string;
   plan: PaidPlan;
-}): Promise<{ success: boolean; plan: PaidPlan }> {
+}): Promise<{ success: boolean; plan: PaidPlan; alreadyApplied?: boolean }> {
   const fn = httpsCallable<
     typeof payload,
     { success: boolean; plan: PaidPlan }
   >(functions, 'verifyRazorpayPayment');
   const result = await fn(payload);
+  // Custom claims (plan/premium) only reach Firestore rules after the ID token
+  // is re-minted, so force it the moment a payment is applied.
+  await auth.currentUser?.getIdToken(true).catch(() => undefined);
   return result.data;
 }
 
@@ -318,6 +358,7 @@ export async function restorePurchase(): Promise<{ restored: boolean; message: s
     'restorePurchase',
   );
   const result = await fn();
+  await auth.currentUser?.getIdToken(true).catch(() => undefined);
   return result.data;
 }
 
@@ -511,6 +552,7 @@ export async function confirmUpiPayment(params: {
     plan?: PaidPlan;
   }>(functions, 'confirmUpiPayment');
   const result = await fn(params);
+  await auth.currentUser?.getIdToken(true).catch(() => undefined);
   return result.data;
 }
 

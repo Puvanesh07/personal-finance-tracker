@@ -26,8 +26,15 @@ import type {
   TrackedPayment,
 } from '../types/investmentTypes';
 import { db } from './firebase';
-import { doc, writeBatch } from 'firebase/firestore';
+import {
+  deleteField,
+  doc,
+  getDoc,
+  setDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { encryptDoc } from './encryptionService';
+import { markDataDirty } from '../utils/dataVersion';
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 const now = () => new Date();
@@ -291,12 +298,19 @@ function generateCredentials(uid: string): Credential[] {
 
 const userDoc = (uid: string, col: string, id: string) => doc(db, 'users', uid, col, id);
 
+/** Documents written by the last `loadDummyData()` run, keyed by collection.
+ *  Firestore queries cannot see inside an encrypted document, so remembering the
+ *  ids is the only way "clear sample data" can find exactly what it inserted. */
+let lastWritten: Record<string, string[]> = {};
+
 async function batchWrite(uid: string, colName: string, items: any[]) {
   if (!items.length) return;
+  const ids = (lastWritten[colName] ??= []);
   for (let i = 0; i < items.length; i += 499) {
     const batch = writeBatch(db);
     for (const item of items.slice(i, i + 499)) {
       if (!item?.id) continue;
+      ids.push(item.id);
       const withUser = { ...item, userId: uid };
       const encrypted = await encryptDoc(uid, withUser);
       batch.set(userDoc(uid, colName, item.id), encrypted);
@@ -314,6 +328,7 @@ export interface DummyDataResult {
 export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   const today = todayStr();
   const counts: Record<string, number> = {};
+  lastWritten = {};
 
   // 1. Accounts
   const accounts = generateAccounts();
@@ -406,6 +421,15 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
 
   // 16. Sold Trades + SIP (skipped above, already counted)
 
+  // Remember what was inserted so the first-run "clear sample data" can undo it
+  // exactly, without touching anything the user typed in themselves.
+  await setDoc(
+    doc(db, 'users', uid, 'settings', 'config'),
+    { sampleData: { loadedAt: today, collections: lastWritten } },
+    { merge: true },
+  );
+  markDataDirty(uid, 'settings');
+
   counts['total'] = Object.values(counts).reduce((a, b) => a + b, 0) - (counts['total'] || 0);
   counts['grandTotal'] = Object.values(counts).reduce((a, b) => a + b, 0);
 
@@ -429,4 +453,59 @@ export function getDummyDataPreview(): Record<string, number> {
   counts['networthSnapshots'] = 3;
   counts['grandTotal'] = Object.values(counts).reduce((a, b) => a + b, 0);
   return counts;
+}
+
+// ─── Sample data bookkeeping ─────────────────────────────────────────────────
+
+export type SampleDataState = {
+  loadedAt: string;
+  collections: Record<string, string[]>;
+  documents: number;
+};
+
+/** What `loadDummyData()` inserted last time, or null on a clean account. */
+export async function readSampleDataState(
+  uid: string,
+): Promise<SampleDataState | null> {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'settings', 'config'));
+    const raw = snap.data()?.sampleData as
+      | { loadedAt?: string; collections?: Record<string, string[]> }
+      | undefined;
+    if (!raw?.collections) return null;
+    const documents = Object.values(raw.collections).reduce(
+      (n, ids) => n + (ids?.length ?? 0),
+      0,
+    );
+    return documents ? { loadedAt: raw.loadedAt ?? '', collections: raw.collections, documents } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Delete exactly the sample documents — user-entered records are never touched. */
+export async function clearSampleData(uid: string): Promise<number> {
+  const state = await readSampleDataState(uid);
+  if (!state) return 0;
+
+  let deleted = 0;
+  for (const [col, ids] of Object.entries(state.collections)) {
+    for (let i = 0; i < ids.length; i += 499) {
+      const batch = writeBatch(db);
+      for (const id of ids.slice(i, i + 499)) {
+        batch.delete(userDoc(uid, col, id));
+        deleted++;
+      }
+      await batch.commit();
+    }
+    markDataDirty(uid, col);
+  }
+
+  await setDoc(
+    doc(db, 'users', uid, 'settings', 'config'),
+    { sampleData: deleteField() },
+    { merge: true },
+  );
+  markDataDirty(uid, 'settings');
+  return deleted;
 }

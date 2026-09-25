@@ -57,10 +57,14 @@ import { useExportPresetsStore } from '../../store/exportPresetsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { usePremiumActions } from '../../hooks/usePremiumActions';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 import { useRecurringDetection } from '../../hooks/useRecurringDetection';
 
 // ── Recurring detection banner ─────────────────────────────────────────────
+
+/** Rows mounted at a time in the transactions list (see `rowWindow`). */
+const ROW_PAGE = 50;
 
 function RecurringBanner() {
   const candidates = useRecurringDetection();
@@ -899,6 +903,19 @@ export function CashflowPage() {
     return rows;
   }, [typeScopedRows, sortKey]);
 
+  // One layout, not two. The desktop <table> and the mobile card list used to
+  // both be rendered on every screen and swapped with `hidden md:block`, so a
+  // 400-row history mounted ~800 row trees on a phone.
+  const isDesktopTable = useMediaQuery('(min-width: 768px)');
+
+  // …and only the first window of rows is mounted; "Show more" pages in.
+  const [rowWindow, setRowWindow] = useState(ROW_PAGE);
+  useEffect(() => setRowWindow(ROW_PAGE), [filteredRows]);
+  const visibleRows = useMemo(
+    () => filteredRows.slice(0, rowWindow),
+    [filteredRows, rowWindow],
+  );
+
   // SUMMARY LOGIC: every visible stat follows the FULL filter (period +
   // type + category) so totals, counts, charts and the list never disagree.
   const summary = useMemo(() => {
@@ -1506,7 +1523,7 @@ export function CashflowPage() {
             </div>
           </div>
 
-          <div className='hidden md:block overflow-x-auto rounded-b-2xl'>
+          {isDesktopTable && (<div className='overflow-x-auto rounded-b-2xl'>
             <table className='min-w-full text-left text-sm whitespace-nowrap'>
               <thead className='border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/30'>
                 <tr>
@@ -1563,7 +1580,7 @@ export function CashflowPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredRows.map((e) => (
+                  visibleRows.map((e) => (
                     <tr
                       key={e.id}
                       className='group transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
@@ -1639,9 +1656,9 @@ export function CashflowPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </div>)}
 
-          <div className='block md:hidden'>
+          {!isDesktopTable && (<div>
             <div className='flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 px-4 py-2.5'>
               <label className='flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300'>
                 <input
@@ -1670,7 +1687,7 @@ export function CashflowPage() {
               </div>
             ) : (
               <div className='flex flex-col gap-3 p-4'>
-                {filteredRows.map((e) => (
+                {visibleRows.map((e) => (
                   <div
                     key={e.id}
                     className='flex flex-col gap-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/40 p-4 shadow-sm'
@@ -1747,7 +1764,22 @@ export function CashflowPage() {
                 ))}
               </div>
             )}
-          </div>
+          </div>)}
+
+          {filteredRows.length > visibleRows.length && (
+            <div className='flex items-center justify-center gap-3 border-t border-slate-100 dark:border-slate-800/60 px-5 py-3'>
+              <span className='text-xs font-medium text-slate-500 dark:text-slate-400'>
+                Showing {visibleRows.length} of {filteredRows.length}
+              </span>
+              <button
+                type='button'
+                onClick={() => setRowWindow((n) => n + ROW_PAGE)}
+                className='fx-chip cursor-pointer rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200'
+              >
+                Show {Math.min(ROW_PAGE, filteredRows.length - visibleRows.length)} more
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Modals ─────────────────────────────────────────────────── */}

@@ -26,6 +26,7 @@ import { GrowthChart }                    from '../../components/dashboard/Growt
 import { MarketCapAllocationChart }       from '../../components/dashboard/MarketCapAllocationChart';
 import { MaturityTimeline }               from '../../components/dashboard/MaturityTimeline';
 import { SummaryCards }                   from '../../components/dashboard/SummaryCards';
+import { SetupChecklist }                 from '../../components/dashboard/SetupChecklist';
 import { usePortfolioStore }              from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
@@ -94,6 +95,9 @@ export function DashboardPage() {
 
       {/* ── Subscription banner ── */}
       <DashboardSubscriptionBanner />
+
+      {/* ── First-run checklist (hidden once the four basics exist) ── */}
+      <SetupChecklist />
 
       {/* ── Quick actions ── */}
       <section className='grid grid-cols-3 sm:grid-cols-6 gap-2 md:gap-3'>

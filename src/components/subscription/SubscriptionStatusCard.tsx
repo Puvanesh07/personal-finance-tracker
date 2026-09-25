@@ -84,6 +84,42 @@ export function SubscriptionStatusCard() {
     }
   };
 
+  /** Push every user's current plan into their Auth custom claims. Needed once
+   *  after claims are introduced, and again after any manual Firestore edit. */
+  const handleSyncClaims = async () => {
+    setAdminBusy(true);
+    try {
+      const result = await adminManageSubscription({ action: 'syncClaims' });
+      toast.success(`Claims refreshed for ${result.updated ?? 0} users`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Claim sync failed');
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  /** Find captured Razorpay payments that never landed on a subscription. */
+  const handleReconcile = async (apply: boolean) => {
+    setAdminBusy(true);
+    try {
+      const result = await adminManageSubscription({ action: 'reconcilePayments', apply });
+      const issues = result.mismatches ?? [];
+      if (!issues.length) {
+        toast.success(`Checked ${result.checked ?? 0} payments — all matched`);
+      } else {
+        console.warn('[reconcilePayments]', issues);
+        toast[
+          apply ? 'success' : 'error'
+        ](`${issues.length} payment(s) ${apply ? 'fixed' : 'need attention'} — see console`);
+      }
+      await refreshSubscription();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Reconciliation failed');
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
   const handleRefresh = async () => {
     try {
       await refreshSubscription();
@@ -357,6 +393,30 @@ export function SubscriptionStatusCard() {
               className='rounded-lg border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800'
             >
               Backfill all users
+            </button>
+            <button
+              type='button'
+              disabled={adminBusy}
+              onClick={handleSyncClaims}
+              className='rounded-lg border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800'
+            >
+              Sync auth claims
+            </button>
+            <button
+              type='button'
+              disabled={adminBusy}
+              onClick={() => handleReconcile(false)}
+              className='rounded-lg border border-amber-400/60 px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-500/10 disabled:opacity-60 dark:text-amber-300'
+            >
+              Check payments
+            </button>
+            <button
+              type='button'
+              disabled={adminBusy}
+              onClick={() => handleReconcile(true)}
+              className='rounded-lg border border-emerald-500/50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-500/10 disabled:opacity-60 dark:text-emerald-300'
+            >
+              Check + fix payments
             </button>
           </div>
         </div>

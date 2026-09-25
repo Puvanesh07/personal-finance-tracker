@@ -1,6 +1,7 @@
 // src/components/settings/DataManagement.tsx
 
 import {
+  FiAlertTriangle,
   FiArrowDown,
   FiArrowUp,
   FiCheck,
@@ -8,6 +9,7 @@ import {
   FiFileText,
   FiGrid,
   FiPackage,
+  FiRefreshCw,
   FiTable,
   FiTrash2,
   FiUpload,
@@ -60,6 +62,7 @@ export function ExportImport() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<Record<string, number>>({});
   const [pendingFile, setPendingFile] = useState<string | null>(null);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
 
 
 
@@ -203,6 +206,47 @@ export function ExportImport() {
       setPreviewOpen(false);
       setPendingFile(null);
       toast.error(err.message || 'Import failed — check JSON format.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Data health: force re-sync and repair account balances ──────────────
+  const handleSyncNow = async () => {
+    if (!uid) return;
+    setBusy(true);
+    try {
+      const result = await hydrate(uid, { force: true });
+      toast.success(
+        `Up to date — ${result.documents} records reloaded from the cloud.`,
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not sync right now.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReconcile = async () => {
+    setReconcileOpen(false);
+    setBusy(true);
+    try {
+      const { changed, legacy } = await state.reconcileAccountBalances();
+      if (changed > 0) {
+        toast.success(
+          `Fixed ${changed} account balance${changed === 1 ? '' : 's'}.`,
+        );
+      } else if (legacy === 0) {
+        toast.success('Every account balance already adds up.');
+      }
+      if (legacy > 0) {
+        toast(
+          `${legacy} account${legacy === 1 ? '' : 's'} left unchanged — its balance was edited by hand, so check those yourself.`,
+          { duration: 7000, icon: '⚠️' },
+        );
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not re-check balances.');
     } finally {
       setBusy(false);
     }
@@ -364,6 +408,104 @@ export function ExportImport() {
           <FiUpload className='h-4 w-4' /> {busy ? 'Importing…' : 'Import JSON'}
         </button>
       </div>
+
+      <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-5 flex flex-col gap-4'>
+        <div className='flex items-center gap-3'>
+          <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20'>
+            <FiAlertTriangle className='h-4 w-4 text-amber-400' />
+          </div>
+          <div>
+            <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
+              Data health
+            </p>
+            <p className='text-xs text-slate-900 dark:text-slate-500'>
+              Reload from the cloud, or repair account balances written by an
+              older version of the app.
+            </p>
+          </div>
+        </div>
+
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-200 dark:border-slate-800 pt-4'>
+          <div className='flex flex-col gap-2 rounded-xl border border-slate-300/60 dark:border-slate-700/50 bg-slate-100/90 dark:bg-slate-800/40 p-4'>
+            <div className='flex items-center gap-2'>
+              <FiRefreshCw className='h-4 w-4 text-emerald-400' />
+              <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
+                Sync now
+              </p>
+            </div>
+            <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
+              Discard what is cached on this device and read everything again
+              from the cloud.
+            </p>
+            <button
+              onClick={handleSyncNow}
+              disabled={busy}
+              className='mt-auto flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50'
+            >
+              <FiRefreshCw className='h-4 w-4' /> Reload from cloud
+            </button>
+          </div>
+
+          <div className='flex flex-col gap-2 rounded-xl border border-slate-300/60 dark:border-slate-700/50 bg-slate-100/90 dark:bg-slate-800/40 p-4'>
+            <div className='flex items-center gap-2'>
+              <FiCheck className='h-4 w-4 text-amber-400' />
+              <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
+                Re-check account balances
+              </p>
+            </div>
+            <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
+              Builds before this one added every cashflow entry straight into
+              the stored account balance, which double-counted it. This puts
+              those numbers back.
+            </p>
+            <button
+              onClick={() => setReconcileOpen(true)}
+              disabled={busy}
+              className='mt-auto flex items-center justify-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50'
+            >
+              <FiAlertTriangle className='h-4 w-4' /> Re-check balances
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        open={reconcileOpen}
+        onClose={() => setReconcileOpen(false)}
+        title='⚖ Re-check account balances'
+      >
+        <div className='space-y-4'>
+          <div className='bg-amber-500/10 border border-amber-500/20 rounded-xl p-3'>
+            <p className='text-xs font-bold text-amber-400 flex items-center gap-1.5'>
+              <FiAlertTriangle className='h-3.5 w-3.5' /> This rewrites stored
+              balances
+            </p>
+            <p className='text-[11px] text-amber-500/80 mt-1'>
+              Only accounts whose difference is fully explained by those old
+              entries are changed. Anything that looks hand-edited is left
+              alone and reported at the end, so you can fix it yourself.
+            </p>
+          </div>
+          <p className='text-xs text-slate-900 dark:text-slate-500'>
+            Unsure? Export a Full Backup (JSON) above first — it is the only way
+            to undo this.
+          </p>
+          <div className='flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-4'>
+            <button
+              onClick={() => setReconcileOpen(false)}
+              className='rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-bold text-slate-900 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReconcile}
+              className='rounded-xl bg-amber-500/20 border border-amber-500/30 px-4 py-2 text-sm font-bold text-amber-400 hover:bg-amber-500/30'
+            >
+              Re-check balances
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={previewOpen}

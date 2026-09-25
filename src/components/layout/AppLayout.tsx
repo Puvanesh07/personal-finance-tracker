@@ -13,14 +13,13 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
-import { ALL_NAV_ITEMS, NAV_GROUPS } from '../../navigation/appNav';
+import { ALL_NAV_ITEMS, MORE_ITEMS, NAV_GROUPS, PRIMARY_NAV_ITEMS } from '../../navigation/appNav';
 import { CommandPalette } from './CommandPalette';
 import { FeedbackModal } from './FeedbackModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { Modal } from '../ui/Modal';
 import { NotificationBell } from '../notifications/NotificationBell';
 
-import { NotificationPermissionBanner } from '../notifications/NotificationPermissionBanner';
 import { InstallAppModal } from '../InstallAppModal';
 import { TrialBanner } from '../subscription/TrialBanner';
 import { UpgradeModal } from '../subscription/UpgradeModal';
@@ -78,6 +77,10 @@ export function AppLayout() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // "More" disclosure: seven occasional destinations are grouped instead of
+  // crowding the everyday ones. Opened on demand, and automatically when a
+  // grouped route is the current page (bookmark, deep link, command palette).
+  const [showMore, setShowMore] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
@@ -146,6 +149,12 @@ export function AppLayout() {
     };
   }, [isMobileMenuOpen]);
 
+  useEffect(() => {
+    if (MORE_ITEMS.some((item) => location.pathname.startsWith(item.to))) {
+      setShowMore(true);
+    }
+  }, [location.pathname]);
+
   return (
     <div className='relative flex h-[100dvh] w-full overflow-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50'>
       <style
@@ -192,6 +201,37 @@ export function AppLayout() {
               </div>
             </div>
           ))}
+
+          <div>
+            <button
+              type='button'
+              onClick={() => setShowMore((v) => !v)}
+              aria-expanded={showMore}
+              className='flex w-full items-center justify-between rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors'
+            >
+              <span>More</span>
+              <FiChevronRight
+                className={`h-3 w-3 transition-transform duration-150 ${showMore ? 'rotate-90' : ''}`}
+              />
+            </button>
+            {showMore && (
+              <div className='flex flex-col gap-0.5'>
+                {MORE_ITEMS.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    title={item.label}
+                    className={({ isActive }) =>
+                      desktopLinkClass(isActive, item.accent, item.bg)
+                    }
+                  >
+                    <item.icon className={`h-4 w-4 shrink-0 ${item.accent}`} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
         <div className='mt-4 border-t border-slate-200/70 dark:border-slate-800/60 pt-4 flex flex-col gap-1'>
@@ -260,7 +300,7 @@ export function AppLayout() {
           <FiTrendingUp className='h-4 w-4' />
         </div>
         <div className='flex flex-1 flex-col gap-1 overflow-y-auto scrollbar-none w-full items-center'>
-          {ALL_NAV_ITEMS.filter((i) => i.to !== '/settings').map((item) => (
+          {PRIMARY_NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -272,6 +312,32 @@ export function AppLayout() {
               {() => <item.icon className={`h-4 w-4 ${item.accent}`} />}
             </NavLink>
           ))}
+          <button
+            type='button'
+            onClick={() => setShowMore((v) => !v)}
+            aria-expanded={showMore}
+            title={showMore ? 'Fewer options' : 'More'}
+            className={iconOnlyLinkClass(
+              showMore || MORE_ITEMS.some((i) => location.pathname.startsWith(i.to)),
+              'text-slate-700 dark:text-slate-200',
+              'bg-slate-200 dark:bg-slate-800',
+            )}
+          >
+            <FiGrid className='h-4 w-4' />
+          </button>
+          {showMore &&
+            MORE_ITEMS.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                title={item.label}
+                className={({ isActive }) =>
+                  iconOnlyLinkClass(isActive, item.accent, item.bg)
+                }
+              >
+                {() => <item.icon className={`h-4 w-4 ${item.accent}`} />}
+              </NavLink>
+            ))}
         </div>
         <div className='flex flex-col gap-1 border-t border-slate-200/70 dark:border-slate-800/60 pt-3 w-full items-center'>
           <NavLink
@@ -407,7 +473,7 @@ export function AppLayout() {
       >
         <div className='w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-5' />
         <div className='grid grid-cols-4 gap-y-4 gap-x-2'>
-          {ALL_NAV_ITEMS.map((item) => (
+          {(showMore ? ALL_NAV_ITEMS : PRIMARY_NAV_ITEMS).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -429,6 +495,21 @@ export function AppLayout() {
               )}
             </NavLink>
           ))}
+          {/* The disclosure itself is a tile, so "More" is one tap away from the
+              same place every other destination is. */}
+          <button
+            type='button'
+            onClick={() => setShowMore((v) => !v)}
+            aria-expanded={showMore}
+            className='flex flex-col items-center gap-1.5 transition-transform active:scale-95'
+          >
+            <div className='flex h-[50px] w-[50px] items-center justify-center rounded-2xl border border-slate-300/60 dark:border-slate-700/50 bg-slate-200/80 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400'>
+              <FiGrid className='h-[20px] w-[20px]' />
+            </div>
+            <span className='text-[9px] font-bold tracking-wide text-slate-500 dark:text-slate-400'>
+              {showMore ? 'Less' : `More (${MORE_ITEMS.length})`}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -459,7 +540,6 @@ export function AppLayout() {
       </Modal>
 
       <PWAInstallBanner />
-      <NotificationPermissionBanner />
       <UpgradeModal />
       <InstallAppModal open={installOpen} onClose={() => setInstallOpen(false)} />
       <FeedbackModal />

@@ -1,26 +1,42 @@
 /**
- * Make all Gen2 callable Cloud Run services publicly invocable.
- * Required so browser OPTIONS preflight (no auth header) succeeds.
+ * Make the Gen2 callable Cloud Run services publicly invocable.
+ *
+ * Why public at all: a browser OPTIONS preflight to a Callable carries no
+ * Firebase Auth header, so Cloud Run IAM must allow `allUsers` or every call
+ * fails before your code runs. The real access control is therefore IN CODE —
+ * every service below must reject a request with no `request.auth`, and the
+ * owner-only ones must additionally check the email. That invariant is why
+ * adding a service here without an auth guard is not acceptable.
+ *
+ * `razorpayWebhook` is also public by necessity (Razorpay cannot send a Firebase
+ * token); it authenticates with the HMAC in the x-razorpay-signature header.
  */
 import fs from 'fs';
 import path from 'path';
 
-const PROJECT = 'finance-tracker-3b842';
+const PROJECT = process.env.FIREBASE_PROJECT_ID || 'finance-tracker-3b842';
 const REGION = 'asia-south1';
 
+// Keep in sync with the exports in functions/src/index.ts.
 const SERVICES = [
   'createrazorpayorder',
-  'adminmanagesubscription',
-  'initializetrialifmissing',
   'initiateupicollect',
   'confirmupipayment',
   'verifyrazorpaypayment',
   'restorepurchase',
-  'simulatetestsubscription',
-  'resettestsubscription',
+  'adminmanagesubscription',
+  'razorpaywebhook',
 ];
 
+// Services that no longer exist. Listing them used to log a FAIL line for each
+// one on every deploy run, which made the real failures invisible.
+const REMOVED = ['initializetrialifmissing', 'simulatetestsubscription', 'resettestsubscription'];
+
 async function main() {
+  if (REMOVED.some((s) => SERVICES.includes(s))) {
+    throw new Error('A removed function is still listed in SERVICES');
+  }
+
   const cfgPath = path.join(
     process.env.USERPROFILE || process.env.HOME || '',
     '.config',

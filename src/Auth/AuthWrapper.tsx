@@ -18,7 +18,6 @@ import {
 import { googleSignInErrorMessage } from './googleSignIn';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useNotificationStore } from '../store/notificationStore';
-import { silentReRegisterIfGranted, listenForegroundMessages } from '../services/fcmService';
 
 export default function AuthWrapper({
   children,
@@ -69,18 +68,6 @@ export default function AuthWrapper({
         toast.error(
           'Some data failed to load. Check your connection and refresh.',
         );
-      });
-
-      // ── FCM: silently re-register if permission already granted ──────────
-      // This refreshes the token and updates lastSeenAt on each login.
-      // If permission is 'default', the NotificationPermissionBanner handles asking.
-      void silentReRegisterIfGranted(user.uid);
-
-      // ── FCM: listen for foreground messages and relay to in-app bell ──────
-      // When the app is open, FCM does not auto-show a native notification.
-      // We convert the payload into an in-app notification instead.
-      listenForegroundMessages(() => {
-        // FCM foreground messages are handled by the derived notification system
       });
     };
 

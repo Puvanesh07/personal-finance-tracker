@@ -22,9 +22,9 @@ import {
   typeLabel,
 } from './calculations';
 
-import ExcelJS from 'exceljs';
-import autoTable from 'jspdf-autotable';
-import jsPDF from 'jspdf';
+// Heavy writers are `await import()`ed inside the functions that need them.
+// They used to be static imports here, which pulled ~1.4 MB of Excel/PDF code
+// into the Cashflow page chunk even for a plain CSV download.
 import { saveAs } from 'file-saver';
 
 // ── Investment row flattening ────────────────────────────────────────────────
@@ -517,11 +517,12 @@ export async function exportAllCSVAsZip(
 
 // ── Portfolio Excel export ───────────────────────────────────────────────────
 
-export function exportExcel(
+export async function exportExcel(
   investments: Investment[],
   filename = 'portfolio.xlsx',
 ) {
   const rows = toFlatInvestmentRows(investments);
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Investments');
 
@@ -553,12 +554,11 @@ export function exportExcel(
     fgColor: { argb: 'F2F2F2' },
   };
 
-  void workbook.xlsx.writeBuffer().then((buf) => {
-    const blob = new Blob([buf], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    saveAs(blob, filename);
+  const buf = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
+  saveAs(blob, filename);
 }
 
 // ── Export sold trades as CSV ─────────────────────────────────────────────────
@@ -622,12 +622,16 @@ export async function parseImportedPortfolioJSON(file: File): Promise<any> {
 
 // ── PDF export ───────────────────────────────────────────────────────────────
 
-export function exportPDF(
+export async function exportPDF(
   title: string,
   headers: string[],
   data: any[][],
   filename = 'report.pdf',
 ) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
   const doc = new jsPDF();
   doc.setFontSize(16);
   doc.text(title, 14, 15);

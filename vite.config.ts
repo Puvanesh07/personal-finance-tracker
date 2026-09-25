@@ -3,7 +3,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // Production builds ship no console output (46 call sites used to go to the
+  // bundle, several of them logging store contents). Real error reporting lives
+  // in src/services/clientErrors.ts, which does not use the console.
+  esbuild:
+    mode === 'production'
+      ? { drop: ['console' as const, 'debugger' as const] }
+      : {},
   plugins: [
     react(),
     tailwindcss(),
@@ -55,6 +62,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+        // The workbook/PDF writers are ~1 MB together and only needed when
+        // somebody actually exports. Precaching them made every PWA install
+        // download them up front; they are `await import()`ed on demand now.
+        globIgnores: ['**/excel-vendor-*.js', '**/*jspdf*.js', '**/*exceljs*.js'],
         maximumFileSizeToCacheInBytes: 4000000,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [
@@ -96,11 +107,10 @@ export default defineConfig({
           'icons-vendor': ['react-icons'],
           'utils-vendor': ['date-fns', 'zustand'],
           'excel-vendor': ['exceljs'],
-          'pdf-vendor': ['pdfjs-dist'],
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
       },
     },
   },
-});
+}));

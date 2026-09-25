@@ -1,15 +1,41 @@
-import * as crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { defineSecret } from 'firebase-functions/params';
 import { HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
 import { PLAN_AMOUNTS_INR, type Plan } from './subscriptionUtils';
+import { hmacHex, timingSafeHexEqual, type OrderLike, type PaymentLike } from './payments';
 
 const razorpayKeyId = defineSecret('RAZORPAY_KEY_ID');
 const razorpayKeySecret = defineSecret('RAZORPAY_KEY_SECRET');
+const razorpayWebhookSecret = defineSecret('RAZORPAY_WEBHOOK_SECRET');
 const ownerEmailSecret = defineSecret('OWNER_EMAIL');
 
 export const razorpaySecrets = [razorpayKeyId, razorpayKeySecret];
+export const webhookSecrets = [razorpayKeyId, razorpayKeySecret, razorpayWebhookSecret];
 export const ownerSecrets = [ownerEmailSecret];
+
+function readSecret(param: { value: () => string | undefined }, envName: string): string {
+  try {
+    const viaParam = param.value()?.trim() ?? '';
+    if (viaParam) return viaParam;
+  } catch {
+    // Secret not bound on this function / local emulator without secrets
+  }
+  return process.env[envName]?.trim() ?? '';
+}
+
+export function getWebhookSecret(): string {
+  return readSecret(razorpayWebhookSecret, 'RAZORPAY_WEBHOOK_SECRET');
+}
+
+/** Razorpay signs the raw request body with the webhook secret. */
+export function verifyWebhookSignature(rawBody: string | Buffer, signature: string): boolean {
+  const secret = getWebhookSecret();
+  if (!secret) {
+    throw new HttpsError('failed-precondition', 'Razorpay webhook secret is not configured');
+  }
+  return timingSafeHexEqual(hmacHex(secret, rawBody), signature);
+}
 
 export function getOwnerEmail(): string {
   return (
@@ -28,20 +54,8 @@ export function getOwnerEmail(): string {
 
 function getCredentials(): { keyId: string; keySecret: string } {
   // Prefer injected secrets (Cloud Functions), then local .env (emulator)
-  let keyId = '';
-  let keySecret = '';
-
-  try {
-    keyId = razorpayKeyId.value()?.trim() ?? '';
-    keySecret = razorpayKeySecret.value()?.trim() ?? '';
-  } catch {
-    // Secrets not bound on this function / local emulator without secrets
-  }
-
-  if (!keyId || !keySecret) {
-    keyId = process.env.RAZORPAY_KEY_ID?.trim() ?? '';
-    keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() ?? '';
-  }
+  const keyId = readSecret(razorpayKeyId, 'RAZORPAY_KEY_ID');
+  const keySecret = readSecret(razorpayKeySecret, 'RAZORPAY_KEY_SECRET');
 
   if (!keyId || !keySecret) {
     throw new HttpsError('failed-precondition', 'Razorpay is not configured');
@@ -64,14 +78,19 @@ function getRazorpay() {
   };
 }
 
-export async function createOrder(plan: Exclude<Plan, 'trial'>) {
+export async function createOrder(
+  plan: Exclude<Plan, 'trial'>,
+  userId?: string,
+) {
   const { client, keyId } = getRazorpay();
   const amountInr = PLAN_AMOUNTS_INR[plan];
   const order = await client.orders.create({
     amount: amountInr * 100,
     currency: 'INR',
     receipt: `fintrackly_${plan}_${Date.now()}`,
-    notes: { plan },
+    // notes ride along on every webhook event, which is how the webhook learns
+    // which plan and which customer an out-of-band payment belongs to.
+    notes: { plan, ...(userId ? { userId } : {}) },
     payment_capture: true,
   });
 
@@ -100,13 +119,34 @@ export function verifyPaymentSignature(
 ): boolean {
   const { keySecret } = getRazorpay();
   const body = `${orderId}|${paymentId}`;
-  const expected = crypto.createHmac('sha256', keySecret).update(body).digest('hex');
-  return expected === signature;
+  return timingSafeHexEqual(hmacHex(keySecret, body), signature);
 }
 
-export async function fetchPayment(paymentId: string) {
+export async function fetchPayment(paymentId: string): Promise<PaymentLike> {
   const { client } = getRazorpay();
-  return client.payments.fetch(paymentId);
+  const payment = await client.payments.fetch(paymentId);
+  return payment as unknown as PaymentLike;
+}
+
+/** The order is the authoritative record of what was actually priced. */
+export async function fetchOrder(orderId: string): Promise<OrderLike | undefined> {
+  try {
+    const { client } = getRazorpay();
+    const order = await client.orders.fetch(orderId);
+    return order as unknown as OrderLike;
+  } catch (err) {
+    logger.warn('fetchOrder failed', { orderId, message: (err as Error)?.message });
+    return undefined;
+  }
+}
+
+/** Used by the admin reconciliation tool: recent payments vs our own records. */
+export async function listRecentPayments(count = 100): Promise<PaymentLike[]> {
+  const { client } = getRazorpay();
+  const res = await client.payments.all({ count });
+  return ((res as { entity?: { entity?: PaymentLike[] } }).entity?.entity ??
+    (res as unknown as { entity: PaymentLike[] }).entity ??
+    []) as PaymentLike[];
 }
 
 export async function initiateUpiCollectPayment(params: {

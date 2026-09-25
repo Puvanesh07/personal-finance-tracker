@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
 import * as logger from 'firebase-functions/logger';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
 
 import {
@@ -10,18 +10,32 @@ import {
   grantPremiumAccess,
   revokePremiumAccess,
   findUidByEmail,
+  syncAuthClaims,
   type Plan,
 } from './subscriptionUtils';
 import {
   createOrder,
   fetchPayment,
+  fetchOrder,
+  listRecentPayments,
   verifyPaymentSignature,
+  verifyWebhookSignature,
   razorpaySecrets,
+  webhookSecrets,
   ownerSecrets,
   getOwnerEmail,
   isRazorpayTestMode,
   initiateUpiCollectPayment,
 } from './razorpay';
+import {
+  assertPaymentMatchesOrder,
+  claimOrderPaid,
+  isPaidPlan,
+  recordCreatedOrder,
+  resolvePaidPlan,
+  type PaidPlan,
+} from './payments';
+import { handleRazorpayEvent } from './webhook';
 
 // Ensure Admin SDK is ready before any callable runs.
 if (getApps().length === 0) {
@@ -64,11 +78,22 @@ export const createRazorpayOrder = onCall(
     }
 
     const plan = request.data?.plan as Plan | undefined;
-    if (!plan || !['monthly', 'yearly', 'lifetime'].includes(plan)) {
+    if (!isPaidPlan(plan)) {
       throw new HttpsError('invalid-argument', 'Invalid plan');
     }
 
-    return createOrder(plan as Exclude<Plan, 'trial'>);
+    const order = await createOrder(plan, request.auth.uid);
+
+    // Remember what we quoted, so verification (and the webhook) can check the
+    // money that actually arrived against the plan we offered.
+    await recordCreatedOrder(request.auth.uid, {
+      orderId: order.orderId,
+      plan,
+      amount: order.amount,
+      currency: order.currency ?? 'INR',
+    });
+
+    return order;
   },
 );
 
@@ -127,19 +152,13 @@ export const confirmUpiPayment = onCall(
     }
 
     const uid = request.auth.uid;
-    const { paymentId, orderId, plan } = request.data ?? {};
-    if (!paymentId || !orderId || !plan) {
+    const { paymentId, orderId } = request.data ?? {};
+    if (!paymentId || !orderId) {
       throw new HttpsError('invalid-argument', 'Missing payment details');
-    }
-    if (!['monthly', 'yearly', 'lifetime'].includes(plan)) {
-      throw new HttpsError('invalid-argument', 'Invalid plan');
     }
 
     const payment = await fetchPayment(paymentId);
-    if (payment.order_id !== orderId) {
-      throw new HttpsError('permission-denied', 'Payment does not match order');
-    }
-    if (payment.method !== 'upi') {
+    if (String(payment.method ?? '') !== 'upi') {
       throw new HttpsError(
         'failed-precondition',
         'Only UPI payments are accepted',
@@ -159,7 +178,27 @@ export const confirmUpiPayment = onCall(
       return { success: false, pending: true, status };
     }
 
-    await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
+    // The order decides the plan; the client's claim is only a hint.
+    const order = await fetchOrder(orderId);
+    const plan = resolvePaidPlan(order, request.data?.plan);
+    assertPaymentMatchesOrder(payment, order!, orderId);
+
+    const claimed = await claimOrderPaid(uid, orderId, String(paymentId), {
+      plan,
+      amount: Number(order?.amount ?? 0),
+    });
+    if (!claimed) {
+      const snap = await getDb().collection('users').doc(uid).get();
+      return {
+        success: true,
+        plan: (snap.data()?.plan as PaidPlan) ?? plan,
+        pending: false,
+        status,
+        alreadyApplied: true,
+      };
+    }
+
+    await activatePaidPlan(uid, plan, String(paymentId));
     return { success: true, plan, pending: false, status };
   },
 );
@@ -183,6 +222,29 @@ export const adminManageSubscription = onCall(
     assertOwnerEmail(request);
 
     const { action, email, enabled } = request.data ?? {};
+
+    if (action === 'expireNow') {
+      const targetEmail = typeof email === 'string' ? email : '';
+      if (!targetEmail) {
+        throw new HttpsError('invalid-argument', 'email is required');
+      }
+      const uid = await findUidByEmail(targetEmail);
+      const now = new Date();
+      const trialEnd = Timestamp.fromDate(now);
+      await getDb().collection('users').doc(uid).set(
+        {
+          plan: 'trial' as Plan,
+          subscriptionStatus: 'expired',
+          trialEnd,
+          expiresAt: trialEnd,
+          gracePeriodEnd: Timestamp.fromDate(new Date(now.getTime() + 60_000)),
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true },
+      );
+      await syncAuthClaims(uid, 'trial', false);
+      return { success: true, action, uid };
+    }
 
     if (action === 'backfillPremiumGranted') {
       const allUsers = await getDb().collection('users').get();
@@ -245,6 +307,86 @@ export const adminManageSubscription = onCall(
       };
     }
 
+    if (action === 'syncClaims') {
+      // One-time rollout of custom claims: existing customers have none until
+      // their next token refresh, and rules/limits want them straight away.
+      const allUsers = await getDb().collection('users').get();
+      let updated = 0;
+
+      for (const docSnap of allUsers.docs) {
+        const d = docSnap.data() ?? {};
+        const plan = (d.plan as Plan) || 'trial';
+        const expiresAt = d.expiresAt?.toDate?.() as Date | undefined;
+        const active =
+          d.premiumGranted === true ||
+          plan === 'lifetime' ||
+          (d.subscriptionStatus === 'active' && (!expiresAt || expiresAt.getTime() > Date.now()));
+        await syncAuthClaims(docSnap.id, plan, active);
+        updated += 1;
+      }
+
+      return { success: true, action, updated, total: allUsers.size };
+    }
+
+    if (action === 'reconcilePayments') {
+      // "I paid but I'm still locked out" is the worst support ticket there is,
+      // and with the webhook it no longer has to exist. This finds every
+      // captured Razorpay payment that our user records do not reflect, and
+      // optionally re-activates it through the same code path as the webhook.
+      const apply = request.data?.apply === true;
+      const payments = await listRecentPayments(100);
+      const db = getDb();
+      const mismatches: Array<{
+        paymentId: string;
+        orderId: string;
+        uid: string;
+        amount: number;
+        action: string;
+      }> = [];
+
+      for (const payment of payments) {
+        if (String(payment.status) !== 'captured' && String(payment.status) !== 'authorized') {
+          continue;
+        }
+        const uid = String(payment.notes?.userId ?? '');
+        if (!uid) continue;
+
+        const userSnap = await db.collection('users').doc(uid).get();
+        const user = userSnap.data() ?? {};
+        const alreadyApplied = user.paymentId === payment.id || user.premiumGranted === true;
+        if (alreadyApplied) continue;
+
+        let what = 'missing activation';
+        if (apply) {
+          const order = await fetchOrder(String(payment.order_id ?? ''));
+          if (order) {
+            const plan = resolvePaidPlan(order, order.notes?.plan);
+            assertPaymentMatchesOrder(payment, order, String(payment.order_id ?? ''));
+            const claimed = await claimOrderPaid(uid, String(payment.order_id), String(payment.id), {
+              plan,
+              amount: Number(order.amount),
+            });
+            if (claimed) {
+              await activatePaidPlan(uid, plan, String(payment.id));
+              what = `activated ${plan}`;
+            } else {
+              what = 'order already applied';
+            }
+          }
+        }
+
+        mismatches.push({
+          paymentId: String(payment.id ?? ''),
+          orderId: String(payment.order_id ?? ''),
+          uid,
+          amount: Number(payment.amount ?? 0) / 100,
+          action: what,
+        });
+      }
+
+      return { success: true, action, checked: payments.length, mismatches };
+    }
+
     throw new HttpsError('invalid-argument', 'Unknown action');
   },
 );
@@ -262,14 +404,10 @@ export const verifyRazorpayPayment = onCall(
       razorpay_order_id: orderId,
       razorpay_payment_id: paymentId,
       razorpay_signature: signature,
-      plan,
     } = request.data ?? {};
 
-    if (!orderId || !paymentId || !signature || !plan) {
+    if (!orderId || !paymentId || !signature) {
       throw new HttpsError('invalid-argument', 'Missing payment details');
-    }
-    if (!['monthly', 'yearly', 'lifetime'].includes(plan)) {
-      throw new HttpsError('invalid-argument', 'Invalid plan');
     }
 
     try {
@@ -298,7 +436,26 @@ export const verifyRazorpayPayment = onCall(
         return { success: true, plan: 'lifetime', ownerGranted: true };
       }
 
-      await activatePaidPlan(uid, plan as Exclude<Plan, 'trial'>, paymentId);
+      // The ORDER is authoritative. Without this, a ₹99 order plus a body
+      // claiming `plan: 'lifetime'` bought a lifetime licence.
+      const order = await fetchOrder(orderId);
+      const plan = resolvePaidPlan(order, request.data?.plan);
+      assertPaymentMatchesOrder(payment, order!, orderId);
+
+      const claimed = await claimOrderPaid(uid, orderId, paymentId, {
+        plan,
+        amount: Number(order?.amount ?? 0),
+      });
+      if (!claimed) {
+        const snap = await getDb().collection('users').doc(uid).get();
+        return {
+          success: true,
+          plan: (snap.data()?.plan as PaidPlan) ?? plan,
+          alreadyApplied: true,
+        };
+      }
+
+      await activatePaidPlan(uid, plan, paymentId);
       return { success: true, plan };
     } catch (err) {
       if (err instanceof HttpsError) throw err;
@@ -307,6 +464,41 @@ export const verifyRazorpayPayment = onCall(
         'internal',
         err instanceof Error ? err.message : 'Payment verification failed',
       );
+    }
+  },
+);
+
+/**
+ * Razorpay server→server webhook — the authoritative activation path.
+ *
+ * Deliberately NOT a callable: no Firebase token is sent by Razorpay, so this
+ * authenticates purely by HMAC over the raw body. Answers 200 for anything it
+ * cannot handle, because a non-200 makes Razorpay retry the same event for
+ * hours and every retry lands on the dedupe table anyway.
+ */
+export const razorpayWebhook = onRequest(
+  { region, secrets: webhookSecrets, maxInstances: 5, timeoutSeconds: 54 },
+  async (req, res) => {
+    if (req.method !== 'POST') {
+      res.status(200).send('ok');
+      return;
+    }
+
+    const signature = String(req.header('x-razorpay-signature') ?? '');
+    try {
+      if (!signature || !verifyWebhookSignature(req.rawBody ?? Buffer.from(''), signature)) {
+        logger.warn('Rejected Razorpay webhook: bad signature');
+        res.status(401).send('invalid signature');
+        return;
+      }
+      const outcome = await handleRazorpayEvent(req.body as Record<string, unknown>);
+      logger.info('razorpayWebhook', { outcome });
+      res.status(200).send(outcome);
+    } catch (err) {
+      logger.error('razorpayWebhook failed', err);
+      // 500 → Razorpay retries. Only do that for transient failures, which is
+      // what an exception is; signature rejection above returns 401 instead.
+      res.status(500).send('error');
     }
   },
 );
@@ -349,17 +541,21 @@ export const restorePurchase = onCall(
       const payment = await fetchPayment(data.paymentId);
       if (payment.status === 'captured' || payment.status === 'authorized') {
         const plan = (data.plan as Plan) || 'monthly';
-        const newExpires = getExpiresAtForPlan(
-          plan === 'trial' ? 'monthly' : (plan as Exclude<Plan, 'trial'>),
-        );
+        const resolvedPlan = (plan === 'trial' ? 'monthly' : plan) as Exclude<Plan, 'trial'>;
+        const newExpires = getExpiresAtForPlan(resolvedPlan);
         await getDb().collection('users').doc(uid).set(
           {
             subscriptionStatus: 'active',
             expiresAt: newExpires,
+            gracePeriodEnd: newExpires
+              ? Timestamp.fromDate(new Date(newExpires.toDate().getTime() + 30 * 86_400_000))
+              : null,
+            paidAmount: Number(payment.amount ?? 0) / 100,
             updatedAt: Timestamp.now(),
           },
           { merge: true },
         );
+        await syncAuthClaims(uid, resolvedPlan, true);
         return { restored: true, message: 'Purchase restored successfully.' };
       }
     } catch (err) {

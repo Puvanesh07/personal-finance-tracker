@@ -1,4 +1,5 @@
-import ExcelJS from 'exceljs';
+// No static `exceljs` import: the workbook parser is loaded inside
+// parseZerodhaHoldingsXlsx, so a CSV-only import path stays light.
 import type { InvestmentType } from '../types/investmentTypes';
 
 type CsvRow = Record<string, string>;
@@ -244,6 +245,7 @@ export function rowToInvestmentDraft(row: CsvRow) {
 
 // --- NEW CORRECTIONS BELOW ---
 export async function parseZerodhaHoldingsXlsx(file: File) {
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(await file.arrayBuffer());
 

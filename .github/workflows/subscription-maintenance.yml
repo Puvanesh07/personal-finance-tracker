@@ -10,7 +10,23 @@ on:
     # Runs after midnight so any subscriptions that expired today are caught.
     - cron: '0 19 * * *'
   workflow_dispatch:
-    # Allow manual trigger from GitHub UI for testing
+    inputs:
+      execute_deletions:
+        description: 'Actually delete data (otherwise dry-run for the delete phases)'
+        type: boolean
+        default: false
+      dry_run_all:
+        description: 'Dry-run everything including expiry flips'
+        type: boolean
+        default: false
+
+# One run at a time, and never let two schedules overlap the same accounts.
+concurrency:
+  group: subscription-maintenance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   expire-and-cleanup:
@@ -35,5 +51,23 @@ jobs:
           FIREBASE_PROJECT_ID:   ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY:  ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          DRY_RUN:               ${{ github.event.inputs.dry_run_all == 'true' && 'true' || 'false' }}
+          DRY_RUN_DELETE:        ${{ github.event.inputs.execute_deletions == 'true' && 'false' || 'true' }}
+          MAX_DELETIONS:         '10'
+          PURGE_AFTER_DAYS:      '30'
         run: node expire-subscriptions.js
         working-directory: scripts
+
+      # A red X nobody looks at is not an alarm. This fires when the script
+      # exits non-zero, i.e. when it found an anomaly or aborted on the cap.
+      - name: Alert on anomalies
+        if: failure()
+        env:
+          ALERT_WEBHOOK: ${{ secrets.OPS_ALERT_WEBHOOK_URL }}
+        run: |
+          if [ -n "$ALERT_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-Type: application/json' \
+              -d '{"text":"FinTrackly subscription maintenance FAILED — check the Actions log before the next run."}' \
+              "$ALERT_WEBHOOK" || true
+          fi
+          echo "::error::Subscription maintenance failed. Deletions did not proceed — inspect before rerunning."

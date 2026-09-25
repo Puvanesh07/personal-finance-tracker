@@ -55,6 +55,25 @@ export function getExpiresAtForPlan(plan: Exclude<Plan, 'trial'>, now = new Date
   }
 }
 
+/**
+ * Mirror the entitlement into the Firebase Auth token so security rules can
+ * enforce it without reading the users document. Called from every place that
+ * changes a plan, so claims can never drift from Firestore state.
+ */
+export async function syncAuthClaims(uid: string, plan: Plan, active: boolean): Promise<void> {
+  try {
+    if (getApps().length === 0) initializeApp();
+    await getAuth().setCustomUserClaims(uid, {
+      plan,
+      premium: active && plan !== 'trial',
+    });
+  } catch (err) {
+    // Claims are defence-in-depth on top of the users doc — never fail a
+    // payment because the Auth API hiccuped. The next token refresh retries.
+    console.warn('[syncAuthClaims] failed', uid, (err as Error)?.message);
+  }
+}
+
 export async function createSubscriptionNotification(
   uid: string,
   payload: { title: string; message: string; type: string },
@@ -99,7 +118,16 @@ export const USER_SUBCOLLECTIONS = [
   'networthSnapshots',
   'insights',
   'settings',
+  // Payment receipts and the legacy push-registration docs. Left out of this
+  // list they survived every deletion, which is a GDPR hole: a customer who
+  // asked to be forgotten kept a paid-receipt trail and a FCM device token.
+  'orders',
+  'notificationDevices',
+  'pushSent',
 ];
+
+/** Collections wiped during the soft-delete phase, before the hard purge. */
+export const SENSITIVE_SUBCOLLECTIONS = ['credentials', 'notificationDevices', 'pushSent'];
 
 export async function deleteAllUserData(uid: string): Promise<void> {
   for (const collection of USER_SUBCOLLECTIONS) {
@@ -139,6 +167,8 @@ export async function activatePaidPlan(
     message: `Your ${plan} plan is now active. Enjoy premium features!`,
     type: 'success',
   });
+
+  await syncAuthClaims(uid, plan, true);
 }
 
 export async function grantPremiumAccess(uid: string, email?: string | null): Promise<void> {
@@ -163,6 +193,8 @@ export async function grantPremiumAccess(uid: string, email?: string | null): Pr
     message: 'You have complimentary lifetime premium access.',
     type: 'success',
   });
+
+  await syncAuthClaims(uid, 'lifetime', true);
 }
 
 export async function revokePremiumAccess(uid: string): Promise<void> {
@@ -181,6 +213,8 @@ export async function revokePremiumAccess(uid: string): Promise<void> {
     message: 'Your complimentary access has ended. Subscribe to continue using premium features.',
     type: 'info',
   });
+
+  await syncAuthClaims(uid, 'trial', true);
 }
 
 export async function resetUserToTrial(uid: string): Promise<void> {
@@ -199,6 +233,8 @@ export async function resetUserToTrial(uid: string): Promise<void> {
     message: 'Your account is back on the 7-day trial for testing.',
     type: 'info',
   });
+
+  await syncAuthClaims(uid, 'trial', true);
 }
 
 export async function findUidByEmail(email: string): Promise<string> {

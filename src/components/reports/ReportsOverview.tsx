@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import { usePortfolioStore } from '../../store/portfolioStore'
 import { useExportPresetsStore } from '../../store/exportPresetsStore'
 import { summarizePortfolio, typeLabel } from '../../utils/calculations'
@@ -193,8 +194,11 @@ export function ReportsOverview() {
               className="group flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/50 px-4 py-3 text-sm font-semibold text-slate-600 dark:text-slate-700 backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:bg-slate-800"
               onClick={() => {
                 const fn = ensureXlsxExtension(expandExportFilenamePattern(xlsxPattern))
-                exportExcel(investments, fn)
-                rememberFilename(SCOPE_XLSX, xlsxPattern)
+                // The workbook writer is loaded on demand, so this is async now
+                // and a failure has to be reported instead of dying silently.
+                void exportExcel(investments, fn)
+                  .then(() => rememberFilename(SCOPE_XLSX, xlsxPattern))
+                  .catch(() => toast.error('Could not build the Excel file'))
               }}
             >
               <FiDownload className="h-4 w-4 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 transition-colors" />

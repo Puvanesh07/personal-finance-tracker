@@ -1,0 +1,31 @@
+name: CI
+
+# Runs the cheap safety net on every change: type check + unit tests.
+# This is what catches the money-math and payment-guard regressions before a
+# deploy does (finding #18 — there were no automated checks at all before).
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    name: Typecheck & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx vitest run

@@ -1,28 +1,33 @@
 /**
  * src/components/notifications/NotificationSettings.tsx
  *
- * Full notification settings panel rendered inside Settings page.
- * - Per-category toggles (in-app + push/email)
- * - Quiet hours
- * - Reads/writes users/{uid}/notificationSettings/config in Firestore
- * - Shows current device push-registration status
+ * Notification settings panel rendered inside the Settings page.
+ *
+ * HOW REMINDERS ACTUALLY WORK (this used to promise browser push, which the
+ * app never delivered — see the removal of src/services/fcmService.ts):
+ *
+ *   1. In-app — the bell. Computed live from your data on this device
+ *      (shared/alertRules.mjs + src/hooks/useDerivedNotifications.ts).
+ *   2. Email — ONE consolidated digest per day, sent by a scheduled job at
+ *      08:00 IST to the address on your account. The same rule engine decides
+ *      the content, and the same category toggles below switch it on or off.
+ *
+ * The master switch is stored as `pushEnabled` because the cloud job and
+ * existing user documents already use that field name. Renaming it would need
+ * a data migration for no user-visible gain.
  */
 
 import { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { FiBell, FiBellOff, FiInfo, FiRefreshCw, FiSave } from 'react-icons/fi';
+import { FiInfo, FiRefreshCw, FiSave } from 'react-icons/fi';
 import { db, auth } from '../../services/firebase';
-import {
-  getNotificationPermission,
-  isPushSupported,
-  registerForPush,
-  unregisterDevice,
-} from '../../services/fcmService';
+import { setNotificationSettingsCache } from '../../hooks/useNotificationSettings';
 import toast from 'react-hot-toast';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface NotificationSettingsConfig {
+  /** Master switch for every reminder channel (in-app + email digest). */
   pushEnabled:         boolean;
   paymentReminders:    boolean;
   insuranceReminders:  boolean;
@@ -33,9 +38,6 @@ export interface NotificationSettingsConfig {
   subscriptionAlerts:  boolean;
   weeklyDigest:        boolean;
   monthlyReport:       boolean;
-  quietHoursEnabled:   boolean;
-  quietHoursStart:     string; // "HH:MM" 24h
-  quietHoursEnd:       string;
 }
 
 const DEFAULT_SETTINGS: NotificationSettingsConfig = {
@@ -49,23 +51,36 @@ const DEFAULT_SETTINGS: NotificationSettingsConfig = {
   subscriptionAlerts:  true,
   weeklyDigest:        true,
   monthlyReport:       true,
-  quietHoursEnabled:   true,
-  quietHoursStart:     '22:00',
-  quietHoursEnd:       '07:00',
 };
+
+/** Fields we no longer collect. Removed from the UI (and from new writes)
+ *  because nothing honoured them: quiet hours only make sense for a channel
+ *  that can wake a phone, and the digest is a single 08:00 email. */
+const RETIRED_FIELDS = ['quietHoursEnabled', 'quietHoursStart', 'quietHoursEnd'];
 
 // ── Firestore helpers ─────────────────────────────────────────────────────────
 
-async function loadSettings(uid: string): Promise<NotificationSettingsConfig> {
-  const ref = doc(db, 'users', uid, 'notificationSettings', 'config');
-  const snap = await getDoc(ref);
+export async function loadNotificationSettings(
+  uid: string,
+): Promise<NotificationSettingsConfig> {
+  const snap = await getDoc(doc(db, 'users', uid, 'notificationSettings', 'config'));
   if (!snap.exists()) return DEFAULT_SETTINGS;
-  return { ...DEFAULT_SETTINGS, ...(snap.data() as Partial<NotificationSettingsConfig>) };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...(snap.data() as Partial<NotificationSettingsConfig>),
+  };
 }
 
 async function saveSettings(uid: string, cfg: NotificationSettingsConfig): Promise<void> {
   const ref = doc(db, 'users', uid, 'notificationSettings', 'config');
-  await setDoc(ref, { ...cfg, updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(
+    ref,
+    { ...cfg, updatedAt: serverTimestamp(), ...Object.fromEntries(RETIRED_FIELDS.map((k) => [k, null])) },
+    { merge: true },
+  );
+  // The bell reads the same values through a small in-memory store, so the
+  // toggle takes effect on this device without a reload.
+  setNotificationSettingsCache(uid, cfg);
 }
 
 // ── Toggle row component ──────────────────────────────────────────────────────
@@ -130,19 +145,36 @@ function ToggleRow({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NotificationSettings() {
-  const uid       = auth.currentUser?.uid;
-  const [cfg, setCfg]       = useState<NotificationSettingsConfig>(DEFAULT_SETTINGS);
+  const user = auth.currentUser;
+  const uid = user?.uid;
+  const email = user?.email ?? null;
+
+  const [cfg, setCfg] = useState<NotificationSettingsConfig>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [permState, setPermState] = useState(getNotificationPermission());
-  const supported = isPushSupported();
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!uid) { setLoading(false); return; }
-    loadSettings(uid).then((s) => { setCfg(s); setLoading(false); });
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    loadNotificationSettings(uid)
+      .then((s) => {
+        if (!cancelled) setCfg(s);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Could not load your notification settings.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [uid]);
 
-  const update = (key: keyof NotificationSettingsConfig, value: boolean | string) =>
+  const update = (key: keyof NotificationSettingsConfig, value: boolean) =>
     setCfg((prev) => ({ ...prev, [key]: value }));
 
   const handleSave = async () => {
@@ -158,36 +190,6 @@ export function NotificationSettings() {
     }
   };
 
-  const handleEnablePush = async () => {
-    if (!uid) return;
-    setSaving(true);
-    const result = await registerForPush(uid);
-    setPermState(getNotificationPermission());
-    if (result === 'granted') {
-      const updated = { ...cfg, pushEnabled: true };
-      setCfg(updated);
-      await saveSettings(uid, updated);
-      toast.success('Push notifications enabled for this device.');
-    } else if (result === 'denied') {
-      toast.error('Permission denied. Allow notifications in your browser site settings.');
-    } else {
-      toast.error('Push notifications are not supported in this browser.');
-    }
-    setSaving(false);
-  };
-
-  const handleDisablePush = async () => {
-    if (!uid) return;
-    setSaving(true);
-    await unregisterDevice(uid);
-    const updated = { ...cfg, pushEnabled: false };
-    setCfg(updated);
-    await saveSettings(uid, updated);
-    setPermState(getNotificationPermission());
-    toast.success('Push notifications disabled for this device.');
-    setSaving(false);
-  };
-
   if (loading) {
     return (
       <div className='flex items-center gap-2 py-10 text-slate-500 dark:text-slate-400'>
@@ -199,93 +201,32 @@ export function NotificationSettings() {
 
   return (
     <div className='space-y-6'>
-
-      {/* ── Push device status banner ────────────────────────────────── */}
-      <div
-        className={`flex items-start gap-3 rounded-xl border p-4 ${
-          !supported
-            ? 'border-slate-200/80 dark:border-slate-700/50 bg-slate-100/60 dark:bg-slate-800/40'
-            : permState === 'granted'
-              ? 'border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-900/10'
-              : permState === 'denied'
-                ? 'border-rose-400/30 bg-rose-50/60 dark:bg-rose-900/10'
-                : 'border-amber-400/30 bg-amber-50/60 dark:bg-amber-900/10'
-        }`}
-      >
-        {!supported && (
-          <>
-            <FiBellOff className='h-5 w-5 shrink-0 text-slate-400 mt-0.5' />
-            <div>
-              <p className='text-sm font-bold text-slate-700 dark:text-slate-300'>
-                Push not supported
-              </p>
-              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-                Push notifications require Chrome, Edge, or Firefox. Safari on iOS needs iOS 16.4+
-                with the app added to Home Screen.
-              </p>
-            </div>
-          </>
-        )}
-
-        {supported && permState === 'granted' && (
-          <>
-            <FiBell className='h-5 w-5 shrink-0 text-emerald-500 mt-0.5' />
-            <div className='flex-1 min-w-0'>
-              <p className='text-sm font-bold text-emerald-700 dark:text-emerald-400'>
-                Push notifications active
-              </p>
-              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-                This device is registered. You'll receive alerts even when the app is closed.
-              </p>
-              <button
-                onClick={handleDisablePush}
-                disabled={saving}
-                className='mt-2 text-[11px] font-bold text-rose-500 hover:text-rose-400 transition-colors disabled:opacity-60'
-              >
-                Disable for this device
-              </button>
-            </div>
-          </>
-        )}
-
-        {supported && permState === 'denied' && (
-          <>
-            <FiBellOff className='h-5 w-5 shrink-0 text-rose-400 mt-0.5' />
-            <div>
-              <p className='text-sm font-bold text-rose-600 dark:text-rose-400'>
-                Notifications blocked
-              </p>
-              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-                Open your browser's <strong>Site Settings</strong> → Notifications → Allow, then
-                come back and click Enable.
-              </p>
-            </div>
-          </>
-        )}
-
-        {supported && permState !== 'granted' && permState !== 'denied' && (
-          <>
-            <FiInfo className='h-5 w-5 shrink-0 text-amber-500 mt-0.5' />
-            <div className='flex-1 min-w-0'>
-              <p className='text-sm font-bold text-amber-700 dark:text-amber-400'>
-                Push not yet enabled
-              </p>
-              <p className='text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5'>
-                Enable push notifications to get alerts when the app is closed.
-              </p>
-              <button
-                onClick={handleEnablePush}
-                disabled={saving}
-                className='mt-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 px-3 py-1.5 text-[11px] font-bold text-white transition-colors'
-              >
-                🔔 Enable Push Notifications
-              </button>
-            </div>
-          </>
-        )}
+      {/* ── Where reminders arrive ───────────────────────────────────── */}
+      <div className='flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-900/10 p-4'>
+        <FiInfo className='h-5 w-5 shrink-0 text-emerald-500 mt-0.5' />
+        <div className='flex-1 min-w-0'>
+          <p className='text-sm font-bold text-emerald-800 dark:text-emerald-300'>
+            Reminders appear in the bell, and once a day by email at 08:00 IST
+          </p>
+          <p className='text-[11.5px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed'>
+            {email ? (
+              <>
+                The digest is sent to <strong>{email}</strong>.{' '}
+              </>
+            ) : null}
+            Every toggle below applies to both — turn one off and it stops
+            appearing in the bell as well as in the email.
+          </p>
+          <a
+            href='/settings'
+            className='inline-block mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline'
+          >
+            Change the email address in Settings → Profile
+          </a>
+        </div>
       </div>
 
-      {/* ── Per-category toggles ──────────────────────────────────────── */}
+      {/* ── Per-category toggles ─────────────────────────────────────── */}
       <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 overflow-hidden'>
         <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60'>
           <p className='text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
@@ -296,7 +237,7 @@ export function NotificationSettings() {
           <ToggleRow
             icon='🔔'
             label='Enable All Reminders'
-            description='Master switch — turn OFF to pause all reminders. Individual toggles below still save their state.'
+            description='Master switch — turn OFF to pause every reminder. The individual toggles below keep their own state.'
             checked={cfg.pushEnabled}
             onChange={(v) => update('pushEnabled', v)}
           />
@@ -311,33 +252,17 @@ export function NotificationSettings() {
           <ToggleRow
             icon='🛡️'
             label='Insurance Renewals'
-            description='30d, 7d, 1d before renewal — and expired policy alerts'
+            description='30 / 15 / 7 / 3 / 1 days before renewal — and expired policy alerts'
             checked={cfg.insuranceReminders}
             onChange={(v) => update('insuranceReminders', v)}
             disabled={!cfg.pushEnabled}
           />
           <ToggleRow
-            icon='🎯'
-            label='Goal Reminders'
-            description='Milestones reached, deadlines approaching, monthly contribution nudges'
-            checked={cfg.goalReminders}
-            onChange={(v) => update('goalReminders', v)}
-            disabled={!cfg.pushEnabled}
-          />
-          <ToggleRow
             icon='💸'
             label='EMI & Loan Reminders'
-            description='Due dates, overdue alerts, and final payment notices'
+            description='Due dates and final-payment notices on your liabilities'
             checked={cfg.emiReminders}
             onChange={(v) => update('emiReminders', v)}
-            disabled={!cfg.pushEnabled}
-          />
-          <ToggleRow
-            icon='📅'
-            label='SIP Reminders'
-            description='Monthly SIP execution reminder and allocation mismatch alerts'
-            checked={cfg.sipReminders}
-            onChange={(v) => update('sipReminders', v)}
             disabled={!cfg.pushEnabled}
           />
           <ToggleRow
@@ -349,87 +274,59 @@ export function NotificationSettings() {
             disabled={!cfg.pushEnabled}
           />
           <ToggleRow
-            icon='⏳'
-            label='Subscription Alerts'
-            description='Trial ending, plan expiry, and billing reminders'
-            checked={cfg.subscriptionAlerts}
-            onChange={(v) => update('subscriptionAlerts', v)}
+            icon='🎯'
+            label='Goal Reminders'
+            description='Milestones reached and monthly contribution nudges (in-app)'
+            checked={cfg.goalReminders}
+            onChange={(v) => update('goalReminders', v)}
             disabled={!cfg.pushEnabled}
           />
           <ToggleRow
-            icon='📊'
-            label='Weekly Digest'
-            description='Weekly in-app summary of your financial activity'
-            checked={cfg.weeklyDigest}
-            onChange={(v) => update('weeklyDigest', v)}
+            icon='📅'
+            label='SIP Reminders'
+            description='Monthly SIP execution nudge and allocation mismatch (in-app)'
+            checked={cfg.sipReminders}
+            onChange={(v) => update('sipReminders', v)}
+            disabled={!cfg.pushEnabled}
+          />
+          <ToggleRow
+            icon='⏳'
+            label='Subscription Alerts'
+            description='Trial ending, plan expiry, and billing reminders (in-app)'
+            checked={cfg.subscriptionAlerts}
+            onChange={(v) => update('subscriptionAlerts', v)}
             disabled={!cfg.pushEnabled}
           />
         </div>
       </div>
 
-      {/* ── Email digest toggles ──────────────────────────────────────── */}
+      {/* ── Scheduled emails ─────────────────────────────────────────── */}
       <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 overflow-hidden'>
         <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60'>
           <p className='text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
-            Email Digests
+            Scheduled Emails
           </p>
         </div>
         <div className='px-4 divide-y divide-slate-100 dark:divide-slate-800/60'>
           <ToggleRow
             icon='📧'
+            label='Daily Summary Email (08:00 IST)'
+            description='One consolidated mail with everything due today. Nothing is mailed when nothing is due.'
+            checked={cfg.pushEnabled}
+            onChange={(v) => update('pushEnabled', v)}
+          />
+          <ToggleRow
+            icon='📊'
             label='Monthly Report Email'
-            description='Full portfolio summary email on the 1st of each month'
+            description='Full portfolio summary mailed on the 1st of each month'
             checked={cfg.monthlyReport}
             onChange={(v) => update('monthlyReport', v)}
+            disabled={!cfg.pushEnabled}
           />
         </div>
       </div>
 
-      {/* ── Quiet hours ───────────────────────────────────────────────── */}
-      <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 overflow-hidden'>
-        <div className='px-4 py-3 bg-slate-50/60 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60'>
-          <p className='text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
-            Quiet Hours
-          </p>
-        </div>
-        <div className='px-4 pb-4'>
-          <ToggleRow
-            icon='🌙'
-            label='Enable Quiet Hours'
-            description='No push notifications are sent during these hours'
-            checked={cfg.quietHoursEnabled}
-            onChange={(v) => update('quietHoursEnabled', v)}
-          />
-          {cfg.quietHoursEnabled && (
-            <div className='flex items-center gap-4 mt-3'>
-              <div className='flex-1'>
-                <label className='block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5'>
-                  From
-                </label>
-                <input
-                  type='time'
-                  value={cfg.quietHoursStart}
-                  onChange={(e) => update('quietHoursStart', e.target.value)}
-                  className='w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40'
-                />
-              </div>
-              <div className='flex-1'>
-                <label className='block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5'>
-                  Until
-                </label>
-                <input
-                  type='time'
-                  value={cfg.quietHoursEnd}
-                  onChange={(e) => update('quietHoursEnd', e.target.value)}
-                  className='w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40'
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Save button ───────────────────────────────────────────────── */}
+      {/* ── Save button ──────────────────────────────────────────────── */}
       <button
         onClick={handleSave}
         disabled={saving}
@@ -439,59 +336,27 @@ export function NotificationSettings() {
         {saving ? 'Saving…' : 'Save Settings'}
       </button>
 
-      {/* ── How reminders work ────────────────────────────────────────── */}
-      <div className='rounded-xl border border-emerald-400/30 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-900/10 p-5 space-y-4'>
-        <div className='flex items-start gap-3'>
-          <div className='h-9 w-9 shrink-0 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center'>
-            <FiBell className='h-4 w-4 text-emerald-500' />
-          </div>
-          <div className='flex-1 min-w-0'>
-            <p className='text-sm font-bold text-emerald-800 dark:text-emerald-300'>
-              Automated Email Reminders Are Active
-            </p>
-            <p className='text-[11.5px] text-emerald-700/80 dark:text-emerald-400/80 mt-0.5 leading-relaxed'>
-              Reminders are sent automatically every 30 minutes by a cloud scheduler — no browser
-              open required. Just keep the toggles above ON.
-            </p>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-          <div className='rounded-lg bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/60 px-4 py-3'>
-            <p className='text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5'>
-              How They Are Delivered
-            </p>
-            <ul className='space-y-1 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300'>
-              <li>📧 Email — sent to your registered inbox</li>
-              <li>🌏 Works on every phone, laptop &amp; tablet</li>
-              <li>🔁 Re-runs every 30 min in the background</li>
-              <li>🛑 Respects quiet hours &amp; individual toggles</li>
-            </ul>
-          </div>
-
-          <div className='rounded-lg bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/60 px-4 py-3'>
-            <p className='text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5'>
-              What You Will Receive
-            </p>
-            <ul className='space-y-1 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300'>
-              <li>💳 Payment dues &amp; overdue warnings</li>
-              <li>🛡️ Insurance renewal 30 / 7 / 1 days before</li>
-              <li>🏦 EMI, loan, SIP repayments</li>
-              <li>🎯 Goals achieved · Investments maturing</li>
-              <li>⏳ Trial ending · Receivables pending</li>
-            </ul>
-          </div>
-        </div>
-
+      {/* ── How reminders work ───────────────────────────────────────── */}
+      <div className='rounded-xl border border-slate-200/80 dark:border-slate-800/60 bg-slate-50/60 dark:bg-slate-800/30 p-5 space-y-3'>
+        <p className='text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400'>
+          What you will receive
+        </p>
+        <ul className='space-y-1 text-[12px] leading-relaxed text-slate-700 dark:text-slate-300'>
+          <li>💳 Payment dues &amp; overdue warnings</li>
+          <li>🛡️ Insurance renewal 30 / 15 / 7 / 3 / 1 days before</li>
+          <li>🏦 EMI, loan and final-payment notices</li>
+          <li>📈 Bonds &amp; fixed deposits maturing</li>
+          <li>🎯 Goals, SIP and trial alerts — inside the app</li>
+        </ul>
         <div className='rounded-lg border border-amber-400/40 bg-amber-50/70 dark:bg-amber-500/5 dark:border-amber-500/25 px-4 py-3'>
           <div className='flex items-start gap-2.5'>
             <FiInfo className='h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
             <p className='text-[12px] leading-relaxed text-amber-800 dark:text-amber-300'>
-              <span className='font-bold'>Tip:</span> If you don't see the first email within an
-              hour, check your <span className='font-semibold'>Spam / Promotions</span> folder.
-              Mark it "Not spam" and add{' '}
-              <span className='font-semibold'>fintracklysupport@gmail.com</span> to your contacts
-              so future reminders land in your Primary inbox.
+              <span className='font-bold'>Tip:</span> If the first email does not
+              appear, check your <span className='font-semibold'>Spam /
+              Promotions</span> folder, mark it "Not spam" and add{' '}
+              <span className='font-semibold'>fintracklysupport@gmail.com</span>{' '}
+              to your contacts.
             </p>
           </div>
         </div>

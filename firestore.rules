@@ -6,6 +6,11 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // Mirrored from custom claims by functions/src/subscriptionUtils.ts#syncAuthClaims
+    function isPremium() {
+      return request.auth != null && request.auth.token.premium == true;
+    }
+
     function isValidTrialCreate() {
       return request.resource.data.plan == 'trial'
         && request.resource.data.subscriptionStatus == 'active'
@@ -61,42 +66,109 @@ service cloud.firestore {
             ]);
     }
 
+    // The user profile may always fill in its own contact/onboarding fields.
+    function isProfileSelfUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['displayName', 'email', 'phone', 'onboarding', 'lastSeenAt',
+                  'notificationSettings', 'digestEmail', 'updatedAt']);
+    }
+
+    // ── Notification acknowledgement ───────────────────────────────────────
+    // The bell's Read / Dismiss / Clear buttons write exactly these fields.
+    // They used to be rejected by a hasOnly(['read']) rule, so dismissing a
+    // notification silently failed with permission-denied and nothing was ever
+    // reported to the user.
+    function isNotificationAck() {
+      let touched = request.resource.data.diff(resource.data).affectedKeys();
+      // Every key is checked only when present: notification docs created by the
+      // server have no `dismissed` field at all, so a mandatory type check
+      // would reject a plain "mark as read".
+      return touched.hasOnly(['read', 'dismissed', 'dismissedAt', 'clearedAt'])
+        && (!('read' in request.resource.data)
+            || request.resource.data.read is bool)
+        && (!('dismissed' in request.resource.data)
+            || request.resource.data.dismissed is bool)
+        && (!('dismissedAt' in request.resource.data)
+            || request.resource.data.dismissedAt is timestamp)
+        && (!('clearedAt' in request.resource.data)
+            || request.resource.data.clearedAt is timestamp);
+    }
+
+    // ── Explicit list of user data collections ────────────────────────────
+    // Replaces a blanket `match /{collection}/{document=**}`. Anything not
+    // listed here is now denied by default, so shipping a new collection is a
+    // deliberate decision instead of an accidental wide-open rule.
+    function isUserDataCollection(name) {
+      let known = [
+        'investments',
+        'liabilities',
+        'cashflows',
+        'goals',
+        'goalContributions',
+        'accounts',
+        'snapshots',
+        'networthSnapshots',
+        'soldTrades',
+        'sipPlans',
+        'pendingPayments',
+        'trackedPayments',
+        'insurancePolicies',
+        'insurancePayments',
+        'credentials',
+        'insights',
+        'settings',
+        'notificationJobs',
+        'notificationSettings'
+      ];
+      return name in known;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId) && isValidTrialCreate();
       allow update: if isOwner(userId)
         && (subscriptionFieldsUnchanged()
             || isPremiumGrantedBackfill()
-            || isOwnerSelfPremiumGrant());
+            || isOwnerSelfPremiumGrant()
+            || isProfileSelfUpdate());
+      allow delete: if false;
 
-      // ── Notification devices — client registers/updates its own FCM token ──
-      match /notificationDevices/{deviceId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // ── Notification settings — per-category toggles + quiet hours ─────────
-      match /notificationSettings/{docId} {
-        allow read, write: if isOwner(userId);
-      }
-
-      // ── Push sent dedup records — written by Cloud Function only ───────────
-      // Client can read (for debug/UI), but cannot create/update/delete.
+      // Legacy push artefacts. The app no longer registers devices and the
+      // digest dedupe ledger is written by the email job with the Admin SDK, so
+      // neither belongs to the client-writable allow-list above — a listed
+      // collection would be writable here regardless of this narrower match.
       match /pushSent/{key} {
         allow read: if isOwner(userId);
-        allow write: if false;  // Cloud Function uses Admin SDK (bypasses rules)
+        allow write: if false;
+      }
+      match /notificationDevices/{deviceId} {
+        allow read, write: if false;
       }
 
-      // ── All other user subcollections ──────────────────────────────────────
+      // Payment receipts. Written by Cloud Functions; the client must never be
+      // able to fabricate a "paid" receipt.
+      match /orders/{orderId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      // ── Everything the user owns and edits themselves ───────────────────
       match /{collection}/{document=**} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId) && isUserDataCollection(collection);
       }
     }
 
     match /notifications/{userId}/items/{itemId} {
       allow read: if isOwner(userId);
-      allow update: if isOwner(userId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      // Created and updated by Cloud Functions / scheduled jobs only…
       allow create, delete: if false;
+      // …except acknowledgement, which the app does for itself.
+      allow update: if isOwner(userId) && isNotificationAck();
+    }
+
+    // Razorpay webhook replay guard — service-only, never reachable from a client.
+    match /webhookEvents/{eventId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

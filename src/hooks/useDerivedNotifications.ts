@@ -35,7 +35,11 @@ import { usePortfolioStore } from '../store/portfolioStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useSubscriptionOptional } from '../context/SubscriptionContext';
 import type { NotifType, AppNotification } from '../store/notificationStore';
-import { daysUntilDue, buildPaymentReminderMessage } from '../utils/paymentTracker';
+import {
+  buildMoneyAlerts,
+  sortBySeverity,
+} from '../../shared/alertRules.mjs';
+import { useNotificationSettings } from './useNotificationSettings';
 
 const INR = (n: number) =>
   '₹' + Math.abs(Math.round(n || 0)).toLocaleString('en-IN');
@@ -73,11 +77,19 @@ function makeNotif(
     actionLabel?: string;
     actionPath?: string;
     createdAt?: string;
+    /** Stable identifier for *this occurrence* of the alert. Without it the id
+     *  falls back to render time, which makes "mark as read" useless — the next
+     *  re-render re-creates the notification under a fresh id. */
+    occurrence?: string;
   } = {},
 ): AppNotification {
   const now = new Date().toISOString();
   return {
-    id: stableId(sourceType, sourceId, opts.dueDate || opts.createdAt || now),
+    id: stableId(
+      sourceType,
+      sourceId,
+      opts.occurrence || opts.dueDate || opts.createdAt || 'general',
+    ),
     type,
     title,
     message,
@@ -114,254 +126,63 @@ export function useDerivedNotifications(): AppNotification[] {
     })),
   );
   const subscription = useSubscriptionOptional();
+  const notifSettings = useNotificationSettings();
 
   return useMemo(() => {
     const notifs: AppNotification[] = [];
     const t = today();
+    const monthKey = format(t, 'yyyy-MM');
 
-    // ── Liabilities ─────────────────────────────────────────────────────────
-    portfolio.liabilities?.forEach((liab) => {
-      if (
-        liab.status === 'returned' ||
-        liab.status === 'paid' ||
-        liab.status === 'paused'
-      )
-        return;
-      if ((liab.outstanding ?? 0) <= 0) return;
+    // Flags from users/{uid}/notificationSettings/config. `pushEnabled` is the
+    // master switch for every channel; the money rules read the same flags
+    // inside the shared engine, so a category switched off stops appearing in
+    // the bell *and* in the 08:00 email.
+    const alertsOn = notifSettings.pushEnabled !== false;
+    const wants = (flag: keyof typeof notifSettings) =>
+      alertsOn && notifSettings[flag] !== false;
 
-      if (typeof liab.emiDay === 'number' && liab.emiDay >= 1 && liab.emiDay <= 31) {
-        const todayDate = t.getDate();
-        const dueDay = liab.emiDay;
-        let daysToEMI: number;
-        if (dueDay >= todayDate) {
-          daysToEMI = dueDay - todayDate;
-        } else {
-          const nextMonthSameDay = new Date(t.getFullYear(), t.getMonth() + 1, dueDay);
-          daysToEMI = differenceInDays(nextMonthSameDay, t);
-        }
-        const emiAmount = liab.emiAmount ? INR(liab.emiAmount) : 'your EMI amount';
-        const suffix = ['th', 'st', 'nd', 'rd'][
-          [0, 1, 2, 3].includes(dueDay % 10) && ![11, 12, 13].includes(dueDay % 100)
-            ? dueDay % 10
-            : 0
-        ];
-        if (daysToEMI === 0) {
-          notifs.push(
-            makeNotif(
-              'liability_emi',
-              `💸 EMI Due Today: ${liab.name}`,
-              `${liab.name} — ${emiAmount} is due today (${dueDay}${suffix} of every month). Outstanding: ${INR(liab.outstanding)}.`,
-              liab.id,
-              'liability',
-              {
-                dueDate: new Date(t.getFullYear(), t.getMonth(), dueDay).toISOString().slice(0, 10),
-                expiresAt: endOfToday().toISOString(),
-                severity: 'high',
-                actionLabel: 'Liabilities',
-                actionPath: '/wealth?tab=liabilities',
-              },
-            ),
-          );
-        } else if (daysToEMI === 1) {
-          notifs.push(
-            makeNotif(
-              'liability_emi',
-              `💸 EMI Tomorrow: ${liab.name}`,
-              `${emiAmount} for "${liab.name}" is due tomorrow (${dueDay}${suffix}).`,
-              liab.id,
-              'liability',
-              {
-                expiresAt: new Date(t.getTime() + 2 * 86_400_000).toISOString(),
-                severity: 'medium',
-                actionLabel: 'Liabilities',
-                actionPath: '/wealth?tab=liabilities',
-              },
-            ),
-          );
-        } else if (daysToEMI === 3) {
-          notifs.push(
-            makeNotif(
-              'liability_emi',
-              `⏰ EMI in 3 Days — ${liab.name}`,
-              `Keep ${emiAmount} ready for "${liab.name}" on ${dueDay}${suffix}.`,
-              liab.id,
-              'liability',
-              {
-                expiresAt: new Date(t.getTime() + 4 * 86_400_000).toISOString(),
-                severity: 'low',
-                actionLabel: 'Liabilities',
-                actionPath: '/wealth?tab=liabilities',
-              },
-            ),
-          );
-        }
-      }
-
-      if (liab.endDate) {
-        const days = differenceInDays(parseISO(liab.endDate), t);
-        if (days === 0) {
-          notifs.push(
-            makeNotif(
-              'liability_due',
-              `🔴 FINAL Due Today — ${liab.name}`,
-              `Final payment of ${INR(liab.outstanding)} for "${liab.name}" is DUE TODAY. Close this liability!`,
-              liab.id,
-              'liability',
-              {
-                dueDate: liab.endDate,
-                expiresAt: endOfToday().toISOString(),
-                severity: 'high',
-                actionLabel: 'Close Liability',
-                actionPath: '/wealth?tab=liabilities',
-              },
-            ),
-          );
-        } else if (days > 0 && days <= 3) {
-          notifs.push(
-            makeNotif(
-              'liability_due',
-              `⏰ Final Payment in ${days}d — ${liab.name}`,
-              `${INR(liab.outstanding)} remaining on "${liab.name}" — closes on ${format(parseISO(liab.endDate), 'dd MMM')}.`,
-              liab.id,
-              'liability',
-              {
-                dueDate: liab.endDate,
-                expiresAt: new Date(t.getTime() + (days + 1) * 86_400_000).toISOString(),
-                severity: 'medium',
-                actionLabel: 'Liabilities',
-                actionPath: '/wealth?tab=liabilities',
-              },
-            ),
-          );
-        } else if (days < 0 && days >= -14) {
-          notifs.push(
-            makeNotif(
-              'liability_overdue',
-              `⚠️ OVERDUE ${Math.abs(days)}d — ${liab.name}`,
-              `Final payment of ${INR(liab.outstanding)} was due ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago. Credit score impact risk — pay immediately.`,
-              liab.id,
-              'liability',
-              {
-                dueDate: liab.endDate,
-                expiresAt: new Date(t.getTime() + (Math.abs(days) + 2) * 86_400_000).toISOString(),
-                severity: 'critical',
-                actionLabel: 'Pay Now',
-                actionPath: '/wealth?tab=liabilities',
-              },
-            ),
-          );
-        }
-      }
-    });
-
-    // ── Payment tracker ─────────────────────────────────────────────────────
-    portfolio.trackedPayments?.forEach((pay) => {
-      if (pay.status === 'paid') return;
-      const days = daysUntilDue(pay.dueDate);
-      if (days < -14) return;
-
-      let fire = false;
-      let fireKey = '';
-      if (days === 0) {
-        fire = true;
-        fireKey = 'today';
-      } else if (days > 0 && (pay.reminderDays || []).includes(days)) {
-        fire = true;
-        fireKey = `${days}d`;
-      } else if (days < 0) {
-        if ([-1, -3, -6, -9, -12].includes(days)) {
-          fire = true;
-          fireKey = `overdue_${Math.abs(days)}d`;
-        }
-      }
-      if (!fire || !fireKey) return;
-      const { title, message } = buildPaymentReminderMessage(pay, days);
-      notifs.push(
-        makeNotif(
-          days < 0 ? 'payment_tracker_overdue' : 'payment_tracker_due',
-          title,
-          message,
-          pay.id,
-          'payment',
-          {
-            dueDate: pay.dueDate,
-            expiresAt:
-              days < 0
-                ? new Date(t.getTime() + (Math.abs(days) + 3) * 86_400_000).toISOString()
-                : new Date(t.getTime() + (days + 1) * 86_400_000).toISOString(),
-            severity: days < -3 ? 'high' : days < 0 ? 'medium' : days === 0 ? 'high' : 'low',
-            actionLabel: 'View Payment',
-            actionPath: '/payments',
-          },
-        ),
-      );
-    });
-
-    // ── Pending payments ────────────────────────────────────────────────────
-    portfolio.pendingPayments?.forEach((p) => {
-      if (p.status !== 'pending' || !p.expectedPaymentDate) return;
-      const days = differenceInDays(parseISO(p.expectedPaymentDate), t);
-      if (days < -30) return;
-
-      let fire = false;
-      let fireKey = '';
-      const type: NotifType = days < 0 ? 'pending_payment_overdue' : 'pending_payment_due';
-      let title = '';
-      let message = '';
-      const amtStr = INR(p.amount);
-
-      if (days === 0) {
-        fire = true;
-        fireKey = 'today';
-        title = `🔴 Receive Today: ₹${p.amount.toLocaleString('en-IN')} from ${p.buyerName}`;
-        message = `${p.buyerName} owes ${amtStr} for "${p.itemDescription}" — expected TODAY. Follow up!`;
-      } else if (days === 1) {
-        fire = true;
-        fireKey = '1d';
-        title = `⏰ Payment Tomorrow: ${p.buyerName}`;
-        message = `Expect ${amtStr} from ${p.buyerName} tomorrow for "${p.itemDescription}".`;
-      } else if (days === 5) {
-        fire = true;
-        fireKey = '5d';
-        title = `💰 Incoming in 5d — ${p.buyerName}`;
-        message = `${amtStr} receivable on ${format(parseISO(p.expectedPaymentDate), 'dd MMM')} for "${p.itemDescription}".`;
-      } else if (days < 0 && [-1, -3, -7, -14, -21].includes(days)) {
-        fire = true;
-        fireKey = `overdue_${Math.abs(days)}d`;
-        title = `⚠️ OVERDUE ${Math.abs(days)}d: ${p.buyerName}`;
-        message = `${amtStr} was due ${Math.abs(days)}d ago from ${p.buyerName} for "${p.itemDescription}". Follow up urgently.`;
-      }
-      if (!fire || !fireKey) return;
-      notifs.push(
-        makeNotif(
-          type,
-          title,
-          message,
-          p.id,
-          'pending',
-          {
-            dueDate: p.expectedPaymentDate,
-            expiresAt:
-              days < 0
-                ? new Date(t.getTime() + (Math.abs(days) + 3) * 86_400_000).toISOString()
-                : new Date(t.getTime() + (days + 1) * 86_400_000).toISOString(),
-            severity:
-              days < -7
-                ? 'high'
-                : days < 0
-                  ? 'medium'
-                  : days === 0
-                    ? 'high'
-                    : 'low',
-            actionLabel: 'Money Owed To Me',
-            actionPath: '/wealth?tab=liabilities&section=pending-payments',
-          },
-        ),
-      );
+    // ── Money rules: payments, insurance, EMI, maturity, receivables ──────
+    // Same engine, same wording and same occurrence keys as the 08:00 email
+    // digest (shared/alertRules.mjs), so the bell and the mail can never
+    // disagree about what is due.
+    sortBySeverity(
+      buildMoneyAlerts(
+        {
+          trackedPayments: portfolio.trackedPayments as any,
+          pendingPayments: portfolio.pendingPayments as any,
+          liabilities: portfolio.liabilities as any,
+          investments: portfolio.investments as any,
+          insurancePolicies: portfolio.insurancePolicies as any,
+        },
+        notifSettings,
+      ),
+    ).forEach((a) => {
+      notifs.push({
+        id: `alert:${a.key}`,
+        type: a.notifType as NotifType,
+        title: a.title,
+        message: a.body,
+        dueDate: a.dueDate,
+        read: false,
+        dismissed: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        entityId: a.entityId,
+        actionLabel: a.actionLabel,
+        actionPath: a.clickUrl,
+        periodKey: a.dueDate,
+        severity: a.severity,
+        // Stay visible a few days past the date it refers to, then retire.
+        expiresAt: new Date(
+          parseISO(a.dueDate.slice(0, 10)).getTime() + 4 * 86_400_000,
+        ).toISOString(),
+      });
     });
 
     // ── Goals ───────────────────────────────────────────────────────────────
+    const goalAlertsOn = wants('goalReminders');
     portfolio.goals?.forEach((g) => {
+      if (!goalAlertsOn) return;
       if (!g.targetAmount || g.targetAmount <= 0) return;
       const pct = Math.min(100, (g.currentAmount / g.targetAmount) * 100);
 
@@ -374,6 +195,7 @@ export function useDerivedNotifications(): AppNotification[] {
             g.id,
             'goal',
             {
+              occurrence: 'achieved',
               expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
               severity: 'info',
               actionLabel: 'View Goal',
@@ -398,6 +220,10 @@ export function useDerivedNotifications(): AppNotification[] {
               g.id,
               'goal',
               {
+                // One lifetime acknowledgement per milestone, so dismissing the
+                // 50% note does not silence it forever for a goal that keeps
+                // moving — the milestone itself is the occurrence.
+                occurrence: `p${p}`,
                 expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
                 severity: s,
                 actionLabel: 'Goals',
@@ -422,6 +248,7 @@ export function useDerivedNotifications(): AppNotification[] {
               g.id,
               'goal',
               {
+                occurrence: `contrib-${monthKey}`,
                 expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
                 severity: 'low',
                 actionLabel: 'Add Contribution',
@@ -435,6 +262,7 @@ export function useDerivedNotifications(): AppNotification[] {
 
     // Emergency fund low
     (() => {
+      if (!goalAlertsOn) return;
       const efGoal = portfolio.goals?.find((g) =>
         (g.name || '').toLowerCase().includes('emergency'),
       );
@@ -455,6 +283,7 @@ export function useDerivedNotifications(): AppNotification[] {
             efGoal?.id || 'emergency_fund',
             'essential',
             {
+              occurrence: `low-${monthKey}`,
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: pct < 15 ? 'critical' : 'medium',
               actionLabel: 'Top Up Now',
@@ -465,68 +294,9 @@ export function useDerivedNotifications(): AppNotification[] {
       }
     })();
 
-    // ── Investment maturity ─────────────────────────────────────────────────
-    portfolio.investments?.forEach((inv) => {
-      if (inv.type !== 'bond' && inv.type !== 'fixed_deposit') return;
-      if (!inv.maturityDate) return;
-      const days = differenceInDays(parseISO(inv.maturityDate), t);
-
-      if (days <= 0) {
-        notifs.push(
-          makeNotif(
-            'investment_matured',
-            '🎉 Investment Matured & Profit Booked!',
-            `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${inv.name}" matured. Profit has been added to realized profits automatically.`,
-            inv.id,
-            'investment',
-            {
-              dueDate: inv.maturityDate,
-              expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
-              severity: 'info',
-              actionLabel: 'View Investment',
-              actionPath: '/wealth?tab=assets',
-            },
-          ),
-        );
-      } else if (days === 7) {
-        notifs.push(
-          makeNotif(
-            'investment_maturity_upcoming',
-            '⏰ Investment Maturing in 7 Days',
-            `Your ${inv.type === 'bond' ? 'Bond' : 'FD'} "${inv.name}" matures in 7 days. Expected payout ~${INR((inv.investedAmount || 0) + (inv.investedAmount || 0) * ((inv.interestRate || 0) / 100) * ((inv.durationMonths || 0) / 12))}.`,
-            inv.id,
-            'investment',
-            {
-              dueDate: inv.maturityDate,
-              expiresAt: new Date(t.getTime() + 8 * 86_400_000).toISOString(),
-              severity: 'low',
-              actionLabel: 'View Investment',
-              actionPath: '/wealth?tab=assets',
-            },
-          ),
-        );
-      } else if (days === 30) {
-        notifs.push(
-          makeNotif(
-            'investment_maturity_upcoming',
-            '⏳ 30 Days Until Maturity',
-            `"${inv.name}" ${inv.type === 'bond' ? 'bond' : 'FD'} matures in a month.`,
-            inv.id,
-            'investment',
-            {
-              dueDate: inv.maturityDate,
-              expiresAt: new Date(t.getTime() + 31 * 86_400_000).toISOString(),
-              severity: 'low',
-              actionLabel: 'Investments',
-              actionPath: '/wealth?tab=assets',
-            },
-          ),
-        );
-      }
-    });
-
     // ── SIP ─────────────────────────────────────────────────────────────────
     (() => {
+      if (!wants('sipReminders')) return;
       const budget = (portfolio.sipPlans || []).find((x: any) => x && x.type === 'budget');
       const instruments = (portfolio.sipPlans || []).filter((x: any) => x && x.type === 'instrument');
       const budgetAmt = budget?.budget || 0;
@@ -541,6 +311,7 @@ export function useDerivedNotifications(): AppNotification[] {
             'sip_nudge',
             'sip',
             {
+              occurrence: `nudge-${monthKey}`,
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: 'low',
               actionLabel: 'Open SIP Plan',
@@ -563,6 +334,7 @@ export function useDerivedNotifications(): AppNotification[] {
             'sip_alloc',
             'sip',
             {
+              occurrence: `alloc-${monthKey}`,
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: totalPct > 100 ? 'high' : 'medium',
               actionLabel: 'Fix Allocation',
@@ -575,6 +347,7 @@ export function useDerivedNotifications(): AppNotification[] {
 
     // ── Credentials ─────────────────────────────────────────────────────────
     portfolio.credentials?.forEach((c) => {
+      if (!alertsOn) return;
       if (!c.updatedAt && !c.createdAt) return;
       const updated = parseISO(c.updatedAt || c.createdAt);
       const ageDays = differenceInDays(t, updated);
@@ -587,6 +360,7 @@ export function useDerivedNotifications(): AppNotification[] {
             c.id,
             'credential',
             {
+              occurrence: 'stale-1y',
               expiresAt: new Date(updated.getTime() + 372 * 86_400_000).toISOString(),
               severity: 'low',
               actionLabel: 'Review Credentials',
@@ -599,6 +373,7 @@ export function useDerivedNotifications(): AppNotification[] {
 
     // ── Net worth drop ──────────────────────────────────────────────────────
     (() => {
+      if (!alertsOn) return;
       const snaps = [...(portfolio.networthSnapshots || [])]
         .filter((s) => s && s.createdAt)
         .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
@@ -627,6 +402,9 @@ export function useDerivedNotifications(): AppNotification[] {
             'nw_drop',
             'networth',
             {
+              // One note per calendar month: the drop is a monthly observation,
+              // and next month's drop is a different occurrence.
+              occurrence: monthKey,
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: drop <= -0.2 ? 'critical' : 'high',
               actionLabel: 'View Insights',
@@ -646,7 +424,7 @@ export function useDerivedNotifications(): AppNotification[] {
       (portfolio.accounts?.length ?? 0) +
       (portfolio.trackedPayments?.length ?? 0) +
       (portfolio.insurancePolicies?.length ?? 0);
-    if (anyData === 0) {
+    if (anyData === 0 && alertsOn) {
       notifs.push(
         makeNotif(
           'info',
@@ -655,6 +433,7 @@ export function useDerivedNotifications(): AppNotification[] {
           'welcome_nudge',
           'system',
           {
+            occurrence: 'welcome',
             actionLabel: 'Open Dashboard',
             actionPath: '/dashboard',
           },
@@ -663,7 +442,12 @@ export function useDerivedNotifications(): AppNotification[] {
     }
 
     // ── Trial / subscription ────────────────────────────────────────────────
-    if (subscription && !subscription.loading && subscription.userSubscription) {
+    if (
+      wants('subscriptionAlerts') &&
+      subscription &&
+      !subscription.loading &&
+      subscription.userSubscription
+    ) {
       const plan = subscription.userSubscription.plan;
       const status = subscription.userSubscription.subscriptionStatus;
 

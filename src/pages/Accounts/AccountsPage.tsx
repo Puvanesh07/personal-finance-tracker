@@ -69,6 +69,7 @@ type AccountFormProps = {
 function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
   const addAccount = usePortfolioStore((s) => s.addAccount);
   const updateAccount = usePortfolioStore((s) => s.updateAccount);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const [name, setName] = useState('');
@@ -76,6 +77,9 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
   const [balance, setBalance] = useState('0');
   const [openingBalanceDate, setOpeningBalanceDate] = useState(todayStr);
   const [saving, setSaving] = useState(false);
+  // Second click, only required when an edit moves the as-of date forward and
+  // would therefore drop history out of the balance.
+  const [cutoffConfirmed, setCutoffConfirmed] = useState(false);
 
   // ✅ FIX 1: Reset form fields every time the modal opens
   useEffect(() => {
@@ -84,10 +88,47 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
       setType(entry?.type ?? 'bank');
       setBalance(String(entry?.openingBalance ?? entry?.balance ?? '0'));
       setOpeningBalanceDate(entry?.openingBalanceDate ?? todayStr);
+      setCutoffConfirmed(false);
     }
   }, [open]);
 
+  // ── What this choice actually does to the balance ─────────────────────────
+  // Live balance = opening balance ± linked cashflows on/after the as-of date,
+  // so moving that date can silently remove entries from the figure. Show the
+  // consequence instead of making the user discover it on the dashboard.
+  const linkedCashflows = useMemo(
+    () =>
+      mode === 'edit' && entry
+        ? cashflows.filter((c) => c.accountId === entry.id)
+        : [],
+    [cashflows, entry, mode],
+  );
+  const deltaOf = (list: typeof linkedCashflows) =>
+    list.reduce((sum, c) => sum + (c.type === 'income' ? c.amount : -c.amount), 0);
+  const excludedCashflows = linkedCashflows.filter(
+    (c) => c.date < openingBalanceDate,
+  );
+  const includedNet = deltaOf(
+    linkedCashflows.filter((c) => c.date >= openingBalanceDate),
+  );
+  const liveBalance = (Number(balance) || 0) + includedNet;
+  const cutoffMovedForward =
+    mode === 'edit' &&
+    !!entry?.openingBalanceDate &&
+    openingBalanceDate > entry.openingBalanceDate &&
+    excludedCashflows.length < linkedCashflows.length;
+
   async function onSubmit() {
+    // Moving the cutoff forward is the one edit that can look like money
+    // disappearing, so it needs an explicit confirmation first.
+    if (cutoffMovedForward && !cutoffConfirmed) {
+      setCutoffConfirmed(true);
+      toast(
+        'This hides earlier entries from the balance — click again to confirm.',
+        { icon: '⚠️' },
+      );
+      return;
+    }
     setSaving(true);
     try {
       const balNum = Number(balance) || 0;
@@ -190,6 +231,49 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
               balance — older entries are ignored.
             </p>
           </div>
+
+          {/* Consequence preview: only rendered once there is something to
+              exclude, so a fresh account stays as simple as it was. */}
+          {excludedCashflows.length > 0 && (
+            <div
+              className={`mt-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 ${
+                cutoffMovedForward
+                  ? 'border-amber-400/50 bg-amber-50/70 dark:bg-amber-500/5'
+                  : 'border-slate-300/60 dark:border-slate-700/50 bg-slate-200/70 dark:bg-slate-800/60'
+              }`}
+            >
+              <FiTrendingDown
+                className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
+                  cutoffMovedForward ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'
+                }`}
+              />
+              <div className='min-w-0 space-y-1'>
+                <p
+                  className={`text-[11px] leading-relaxed ${
+                    cutoffMovedForward
+                      ? 'text-amber-800 dark:text-amber-300'
+                      : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  This excludes{' '}
+                  <strong>{excludedCashflows.length}</strong> earlier
+                  cashflow{' '}
+                  {excludedCashflows.length === 1 ? 'entry' : 'entries'} (
+                  {formatINR(Math.abs(deltaOf(excludedCashflows)))} net) from
+                  this account's balance.
+                  {cutoffMovedForward &&
+                    !cutoffConfirmed &&
+                    ' Saving needs a second click to confirm.'}
+                </p>
+                <p className='text-[11px] font-bold text-slate-600 dark:text-slate-300'>
+                  Resulting live balance:{' '}
+                  <span className='text-emerald-600 dark:text-emerald-400'>
+                    {formatINR(liveBalance)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

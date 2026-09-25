@@ -59,6 +59,15 @@ import {
   checkCanCreateTransactions,
   trialLimitMessage,
 } from '../utils/subscriptionUtils';
+import {
+  markDataDirty,
+  readDataStamps,
+  resetDataVersions,
+  staleCollections,
+  subscribeDataVersions,
+  versionsFromSettings,
+  type DataStamp,
+} from '../utils/dataVersion';
 import type { TrialFeatureKey } from '../types/subscription';
 import toast from 'react-hot-toast';
 
@@ -84,6 +93,13 @@ const userDoc = (uid: string, col: string, id: string) =>
 const settingsDocRef = (uid: string) =>
   doc(db, 'users', uid, 'settings', 'config');
 
+/** Same reference as userDoc, but also flags the collection as changed so other
+ *  tabs/devices can tell that they are stale without re-reading everything. */
+const touchedDoc = (uid: string, col: string, id: string) => {
+  markDataDirty(uid, col);
+  return doc(db, 'users', uid, col, id);
+};
+
 const safeCompare = (a: string | undefined, b: string | undefined) =>
   (a || '').localeCompare(b || '');
 
@@ -94,6 +110,10 @@ function clean<T extends object>(obj: T): T {
 }
 
 const now = () => new Date().toISOString();
+
+/** Highest one-time data fix currently defined. Bump when adding a migration to
+ *  runMigrations(), and never renumber existing entries. */
+const SCHEMA_VERSION = 2;
 
 async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
   const snap = await getDocs(userCol(uid, col));
@@ -116,6 +136,177 @@ async function saveDoc<
   const flag = forceEncrypt !== undefined ? forceEncrypt : usePortfolioStore.getState().encryptionEnabled;
   const payload = await encryptDoc(uid, data, flag);
   await setDoc(userDoc(uid, col, data.id), payload);
+  markDataDirty(uid, col);
+}
+
+/** Signed contribution of one cashflow entry to its linked account. */
+const cashflowDelta = (cf: CashflowEntry) =>
+  cf.type === 'income' ? (cf.amount ?? 0) : -(cf.amount ?? 0);
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Refetch a single collection and return the state patch that replaces it.
+ *  This is what makes a background refresh cheap: only collections whose change
+ *  stamp actually moved are read again. Returns null for collections handled
+ *  elsewhere (settings/insights) or not currently loaded (lazy collections get
+ *  fetched fresh by their own loader, so refreshing them here would defeat the
+ *  lazy loading). */
+async function reloadCollectionPatch(
+  uid: string,
+  col: string,
+  state: PortfolioState,
+): Promise<{ patch: Partial<PortfolioState>; documents: number } | null> {
+  switch (col) {
+    case 'investments': {
+      const items = await fetchSub<Investment>(uid, col);
+      return {
+        documents: items.length,
+        patch: { investments: items.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)) },
+      };
+    }
+    case 'liabilities': {
+      const items = await fetchSub<Liability>(uid, col);
+      return {
+        documents: items.length,
+        patch: { liabilities: items.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)) },
+      };
+    }
+    case 'cashflows': {
+      const items = await fetchSub<CashflowEntry>(uid, col);
+      return {
+        documents: items.length,
+        patch: {
+          cashflows: items.sort(
+            (a, b) =>
+              safeCompare(b.date, a.date) || safeCompare(b.updatedAt, a.updatedAt),
+          ),
+        },
+      };
+    }
+    case 'goals': {
+      const items = await fetchSub<Goal>(uid, col);
+      return {
+        documents: items.length,
+        patch: { goals: items.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)) },
+      };
+    }
+    case 'accounts': {
+      const items = await fetchSub<Account>(uid, col);
+      return {
+        documents: items.length,
+        patch: { accounts: items.sort((a, b) => safeCompare(b.createdAt, a.createdAt)) },
+      };
+    }
+    case 'trackedPayments': {
+      const items = await fetchSub<TrackedPayment>(uid, col);
+      return {
+        documents: items.length,
+        patch: { trackedPayments: items.sort((a, b) => safeCompare(a.dueDate, b.dueDate)) },
+      };
+    }
+    case 'soldTrades': {
+      const items = await fetchSub<SoldTrade>(uid, col);
+      return {
+        documents: items.length,
+        patch: { soldTrades: items.sort((a, b) => safeCompare(b.soldDate, a.soldDate)) },
+      };
+    }
+    case 'insurancePolicies': {
+      const items = await fetchSub<InsurancePolicy>(uid, col);
+      return {
+        documents: items.length,
+        patch: {
+          insurancePolicies: items.sort((a, b) => safeCompare(a.renewalDate, b.renewalDate)),
+        },
+      };
+    }
+    case 'networthSnapshots': {
+      const items = await fetchSub<NetWorthSnapshot>(uid, col);
+      return {
+        documents: items.length,
+        patch: {
+          networthSnapshots: items.sort((a, b) => safeCompare(b.createdAt, a.createdAt)),
+        },
+      };
+    }
+    case 'sipPlans': {
+      const items = await fetchSub<any>(uid, col);
+      return {
+        documents: items.length,
+        patch: { sipPlans: items.sort((a: any, b: any) => safeCompare(a.createdAt, b.createdAt)) },
+      };
+    }
+    // Lazy collections: only worth refreshing if the user already opened them.
+    case 'goalContributions': {
+      if (!state._goalContributionsLoaded) return null;
+      const items = await fetchSub<GoalContribution>(uid, col);
+      return {
+        documents: items.length,
+        patch: {
+          goalContributions: items.sort((a, b) => safeCompare(b.date, a.date)),
+        },
+      };
+    }
+    case 'insurancePayments': {
+      if (!state._insurancePaymentsLoaded) return null;
+      const items = await fetchSub<InsurancePayment>(uid, col);
+      return {
+        documents: items.length,
+        patch: {
+          insurancePayments: items.sort((a, b) => safeCompare(b.paidAt, a.paidAt)),
+        },
+      };
+    }
+    case 'pendingPayments': {
+      if (!state._pendingPaymentsLoaded) return null;
+      const items = await fetchSub<PendingPayment>(uid, col);
+      return {
+        documents: items.length,
+        patch: {
+          pendingPayments: items.sort((a, b) =>
+            safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
+          ),
+        },
+      };
+    }
+    case 'credentials': {
+      if (!state._credentialsLoaded) return null;
+      const items = await fetchSub<Credential>(uid, col);
+      return {
+        documents: items.length,
+        patch: { credentials: items.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)) },
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+/** Map the settings document onto the store fields that live inside it. Kept in
+ *  one place so the first hydrate and a background refresh can never disagree. */
+function settingsPatch(settings: SettingsRecord): Partial<PortfolioState> {
+  return {
+    // Cache encryption flag in store — eliminates per-write Firestore read
+    encryptionEnabled: settings.encryptionEnabled !== false,
+    notion: settings.notion ?? DEFAULT_NOTION,
+    essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
+    customCategories: settings.customCategories ?? { expense: [], income: [] },
+    hiddenCategories: settings.hiddenCategories ?? { expense: [], income: [] },
+    customSubcategories: settings.customSubcategories ?? {},
+    allocationTargets: {
+      ...DEFAULT_ALLOCATION_TARGETS,
+      ...(settings.allocationTargets ?? {}),
+    },
+    _schemaVersion: Number(settings.schemaVersion ?? 0),
+  };
+}
+
+/** Write the settings document and stamp the change, so a Notion config or
+ *  custom category edited on one device reaches the others instead of living
+ *  there until a full reload. */
+async function saveSettings(uid: string, patch: Record<string, unknown>) {
+  await setDoc(settingsDocRef(uid), patch, { merge: true });
+  markDataDirty(uid, 'settings');
 }
 
 // ── Insurance ↔ Bill Reminder sync ───────────────────────────────────────
@@ -222,7 +413,13 @@ export type SettingsRecord = {
   hiddenCategories?: { expense: string[]; income: string[] };
   customSubcategories?: Record<string, string[]>;
   allocationTargets?: AllocationTargets;
+  /** Bumped by a migration run. One-time data fixes check this instead of
+   *  re-reading and re-writing the user's whole history on every login. */
+  schemaVersion?: number;
 };
+
+/** What a hydrate actually reloaded — lets callers report the truth. */
+export type HydrateResult = { documents: number; collections: number };
 
 type PortfolioState = {
   uid: string | null;
@@ -255,6 +452,14 @@ type PortfolioState = {
   _pendingPaymentsLoaded: boolean;
   _credentialsLoaded: boolean;
 
+  /** Per-collection change stamps as of the last load, and when that happened.
+   *  Used by refreshIfStale() to refetch only what actually moved. */
+  _dataVersions: Record<string, number>;
+  /** Latest stamps seen on the wire (live sync), before they are applied. */
+  _liveStamps: Record<string, DataStamp>;
+  lastHydrateAt: number;
+  _schemaVersion: number;
+
   /** Lazy-load actions — call these from the relevant page on first mount */
   loadGoalContributions: () => Promise<void>;
   loadInsurancePayments: () => Promise<void>;
@@ -274,7 +479,31 @@ type PortfolioState = {
   addCustomSubcategory: (category: string, name: string) => Promise<void>;
   removeCustomSubcategory: (category: string, name: string) => Promise<void>;
 
-  hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
+  hydrate: (uid: string, opts?: { force?: boolean }) => Promise<HydrateResult>;
+
+  /** Apply any one-time data fixes newer than the version this account has
+   *  recorded, then store the new version. Before this, the legacy bond sweep
+   *  and the insurance bill backfill re-read and re-wrote user history on every
+   *  login — the same work forever, and the only writes a brand-new device made
+   *  on opening the app. */
+  runMigrations: () => Promise<void>;
+  backfillInsuranceBills: () => Promise<void>;
+
+  /** One settings read; refetch only collections whose change stamp moved.
+   *  This is what makes a tab-focus or reconnect refresh nearly free.
+   *  `stamps` lets the live listener hand over what it just saw instead of
+   *  reading the settings document a second time. */
+  refreshIfStale: (stamps?: Record<string, DataStamp>) => Promise<number>;
+
+  /** Watch the change stamps so an edit made on another device lands here
+   *  without a reload. One document listener for every collection, and it only
+   *  costs a real read when something actually moved. */
+  startLiveSync: () => void;
+  stopLiveSync: () => void;
+
+  /** Repair stored account balances drifted by an older build that wrote
+   *  cashflow deltas into `balance` on add and never reversed them. */
+  reconcileAccountBalances: () => Promise<{ changed: number; legacy: number }>;
 
   /** One-time cleanup: remove bond interest/maturity entries a previous build
    *  auto-posted to Cashflow, and reverse the account credits they created.
@@ -412,6 +641,11 @@ type PortfolioState = {
 const DEFAULT_NOTION: NotionConfig = { enabled: false };
 const DEFAULT_ESSENTIALS: EssentialsConfig = {};
 
+// ── Live sync handles (one settings-document listener for the signed-in tab) ─
+let liveUnsub: (() => void) | null = null;
+let liveUid: string | null = null;
+let liveTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   uid: null,
   ready: false,
@@ -443,6 +677,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   _insurancePaymentsLoaded: false,
   _pendingPaymentsLoaded: false,
   _credentialsLoaded: false,
+  _dataVersions: {},
+  _liveStamps: {},
+  lastHydrateAt: 0,
+  _schemaVersion: 0,
 
   loadGoalContributions: async () => {
     const { uid, _goalContributionsLoaded } = get();
@@ -471,7 +709,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
 
   hydrate: async (uid, opts) => {
     const { uid: currentUid, ready } = get();
-    if (!opts?.force && currentUid === uid && ready) return;
+    if (!opts?.force && currentUid === uid && ready) {
+      return { documents: 0, collections: 0 };
+    }
 
     set({ uid });
     try {
@@ -498,12 +738,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         ? (settingsSnap.data() as SettingsRecord)
         : { notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS };
 
-      // Cache encryption flag in store — eliminates per-write Firestore read
-      const encryptionEnabled = settings.encryptionEnabled !== false;
+      // Change stamps as of right now — refreshIfStale() compares against these.
+      const loadedVersions = versionsFromSettings(
+        settingsSnap.data() as Record<string, unknown> | undefined,
+      );
 
       set({
         ready: true,
-        encryptionEnabled,
+        ...settingsPatch(settings),
         investments: investments.sort((a, b) =>
           safeCompare(b.updatedAt, a.updatedAt),
         ),
@@ -516,12 +758,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             safeCompare(b.updatedAt, a.updatedAt),
         ),
         goals: goals.sort((a, b) => safeCompare(b.updatedAt, a.updatedAt)),
-        notion: settings.notion ?? DEFAULT_NOTION,
-        essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
-        customCategories: settings.customCategories ?? { expense: [], income: [] },
-        hiddenCategories: settings.hiddenCategories ?? { expense: [], income: [] },
-        customSubcategories: settings.customSubcategories ?? {},
-        allocationTargets: { ...DEFAULT_ALLOCATION_TARGETS, ...(settings.allocationTargets ?? {}) },
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
         ),
@@ -529,17 +765,28 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           safeCompare(a.expectedPaymentDate, b.expectedPaymentDate),
         ),
         _pendingPaymentsLoaded: true,
+        _dataVersions: loadedVersions,
+        lastHydrateAt: Date.now(),
       });
+
+      // From here on the change stamps are watched, so an edit made on another
+      // device (or by a server job) reaches this tab without a reload.
+      get().startLiveSync();
+
+      const documentsLoaded =
+        investments.length +
+        liabilities.length +
+        cashflows.length +
+        goals.length +
+        accounts.length +
+        pendingPayments.length;
 
       // Auto-snapshot removed: GrowthChart now uses networthSnapshots (manual snapshots).
       // Investment edits no longer trigger a daily write to `snapshots`.
 
-      // Remove any bond interest a previous build auto-posted to Cashflow.
-      void get()
-        .cleanupLegacyBondCashflows()
-        .catch((err) =>
-          console.error('[PortfolioStore] bond cashflow cleanup failed:', err),
-        );
+      // One-time data fixes are gated on settings.schemaVersion now (see
+      // runMigrations), so a returning user's login costs the same as their
+      // first one instead of re-scanning their whole history every time.
 
       const loadPhase1b = async () => {
         const [trackedPayments, soldTrades, insurancePolicies] =
@@ -560,21 +807,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           ),
         });
 
-        // ── Backfill: policies saved before auto-sync get their linked bill ──
-        // Idempotent — any policy that already owns a pending bill is skipped,
-        // so this writes once per legacy policy and is a no-op afterwards.
-        // Lapsed (renewal already past) policies are left alone so we never
-        // revive a cancelled policy or raise a phantom "overdue" bill.
-        const today = todayISO();
-        for (const pol of insurancePolicies) {
-          if (!pol.renewalDate || !(pol.premiumAmount > 0)) continue;
-          if (policyStatusOf(pol.renewalDate, today) === 'expired') continue;
-          const hasPending = trackedPayments.some(
-            (p) => p.insurancePolicyId === pol.id && p.status === 'pending',
-          );
-          if (hasPending) continue;
-          await syncInsuranceBill(uid, get, pol);
-        }
+        // Legacy one-time fixes, only when this account has an older stamp.
+        void get().runMigrations().catch((err) =>
+          console.error('[PortfolioStore] migrations failed:', err),
+        );
       };
 
       const loadPhase2 = async () => {
@@ -624,6 +860,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           get().loadPendingPayments().catch(() => {}),
           get().loadCredentials().catch(() => {}),
         ]);
+        return { documents: documentsLoaded, collections: 6 };
       } else {
         // Phase 1b: other dashboard widgets — background
         void loadPhase1b().catch((err) =>
@@ -635,10 +872,202 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
           console.error('[PortfolioStore] secondary hydrate failed:', err),
         );
       }
+
+      return { documents: documentsLoaded, collections: 6 };
     } catch (err) {
       console.error('[PortfolioStore] hydrate failed:', err);
       set({ ready: true });
+      return { documents: 0, collections: 0 };
     }
+  },
+
+  runMigrations: async () => {
+    const uid = get().uid;
+    if (!uid) return;
+    const from = Number(get()._schemaVersion ?? 0);
+    if (from >= SCHEMA_VERSION) return;
+
+    // Migration 1: drop bond interest/maturity entries an old build auto-posted.
+    if (from < 1) await get().cleanupLegacyBondCashflows();
+    // Migration 2: give insurance policies saved before the bill sync their
+    // matching pending bill. Kept idempotent so a half-finished run is safe.
+    if (from < 2) await get().backfillInsuranceBills();
+
+    await saveSettings(uid, { schemaVersion: SCHEMA_VERSION });
+    set({ _schemaVersion: SCHEMA_VERSION });
+  },
+
+  backfillInsuranceBills: async () => {
+    const uid = get().uid;
+    if (!uid) return;
+    const { insurancePolicies, trackedPayments } = get();
+    const today = todayISO();
+    for (const pol of insurancePolicies) {
+      if (!pol.renewalDate || !(pol.premiumAmount > 0)) continue;
+      // Lapsed policies are left alone so we never revive a cancelled policy or
+      // raise a phantom "overdue" bill.
+      if (policyStatusOf(pol.renewalDate, today) === 'expired') continue;
+      const hasPending = trackedPayments.some(
+        (p) => p.insurancePolicyId === pol.id && p.status === 'pending',
+      );
+      if (hasPending) continue;
+      await syncInsuranceBill(uid, get, pol);
+    }
+  },
+
+  refreshIfStale: async (stamps) => {
+    const uid = get().uid;
+    if (!uid || !get().ready) return 0;
+
+    const current = stamps ?? (await readDataStamps(uid));
+    // Flatten for `_dataVersions`; collections written by *this* tab are
+    // already up to date in memory, so they never appear in `changed`.
+    const loaded: Record<string, number> = {};
+    for (const [col, stamp] of Object.entries(current)) loaded[col] = stamp.ms;
+
+    const changed = staleCollections(get()._dataVersions, current);
+    if (!changed.length) {
+      set({ _dataVersions: loaded });
+      return 0;
+    }
+
+    let documents = 0;
+    for (const col of changed) {
+      if (col === 'settings') {
+        // One document, so this is never expensive — and it is where the
+        // category lists, Notion config and schema version live.
+        const snap = await getDoc(settingsDocRef(uid));
+        if (snap.exists()) {
+          const settings = snap.data() as SettingsRecord;
+          set(settingsPatch(settings));
+          if (Number(settings.schemaVersion ?? 0) > get()._schemaVersion) {
+            void get().runMigrations().catch(() => {});
+          }
+        }
+        continue;
+      }
+      if (col === 'insights') {
+        // Only the latest snapshot is ever displayed, so only fetch that one.
+        const snap = await getDocs(
+          query(userCol(uid, 'insights'), orderBy('createdAt', 'desc'), limit(1)),
+        );
+        const latestInsight = snap.empty
+          ? null
+          : await decryptDoc<InsightSnapshot>(
+              uid,
+              snap.docs[0].data() as FirestoreDoc,
+            ).catch(() => null);
+        set({ latestInsight });
+        documents += snap.empty ? 0 : 1;
+        continue;
+      }
+      const res = await reloadCollectionPatch(uid, col, get());
+      if (!res) continue;
+      set(res.patch);
+      documents += res.documents;
+    }
+    set({ _dataVersions: loaded, lastHydrateAt: Date.now() });
+    return documents;
+  },
+
+  startLiveSync: () => {
+    const uid = get().uid;
+    if (!uid || liveUid === uid) return;
+    liveUnsub?.();
+    liveUnsub = null;
+    if (liveTimer) {
+      clearTimeout(liveTimer);
+      liveTimer = null;
+    }
+    liveUid = uid;
+
+    liveUnsub = subscribeDataVersions(uid, (stamps) => {
+      set({ _liveStamps: stamps });
+      if (!staleCollections(get()._dataVersions, stamps).length) return;
+      // Several collections can move in one server-side job; reload once.
+      if (liveTimer) return;
+      liveTimer = setTimeout(() => {
+        liveTimer = null;
+        void get().refreshIfStale(get()._liveStamps).catch(() => {});
+      }, 800);
+    });
+  },
+
+  stopLiveSync: () => {
+    liveUnsub?.();
+    liveUnsub = null;
+    liveUid = null;
+    if (liveTimer) {
+      clearTimeout(liveTimer);
+      liveTimer = null;
+    }
+  },
+
+  reconcileAccountBalances: async () => {
+    const uid = get().uid;
+    if (!uid) return { changed: 0, legacy: 0 };
+    const { accounts, cashflows } = get();
+
+    // Balance per account that an old build corrupted: it added every cashflow
+    // delta straight into `balance` on save, while the live figure (opening
+    // balance ± linked cashflows) adds them again. Only repair a balance whose
+    // drift is fully explained by those writes — anything else was edited by
+    // hand and must stay untouched.
+    const linkedDelta = (acc: Account) =>
+      cashflows
+        .filter((cf) => cf.accountId === acc.id)
+        .filter((cf) => cf.date >= (acc.openingBalanceDate ?? '1900-01-01'))
+        .reduce((sum, cf) => sum + cashflowDelta(cf), 0);
+
+    let changed = 0;
+    let legacy = 0;
+    const repairs = new Map<string, Account>();
+    for (const acc of accounts) {
+      // Cash in Hand is re-anchored on every edit by setInHandAmount, so its
+      // stored balance is deliberately different from the opening balance.
+      if (acc.id === IN_HAND_CASH_ID) continue;
+
+      const stored = round2(acc.balance ?? 0);
+      const delta = round2(linkedDelta(acc));
+
+      if (acc.openingBalance !== undefined) {
+        const expected = round2(acc.openingBalance);
+        if (stored === expected) continue;
+        if (round2(expected + delta) !== stored) {
+          legacy++;
+          continue;
+        }
+        const next = clean({
+          ...acc,
+          balance: expected,
+          updatedAt: now(),
+        }) as Account;
+        await saveDoc(uid, 'accounts', next);
+        repairs.set(acc.id, next);
+        changed++;
+        continue;
+      }
+
+      // No opening balance recorded: the stored field *is* the anchor, so the
+      // cashflows folded into it have to come back out.
+      if (delta === 0) continue;
+      const repaired = round2(stored - delta);
+      const next = clean({
+        ...acc,
+        balance: repaired,
+        openingBalance: repaired,
+        openingBalanceDate: acc.openingBalanceDate ?? todayISO(),
+        updatedAt: now(),
+      }) as Account;
+      await saveDoc(uid, 'accounts', next);
+      repairs.set(acc.id, next);
+      legacy++;
+    }
+
+    set((s) => ({
+      accounts: s.accounts.map((a) => repairs.get(a.id) ?? a),
+    }));
+    return { changed, legacy };
   },
 
   cleanupLegacyBondCashflows: async () => {
@@ -667,7 +1096,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     // Delete the auto-posted entries from Firestore.
     await Promise.all(
       legacy.map((cf) =>
-        deleteDoc(userDoc(uid, 'cashflows', cf.id)).catch((err) =>
+        deleteDoc(touchedDoc(uid, 'cashflows', cf.id)).catch((err) =>
           console.error(
             '[PortfolioStore] legacy bond cashflow delete failed:',
             err,
@@ -772,6 +1201,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       await batch.commit();
     }
     if (newDocs.length > 0 || updatedDocs.length > 0) {
+      markDataDirty(uid, 'investments');
+    }
+    if (newDocs.length > 0 || updatedDocs.length > 0) {
       set((s) => {
         const updatedIds = new Set(updatedDocs.map((d) => d.id));
         const merged = s.investments.map((inv) =>
@@ -805,7 +1237,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteInvestment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'investments', id));
+    await deleteDoc(touchedDoc(uid, 'investments', id));
     set((s) => ({ investments: s.investments.filter((x) => x.id !== id) }));
   },
 
@@ -845,7 +1277,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteLiability: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'liabilities', id));
+    await deleteDoc(touchedDoc(uid, 'liabilities', id));
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }));
   },
 
@@ -895,7 +1327,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deletePendingPayment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'pendingPayments', id));
+    await deleteDoc(touchedDoc(uid, 'pendingPayments', id));
     set((s) => ({
       pendingPayments: s.pendingPayments.filter((x) => x.id !== id),
     }));
@@ -1017,7 +1449,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteTrackedPayment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'trackedPayments', id));
+    await deleteDoc(touchedDoc(uid, 'trackedPayments', id));
     set((s) => ({
       trackedPayments: s.trackedPayments.filter((x) => x.id !== id),
     }));
@@ -1178,24 +1610,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }) as CashflowEntry;
     await saveDoc(uid, 'cashflows', withMeta);
 
-    // ── Auto-update linked account balance ────────────────────────────────
-    let updatedAccounts = get().accounts;
-    if (withMeta.accountId) {
-      const account = updatedAccounts.find((a) => a.id === withMeta.accountId);
-      if (account) {
-        const delta     = withMeta.type === 'income' ? withMeta.amount : -withMeta.amount;
-        const newBal    = (account.balance ?? 0) + delta;
-        const patched   = clean({ ...account, balance: newBal, updatedAt: now() }) as typeof account;
-        await saveDoc(uid, 'accounts', patched);
-        updatedAccounts = updatedAccounts.map((a) => (a.id === account.id ? patched : a));
-      }
-    }
-
+    // NOTE: no account-balance write here on purpose. `balance` is an anchor the
+    // user sets; the live figure every screen uses is opening balance ± linked
+    // cashflows (calcLiveAccountBalances). Folding the delta into `balance` on
+    // add double-counted it, and neither edit nor delete ever put it back.
     set((s) => ({
       cashflows: [withMeta, ...s.cashflows].sort((a, b) =>
         safeCompare(b.date, a.date),
       ),
-      accounts: updatedAccounts,
     }));
     // ── Fire event engine ────────────────────────────────────────────────
     void analyseAfterTransaction(
@@ -1225,7 +1647,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteCashflow: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'cashflows', id));
+    await deleteDoc(touchedDoc(uid, 'cashflows', id));
     set((s) => ({
       cashflows: s.cashflows.filter((x) => x.id !== id),
     }));
@@ -1236,7 +1658,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid || ids.length === 0) return;
     const idSet = new Set(ids);
     await Promise.all(
-      ids.map((id) => deleteDoc(userDoc(uid, 'cashflows', id))),
+      ids.map((id) => deleteDoc(touchedDoc(uid, 'cashflows', id))),
     );
     set((s) => ({
       cashflows: s.cashflows.filter((x) => !idSet.has(x.id)),
@@ -1277,7 +1699,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteGoal: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'goals', id));
+    await deleteDoc(touchedDoc(uid, 'goals', id));
     set((s) => ({ goals: s.goals.filter((x) => x.id !== id) }));
   },
 
@@ -1303,7 +1725,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteGoalContribution: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'goalContributions', id));
+    await deleteDoc(touchedDoc(uid, 'goalContributions', id));
     set((s) => ({
       goalContributions: s.goalContributions.filter((x) => x.id !== id),
     }));
@@ -1349,7 +1771,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteCredential: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'credentials', id));
+    await deleteDoc(touchedDoc(uid, 'credentials', id));
     set((s) => ({ credentials: s.credentials.filter((x) => x.id !== id) }));
   },
 
@@ -1376,11 +1798,18 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     const existing = get().accounts.find((x) => x.id === id);
     if (!existing) return;
+    const cutoffMoved =
+      patch.openingBalanceDate !== undefined &&
+      patch.openingBalanceDate !== existing.openingBalanceDate;
     const raw = clean({
       ...existing,
       ...patch,
       id,
+      // `balance` is only a mirror of the anchor (see calcLiveAccountBalances),
+      // so it follows openingBalance instead of drifting away from it.
+      balance: patch.openingBalance ?? patch.balance ?? existing.balance,
       updatedAt: now(),
+      ...(cutoffMoved ? { cutoffChangedAt: now() } : {}),
     }) as Account;
     await saveDoc(uid, 'accounts', raw);
     set((s) => ({ accounts: s.accounts.map((x) => (x.id === id ? raw : x)) }));
@@ -1391,7 +1820,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     // Cash in Hand is part of the model, not a user account — clear it instead.
     if (id === IN_HAND_CASH_ID) return get().setInHandAmount(0);
-    await deleteDoc(userDoc(uid, 'accounts', id));
+    await deleteDoc(touchedDoc(uid, 'accounts', id));
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
   },
 
@@ -1501,7 +1930,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteSoldTrade: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'soldTrades', id));
+    await deleteDoc(touchedDoc(uid, 'soldTrades', id));
     set((s) => ({ soldTrades: s.soldTrades.filter((x) => x.id !== id) }));
   },
 
@@ -1551,7 +1980,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteInsurancePolicy: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'insurancePolicies', id));
+    await deleteDoc(touchedDoc(uid, 'insurancePolicies', id));
     set((s) => ({
       insurancePolicies: s.insurancePolicies.filter((x) => x.id !== id),
     }));
@@ -1636,7 +2065,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteInsurancePayment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'insurancePayments', id));
+    await deleteDoc(touchedDoc(uid, 'insurancePayments', id));
     set((s) => ({
       insurancePayments: s.insurancePayments.filter((x) => x.id !== id),
     }));
@@ -1673,7 +2102,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteSipInstrument: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(userDoc(uid, 'sipPlans', id));
+    await deleteDoc(touchedDoc(uid, 'sipPlans', id));
     set((s) => ({ sipPlans: s.sipPlans.filter((x: any) => x.id !== id) }));
   },
 
@@ -1727,7 +2156,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const current = get().customCategories;
     if (current[type].includes(trimmed)) return; // no duplicates
     const updated = { ...current, [type]: [...current[type], trimmed] };
-    await setDoc(settingsDocRef(uid), { customCategories: updated }, { merge: true });
+    await saveSettings(uid, { customCategories: updated });
     set({ customCategories: updated });
   },
 
@@ -1736,7 +2165,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     const current = get().customCategories;
     const updated = { ...current, [type]: current[type].filter((c) => c !== name) };
-    await setDoc(settingsDocRef(uid), { customCategories: updated }, { merge: true });
+    await saveSettings(uid, { customCategories: updated });
     set({ customCategories: updated });
   },
 
@@ -1748,7 +2177,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const updated = list.includes(name)
       ? { ...current, [type]: list.filter((c) => c !== name) }
       : { ...current, [type]: [...list, name] };
-    await setDoc(settingsDocRef(uid), { hiddenCategories: updated }, { merge: true });
+    await saveSettings(uid, { hiddenCategories: updated });
     set({ hiddenCategories: updated });
   },
 
@@ -1766,7 +2195,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const list = current[parent] ?? [];
     if (list.includes(trimmed)) return; // no duplicates
     const updated = { ...current, [parent]: [...list, trimmed] };
-    await setDoc(settingsDocRef(uid), { customSubcategories: updated }, { merge: true });
+    await saveSettings(uid, { customSubcategories: updated });
     set({ customSubcategories: updated });
   },
 
@@ -1777,7 +2206,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const list = current[category];
     if (!list) return;
     const updated = { ...current, [category]: list.filter((c) => c !== name) };
-    await setDoc(settingsDocRef(uid), { customSubcategories: updated }, { merge: true });
+    await saveSettings(uid, { customSubcategories: updated });
     set({ customSubcategories: updated });
   },
 
@@ -1785,11 +2214,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     const notion = { ...get().notion, ...patch };
-    await setDoc(
-      settingsDocRef(uid),
-      { notion, essentials: get().essentials },
-      { merge: true },
-    );
+    await saveSettings(uid, { notion, essentials: get().essentials });
     set({ notion });
   },
 
@@ -1797,22 +2222,14 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     const essentials = { ...get().essentials, ...patch };
-    await setDoc(
-      settingsDocRef(uid),
-      { notion: get().notion, essentials },
-      { merge: true },
-    );
+    await saveSettings(uid, { notion: get().notion, essentials });
     set({ essentials });
   },
 
   setAllocationTargets: async (targets) => {
     const uid = get().uid;
     if (!uid) return;
-    await setDoc(
-      settingsDocRef(uid),
-      { allocationTargets: targets },
-      { merge: true },
-    );
+    await saveSettings(uid, { allocationTargets: targets });
     set({ allocationTargets: targets });
   },
 
@@ -2053,6 +2470,11 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   },
 
   resetSession: () => {
+    // Forget any stamp write still queued for the previous account, and its
+    // change stamps, so a re-login refetches instead of trusting stale marks.
+    const previousUid = get().uid;
+    if (previousUid) resetDataVersions(previousUid);
+    get().stopLiveSync();
     set({
       uid: null,
       ready: false,
@@ -2080,6 +2502,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       _insurancePaymentsLoaded: false,
       _pendingPaymentsLoaded: false,
       _credentialsLoaded: false,
+      _dataVersions: {},
+      _liveStamps: {},
+      lastHydrateAt: 0,
+      _schemaVersion: 0,
     });
   },
 }));

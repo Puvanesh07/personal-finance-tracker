@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs'
 import type { CashflowEntry } from '../types/investmentTypes'
 
 // 1. Existing CSV Parser
@@ -64,6 +63,7 @@ export function parseZerodhaDividendCsv(text: string): Omit<CashflowEntry, 'id' 
 
 // 2. New XLSX Parser
 export async function parseZerodhaDividendXlsx(file: File): Promise<Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>[]> {
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(await file.arrayBuffer())
   
