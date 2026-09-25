@@ -301,7 +301,9 @@ export function AppLayout() {
       </aside>
 
       <main ref={mainRef} className='relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]'>
-        <div className='sticky top-0 z-50 flex items-center justify-end gap-2 px-4 py-2.5 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/60 dark:bg-slate-950/80 dark:border-slate-800/40 md:px-6'>
+        {/* `app-top-bar` is measured by useViewportPinnedShell so full-height
+            page shells can pin themselves right below it on phones. */}
+        <div id='app-top-bar' className='sticky top-0 z-50 flex items-center justify-end gap-2 px-4 py-2.5 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/60 dark:bg-slate-950/80 dark:border-slate-800/40 md:px-6'>
           <button
             type='button'
             onClick={() => setPaletteOpen(true)}
@@ -326,7 +328,11 @@ export function AppLayout() {
           <NotificationBell />
         </div>
         <div ref={contentRef} className='mx-auto min-h-full w-full max-w-7xl overflow-x-hidden p-4 pb-28 md:p-6 md:pb-8'>
-          <TrialBanner />
+          {/* Tagged so full-height pages pinned to the visual viewport (AI Coach)
+              can start below the banner instead of covering it. */}
+          <div data-shell-top-offset>
+            <TrialBanner />
+          </div>
           <Outlet />
 
           <div className='mt-16 md:mt-20 border-t border-slate-200/70 dark:border-slate-800/60 pt-8'>
@@ -366,7 +372,9 @@ export function AppLayout() {
       </main>
 
 
-      <AskAIButton />
+      {/* Redundant on the AI Coach page itself (it navigates there) and it would
+          otherwise float over the chat input / Save button on phones. */}
+      {location.pathname !== '/ai-agent' && <AskAIButton />}
 
       <div
         className={`md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[80] transition-transform duration-300 ease-out ${isMobileMenuOpen ? 'translate-y-2' : ''}`}

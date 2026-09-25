@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Account, CashflowEntry, Investment } from '../../types/investmentTypes';
 import { Modal } from '../ui/Modal';
 import { EssentialsStatusBadge } from './EssentialsStatusBadge';
-import { calcLiveAccountBalances } from '../../utils/calculations';
+import { calcLiveAccountBalances, isCashBalanceAccount } from '../../utils/calculations';
 import { formatINR } from '../../utils/format';
 import {
   monthsToFinancialIndependence,
@@ -216,7 +216,7 @@ function EmergencyDetail({
   const navigate = useNavigate();
   const live = calcLiveAccountBalances(accounts, cashflows);
   const bankRows = accounts
-    .filter((a) => a.type === 'bank')
+    .filter(isCashBalanceAccount)
     .map((a) => ({ name: a.name, value: live[a.id] ?? a.balance ?? 0 }));
   const fdRows = investments
     .filter((i) => i.type === 'fixed_deposit')

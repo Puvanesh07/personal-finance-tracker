@@ -213,6 +213,9 @@ export type InsurancePayment = {
   amount: number;
   paidAt: string;
   note?: string;
+  /** Set when the payment came from (or settled) a Bill Reminder entry — the
+   *  one-to-one link that keeps the two views in sync without duplicating. */
+  trackedPaymentId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
@@ -314,12 +317,16 @@ export type Liability = {
 };
 
 // ── Bank Accounts ──────────────────────────────────────────────────────────
-export type AccountType = 'bank' | 'credit';
+// `cash` is reserved for the built-in "Cash in Hand" record (fixed id
+// `acc_in_hand`). It is never offered in the Add Account form.
+export type AccountType = 'bank' | 'credit' | 'cash';
 
 export type Account = {
   id: string;
   name: string;
   type: AccountType;
+  /** Kept in sync with `openingBalance` for older records/exports. The live
+   *  balance is always derived — see `calcLiveAccountBalances`. */
   balance: number;
   openingBalance: number;
   openingBalanceDate: string;
@@ -336,6 +343,9 @@ export type CashflowEntry = {
   type: CashflowType;
   date: ISODateString;
   category: string;
+  /** Optional drill-down inside a category (e.g. Agriculture → Tomato).
+   *  Purely additive: every existing category simply leaves it undefined. */
+  subcategory?: string;
   amount: number;
   notes?: string;
   accountId?: string;

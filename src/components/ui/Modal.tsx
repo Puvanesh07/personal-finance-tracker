@@ -15,9 +15,16 @@ import { useVisualViewport } from '../../hooks/useVisualViewport';
 export function Modal({
   open,
   title,
+  subtitle,
   onClose,
   children,
-}: PropsWithChildren<{ open: boolean; title: string; onClose: () => void }>) {
+}: PropsWithChildren<{
+  open: boolean;
+  title: string;
+  /** One line under the title — what this form is for / what it feeds. */
+  subtitle?: string;
+  onClose: () => void;
+}>) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const vv = useVisualViewport();
@@ -100,9 +107,16 @@ export function Modal({
         }`}
       >
         {/* ── Fixed header ── */}
-        <header className='flex shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-slate-200/70 bg-slate-100/80 px-5 py-4 dark:border-slate-800/60 dark:bg-slate-800/30'>
-          <div className='text-base font-bold tracking-tight text-slate-900 dark:text-slate-100'>
-            {title}
+        <header className='flex shrink-0 items-start justify-between gap-3 rounded-t-2xl border-b border-slate-200/70 bg-slate-100/80 px-4 py-3 dark:border-slate-800/60 dark:bg-slate-800/30 sm:px-5 sm:py-4'>
+          <div className='min-w-0'>
+            <div className='truncate text-base font-bold tracking-tight text-slate-900 dark:text-slate-100'>
+              {title}
+            </div>
+            {subtitle && (
+              <p className='mt-0.5 text-xs font-medium leading-snug text-slate-500 dark:text-slate-400 sm:text-[13px]'>
+                {subtitle}
+              </p>
+            )}
           </div>
           <button
             type='button'

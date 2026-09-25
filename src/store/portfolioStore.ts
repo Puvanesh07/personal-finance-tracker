@@ -41,7 +41,7 @@ import {
 import { create } from 'zustand';
 import { createId } from '../utils/id';
 import { db } from '../services/firebase';
-import { calculateNetWorth, getLiveBankTotal, summarizePortfolio } from '../utils/calculations';
+import { calculateNetWorth, calcLiveAccountBalances, getLiveBankTotal, IN_HAND_CASH_ID, IN_HAND_CASH_NAME, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { policyStatusOf } from '../utils/financialProfile';
 import {
@@ -220,6 +220,7 @@ export type SettingsRecord = {
   encryptionEnabled?: boolean;
   customCategories?: { expense: string[]; income: string[] };
   hiddenCategories?: { expense: string[]; income: string[] };
+  customSubcategories?: Record<string, string[]>;
   allocationTargets?: AllocationTargets;
 };
 
@@ -264,10 +265,14 @@ type PortfolioState = {
   customCategories: { expense: string[]; income: string[] };
   /** Categories the user has hidden (stored in Firestore) */
   hiddenCategories: { expense: string[]; income: string[] };
+  /** User-created subcategories, keyed by parent category (Agriculture → […]) */
+  customSubcategories: Record<string, string[]>;
 
   addCustomCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
   removeCustomCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
   toggleHiddenCategory: (type: 'expense' | 'income', name: string) => Promise<void>;
+  addCustomSubcategory: (category: string, name: string) => Promise<void>;
+  removeCustomSubcategory: (category: string, name: string) => Promise<void>;
 
   hydrate: (uid: string, opts?: { force?: boolean }) => Promise<void>;
 
@@ -350,6 +355,10 @@ type PortfolioState = {
   ) => Promise<void>;
   updateAccount: (id: string, patch: Partial<Account>) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+  /** Set the built-in "Cash in Hand" balance — one editable figure, no account
+   *  form. It is stored as an ordinary account record with a fixed id so every
+   *  balance consumer (Net Worth, Dashboard, Reports, AI) picks it up. */
+  setInHandAmount: (amount: number) => Promise<void>;
 
   addSoldTrade: (
     trade: Omit<
@@ -429,6 +438,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   _lastSnapshotDate: null,
   customCategories: { expense: [], income: [] },
   hiddenCategories: { expense: [], income: [] },
+  customSubcategories: {},
   _goalContributionsLoaded: false,
   _insurancePaymentsLoaded: false,
   _pendingPaymentsLoaded: false,
@@ -510,6 +520,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         essentials: settings.essentials ?? DEFAULT_ESSENTIALS,
         customCategories: settings.customCategories ?? { expense: [], income: [] },
         hiddenCategories: settings.hiddenCategories ?? { expense: [], income: [] },
+        customSubcategories: settings.customSubcategories ?? {},
         allocationTargets: { ...DEFAULT_ALLOCATION_TARGETS, ...(settings.allocationTargets ?? {}) },
         accounts: accounts.sort((a, b) =>
           safeCompare(b.createdAt, a.createdAt),
@@ -1057,6 +1068,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     // ── Insurance-linked bill paid → advance the policy (source of truth) ──
     let policyPatch: Partial<InsurancePolicy> | null = null;
     let policyIdToSync: string | null = null;
+    let premiumPayment: InsurancePayment | null = null;
     if (existing.insurancePolicyId) {
       const pol = get().insurancePolicies.find(
         (p) => p.id === existing.insurancePolicyId,
@@ -1072,6 +1084,31 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         }
         policyPatch = { renewalDate: renewal, lastPaymentDate: paidAt };
         policyIdToSync = pol.id;
+
+        // ── Mirror it into the policy's Payment History too, so "mark paid" in
+        //    Bill Reminder is visible on the Insurance side. The bill id is the
+        //    unique reference: if the premium was already recorded from the
+        //    Insurance page (addInsurancePayment settles the bill there), this
+        //    is skipped and no second payment row is created. ──
+        // Payments are lazy-loaded, so make sure the dedupe check sees them all.
+        await get().loadInsurancePayments();
+        const alreadyLogged = get().insurancePayments.some(
+          (p) => p.trackedPaymentId === existing.id,
+        );
+        if (!alreadyLogged) {
+          premiumPayment = clean({
+            id: createId('inspay'),
+            policyId: pol.id,
+            amount: existing.amount,
+            paidAt,
+            note: 'Marked paid from Bill Reminders',
+            trackedPaymentId: existing.id,
+            createdAt: now(),
+            updatedAt: now(),
+            userId: uid,
+          }) as InsurancePayment;
+          await saveDoc(uid, 'insurancePayments', premiumPayment);
+        }
       }
     }
 
@@ -1111,6 +1148,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       cashflows: alreadyInCF
         ? s.cashflows
         : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
+      // Mirror of the paid bill into Insurance Payment History (if any).
+      insurancePayments: premiumPayment
+        ? [premiumPayment, ...s.insurancePayments].sort((a, b) =>
+            safeCompare(b.paidAt, a.paidAt),
+          )
+        : s.insurancePayments,
     }));
 
     // Persist the advanced policy and re-sync its next premium bill.
@@ -1313,7 +1356,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   addAccount: async (account) => {
     const uid = get().uid;
     if (!uid) return;
-    if (blockIfLimited('accounts', get().accounts.length)) return;
+    // The built-in Cash-in-Hand record never uses up a plan slot.
+    const usedSlots = get().accounts.filter((a) => a.id !== IN_HAND_CASH_ID).length;
+    if (blockIfLimited('accounts', usedSlots)) return;
     const t = now();
     const raw = clean({
       ...account,
@@ -1344,8 +1389,56 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteAccount: async (id) => {
     const uid = get().uid;
     if (!uid) return;
+    // Cash in Hand is part of the model, not a user account — clear it instead.
+    if (id === IN_HAND_CASH_ID) return get().setInHandAmount(0);
     await deleteDoc(userDoc(uid, 'accounts', id));
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
+  },
+
+  setInHandAmount: async (amount) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const value = Math.max(0, Math.round((Number(amount) || 0) * 100) / 100);
+    const t = now();
+    const existing = get().accounts.find((a) => a.id === IN_HAND_CASH_ID);
+
+    if (!existing) {
+      const created = clean({
+        id: IN_HAND_CASH_ID,
+        name: IN_HAND_CASH_NAME,
+        type: 'cash' as const,
+        balance: value,
+        openingBalance: value,
+        openingBalanceDate: todayISO(),
+        createdAt: t,
+        updatedAt: t,
+        userId: uid,
+      }) as Account;
+      await saveDoc(uid, 'accounts', created);
+      set((s) => ({ accounts: [created, ...s.accounts] }));
+      return;
+    }
+
+    // Re-anchor the opening balance so the *live* balance (opening ± linked
+    // cashflow entries) lands exactly on the entered figure — cash spent from
+    // this account is still tracked like any other account.
+    const live = calcLiveAccountBalances(get().accounts, get().cashflows);
+    const currentOpening = existing.openingBalance ?? existing.balance ?? 0;
+    const cashflowDelta = (live[existing.id] ?? currentOpening) - currentOpening;
+    const openingBalance = Math.round((value - cashflowDelta) * 100) / 100;
+
+    const updated = clean({
+      ...existing,
+      name: existing.name || IN_HAND_CASH_NAME,
+      type: 'cash' as const,
+      balance: value,
+      openingBalance,
+      updatedAt: t,
+    }) as Account;
+    await saveDoc(uid, 'accounts', updated);
+    set((s) => ({
+      accounts: s.accounts.map((x) => (x.id === updated.id ? updated : x)),
+    }));
   },
 
   addSoldTrade: async (trade) => {
@@ -1475,23 +1568,37 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     const uid = get().uid;
     if (!uid) return;
     const t = now();
+
+    const policy = get().insurancePolicies.find((p) => p.id === payment.policyId);
+    const linkedBill = get().trackedPayments.find(
+      (p) =>
+        p.insurancePolicyId === payment.policyId && p.status === 'pending',
+    );
+
     const withMeta = clean({
       ...payment,
       id: createId('inspay'),
+      // Unique cross-reference to the Bill Reminder this premium settled. When
+      // markTrackedPaymentPaid sees it, it skips writing its own history row —
+      // so the payment is never duplicated on the Insurance side.
+      trackedPaymentId: linkedBill?.id,
       createdAt: t,
       updatedAt: t,
       userId: uid,
     }) as InsurancePayment;
     await saveDoc(uid, 'insurancePayments', withMeta);
+    // In state BEFORE the bill is settled — the dedupe check reads the store.
+    // The loaded flag is set too, so that check can't refetch and overwrite it.
+    set((s) => ({
+      _insurancePaymentsLoaded: true,
+      insurancePayments: [withMeta, ...s.insurancePayments].sort((a, b) =>
+        safeCompare(b.paidAt, a.paidAt),
+      ),
+    }));
 
-    // ── Settle the linked pending Bill Reminder first. markTrackedPaymentPaid
+    // ── Settle the linked pending Bill Reminder. markTrackedPaymentPaid
     //    writes its own cashflow entry, advances the policy renewal date and
     //    generates the next premium bill — so nothing is duplicated here. ──
-    const policy = get().insurancePolicies.find((p) => p.id === withMeta.policyId);
-    const linkedBill = get().trackedPayments.find(
-      (p) =>
-        p.insurancePolicyId === withMeta.policyId && p.status === 'pending',
-    );
     let settledByBill = false;
     if (linkedBill) {
       await get().markTrackedPaymentPaid(linkedBill.id);
@@ -1520,9 +1627,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     }
 
     set((s) => ({
-      insurancePayments: [withMeta, ...s.insurancePayments].sort((a, b) =>
-        safeCompare(b.paidAt, a.paidAt),
-      ),
       cashflows: alreadyInCF
         ? s.cashflows
         : [cashflowItem, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date)),
@@ -1646,6 +1750,35 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       : { ...current, [type]: [...list, name] };
     await setDoc(settingsDocRef(uid), { hiddenCategories: updated }, { merge: true });
     set({ hiddenCategories: updated });
+  },
+
+  // ── Custom subcategory management (persisted in settings doc) ────────────
+  // Keyed by parent category so a new subcategory is instantly available in
+  // the Add Entry form, the subcategory filter and every count derived from it.
+
+  addCustomSubcategory: async (category, name) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const parent = category.trim();
+    const trimmed = name.trim();
+    if (!parent || !trimmed) return;
+    const current = get().customSubcategories;
+    const list = current[parent] ?? [];
+    if (list.includes(trimmed)) return; // no duplicates
+    const updated = { ...current, [parent]: [...list, trimmed] };
+    await setDoc(settingsDocRef(uid), { customSubcategories: updated }, { merge: true });
+    set({ customSubcategories: updated });
+  },
+
+  removeCustomSubcategory: async (category, name) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const current = get().customSubcategories;
+    const list = current[category];
+    if (!list) return;
+    const updated = { ...current, [category]: list.filter((c) => c !== name) };
+    await setDoc(settingsDocRef(uid), { customSubcategories: updated }, { merge: true });
+    set({ customSubcategories: updated });
   },
 
   setNotionConfig: async (patch) => {

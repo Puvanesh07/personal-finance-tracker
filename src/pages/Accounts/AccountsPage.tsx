@@ -31,6 +31,11 @@ import { BsBank2 } from 'react-icons/bs';
 import { Modal } from '../../components/ui/Modal';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { buildAccountsForecast } from '../../utils/advancedInsights';
+import {
+  accountTypeLabel,
+  IN_HAND_CASH_ID,
+  IN_HAND_CASH_NAME,
+} from '../../utils/calculations';
 import { format } from 'date-fns';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
@@ -246,6 +251,7 @@ function AccountCard({
 }) {
   const color = ACCOUNT_COLORS[index % ACCOUNT_COLORS.length];
   const isCredit = account.type === 'credit';
+  const isInHand = account.id === IN_HAND_CASH_ID;
   const openingBal = account.openingBalance ?? account.balance;
 
   return (
@@ -266,6 +272,8 @@ function AccountCard({
           >
             {isCredit ? (
               <FiCreditCard className='h-5 w-5' />
+            ) : isInHand ? (
+              <FiDollarSign className='h-5 w-5' />
             ) : (
               <BsBank2 className='h-5 w-5' />
             )}
@@ -275,7 +283,7 @@ function AccountCard({
               {account.name}
             </p>
             <p className='text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500'>
-              {isCredit ? 'Credit Card' : 'Bank Account'}
+              {accountTypeLabel(account)}
             </p>
           </div>
         </div>
@@ -300,7 +308,7 @@ function AccountCard({
       {/* Live Balance */}
       <div className='mt-4 space-y-1'>
         <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-          {isCredit ? 'Outstanding' : 'Current Balance'}
+          {isCredit ? 'Outstanding' : isInHand ? 'Cash in Hand' : 'Current Balance'}
         </p>
         <p
           className='text-2xl font-bold tabular-nums tracking-tight'
@@ -346,6 +354,105 @@ function AccountCard({
   );
 }
 
+// ── Cash in Hand ───────────────────────────────────────────────────────────
+/** One editable figure — no account form, no second "balance" field. It is
+ *  saved through `setInHandAmount`, which writes the built-in account record
+ *  (id `acc_in_hand`), so Liquid Cash, Net Worth, Reports, Dashboard, the
+ *  simulator and the AI answers all pick it up automatically. */
+function InHandCard({ amount }: { amount: number }) {
+  const setInHandAmount = usePortfolioStore((s) => s.setInHandAmount);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('0');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    setDraft(String(amount));
+    setEditing(true);
+  };
+
+  async function save() {
+    setSaving(true);
+    try {
+      await setInHandAmount(Number(draft) || 0);
+      setEditing(false);
+      toast.success('Cash in Hand updated across all balances');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className='relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-amber-50 to-transparent p-5 shadow-sm dark:from-amber-500/10 dark:via-amber-500/5 dark:to-slate-900/40'>
+      <div className='flex items-start justify-between gap-4'>
+        <div className='flex min-w-0 items-start gap-3'>
+          <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/25'>
+            <FiDollarSign className='h-5 w-5' />
+          </div>
+          <div className='min-w-0'>
+            <p className='flex flex-wrap items-center gap-2 font-bold text-slate-900 dark:text-white'>
+              {IN_HAND_CASH_NAME}
+              <span className='rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300'>
+                Built-in
+              </span>
+            </p>
+            <p className='mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300'>
+              Physical cash you hold. Counted as available money in Net Worth,
+              Dashboard, Reports, Cashflow and AI answers — never double-counted
+              with bank balances.
+            </p>
+          </div>
+        </div>
+
+        {!editing && (
+          <button
+            type='button'
+            onClick={startEdit}
+            className='flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-white/70 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-500 hover:text-white dark:bg-slate-900/40 dark:text-amber-300 dark:hover:text-slate-900'
+          >
+            <FiEdit2 className='h-3.5 w-3.5' />
+            Update
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className='mt-4 flex flex-col gap-3 sm:flex-row sm:items-center'>
+          <NumericInput
+            autoFocus
+            value={draft}
+            onChange={(v) => setDraft(v)}
+            placeholder='0'
+            className='w-full rounded-xl border border-amber-500/40 bg-white px-4 py-2.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-amber-500/30 dark:bg-slate-900/60 dark:text-white'
+          />
+          <div className='flex items-center gap-2'>
+            <button
+              type='button'
+              onClick={() => setEditing(false)}
+              disabled={saving}
+              className='flex-1 rounded-xl px-4 py-2 text-xs font-bold text-slate-500 hover:bg-amber-500/10 sm:flex-none dark:text-slate-300'
+            >
+              Cancel
+            </button>
+            <button
+              type='button'
+              onClick={() => void save()}
+              disabled={saving}
+              className='flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-amber-500/25 transition-all hover:bg-amber-600 disabled:opacity-60 sm:flex-none'
+            >
+              <FiSave className='h-3.5 w-3.5' />
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className='mt-3 text-2xl font-bold tabular-nums tracking-tight text-amber-600 dark:text-amber-400'>
+          {formatINR(amount)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────
 export function AccountsPage() {
   const ready = usePortfolioStore((s) => s.ready);
@@ -360,7 +467,9 @@ export function AccountsPage() {
   const { premiumActionProps, guardAction } = usePremiumActions();
 
   const openAddAccount = guardAction(() => {
-    if (!hasPremiumAccess && accounts.length >= FREE_ACCOUNT_LIMIT) {
+    // Cash in Hand is built-in and never takes a plan slot.
+    const realAccounts = accounts.filter((a) => a.id !== IN_HAND_CASH_ID).length;
+    if (!hasPremiumAccess && realAccounts >= FREE_ACCOUNT_LIMIT) {
       toast.error(`Free plan allows up to ${FREE_ACCOUNT_LIMIT} accounts. Upgrade for unlimited.`);
       return;
     }
@@ -432,6 +541,12 @@ export function AccountsPage() {
   const totalCredit = accounts
     .filter((a) => a.type === 'credit')
     .reduce((s, a) => s + (accountStats[a.id]?.liveBalance ?? a.balance), 0);
+  // Built-in Cash in Hand record — shown as its own card, never in the grid.
+  const inHandAccount = accounts.find((a) => a.id === IN_HAND_CASH_ID);
+  const inHandBalance = inHandAccount
+    ? (accountStats[inHandAccount.id]?.liveBalance ?? 0)
+    : 0;
+  const userAccounts = accounts.filter((a) => a.id !== IN_HAND_CASH_ID);
   const forecast = useMemo(
     () =>
       buildAccountsForecast(
@@ -487,8 +602,11 @@ export function AccountsPage() {
         </p>
       </div>
 
+      {/* Cash in Hand — part of every available-cash total below */}
+      <InHandCard amount={inHandBalance} />
+
       {/* Summary Row */}
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
         {[
           {
             label: 'Total Bank Balance',
@@ -496,6 +614,13 @@ export function AccountsPage() {
             icon: <BsBank2 className='h-5 w-5 text-violet-500' />,
             color: 'text-violet-600 dark:text-violet-400',
             border: 'border-violet-200/60 dark:border-violet-500/20',
+          },
+          {
+            label: 'Cash in Hand',
+            value: inHandBalance,
+            icon: <FiDollarSign className='h-5 w-5 text-amber-500' />,
+            color: 'text-amber-600 dark:text-amber-400',
+            border: 'border-amber-200/60 dark:border-amber-500/20',
           },
           {
             label: 'Credit Outstanding',
@@ -506,7 +631,7 @@ export function AccountsPage() {
           },
           {
             label: 'Net Liquid Balance',
-            value: totalBalance - totalCredit,
+            value: totalBalance + inHandBalance - totalCredit,
             icon: <FiDollarSign className='h-5 w-5 text-emerald-500' />,
             color: 'text-emerald-600 dark:text-emerald-400',
             border: 'border-emerald-200/60 dark:border-emerald-500/20',
@@ -571,7 +696,7 @@ export function AccountsPage() {
       </div>
 
       {/* Account Cards */}
-      {accounts.length === 0 ? (
+      {userAccounts.length === 0 ? (
         <div className='flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/30 p-16 text-center'>
           <BsBank2 className='h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600' />
           <p className='text-lg font-bold text-slate-400 dark:text-slate-500'>
@@ -591,7 +716,7 @@ export function AccountsPage() {
         </div>
       ) : (
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
-          {accounts.map((account, i) => (
+          {userAccounts.map((account, i) => (
             <AccountCard
               key={account.id}
               account={account}
@@ -609,7 +734,7 @@ export function AccountsPage() {
       )}
 
       {/* Charts */}
-      {accounts.length > 0 && (
+      {userAccounts.length > 0 && (
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
           <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
             <p className='text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>

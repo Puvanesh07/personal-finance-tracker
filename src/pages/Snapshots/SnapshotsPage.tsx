@@ -530,22 +530,24 @@ export function SnapshotsPage({ embedded = false }: { embedded?: boolean }) {
       {/* ── Header ── */}
       <header className='rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5 border border-emerald-500/20 shadow-sm'>
         <div className='flex flex-col xl:flex-row xl:items-center justify-between gap-5'>
-          {!embedded && (
-          <div className='flex items-center gap-4'>
-            <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
-              <FiCamera className='h-6 w-6' />
+          {/* Compact variant when embedded in Wealth — the card used to lose its
+              heading entirely, leaving a bare label input + button. */}
+          <div className='flex items-center gap-3 sm:gap-4'>
+            <div className={`flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 ${embedded ? 'h-9 w-9' : 'h-12 w-12'}`}>
+              <FiCamera className={embedded ? 'h-4 w-4' : 'h-6 w-6'} />
             </div>
-            <div>
-              <h1 className='text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2'>
-                Net Worth Snapshots
-                <FeatureInfo feature='snapshots' />
+            <div className='min-w-0'>
+              <h1 className={`flex flex-wrap items-center gap-2 font-bold tracking-tight text-slate-900 dark:text-white ${embedded ? 'text-base md:text-lg' : 'text-2xl'}`}>
+                {embedded ? 'Wealth Snapshot' : 'Net Worth Snapshots'}
+                {!embedded && <FeatureInfo feature='snapshots' />}
               </h1>
-              <p className='text-sm text-slate-500 dark:text-slate-400 mt-0.5'>
-                Freeze your entire financial picture at any moment — investments, cashflow, goals, insurance, lending, SIP, and more.
+              <p className={`mt-0.5 text-slate-500 dark:text-slate-400 ${embedded ? 'text-xs' : 'text-sm mt-0.5'}`}>
+                {embedded
+                  ? 'Freezes assets, cash, liabilities, goals and insurance at the current date so the Net Worth timeline can compare periods.'
+                  : 'Freeze your entire financial picture at any moment — investments, cashflow, goals, insurance, lending, SIP, and more.'}
               </p>
             </div>
           </div>
-          )}
           <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-3'>
             <div className='relative group'>
               <FiTag className='absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors' />

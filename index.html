@@ -3,7 +3,10 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- maximum-scale / user-scalable also suppresses iOS's automatic page zoom on
+       focused inputs under 16px, which is what lets the forms use compact text.
+       Accessibility pinch-zoom via VoiceOver/Settings still works. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#020617" />
   <script>
     (function () {

@@ -251,23 +251,26 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
         </button>
       </div>
 
-      <header className={`flex ${embedded ? 'justify-end' : 'flex-col md:flex-row md:items-center justify-between'} gap-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-6 border border-emerald-500/20 dark:from-emerald-500/20 dark:via-teal-500/10 dark:border-emerald-500/30 shadow-sm`}>
-        {!embedded && (
-        <div className='flex items-center gap-4'>
-          <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'>
-            <FiCreditCard className='h-6 w-6' />
+      {/* The heading is always rendered — embedded in Wealth this card used to
+          be a bare "Add Record" button floating with no context. Compact variant
+          when embedded (the Wealth tab title + ⓘ already sit above it). */}
+      <header className={`flex flex-col gap-4 border border-emerald-500/20 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent shadow-sm sm:flex-row sm:items-center sm:justify-between ${embedded ? 'p-4' : 'p-6 sm:gap-6'}`}>
+        <div className='flex min-w-0 items-center gap-3 sm:gap-4'>
+          <div className={`flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30 ${embedded ? 'h-9 w-9' : 'h-12 w-12'}`}>
+            <FiCreditCard className={embedded ? 'h-4 w-4' : 'h-6 w-6'} />
           </div>
-          <div>
-            <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2'>
-              Debts & Money Owed
-              <FeatureInfo feature='liabilities' />
+          <div className='min-w-0'>
+            <h1 className={`flex flex-wrap items-center gap-2 font-bold tracking-tight text-slate-900 dark:text-white ${embedded ? 'text-base md:text-lg' : 'text-2xl md:text-3xl'}`}>
+              {embedded ? 'Debt & Lending Records' : 'Debts & Money Owed'}
+              {!embedded && <FeatureInfo feature='liabilities' />}
             </h1>
-            <p className='mt-1 text-sm font-medium text-slate-600 dark:text-slate-300'>
-              Track what you owe (loans, cards) and what's owed to you — all in one place.
+            <p className={`mt-0.5 font-medium text-slate-600 dark:text-slate-300 ${embedded ? 'text-xs' : 'text-sm'}`}>
+              {embedded
+                ? 'Loans, credit-card bills and money you lent — outstanding balances reduce Net Worth, EMI dates drive reminders and Cashflow.'
+                : "Track what you owe (loans, cards) and what's owed to you — all in one place."}
             </p>
           </div>
         </div>
-        )}
         <button
           {...premiumActionProps}
           className='group relative flex items-center cursor-pointer justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 px-5 py-3 md:py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0'

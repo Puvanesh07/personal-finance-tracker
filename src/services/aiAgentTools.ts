@@ -14,7 +14,7 @@
  */
 
 import { formatINR, formatNumber } from '../utils/format';
-import { calcLiveAccountBalances, calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
+import { accountTypeLabel, calcLiveAccountBalances, calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
 import type { StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
 import type {
@@ -402,8 +402,8 @@ export function getCashflowSummary(dateScope?: 'today' | 'this_week' | 'this_mon
     const sur  = tInc - tExp;
 
     const items: CardItem[] = [
-      ...inc.map((e) => ({ emoji: '💰', title: e.category, subtitle: e.notes ?? undefined, value: formatINR(e.amount), severity: 'good' as Severity })),
-      ...exp.map((e) => ({ emoji: '💸', title: e.category, subtitle: e.notes ?? undefined, value: `-${formatINR(e.amount)}`, severity: 'danger' as Severity })),
+      ...inc.map((e) => ({ emoji: '💰', title: e.subcategory ? `${e.category} · ${e.subcategory}` : e.category, subtitle: e.notes ?? undefined, value: formatINR(e.amount), severity: 'good' as Severity })),
+      ...exp.map((e) => ({ emoji: '💸', title: e.subcategory ? `${e.category} · ${e.subcategory}` : e.category, subtitle: e.notes ?? undefined, value: `-${formatINR(e.amount)}`, severity: 'danger' as Severity })),
     ];
     return {
       kind: 'list_card',
@@ -827,7 +827,7 @@ export function getAccountsSummary(): AgentResponse {
   const items: CardItem[] = sorted.map((ac) => ({
     emoji: '🏦',
     title: ac.name,
-    subtitle: ac.type,
+    subtitle: accountTypeLabel(ac),
     value: formatINR(bal(ac)),
     valueSub: `${formatNumber(total > 0 ? (bal(ac) / total) * 100 : 0, 0)}% of total`,
     severity: 'neutral',

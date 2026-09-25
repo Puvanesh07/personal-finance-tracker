@@ -1,9 +1,11 @@
 // src/components/liabilities/UpsertLiabilityModal.tsx
 //
 // Add / Edit Liability — layout follows the shared reference:
-//   Name → Type + Currency → Outstanding + Interest Rate →
+//   Name → Type → Outstanding + Interest Rate →
 //   Monthly EMI + Start Date → Principal + Due Date → First EMI Date
 //   (with schedule hint) → "More details" expander (EMI day, status…).
+// Currency is not asked for — records are written with the app default
+// (APP_CURRENCY), matching every other module.
 // Every saved field flows automatically into Net Worth, Wealth, Cashflow,
 // Dashboard, Goals and Essentials via the shared portfolioStore.
 
@@ -23,6 +25,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
 import { NumericInput } from '../ui/NumericInput';
+import { APP_CURRENCY } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 type Props =
@@ -37,7 +40,6 @@ type Props =
 type FormState = {
   type: LiabilityType;
   name: string;
-  currency: string;
   principal: string;
   outstanding: string;
   interestRate: string;
@@ -84,7 +86,6 @@ export function UpsertLiabilityModal(props: Props) {
     const base: FormState = {
       type: 'home_loan',
       name: '',
-      currency: 'INR',
       principal: '0',
       outstanding: '0',
       interestRate: '',
@@ -100,7 +101,6 @@ export function UpsertLiabilityModal(props: Props) {
       const l = props.liability;
       base.type = l.type;
       base.name = l.name;
-      base.currency = l.currency || 'INR';
       base.principal = String(l.principal);
       base.outstanding = String(l.outstanding);
       base.interestRate = l.interestRate == null ? '' : String(l.interestRate);
@@ -143,7 +143,8 @@ export function UpsertLiabilityModal(props: Props) {
       const payload: Partial<Liability> = {
         type: state.type,
         name: state.name.trim(),
-        currency: state.currency,
+        // App-wide default — kept for storage compatibility with older records.
+        currency: APP_CURRENCY,
         principal: toNum(state.principal),
         outstanding: toNum(state.outstanding),
         ...(state.interestRate.trim()
@@ -293,6 +294,7 @@ export function UpsertLiabilityModal(props: Props) {
       open={props.open}
       onClose={props.onClose}
       title={props.mode === 'create' ? 'Add Liability' : 'Edit Liability'}
+      subtitle='A loan, credit-card bill or money owed to someone — outstanding, rate and EMI feed Net Worth, Cashflow and reminders.'
     >
       <div className='grid grid-cols-1 gap-5'>
         {/* Name */}
@@ -307,56 +309,44 @@ export function UpsertLiabilityModal(props: Props) {
           />
         </label>
 
-        {/* Type + Currency */}
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-          <div className='block relative'>
-            <span className={labelCls}>Type *</span>
-            <button
-              type='button'
-              className={`${inputCls} flex items-center justify-between text-left`}
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            >
-              <span className='truncate'>
-                {LIABILITY_TYPE_OPTIONS.find((o) => o.id === state.type)?.label}
-              </span>
-              <FiChevronDown
-                className={`h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+        {/* Type */}
+        <div className='block relative'>
+          <span className={labelCls}>Type *</span>
+          <button
+            type='button'
+            className={`${inputCls} flex items-center justify-between text-left`}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
+            <span className='truncate'>
+              {LIABILITY_TYPE_OPTIONS.find((o) => o.id === state.type)?.label}
+            </span>
+            <FiChevronDown
+              className={`h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+          {isDropdownOpen && (
+            <>
+              <div
+                className='fixed inset-0 z-40'
+                onClick={() => setIsDropdownOpen(false)}
               />
-            </button>
-            {isDropdownOpen && (
-              <>
-                <div
-                  className='fixed inset-0 z-40'
-                  onClick={() => setIsDropdownOpen(false)}
-                />
-                <div className='absolute left-0 top-full mt-2 z-50 w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800'>
-                  {LIABILITY_TYPE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type='button'
-                      className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'}`}
-                      onClick={() => {
-                        set({ type: opt.id, status: '' });
-                        setIsDropdownOpen(false);
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          <label className='block'>
-            <span className={labelCls}>Currency</span>
-            <select
-              className={`${inputCls} cursor-pointer`}
-              value={state.currency}
-              onChange={(e) => set({ currency: e.target.value })}
-            >
-              <option value='INR'>INR ₹</option>
-            </select>
-          </label>
+              <div className='absolute left-0 top-full mt-2 z-50 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200/80 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800'>
+                {LIABILITY_TYPE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type='button'
+                    className={`w-full px-4 py-3 text-left text-sm transition-colors ${state.type === opt.id ? 'bg-emerald-50 text-emerald-700 font-semibold dark:bg-emerald-500/10 dark:text-emerald-400' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'}`}
+                    onClick={() => {
+                      set({ type: opt.id, status: '' });
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Outstanding + Interest Rate */}

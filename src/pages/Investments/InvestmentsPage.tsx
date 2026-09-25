@@ -451,8 +451,9 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
   const showBrokerBadge = brokerFilter !== 'all';
 
   // Broker import shortcuts — reused in the header (compact when embedded).
+  // They wrap instead of overflowing the Wealth card on phones.
   const importChips = (
-    <div className='flex items-center gap-2 rounded-xl border border-slate-300/60 bg-slate-100 p-1 dark:border-slate-700/50 dark:bg-slate-800/50'>
+    <div className='flex flex-wrap items-center gap-2 rounded-xl border border-slate-300/60 bg-slate-100 p-1 dark:border-slate-700/50 dark:bg-slate-800/50'>
       <ImportAngelOnePdfButton />
       <ImportCsvButton />
       <ImportIndmoneyButton />
@@ -483,6 +484,22 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
       {(!embedded || activeTab === 'investments') && (
       <header className={`flex flex-col gap-4 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-slate-100/80 shadow-xl dark:to-slate-900/50 ${embedded ? 'p-3 md:p-4' : 'p-4 md:p-6'}`}>
         <div className='flex w-full flex-wrap items-center justify-between gap-3'>
+          {/* When embedded, the module heading was hidden and only the import
+              chips + Add Asset button remained. Show a compact title so the
+              card explains itself (the Wealth tab ⓘ covers the full guide). */}
+          {embedded && (
+            <div className='min-w-0 flex-1 basis-full sm:basis-auto'>
+              <h2 className='flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 md:text-lg dark:text-white'>
+                <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white'>
+                  <FiTrendingUp className='h-4 w-4' />
+                </span>
+                Asset Records
+              </h2>
+              <p className='mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300'>
+                Holdings you add here drive portfolio value, P&amp;L, XIRR, allocation and Net Worth automatically.
+              </p>
+            </div>
+          )}
           {embedded ? (
             importChips
           ) : (

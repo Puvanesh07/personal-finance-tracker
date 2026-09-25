@@ -1,17 +1,21 @@
 ﻿// src/components/cashflow/UpsertCashflowModal.tsx
 //
-// Rewritten:
-//  • Category persistence moved from localStorage → Firestore (portfolioStore)
-//  • ManageCategoriesModal: fully fixed dark mode — no conflicting className patterns
-//  • CategoryDropdown: clean dark mode contrast throughout
-//  • CalendarPicker: clean dark mode contrast throughout
+// Two-step entry flow:
+//   Step 1 — what kind of entry + category (+ subcategory when the category
+//            has them, e.g. 🚜 Agriculture)
+//   Step 2 — the money details: type, amount, date, account, notes
+//
+// Subcategories are just an optional `subcategory` string on the normal
+// CashflowEntry, so Agriculture behaves exactly like every other category in
+// the store, exports, charts and the AI — it only gains a drill-down level.
+//
+// Category/subcategory definitions live in utils/cashflowCategories so the
+// filter bar and the AI share one source of truth.
 
 import type { CashflowEntry, CashflowType } from '../../types/investmentTypes';
 import {
+  FiArrowLeft,
   FiCheck,
-  FiChevronDown,
-  FiEye,
-  FiEyeOff,
   FiPlus,
   FiSave,
   FiSearch,
@@ -25,98 +29,239 @@ import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { NumericInput } from '../ui/NumericInput';
 import { CalendarPicker } from '../ui/CalendarPicker';
-import { Popover } from '../ui/Popover';
 import { todayISO } from '../../utils/dateUtils';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import {
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+  categoryIcon,
+  defaultCategoriesFor,
+  getSubcategoryOptions,
+  subcategoryIcon,
+  type CategoryDef,
+} from '../../utils/cashflowCategories';
 
-// ── Default Categories ────────────────────────────────────────────────────
-
-export const DEFAULT_EXPENSE_CATEGORIES = [
-  { key: 'Housing & Rent',         icon: '🏠' },
-  { key: 'Food & Dining',          icon: '🍽️' },
-  { key: 'Groceries',              icon: '🛒' },
-  { key: 'Transport',              icon: '🚗' },
-  { key: 'Healthcare',             icon: '🏥' },
-  { key: 'Education',              icon: '📚' },
-  { key: 'Insurance',              icon: '🛡️' },
-  { key: 'EMI & Loans',            icon: '🏦' },
-  { key: 'Entertainment',          icon: '🎬' },
-  { key: 'Utilities',              icon: '💡' },
-  { key: 'Shopping',               icon: '🛍️' },
-  { key: 'Investment',             icon: '📈' },
-  { key: 'Travel & Vacations',     icon: '✈️' },
-  { key: 'Subscriptions',          icon: '📱' },
-  { key: 'Personal Care',          icon: '💆' },
-  { key: 'Transfers & Remittance', icon: '💸' },
-  { key: 'Credit Card Payment',    icon: '💳' },
-  { key: 'Taxes',                  icon: '🧾' },
-  { key: 'Cash Withdrawal',        icon: '💵' },
-  { key: 'Childcare',              icon: '👶' },
-  { key: 'Petrol',                 icon: '⛽' },
-  { key: 'Rent',                   icon: '🏘️' },
-  { key: 'Dining',                 icon: '🍜' },
-  { key: 'Other Expense',          icon: '📦' },
-];
-
-export const DEFAULT_INCOME_CATEGORIES = [
-  { key: 'Salary',          icon: '💼' },
-  { key: 'Business',        icon: '🏢' },
-  { key: 'Freelance',       icon: '💻' },
-  { key: 'Dividend',        icon: '📊' },
-  { key: 'Interest',        icon: '🏦' },
-  { key: 'Rental Income',   icon: '🏠' },
-  { key: 'Bonus',           icon: '🎁' },
-  { key: 'Capital Gains',   icon: '📈' },
-  { key: 'Pension',         icon: '👴' },
-  { key: 'Refund',          icon: '↩️' },
-  { key: 'Gift',            icon: '🎀' },
-  { key: 'Lottery / Prize', icon: '🏆' },
-  { key: 'Other Income',    icon: '💰' },
-];
+// Kept for existing importers (ImportCashflowModal, QuickAddFAB).
+export { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES };
 
 // ── Shared className helpers (light + dark) ───────────────────────────────
 
 const INPUT_CLS =
-  'w-full rounded-xl border border-slate-200 dark:border-slate-700 ' +
-  'bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium ' +
-  'text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all ' +
-  'focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 ' +
-  'placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:placeholder:text-slate-500';
+  'fx-field w-full rounded-xl px-4 py-2.5 text-sm font-medium shadow-sm outline-none transition-all';
 
 const LABEL_CLS =
   'text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 block';
 
-const ROW_CLS =
-  'flex items-center justify-between rounded-xl px-3 py-2.5 transition-colors ' +
-  'hover:bg-slate-100 dark:hover:bg-slate-700/60';
+const ROW_CLS = 'fx-menu-item flex items-center justify-between rounded-xl px-3 py-2.5';
 
 const ICON_BTN_CLS =
-  'flex h-7 w-7 items-center justify-center rounded-lg transition-colors ' +
-  'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 ' +
-  'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 dark:hover:text-slate-100';
+  'fx-control flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg';
+
+const TILE_CLS =
+  'fx-tile cursor-pointer px-2.5 py-2 text-[13px] font-semibold leading-tight';
+
+const ADD_TILE_CLS =
+  'flex cursor-pointer items-center gap-1.5 rounded-xl border border-dashed px-2.5 py-2 text-[13px] font-bold transition-colors';
+
+// ── Small building blocks ─────────────────────────────────────────────────
+
+function TypeToggle({
+  value,
+  onChange,
+  onCategoryReset,
+}: {
+  value: CashflowType;
+  onChange: (v: CashflowType) => void;
+  onCategoryReset: () => void;
+}) {
+  const options: { key: CashflowType; label: string }[] = [
+    { key: 'expense', label: '💸 Expense' },
+    { key: 'income', label: '💰 Income' },
+  ];
+  const accentCls =
+    value === 'expense'
+      ? 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+      : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+  return (
+    <div className='flex gap-2'>
+      {options.map((opt) => (
+        <button
+          key={opt.key}
+          type='button'
+          onClick={() => {
+            if (opt.key === value) return;
+            onChange(opt.key);
+            onCategoryReset();
+          }}
+          className={`flex-1 cursor-pointer rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+            value === opt.key ? accentCls : 'fx-control'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Inline "＋ Add new …" row used for both categories and subcategories. */
+function InlineAddRow({
+  placeholder,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  placeholder: string;
+  submitLabel: string;
+  onSubmit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState('');
+  return (
+    <div className='flex items-center gap-2'>
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && value.trim()) onSubmit(value.trim());
+          if (e.key === 'Escape') onCancel();
+        }}
+        placeholder={placeholder}
+        className='fx-field flex-1 rounded-lg px-3 py-2 text-sm outline-none'
+        autoFocus
+      />
+      <button
+        type='button'
+        disabled={!value.trim()}
+        onClick={() => value.trim() && onSubmit(value.trim())}
+        className='fx-btn-primary flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg'
+        title={submitLabel}
+      >
+        <FiCheck className='h-4 w-4' />
+      </button>
+      <button
+        type='button'
+        onClick={onCancel}
+        className='fx-control flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg'
+        title='Cancel'
+      >
+        <FiX className='h-4 w-4' />
+      </button>
+    </div>
+  );
+}
+
+/** Icon-tile picker: tap-friendly on a phone, compact on a laptop. */
+function TilePicker({
+  label,
+  options,
+  value,
+  onSelect,
+  onAddRequest,
+  adding,
+  onAdd,
+  onAddCancel,
+  addLabel,
+  addPlaceholder,
+  columns = 'grid-cols-2 sm:grid-cols-3',
+  maxHeight = 'max-h-[38vh]',
+}: {
+  label: string;
+  options: CategoryDef[];
+  value: string;
+  onSelect: (v: string) => void;
+  onAddRequest: () => void;
+  adding: boolean;
+  onAdd: (name: string) => void;
+  onAddCancel: () => void;
+  addLabel: string;
+  addPlaceholder: string;
+  columns?: string;
+  maxHeight?: string;
+}) {
+  return (
+    <div className='min-w-0'>
+      <div className='flex items-center justify-between gap-2'>
+        <label className={LABEL_CLS}>{label}</label>
+        {options.length > 0 && (
+          <span className='mb-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500'>
+            {options.length}
+          </span>
+        )}
+      </div>
+      <div className={`grid gap-2 overflow-y-auto pr-0.5 ${columns} ${maxHeight}`}>
+        {options.map((opt) => {
+          const active = value === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type='button'
+              aria-pressed={active}
+              onClick={() => onSelect(opt.key)}
+              className={`${TILE_CLS} ${active ? 'is-active' : ''}`}
+            >
+              <span className='text-base leading-none'>{opt.icon}</span>
+              <span className='min-w-0 flex-1 truncate'>{opt.key}</span>
+              {active && <FiCheck className='h-3.5 w-3.5 shrink-0' />}
+            </button>
+          );
+        })}
+        {adding ? (
+          <div className={`col-span-2 ${columns}`}>
+            <InlineAddRow
+              placeholder={addPlaceholder}
+              submitLabel={addLabel}
+              onSubmit={onAdd}
+              onCancel={onAddCancel}
+            />
+          </div>
+        ) : (
+          <button
+            type='button'
+            onClick={onAddRequest}
+            className={`${ADD_TILE_CLS} border-emerald-300/70 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-500/40 dark:text-emerald-400 dark:hover:bg-emerald-500/10`}
+          >
+            <FiPlus className='h-3.5 w-3.5 shrink-0' />
+            <span className='truncate'>{addLabel}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Manage Categories Modal ───────────────────────────────────────────────
 
 function ManageCategoriesModal({
   type,
+  category,
   onClose,
 }: {
   type: 'expense' | 'income';
+  /** When the caller has a category with subcategories selected, its
+   *  subcategories become manageable from the same place. */
+  category?: string;
   onClose: () => void;
 }) {
-  const customCategories  = usePortfolioStore((s) => s.customCategories);
-  const hiddenCategories  = usePortfolioStore((s) => s.hiddenCategories);
+  const customCategories = usePortfolioStore((s) => s.customCategories);
+  const hiddenCategories = usePortfolioStore((s) => s.hiddenCategories);
   const addCustomCategory = usePortfolioStore((s) => s.addCustomCategory);
   const removeCustomCategory = usePortfolioStore((s) => s.removeCustomCategory);
   const toggleHiddenCategory = usePortfolioStore((s) => s.toggleHiddenCategory);
+  const customSubcategories = usePortfolioStore((s) => s.customSubcategories);
+  const addCustomSubcategory = usePortfolioStore((s) => s.addCustomSubcategory);
+  const removeCustomSubcategory = usePortfolioStore((s) => s.removeCustomSubcategory);
 
-  const [newCat,   setNewCat]   = useState('');
-  const [saving,   setSaving]   = useState(false);
-  const inputRef               = useRef<HTMLInputElement>(null);
+  const [newCat, setNewCat] = useState('');
+  const [newSub, setNewSub] = useState('');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const defaults = type === 'expense' ? DEFAULT_EXPENSE_CATEGORIES : DEFAULT_INCOME_CATEGORIES;
-  const customs  = customCategories[type];
-  const hidden   = hiddenCategories[type];
+  const defaults = defaultCategoriesFor(type);
+  const customs = customCategories[type];
+  const hidden = hiddenCategories[type];
+  const subOptions = category ? getSubcategoryOptions(category, customSubcategories) : [];
+  const customSubs = customSubcategories[category ?? ''] ?? [];
 
   const handleAdd = async () => {
     const trimmed = newCat.trim();
@@ -126,6 +271,18 @@ function ManageCategoriesModal({
       await addCustomCategory(type, trimmed);
       setNewCat('');
       inputRef.current?.focus();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddSub = async () => {
+    const trimmed = newSub.trim();
+    if (!trimmed || saving || !category) return;
+    setSaving(true);
+    try {
+      await addCustomSubcategory(category, trimmed);
+      setNewSub('');
     } finally {
       setSaving(false);
     }
@@ -148,7 +305,8 @@ function ManageCategoriesModal({
           <button
             type='button'
             onClick={onClose}
-            className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300 transition-colors'
+            className='fx-control flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg'
+            aria-label='Close'
           >
             <FiX className='h-4 w-4' />
           </button>
@@ -156,7 +314,6 @@ function ManageCategoriesModal({
 
         {/* Category list */}
         <div className='flex-1 overflow-y-auto px-4 py-3 space-y-0.5'>
-          {/* Default categories */}
           <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 px-1'>
             Default ({defaults.length})
           </p>
@@ -169,7 +326,7 @@ function ManageCategoriesModal({
               >
                 <div className='flex items-center gap-3'>
                   <span className='text-base w-6 text-center'>{cat.icon}</span>
-                  <span className={`text-sm font-medium ${isHidden ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                  <span className={`text-sm font-medium ${isHidden ? 'line-through' : ''}`}>
                     {cat.key}
                   </span>
                 </div>
@@ -180,15 +337,14 @@ function ManageCategoriesModal({
                   title={isHidden ? 'Show in list' : 'Hide from list'}
                 >
                   {isHidden
-                    ? <FiEyeOff className='h-3.5 w-3.5' />
-                    : <FiEye    className='h-3.5 w-3.5' />
+                    ? <FiX className='h-3.5 w-3.5' />
+                    : <FiCheck className='h-3.5 w-3.5' />
                   }
                 </button>
               </div>
             );
           })}
 
-          {/* Custom categories */}
           {customs.length > 0 && (
             <>
               <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-4 mb-2 px-1'>
@@ -203,7 +359,7 @@ function ManageCategoriesModal({
                   >
                     <div className='flex items-center gap-3'>
                       <span className='text-base w-6 text-center'>🏷️</span>
-                      <span className={`text-sm font-medium ${isHidden ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                      <span className={`text-sm font-medium ${isHidden ? 'line-through' : ''}`}>
                         {cat}
                       </span>
                     </div>
@@ -215,14 +371,14 @@ function ManageCategoriesModal({
                         title={isHidden ? 'Show' : 'Hide'}
                       >
                         {isHidden
-                          ? <FiEyeOff className='h-3.5 w-3.5' />
-                          : <FiEye    className='h-3.5 w-3.5' />
+                          ? <FiX className='h-3.5 w-3.5' />
+                          : <FiCheck className='h-3.5 w-3.5' />
                         }
                       </button>
                       <button
                         type='button'
                         onClick={() => void removeCustomCategory(type, cat)}
-                        className='flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors'
+                        className={`${ICON_BTN_CLS} text-rose-500 hover:text-rose-600 dark:text-rose-400`}
                         title='Delete custom category'
                       >
                         <FiTrash2 className='h-3.5 w-3.5' />
@@ -233,9 +389,44 @@ function ManageCategoriesModal({
               })}
             </>
           )}
+
+          {/* Subcategories of the selected category */}
+          {category && subOptions.length > 0 && (
+            <>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-5 mb-2 px-1'>
+                {categoryIcon(category)} {category} · Subcategories ({subOptions.length})
+              </p>
+              {subOptions.map((sub) => {
+                const removable = customSubs.includes(sub.key);
+                return (
+                  <div key={sub.key} className={ROW_CLS}>
+                    <div className='flex items-center gap-3'>
+                      <span className='text-base w-6 text-center'>{sub.icon}</span>
+                      <span className='text-sm font-medium'>{sub.key}</span>
+                      {!removable && (
+                        <span className='rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400'>
+                          Built-in
+                        </span>
+                      )}
+                    </div>
+                    {removable && (
+                      <button
+                        type='button'
+                        onClick={() => void removeCustomSubcategory(category, sub.key)}
+                        className={`${ICON_BTN_CLS} text-rose-500 hover:text-rose-600 dark:text-rose-400`}
+                        title='Delete custom subcategory'
+                      >
+                        <FiTrash2 className='h-3.5 w-3.5' />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
 
-        {/* Add new category */}
+        {/* Add new */}
         <div className='px-4 pb-4 pt-3 border-t border-slate-200 dark:border-slate-700 shrink-0 space-y-2'>
           <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
             Add New Category
@@ -248,21 +439,44 @@ function ManageCategoriesModal({
               onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd(); }}
               placeholder='e.g. Dog Food, Gym…'
               className={INPUT_CLS}
-              autoFocus
             />
             <button
               type='button'
               onClick={() => void handleAdd()}
               disabled={!newCat.trim() || saving}
-              className='flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40 transition-colors whitespace-nowrap'
+              className='fx-btn-primary flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold whitespace-nowrap disabled:cursor-not-allowed'
             >
               {saving ? '…' : <><FiPlus className='h-4 w-4' /> Add</>}
             </button>
           </div>
+          {category && subOptions.length > 0 && (
+            <>
+              <p className='pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+                Add New {category} Subcategory
+              </p>
+              <div className='flex gap-2'>
+                <input
+                  value={newSub}
+                  onChange={(e) => setNewSub(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void handleAddSub(); }}
+                  placeholder='e.g. Groundnut, Coconut…'
+                  className={INPUT_CLS}
+                />
+                <button
+                  type='button'
+                  onClick={() => void handleAddSub()}
+                  disabled={!newSub.trim() || saving}
+                  className='fx-btn-primary flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold whitespace-nowrap disabled:cursor-not-allowed'
+                >
+                  <FiPlus className='h-4 w-4' /> Add
+                </button>
+              </div>
+            </>
+          )}
           <button
             type='button'
             onClick={onClose}
-            className='w-full rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors'
+            className='fx-control w-full cursor-pointer rounded-xl py-2.5 text-sm font-bold'
           >
             Done
           </button>
@@ -271,175 +485,6 @@ function ManageCategoriesModal({
     </div>
   );
 }
-
-// ── Category Picker Dropdown ──────────────────────────────────────────────
-
-function CategoryDropdown({
-  value,
-  onChange,
-  type,
-  onOpenManage,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  type: 'expense' | 'income';
-  onOpenManage: () => void;
-}) {
-  const customCategories  = usePortfolioStore((s) => s.customCategories);
-  const hiddenCategories  = usePortfolioStore((s) => s.hiddenCategories);
-  const addCustomCategory = usePortfolioStore((s) => s.addCustomCategory);
-
-  const [open,       setOpen]       = useState(false);
-  const [search,     setSearch]     = useState('');
-  const [newCatMode, setNewCatMode] = useState(false);
-  const [newCatVal,  setNewCatVal]  = useState('');
-  const triggerRef  = useRef<HTMLButtonElement>(null);
-
-  const defaults = type === 'expense' ? DEFAULT_EXPENSE_CATEGORIES : DEFAULT_INCOME_CATEGORIES;
-  const customs  = customCategories[type];
-  const hidden   = hiddenCategories[type];
-
-  const allCategories = useMemo(() => {
-    const customWithIcon = customs.map((c) => ({ key: c, icon: '🏷️' }));
-    return [...defaults, ...customWithIcon].filter((c) => !hidden.includes(c.key));
-  }, [defaults, customs, hidden]);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return allCategories;
-    return allCategories.filter((c) =>
-      c.key.toLowerCase().includes(search.toLowerCase()),
-    );
-  }, [allCategories, search]);
-
-  const selectedCat = allCategories.find((c) => c.key === value) ??
-    (value ? { key: value, icon: '🏷️' } : null);
-
-  const handleAddNew = async () => {
-    const trimmed = newCatVal.trim();
-    if (!trimmed) return;
-    await addCustomCategory(type, trimmed);
-    onChange(trimmed);
-    setNewCatVal('');
-    setNewCatMode(false);
-    setOpen(false);
-  };
-
-  return (
-    <>
-      {/* Trigger */}
-      <button
-        ref={triggerRef}
-        type='button'
-        onClick={() => { setOpen((v) => !v); setSearch(''); setNewCatMode(false); }}
-        className={`flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition-all ${
-          open
-            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10 shadow-sm'
-            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
-        }`}
-      >
-        <div className='flex items-center gap-2.5'>
-          {selectedCat ? (
-            <>
-              <span className='text-base leading-none'>{selectedCat.icon}</span>
-              <span className='font-medium text-slate-900 dark:text-slate-100'>{selectedCat.key}</span>
-            </>
-          ) : (
-            <span className='text-slate-400 dark:text-slate-500'>Select a category</span>
-          )}
-        </div>
-        <FiChevronDown className={`h-3.5 w-3.5 text-slate-400 dark:text-slate-500 transition-transform ${open ? 'rotate-180 text-emerald-500' : ''}`} />
-      </button>
-
-      {/* Category dropdown */}
-      <Popover
-        open={open}
-        onClose={() => setOpen(false)}
-        anchorRef={triggerRef}
-        minWidth={280}
-        maxHeight={400}
-        title='Select category'
-      >
-          {/* Search */}
-          <div className='flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 dark:border-slate-800'>
-            <FiSearch className='h-3.5 w-3.5 text-slate-400 dark:text-slate-500 shrink-0' />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder='Search categories…'
-              className='flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:placeholder:text-slate-500'
-              autoFocus
-            />
-            {search && (
-              <button type='button' onClick={() => setSearch('')}
-                className='text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'>
-                <FiX className='h-3.5 w-3.5' />
-              </button>
-            )}
-          </div>
-
-          {/* List */}
-          <div className='flex-1 overflow-y-auto p-1.5'>
-            {filtered.length === 0 ? (
-              <p className='px-3 py-4 text-center text-xs text-slate-400 dark:text-slate-500'>No categories found</p>
-            ) : filtered.map((cat) => (
-              <button
-                key={cat.key}
-                type='button'
-                onClick={() => { onChange(cat.key); setOpen(false); }}
-                className={`w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-left transition-colors ${
-                  value === cat.key
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-semibold'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-              >
-                <span className='text-base leading-none w-5 text-center'>{cat.icon}</span>
-                <span className='flex-1'>{cat.key}</span>
-                {value === cat.key && <FiCheck className='h-4 w-4 shrink-0 text-emerald-500' />}
-              </button>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <div className='border-t border-slate-100 dark:border-slate-800 p-1.5 space-y-0.5'>
-            {newCatMode ? (
-              <div className='flex items-center gap-2 px-2 py-1.5'>
-                <input
-                  value={newCatVal}
-                  onChange={(e) => setNewCatVal(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter')  void handleAddNew();
-                    if (e.key === 'Escape') { setNewCatMode(false); setNewCatVal(''); }
-                  }}
-                  placeholder='New category name…'
-                  className='flex-1 rounded-lg border border-emerald-400 dark:border-emerald-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:placeholder:text-slate-500'
-                  autoFocus
-                />
-                <button type='button' onClick={() => void handleAddNew()} disabled={!newCatVal.trim()}
-                  className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white disabled:opacity-40 hover:bg-emerald-500'>
-                  <FiCheck className='h-3.5 w-3.5' />
-                </button>
-                <button type='button' onClick={() => { setNewCatMode(false); setNewCatVal(''); }}
-                  className='flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'>
-                  <FiX className='h-3.5 w-3.5' />
-                </button>
-              </div>
-            ) : (
-              <button type='button' onClick={() => { setNewCatMode(true); setSearch(''); }}
-                className='w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors'>
-                <FiPlus className='h-4 w-4' /> Add new category
-              </button>
-            )}
-            <button type='button' onClick={() => { setOpen(false); onOpenManage(); }}
-              className='w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors'>
-              <FiSettings className='h-4 w-4' /> Manage categories
-            </button>
-          </div>
-      </Popover>
-    </>
-  );
-}
-
-// ── Calendar Picker ───────────────────────────────────────────────────────
 
 // ── Main modal ────────────────────────────────────────────────────────────
 
@@ -451,6 +496,7 @@ type FormState = {
   type: CashflowType;
   date: string;
   category: string;
+  subcategory: string;
   amount: string;
   notes: string;
   accountId: string;
@@ -461,64 +507,206 @@ function toNum(v: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
-const TYPE_OPTIONS = [
-  { key: 'expense', label: '💸 Expense' },
-  { key: 'income',  label: '💰 Income'  },
-];
-
 export function UpsertCashflowModal(props: Props) {
-  const addCashflow    = usePortfolioStore((s) => s.addCashflow);
+  const addCashflow = usePortfolioStore((s) => s.addCashflow);
   const updateCashflow = usePortfolioStore((s) => s.updateCashflow);
-  const accounts       = usePortfolioStore((s) => s.accounts);
+  const accounts = usePortfolioStore((s) => s.accounts);
+  const customCategories = usePortfolioStore((s) => s.customCategories);
+  const hiddenCategories = usePortfolioStore((s) => s.hiddenCategories);
+  const addCustomCategory = usePortfolioStore((s) => s.addCustomCategory);
+  const customSubcategories = usePortfolioStore((s) => s.customSubcategories);
+  const addCustomSubcategory = usePortfolioStore((s) => s.addCustomSubcategory);
 
   const [showManage, setShowManage] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [catSearch, setCatSearch] = useState('');
+  const [addingCat, setAddingCat] = useState(false);
+  const [addingSub, setAddingSub] = useState(false);
+  const advanceTimer = useRef<number | null>(null);
 
   const initial = useMemo<FormState>(() => {
     const base: FormState = {
-      type: 'expense', date: todayISO(), category: '', amount: '0', notes: '', accountId: '',
+      type: 'expense', date: todayISO(), category: '', subcategory: '',
+      amount: '0', notes: '', accountId: '',
     };
     if (props.mode === 'edit') {
-      base.type      = props.entry.type;
-      base.date      = props.entry.date;
-      base.category  = props.entry.category;
-      base.amount    = String(props.entry.amount);
-      base.notes     = props.entry.notes ?? '';
+      base.type = props.entry.type;
+      base.date = props.entry.date;
+      base.category = props.entry.category;
+      base.subcategory = props.entry.subcategory ?? '';
+      base.amount = String(props.entry.amount);
+      base.notes = props.entry.notes ?? '';
       base.accountId = props.entry.accountId ?? '';
     }
     return base;
   }, [props.mode, (props as any).entry]);
 
-  const [state,  setState]  = useState<FormState>(initial);
+  const [state, setState] = useState<FormState>(initial);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (props.open) setState(initial); }, [props.open, initial]);
+  useEffect(() => {
+    if (!props.open) return;
+    setState(initial);
+    // Editing an existing entry goes straight to the details; creating one
+    // starts at the category picker so the subcategory is never skipped.
+    setStep(props.mode === 'edit' ? 2 : 1);
+    setCatSearch('');
+    setAddingCat(false);
+    setAddingSub(false);
+  }, [props.open, initial, props.mode]);
+
+  useEffect(
+    () => () => {
+      if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+    },
+    [],
+  );
+
+  // ── Options ────────────────────────────────────────────────────────────
+  const categoryOptions = useMemo(() => {
+    const type = state.type as 'expense' | 'income';
+    const customs = customCategories[type].map((c) => ({ key: c, icon: '🏷️' }));
+    const all = [...defaultCategoriesFor(type), ...customs].filter(
+      (c) => !hiddenCategories[type].includes(c.key),
+    );
+    const q = catSearch.trim().toLowerCase();
+    return q ? all.filter((c) => c.key.toLowerCase().includes(q)) : all;
+  }, [state.type, customCategories, hiddenCategories, catSearch]);
+
+  const subcategoryOptions = useMemo(
+    () => getSubcategoryOptions(state.category, customSubcategories),
+    [state.category, customSubcategories],
+  );
+  const usesSubcategories = subcategoryOptions.length > 0;
+
+  const step1Complete =
+    !!state.category.trim() && (!usesSubcategories || !!state.subcategory);
+  const canSave = step1Complete && toNum(state.amount) > 0;
+
+  // ── Handlers ───────────────────────────────────────────────────────────
+  const pickCategory = (key: string) => {
+    setState((s) => ({ ...s, category: key, subcategory: '' }));
+    setAddingSub(false);
+    setCatSearch('');
+  };
+
+  const pickSubcategory = (key: string) => {
+    setState((s) => ({ ...s, subcategory: key }));
+    setAddingSub(false);
+    // One less tap on a phone: the details step is the only thing left.
+    if (props.mode === 'create') {
+      if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+      advanceTimer.current = window.setTimeout(() => setStep(2), 180);
+    }
+  };
+
+  const handleAddCategory = async (name: string) => {
+    await addCustomCategory(state.type as 'expense' | 'income', name);
+    setAddingCat(false);
+    setState((s) => ({ ...s, category: name, subcategory: '' }));
+  };
+
+  const handleAddSubcategory = async (name: string) => {
+    await addCustomSubcategory(state.category, name);
+    setAddingSub(false);
+    setState((s) => ({ ...s, subcategory: name }));
+  };
 
   async function onSubmit() {
     setSaving(true);
     try {
       const payload = {
-        type:     state.type,
-        date:     state.date,
+        type: state.type,
+        date: state.date,
         category: state.category.trim() || 'Other',
-        amount:   toNum(state.amount),
-        ...(state.notes.trim()  ? { notes:     state.notes.trim()  } : {}),
-        ...(state.accountId     ? { accountId: state.accountId     } : {}),
+        amount: toNum(state.amount),
+        ...(state.subcategory ? { subcategory: state.subcategory } : {}),
+        ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
+        ...(state.accountId ? { accountId: state.accountId } : {}),
       };
       if (props.mode === 'create') await addCashflow(payload as any);
-      else                          await updateCashflow(props.entry.id, payload as any);
+      else await updateCashflow(props.entry.id, payload as any);
       props.onClose();
     } finally {
       setSaving(false);
     }
   }
 
-  const isExpense = state.type === 'expense';
-  const accentCls = isExpense
-    ? 'bg-rose-500/10 border-rose-500/40 text-rose-600 dark:text-rose-400'
-    : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400';
-  const inactiveCls =
-    'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 ' +
-    'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700';
+  const subtitle =
+    step === 1
+      ? `Step 1 of 2 · Category${usesSubcategories ? ' + subcategory' : ''}`
+      : 'Step 2 of 2 · Transaction details';
+
+  const stepper = (
+    <div className='mb-4 flex items-center gap-2'>
+      {[1, 2].map((n) => (
+        <div
+          key={n}
+          className={`h-1.5 flex-1 rounded-full transition-colors ${
+            step === n
+              ? 'bg-emerald-500'
+              : 'bg-slate-200 dark:bg-slate-700'
+          }`}
+        />
+      ))}
+      <span className='shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+        {step}/2
+      </span>
+    </div>
+  );
+
+  /** Always visible above the soft keyboard: Back · Cancel · Next/Save. */
+  const footer = (
+    <div
+      className='sticky bottom-0 -mx-5 -mb-5 mt-5 flex items-center gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:-mb-6 sm:px-6 dark:border-slate-800 dark:bg-slate-900/95'
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
+      {step === 2 && (
+        <button
+          type='button'
+          onClick={() => setStep(1)}
+          className='fx-btn-ghost inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold'
+        >
+          <FiArrowLeft className='h-4 w-4' />
+          <span className='hidden sm:inline'>Back</span>
+        </button>
+      )}
+      <button
+        type='button'
+        onClick={props.onClose}
+        disabled={saving}
+        className='fx-btn-ghost ml-auto rounded-xl px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed'
+      >
+        Cancel
+      </button>
+      {step === 1 ? (
+        <button
+          type='button'
+          disabled={!step1Complete}
+          onClick={() => setStep(2)}
+          className='fx-btn-primary inline-flex cursor-pointer items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold disabled:cursor-not-allowed'
+        >
+          Next
+          <FiArrowRightish />
+        </button>
+      ) : (
+        <button
+          type='button'
+          onClick={() => void onSubmit()}
+          disabled={saving || !canSave}
+          className='fx-btn-primary inline-flex cursor-pointer items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold disabled:cursor-not-allowed'
+        >
+          {saving ? (
+            <><FiSave className='h-4 w-4' /> Saving…</>
+          ) : props.mode === 'create' ? (
+            <><FiPlus className='h-4 w-4' /> Add Entry</>
+          ) : (
+            <><FiSave className='h-4 w-4' /> Save Changes</>
+          )}
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -526,124 +714,196 @@ export function UpsertCashflowModal(props: Props) {
         open={props.open}
         onClose={props.onClose}
         title={props.mode === 'create' ? 'Add Transaction' : 'Edit Transaction'}
+        subtitle={subtitle}
       >
-        <div className='grid grid-cols-1 gap-5'>
+        {stepper}
 
-          {/* Type + Date */}
-          <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-            {/* Type toggle */}
+        {step === 1 ? (
+          <div className='grid grid-cols-1 gap-5'>
             <div>
               <label className={LABEL_CLS}>Transaction Type</label>
-              <div className='flex gap-2'>
-                {TYPE_OPTIONS.map((opt) => (
+              <TypeToggle
+                value={state.type}
+                onChange={(v) => setState((s) => ({ ...s, type: v }))}
+                onCategoryReset={() => setState((s) => ({ ...s, category: '', subcategory: '' }))}
+              />
+            </div>
+
+            {categoryOptions.length > 8 && (
+              <div className='fx-field flex items-center gap-2 rounded-xl px-3 py-2'>
+                <FiSearch className='h-3.5 w-3.5 shrink-0 opacity-60' />
+                <input
+                  value={catSearch}
+                  onChange={(e) => setCatSearch(e.target.value)}
+                  placeholder='Search categories…'
+                  className='w-full bg-transparent text-sm outline-none'
+                />
+                {catSearch && (
                   <button
-                    key={opt.key}
                     type='button'
-                    onClick={() => setState((s) => ({ ...s, type: opt.key as CashflowType, category: '' }))}
-                    className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
-                      state.type === opt.key ? accentCls : inactiveCls
-                    }`}
+                    onClick={() => setCatSearch('')}
+                    className='fx-btn-ghost cursor-pointer rounded-md p-1'
+                    aria-label='Clear search'
                   >
-                    {opt.label}
+                    <FiX className='h-3.5 w-3.5' />
                   </button>
-                ))}
+                )}
+              </div>
+            )}
+
+            <div className={`grid gap-5 ${usesSubcategories ? 'md:grid-cols-2' : ''}`}>
+              <TilePicker
+                label='Category'
+                options={categoryOptions}
+                value={state.category}
+                onSelect={pickCategory}
+                adding={addingCat}
+                onAddRequest={() => { setAddingCat(true); setAddingSub(false); }}
+                onAdd={(name) => void handleAddCategory(name)}
+                onAddCancel={() => setAddingCat(false)}
+                addLabel='Add new category'
+                addPlaceholder='New category name…'
+                columns={usesSubcategories ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}
+              />
+
+              {/* Subcategories appear the moment a category that has them is
+                  picked (🚜 Agriculture), including brand-new user ones. */}
+              {usesSubcategories && (
+                <TilePicker
+                  label={`${categoryIcon(state.category)} ${state.category} · Subcategory`}
+                  options={subcategoryOptions}
+                  value={state.subcategory}
+                  onSelect={pickSubcategory}
+                  adding={addingSub}
+                  onAddRequest={() => { setAddingSub(true); setAddingCat(false); }}
+                  onAdd={(name) => void handleAddSubcategory(name)}
+                  onAddCancel={() => setAddingSub(false)}
+                  addLabel='Add new subcategory'
+                  addPlaceholder='New subcategory name…'
+                  columns='grid-cols-2'
+                  maxHeight='max-h-[38vh]'
+                />
+              )}
+            </div>
+
+            <button
+              type='button'
+              onClick={() => setShowManage(true)}
+              className='fx-btn-ghost inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-xs font-bold'
+            >
+              <FiSettings className='h-3.5 w-3.5' /> Manage categories
+            </button>
+          </div>
+        ) : (
+          <div className='grid grid-cols-1 gap-5'>
+            {/* What was chosen in step 1 — one tap to go back and change it. */}
+            <button
+              type='button'
+              onClick={() => setStep(1)}
+              className={`${TILE_CLS} w-full cursor-pointer py-2.5`}
+            >
+              <span className='text-base leading-none'>
+                {categoryIcon(state.category)}
+                {state.subcategory ? (
+                  <span className='ml-0.5'>{subcategoryIcon(state.subcategory)}</span>
+                ) : null}
+              </span>
+              <span className='min-w-0 flex-1 truncate text-slate-900 dark:text-slate-100'>
+                {state.category || 'No category'}
+                {state.subcategory && (
+                  <span className='font-normal opacity-70'> · {state.subcategory}</span>
+                )}
+              </span>
+              <span className='shrink-0 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400'>
+                Change
+              </span>
+            </button>
+
+            <div>
+              <label className={LABEL_CLS}>Income / Expense</label>
+              <TypeToggle
+                value={state.type}
+                onChange={(v) => setState((s) => ({ ...s, type: v }))}
+                onCategoryReset={() => undefined}
+              />
+            </div>
+
+            <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+              <div>
+                <label className={LABEL_CLS}>Amount (₹)</label>
+                <NumericInput
+                  className={INPUT_CLS}
+                  value={state.amount}
+                  onChange={(v) => setState((s) => ({ ...s, amount: v }))}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLS}>Date</label>
+                <CalendarPicker
+                  value={state.date}
+                  onChange={(v) => setState((s) => ({ ...s, date: v }))}
+                />
               </div>
             </div>
 
-            {/* Date */}
+            {accounts.length > 0 && (
+              <div>
+                <label className={LABEL_CLS}>Account (Optional)</label>
+                <Select
+                  className={INPUT_CLS}
+                  value={state.accountId}
+                  onChange={(e) => setState((s) => ({ ...s, accountId: e.target.value }))}
+                >
+                  <option value=''>No Account</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+
             <div>
-              <label className={LABEL_CLS}>Date</label>
-              <CalendarPicker
-                value={state.date}
-                onChange={(v) => setState((s) => ({ ...s, date: v }))}
+              <label className={LABEL_CLS}>Notes (Optional)</label>
+              <input
+                className={INPUT_CLS}
+                value={state.notes}
+                onChange={(e) => setState((s) => ({ ...s, notes: e.target.value }))}
+                placeholder='Add any extra details…'
               />
             </div>
           </div>
+        )}
 
-          {/* Category */}
-          <div>
-            <label className={LABEL_CLS}>Category</label>
-            <CategoryDropdown
-              value={state.category}
-              onChange={(v) => setState((s) => ({ ...s, category: v }))}
-              type={state.type as 'expense' | 'income'}
-              onOpenManage={() => setShowManage(true)}
-            />
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className={LABEL_CLS}>Amount (₹)</label>
-            <NumericInput
-              className={INPUT_CLS}
-              value={state.amount}
-              onChange={(v) => setState((s) => ({ ...s, amount: v }))}
-            />
-          </div>
-
-          {/* Account */}
-          {accounts.length > 0 && (
-            <div>
-              <label className={LABEL_CLS}>Account (Optional)</label>
-              <Select
-                className={INPUT_CLS}
-                value={state.accountId}
-                onChange={(e) => setState((s) => ({ ...s, accountId: e.target.value }))}
-              >
-                <option value=''>No Account</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </Select>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div>
-            <label className={LABEL_CLS}>Notes (Optional)</label>
-            <input
-              className={INPUT_CLS}
-              value={state.notes}
-              onChange={(e) => setState((s) => ({ ...s, notes: e.target.value }))}
-              placeholder='Add any extra details…'
-            />
-          </div>
-
-          {/* Footer */}
-          <div className='flex items-center justify-end gap-3 border-t border-slate-200 dark:border-slate-800 pt-5'>
-            <button
-              type='button'
-              onClick={props.onClose}
-              disabled={saving}
-              className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50'
-            >
-              Cancel
-            </button>
-            <button
-              type='button'
-              onClick={() => void onSubmit()}
-              disabled={saving || !state.category.trim() || toNum(state.amount) <= 0}
-              className='inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0'
-            >
-              {saving ? (
-                <><FiSave className='h-4 w-4' /> Saving…</>
-              ) : props.mode === 'create' ? (
-                <><FiPlus className='h-4 w-4' /> Add Entry</>
-              ) : (
-                <><FiSave className='h-4 w-4' /> Save Changes</>
-              )}
-            </button>
-          </div>
-        </div>
+        {footer}
       </Modal>
 
       {/* Manage Categories overlay — rendered outside Modal via portal */}
       {showManage && (
         <ManageCategoriesModal
           type={state.type as 'expense' | 'income'}
+          category={state.category || undefined}
           onClose={() => setShowManage(false)}
         />
       )}
     </>
+  );
+}
+
+/** Tiny right chevron so the Next button does not need another icon import. */
+function FiArrowRightish() {
+  return (
+    <svg
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2.5'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      className='h-4 w-4'
+      aria-hidden='true'
+    >
+      <path d='M9 18l6-6-6-6' />
+    </svg>
   );
 }

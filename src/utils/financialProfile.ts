@@ -25,6 +25,7 @@ import type {
 import {
   calcLiveAccountBalances,
   calculateNetWorth,
+  isCashBalanceAccount,
 } from './calculations';
 
 export type EssentialsStatus = 'Perfect' | 'Good' | 'Risky';
@@ -89,7 +90,7 @@ export function calcLiquidAssets(
 ): { cashSavings: number; fdRd: number; total: number } {
   const live = calcLiveAccountBalances(accounts ?? [], cashflows ?? []);
   const cashSavings = (accounts ?? [])
-    .filter((a) => a.type === 'bank')
+    .filter(isCashBalanceAccount)
     .reduce((sum, a) => sum + (live[a.id] ?? a.balance ?? 0), 0);
   const fdRd = (investments ?? [])
     .filter((i) => i.type === 'fixed_deposit')

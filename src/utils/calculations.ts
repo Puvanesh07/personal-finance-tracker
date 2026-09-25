@@ -556,6 +556,33 @@ export function getReceivablesTotals(pendingPayments: PendingPayment[]): {
   return { total, principal, interest, count };
 }
 
+/** Built-in "Cash in Hand" record (designated by id, not by name, so renaming
+ *  never breaks the link). It is treated as cash on hand and is therefore
+ *  included in every account total — Liquid Cash, Net Worth, Cashflow,
+ *  Reports, Dashboard, AI answers — exactly like a bank account. */
+export const IN_HAND_CASH_ID = 'acc_in_hand';
+export const IN_HAND_CASH_NAME = 'Cash in Hand';
+
+export function isInHandAccount(account: Pick<Account, 'id'>) {
+  return account.id === IN_HAND_CASH_ID;
+}
+
+/** Accounts whose balance counts as *available cash*. Credit cards are a
+ *  liability (money you owe), so they are deliberately excluded everywhere. */
+export function isCashBalanceAccount(account: Pick<Account, 'type'>) {
+  return account.type === 'bank' || account.type === 'cash';
+}
+
+/** Human label for an account row — CSV export, AI answers, dropdowns. */
+export function accountTypeLabel(
+  account: Pick<Account, 'id' | 'type'>,
+): string {
+  if (isInHandAccount(account)) return IN_HAND_CASH_NAME;
+  if (account.type === 'credit') return 'Credit Card';
+  if (account.type === 'cash') return 'Cash';
+  return 'Bank Account';
+}
+
 /** Live balance per account = openingBalance ± linked cashflows on/after the
  *  opening-balance date. This is the app-wide canonical balance (same rule as
  *  AccountsPage and the dashboard Liquid card) and self-heals when cashflows
@@ -580,14 +607,15 @@ export function calcLiveAccountBalances(
   return balances;
 }
 
-/** Total live balance across all bank-type accounts (cash on hand). */
+/** Total live balance across every cash-like account — bank accounts plus the
+ *  built-in In-Hand Amount record. Credit cards are debt, so they stay out. */
 export function getLiveBankTotal(
   accounts: Account[],
   cashflows: CashflowEntry[],
 ): number {
   const balances = calcLiveAccountBalances(accounts, cashflows);
   return accounts
-    .filter((a) => a.type === 'bank')
+    .filter(isCashBalanceAccount)
     .reduce((sum, a) => sum + (balances[a.id] ?? a.balance ?? 0), 0);
 }
 

@@ -25,6 +25,7 @@ import {
   FiTrendingDown,
   FiTrendingUp,
   FiUpload,
+  FiX,
 } from 'react-icons/fi';
 import { endOfMonth, format, startOfMonth } from 'date-fns';
 import {
@@ -48,6 +49,7 @@ import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
 import { buildCashflowAdvancedInsights } from '../../utils/advancedInsights';
 import { Popover } from '../../components/ui/Popover';
+import { getSubcategoryOptions, subcategoryIcon } from '../../utils/cashflowCategories';
 import { exportCashflowsCSV } from '../../utils/exportUtils';
 import { formatINR } from '../../utils/format';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
@@ -202,25 +204,24 @@ function TypeFilterTabs({
   counts: { all: number; income: number; expense: number };
 }) {
   const tabs: { value: TypeFilter; label: string; color: string }[] = [
-    { value: 'all', label: 'All', color: 'text-slate-500 dark:text-slate-400' },
-    { value: 'income', label: 'Income', color: 'text-emerald-400' },
-    { value: 'expense', label: 'Expense', color: 'text-rose-400' },
+    { value: 'all', label: 'All', color: '' },
+    { value: 'income', label: 'Income', color: 'text-emerald-500 dark:text-emerald-400' },
+    { value: 'expense', label: 'Expense', color: 'text-rose-500 dark:text-rose-400' },
   ];
   return (
-    <div className='flex items-center gap-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/60 p-1 border border-slate-300/70 dark:border-slate-700/60 overflow-x-auto no-scrollbar'>
+    <div className='flex items-center gap-1 rounded-xl border border-slate-200/70 bg-slate-100 p-1 dark:border-slate-700/60 dark:bg-slate-800/70 overflow-x-auto no-scrollbar'>
       {tabs.map((t) => (
         <button
           key={t.value}
           type='button'
           onClick={() => onChange(t.value)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 cursor-pointer text-xs font-bold rounded-lg transition-all duration-200 whitespace-nowrap ${
-            value === t.value
-              ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'
+          aria-pressed={value === t.value}
+          className={`fx-tab flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold ${
+            value === t.value ? 'is-active' : ''
           }`}
         >
           <span className={value === t.value ? '' : t.color}>{t.label}</span>
-          <span className='rounded-md bg-slate-300 dark:bg-slate-600/60 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300'>
+          <span className='fx-chip rounded-md px-1.5 py-0.5 text-[9px] font-bold'>
             {counts[t.value]}
           </span>
         </button>
@@ -229,17 +230,29 @@ function TypeFilterTabs({
   );
 }
 
-function CategoryFilterButton({
+/** Trigger + menu for a single-choice filter with per-option counts. */
+function FilterDropdown({
   value,
   onChange,
-  categories,
+  options,
+  counts,
+  label,
+  title,
+  allLabel,
+  width = 208,
 }: {
   value: string;
   onChange: (v: string) => void;
-  categories: string[];
+  options: string[];
+  counts: Record<string, number>;
+  label: string;
+  title: string;
+  allLabel: string;
+  width?: number;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const active = value !== 'all';
 
   return (
     <>
@@ -247,16 +260,18 @@ function CategoryFilterButton({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-xl cursor-pointer border px-3 py-2 text-xs font-bold transition-all ${
-          open || value !== 'all'
-            ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
-            : 'border-slate-300 dark:border-slate-700 bg-slate-200/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'
+        aria-pressed={active}
+        className={`fx-chip flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold dark:border-slate-700 ${
+          active ? 'is-active' : ''
         }`}
       >
         <FiFilter className='h-3 w-3 shrink-0' />
-        <span className='max-w-[80px] sm:max-w-[120px] truncate'>
-          {value === 'all' ? 'All Categories' : value}
+        <span className='max-w-[90px] truncate sm:max-w-[140px]'>
+          {active ? value : label}
         </span>
+        {active && (
+          <span className='shrink-0 tabular-nums opacity-80'>— {counts[value] ?? 0}</span>
+        )}
         <FiChevronDown
           className={`h-3 w-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />
@@ -266,44 +281,103 @@ function CategoryFilterButton({
         open={open}
         onClose={() => setOpen(false)}
         anchorRef={triggerRef}
-        width={208}
-        minWidth={208}
-        maxHeight={280}
-        title='Filter by category'
+        width={width}
+        minWidth={width}
+        maxHeight={300}
+        title={title}
       >
-            <button
-              type='button'
-              onClick={() => {
-                onChange('all');
-                setOpen(false);
-              }}
-              className={`flex w-full items-center cursor-pointer justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === 'all' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'}`}
-            >
-              All Categories
-              {value === 'all' && <FiCheck className='h-3 w-3 shrink-0' />}
-            </button>
-            <div className='h-[1px] w-full bg-slate-200 dark:bg-slate-800' />
-            {categories.map((c) => (
-              <button
-                key={c}
-                type='button'
-                onClick={() => {
-                  onChange(c);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center cursor-pointer justify-between px-4 py-3 text-xs font-semibold transition-colors ${value === c ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'}`}
-              >
-                <span className='truncate'>{c}</span>
-                {value === c && <FiCheck className='shrink-0 h-3 w-3 ml-2' />}
-              </button>
-            ))}
-            {categories.length === 0 && (
-              <div className='px-4 py-3 text-xs text-slate-900 dark:text-slate-500 text-center italic'>
-                No categories
-              </div>
-            )}
+        <button
+          type='button'
+          onClick={() => {
+            onChange('all');
+            setOpen(false);
+          }}
+          className={`fx-menu-item flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-xs font-semibold ${
+            value === 'all' ? 'is-selected' : ''
+          }`}
+        >
+          <span className='truncate'>{allLabel}</span>
+          <span className='shrink-0 tabular-nums opacity-70'>{counts.all ?? 0}</span>
+          {value === 'all' && <FiCheck className='h-3 w-3 shrink-0' />}
+        </button>
+        <div className='h-[1px] w-full bg-slate-200 dark:bg-slate-800' />
+        {options.map((c) => (
+          <button
+            key={c}
+            type='button'
+            onClick={() => {
+              onChange(c);
+              setOpen(false);
+            }}
+            className={`fx-menu-item flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-xs font-semibold ${
+              value === c ? 'is-selected' : ''
+            }`}
+          >
+            <span className='truncate'>{c}</span>
+            <span className='shrink-0 tabular-nums opacity-70'>{counts[c] ?? 0}</span>
+            {value === c && <FiCheck className='ml-1 h-3 w-3 shrink-0' />}
+          </button>
+        ))}
+        {options.length === 0 && (
+          <div className='px-4 py-3 text-center text-xs italic text-slate-500 dark:text-slate-400'>
+            Nothing to filter yet
+          </div>
+        )}
       </Popover>
     </>
+  );
+}
+
+/** Backwards-compatible wrapper — the category filter is one FilterDropdown. */
+function CategoryFilterButton({
+  value,
+  onChange,
+  categories,
+  counts,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  categories: string[];
+  counts: Record<string, number>;
+}) {
+  return (
+    <FilterDropdown
+      value={value}
+      onChange={onChange}
+      options={categories}
+      counts={counts}
+      label='All Categories'
+      allLabel='All Categories'
+      title='Filter by category'
+    />
+  );
+}
+
+/** Subcategory filter — only rendered for categories that define subcategories. */
+function SubcategoryFilterButton({
+  value,
+  onChange,
+  subcategories,
+  counts,
+  category,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  subcategories: string[];
+  counts: Record<string, number>;
+  category: string;
+}) {
+  return (
+    <FilterDropdown
+      value={value}
+      onChange={onChange}
+      options={subcategories}
+      counts={counts}
+      label='All Subcategories'
+      allLabel='All Subcategories'
+      title={`Filter by subcategory · ${category}`}
+      width={220}
+    />
   );
 }
 
@@ -348,7 +422,9 @@ function SortButton({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 rounded-xl cursor-pointer border px-3 py-2 text-xs font-bold transition-all ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 text-emerald-400' : 'border-slate-300 dark:border-slate-700 bg-slate-200/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'}`}
+        className={`fx-chip flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold dark:border-slate-700 ${
+          open ? 'is-active' : ''
+        }`}
       >
         {selected.icon}
         <span className='hidden lg:inline'>{selected.label}</span>
@@ -376,7 +452,9 @@ function SortButton({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-xs cursor-pointer font-semibold transition-colors ${value === opt.value ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'}`}
+                className={`fx-menu-item flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-xs font-semibold ${
+                  value === opt.value ? 'is-selected' : ''
+                }`}
               >
                 {opt.icon}
                 {opt.label}
@@ -411,18 +489,18 @@ function InvDropdown({
         ref={triggerRef}
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center justify-between rounded-xl cursor-pointer border px-4 py-3 text-sm transition-all duration-300 ${open ? 'border-emerald-500/50 bg-slate-200 dark:bg-slate-800 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200/70 dark:bg-slate-800/60'}`}
+        className={`fx-control flex w-full cursor-pointer items-center justify-between rounded-xl border px-4 py-3 text-sm ${
+          open ? 'is-active' : ''
+        }`}
       >
         <div className='flex items-center gap-3'>
-          <FiFilter
-            className={`transition-colors ${open ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
-          />
-          <span className='text-slate-900 dark:text-slate-200 font-medium'>
+          <FiFilter className='h-3.5 w-3.5 shrink-0 opacity-70' />
+          <span className='font-medium'>
             {selected?.label ?? label}
           </span>
         </div>
         <FiChevronDown
-          className={`transition-transform duration-300 text-slate-900 dark:text-slate-500 ${open ? 'rotate-180' : ''}`}
+          className={`h-3.5 w-3.5 shrink-0 opacity-70 transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -443,7 +521,9 @@ function InvDropdown({
                     onChange(opt.key);
                     setOpen(false);
                   }}
-                  className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm cursor-pointer transition-all ${value === opt.key ? 'bg-emerald-500/10 text-emerald-400 font-semibold' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/80 dark:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-900 dark:text-slate-100'}`}
+                  className={`fx-menu-item flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm ${
+                    value === opt.key ? 'is-selected font-semibold' : ''
+                  }`}
                 >
                   <span>{opt.label}</span>
                   {value === opt.key && (
@@ -527,7 +607,11 @@ function SortableHeader({
       onClick={toggle}
     >
       <span
-        className={`flex items-center gap-1.5 ${isActive ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
+        className={`flex items-center gap-1.5 text-slate-500 dark:text-slate-400 ${
+          isActive
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'group-hover:text-slate-900 dark:group-hover:text-slate-100'
+        }`}
       >
         {label}
         <span className='flex flex-col gap-0.5'>
@@ -600,6 +684,7 @@ export function CashflowPage() {
   const deleteCashflow = usePortfolioStore((s) => s.deleteCashflow);
   const deleteCashflows = usePortfolioStore((s) => s.deleteCashflows);
   const accounts = usePortfolioStore((s) => s.accounts);
+  const customSubcategories = usePortfolioStore((s) => s.customSubcategories);
   const { busy: deleteBusy, run: runDelete } = useAsyncAction();
 
   const accountMap = useMemo(() => {
@@ -638,6 +723,7 @@ export function CashflowPage() {
   const [sortKey, setSortKey] = useState<SortKey>('date-desc');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>('all');
 
   // Bulk Delete State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -659,11 +745,29 @@ export function CashflowPage() {
 
   const handlePieClick = (data: any) => {
     if (data && data.name) {
-      setCategoryFilter(data.name);
+      // The pies break down by subcategory while a single category is
+      // filtered, so a slice click drills one level deeper when it can.
+      const matching = periodFilteredRows.find(
+        (r) =>
+          categoryFilter !== 'all' &&
+          r.category === categoryFilter &&
+          (r.subcategory || r.category) === data.name,
+      );
+      if (matching?.subcategory) setSubcategoryFilter(matching.subcategory);
+      else {
+        setCategoryFilter(data.name);
+        setSubcategoryFilter('all');
+      }
       document
         .getElementById('transactions-table-section')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  /** Choosing a category always re-opens the subcategory scope. */
+  const handleCategoryChange = (v: string) => {
+    setCategoryFilter(v);
+    setSubcategoryFilter('all');
   };
 
   const periodFilteredRows = useMemo(() => {
@@ -689,24 +793,102 @@ export function CashflowPage() {
   }, [periodFilteredRows, typeFilter]);
 
   useEffect(() => {
-    if (categoryFilter !== 'all' && !uniqueCategories.includes(categoryFilter))
+    if (categoryFilter !== 'all' && !uniqueCategories.includes(categoryFilter)) {
       setCategoryFilter('all');
+      setSubcategoryFilter('all');
+    }
   }, [uniqueCategories, categoryFilter]);
 
-  const typeCounts = useMemo(
-    () => ({
-      all: periodFilteredRows.length,
-      income: periodFilteredRows.filter((r) => r.type === 'income').length,
-      expense: periodFilteredRows.filter((r) => r.type === 'expense').length,
-    }),
-    [periodFilteredRows],
-  );
-
-  const filteredRows = useMemo(() => {
-    let rows = [...periodFilteredRows];
-    if (typeFilter !== 'all') rows = rows.filter((r) => r.type === typeFilter);
+  // Every filter feeds the one pipeline: period → category → subcategory →
+  // type, so the list, totals, charts, cards and the counts can never drift
+  // apart, and clearing a filter restores the full picture.
+  const categoryScopedRows = useMemo(() => {
+    let rows = periodFilteredRows;
     if (categoryFilter !== 'all')
       rows = rows.filter((r) => r.category === categoryFilter);
+    if (subcategoryFilter !== 'all')
+      rows = rows.filter((r) => (r.subcategory ?? '') === subcategoryFilter);
+    return rows;
+  }, [periodFilteredRows, categoryFilter, subcategoryFilter]);
+
+  const typeScopedRows = useMemo(
+    () =>
+      typeFilter === 'all'
+        ? categoryScopedRows
+        : categoryScopedRows.filter((r) => r.type === typeFilter),
+    [categoryScopedRows, typeFilter],
+  );
+
+  /** All / Income / Expense counts always describe the active
+   *  category + subcategory scope ("Agriculture · Drumstick — All 6"). */
+  const typeCounts = useMemo(
+    () => ({
+      all: categoryScopedRows.length,
+      income: categoryScopedRows.filter((r) => r.type === 'income').length,
+      expense: categoryScopedRows.filter((r) => r.type === 'expense').length,
+    }),
+    [categoryScopedRows],
+  );
+
+  const categoryCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    periodFilteredRows.forEach((r) => {
+      if (typeFilter !== 'all' && r.type !== typeFilter) return;
+      m[r.category] = (m[r.category] ?? 0) + 1;
+    });
+    m.all = Object.values(m).reduce((a, b) => a + b, 0);
+    return m;
+  }, [periodFilteredRows, typeFilter]);
+
+  /** Defined subcategories first, then anything already recorded, so a
+   *  hand-typed or imported value is never invisible to the filter. */
+  const subcategoryOptions = useMemo(() => {
+    if (categoryFilter === 'all') return [];
+    const defined = getSubcategoryOptions(categoryFilter, customSubcategories).map(
+      (s) => s.key,
+    );
+    const recorded = Array.from(
+      new Set(
+        periodFilteredRows
+          .filter((r) => r.category === categoryFilter && r.subcategory)
+          .map((r) => r.subcategory as string),
+      ),
+    );
+    return Array.from(new Set([...defined, ...recorded]));
+  }, [categoryFilter, customSubcategories, periodFilteredRows]);
+
+  useEffect(() => {
+    if (
+      subcategoryFilter !== 'all' &&
+      !subcategoryOptions.includes(subcategoryFilter)
+    )
+      setSubcategoryFilter('all');
+  }, [subcategoryOptions, subcategoryFilter]);
+
+  const subcategoryCounts = useMemo(() => {
+    let rows = periodFilteredRows.filter(
+      (r) => categoryFilter === 'all' || r.category === categoryFilter,
+    );
+    if (typeFilter !== 'all') rows = rows.filter((r) => r.type === typeFilter);
+    const m: Record<string, number> = { all: rows.length };
+    rows.forEach((r) => {
+      if (!r.subcategory) return;
+      m[r.subcategory] = (m[r.subcategory] ?? 0) + 1;
+    });
+    return m;
+  }, [periodFilteredRows, categoryFilter, typeFilter]);
+
+  const filtersActive =
+    typeFilter !== 'all' || categoryFilter !== 'all' || subcategoryFilter !== 'all';
+
+  const clearFilters = () => {
+    setTypeFilter('all');
+    setCategoryFilter('all');
+    setSubcategoryFilter('all');
+  };
+
+  const filteredRows = useMemo(() => {
+    const rows = [...typeScopedRows];
     rows.sort((a, b) => {
       if (sortKey === 'date-desc') return b.date.localeCompare(a.date);
       if (sortKey === 'date-asc') return a.date.localeCompare(b.date);
@@ -715,7 +897,7 @@ export function CashflowPage() {
       return 0;
     });
     return rows;
-  }, [periodFilteredRows, typeFilter, categoryFilter, sortKey]);
+  }, [typeScopedRows, sortKey]);
 
   // SUMMARY LOGIC: every visible stat follows the FULL filter (period +
   // type + category) so totals, counts, charts and the list never disagree.
@@ -770,27 +952,32 @@ export function CashflowPage() {
     [filteredRows],
   );
 
+  // While a single category is selected the pies break the same money down
+  // one level deeper, by subcategory.
+  const chartGroupKey = (r: CashflowEntry) =>
+    categoryFilter !== 'all' && r.subcategory ? r.subcategory : r.category;
+
   const incomeByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
     filteredRows.forEach((r) => {
       if (r.type === 'income')
-        grouped[r.category] = (grouped[r.category] || 0) + r.amount;
+        grouped[chartGroupKey(r)] = (grouped[chartGroupKey(r)] || 0) + r.amount;
     });
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredRows]);
+  }, [filteredRows, categoryFilter]);
 
   const expenseByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
     filteredRows.forEach((r) => {
       if (r.type === 'expense')
-        grouped[r.category] = (grouped[r.category] || 0) + r.amount;
+        grouped[chartGroupKey(r)] = (grouped[chartGroupKey(r)] || 0) + r.amount;
     });
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredRows]);
+  }, [filteredRows, categoryFilter]);
 
   // Selection always tracks the visible (filtered) rows: switching filters
   // drops hidden rows from the selection so bulk actions never touch them.
@@ -977,6 +1164,7 @@ export function CashflowPage() {
                   customEnd,
                   typeFilter,
                   categoryFilter,
+                  subcategoryFilter,
                   sortKey,
                 })}
                 applyState={(s) => {
@@ -999,6 +1187,8 @@ export function CashflowPage() {
                     setTypeFilter(s.typeFilter);
                   if (typeof s.categoryFilter === 'string')
                     setCategoryFilter(s.categoryFilter);
+                  if (typeof s.subcategoryFilter === 'string')
+                    setSubcategoryFilter(s.subcategoryFilter);
                   if (
                     typeof s.sortKey === 'string' &&
                     (s.sortKey === 'date-desc' ||
@@ -1282,9 +1472,29 @@ export function CashflowPage() {
             <div className='flex flex-wrap items-center gap-2'>
               <CategoryFilterButton
                 value={categoryFilter}
-                onChange={setCategoryFilter}
+                onChange={handleCategoryChange}
                 categories={uniqueCategories}
+                counts={categoryCounts}
               />
+              {categoryFilter !== 'all' && subcategoryOptions.length > 0 && (
+                <SubcategoryFilterButton
+                  value={subcategoryFilter}
+                  onChange={setSubcategoryFilter}
+                  subcategories={subcategoryOptions}
+                  counts={subcategoryCounts}
+                  category={categoryFilter}
+                />
+              )}
+              {filtersActive && (
+                <button
+                  type='button'
+                  onClick={clearFilters}
+                  className='fx-chip flex cursor-pointer items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-bold dark:border-slate-700'
+                >
+                  <FiX className='h-3 w-3 shrink-0' />
+                  Clear filters
+                </button>
+              )}
               <span className='text-xs font-medium text-slate-900 dark:text-slate-500 hidden xl:inline ml-1'>
                 Sort by:
               </span>
@@ -1382,6 +1592,11 @@ export function CashflowPage() {
                       </td>
                       <td className='px-5 py-4 font-bold text-slate-900 dark:text-slate-50'>
                         {e.category}
+                        {e.subcategory && (
+                          <span className='ml-2 inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800/70 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
+                            {subcategoryIcon(e.subcategory)} {e.subcategory}
+                          </span>
+                        )}
                       </td>
                       <td className='px-5 py-4 text-slate-500 dark:text-slate-400'>
                         {e.accountId && accountMap[e.accountId] ? (
@@ -1475,6 +1690,11 @@ export function CashflowPage() {
                           <span className='text-base font-bold text-slate-900 dark:text-slate-50'>
                             {e.category}
                           </span>
+                          {e.subcategory && (
+                            <span className='inline-flex w-fit items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800/70 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300'>
+                              {subcategoryIcon(e.subcategory)} {e.subcategory}
+                            </span>
+                          )}
                           <div className='flex flex-wrap items-center gap-2 mt-1'>
                             <span
                               className={

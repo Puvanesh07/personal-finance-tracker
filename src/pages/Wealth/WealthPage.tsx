@@ -13,6 +13,7 @@
 import { FiPercent, FiPieChart } from 'react-icons/fi';
 import { useSearchParams } from 'react-router-dom';
 
+import { FeatureInfo, type FeatureKey } from '../../components/ui/FeatureInfo';
 import { MarketCapAllocationChart } from '../../components/dashboard/MarketCapAllocationChart';
 import { TargetAllocationPanel } from '../../components/investments/TargetAllocationPanel';
 import { InvestmentsSkeleton } from '../../components/loader/skeletons';
@@ -26,11 +27,29 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 type TabId = 'assets' | 'liabilities' | 'networth' | 'allocation';
 type SubId = 'asset' | 'sip';
 
-const TAB_META: Record<TabId, { title: string; sub: string }> = {
-  assets: { title: 'Assets', sub: 'Everything you own — stocks, funds, FDs, gold and more' },
-  liabilities: { title: 'Liabilities', sub: 'What you owe — loans, cards and money borrowed' },
-  networth: { title: 'Net Worth', sub: 'Track your wealth at a point in time' },
-  allocation: { title: 'Allocation', sub: 'Asset allocation & rebalancing' },
+/** `feature` drives the ⓘ panel — what the tab does, what it tracks, how the
+ *  numbers are calculated and how they connect to the rest of FinTrackly. */
+const TAB_META: Record<TabId, { title: string; sub: string; feature: FeatureKey }> = {
+  assets: {
+    title: 'Assets',
+    sub: 'Everything you own — stocks, funds, FDs, gold and more',
+    feature: 'investments',
+  },
+  liabilities: {
+    title: 'Liabilities',
+    sub: 'What you owe — loans, cards and money borrowed',
+    feature: 'liabilities',
+  },
+  networth: {
+    title: 'Net Worth',
+    sub: 'Track your wealth at a point in time',
+    feature: 'networth',
+  },
+  allocation: {
+    title: 'Allocation',
+    sub: 'Asset allocation & rebalancing',
+    feature: 'allocation',
+  },
 };
 
 export function WealthPage() {
@@ -52,7 +71,7 @@ export function WealthPage() {
   if (!ready) return <InvestmentsSkeleton />;
 
   const tabCls = (id: TabId) =>
-    `cursor-pointer border-b-2 px-4 py-2.5 text-sm font-bold transition-colors ${
+    `shrink-0 cursor-pointer border-b-2 px-3 py-2.5 text-sm font-bold transition-colors sm:px-4 ${
       tab === id
         ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
         : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -62,8 +81,9 @@ export function WealthPage() {
     <div className='flex flex-col gap-6 pb-10 animate-in fade-in duration-500'>
       {/* ── Page header ── */}
       <header className='flex flex-col gap-1'>
-        <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
+        <h1 className='flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl dark:text-white'>
           {TAB_META[tab].title}
+          <FeatureInfo feature={TAB_META[tab].feature} align='left' />
         </h1>
         <p className='text-sm font-medium text-slate-600 dark:text-slate-300'>
           {TAB_META[tab].sub}
@@ -71,7 +91,7 @@ export function WealthPage() {
       </header>
 
       {/* ── Tabs ── */}
-      <div className='flex gap-2 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800'>
+      <div className='flex gap-1 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 sm:gap-2'>
         <button type='button' className={tabCls('assets')} onClick={() => setTab('assets')}>
           Assets
         </button>
@@ -98,7 +118,7 @@ export function WealthPage() {
       {tab === 'allocation' && (
         <div className='flex flex-col gap-6'>
           {/* Sub-tabs */}
-          <div className='flex items-center gap-2'>
+          <div className='flex flex-wrap items-center gap-2'>
             <button
               type='button'
               onClick={() => setTab('allocation', 'asset')}

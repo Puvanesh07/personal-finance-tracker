@@ -4,6 +4,13 @@ import { usePrivacyStore } from '../store/privacyStore';
 
 const MASK = '*****';
 
+/**
+ * The application-wide currency. Records (liabilities, investments, …) keep a
+ * `currency` field for storage compatibility, but the user never picks it per
+ * record — everything is written with this default.
+ */
+export const APP_CURRENCY = 'INR';
+
 function shouldMask() {
   return usePrivacyStore.getState().hideAmounts;
 }

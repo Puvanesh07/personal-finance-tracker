@@ -16,6 +16,7 @@ import type {
 import {
   calcLiveAccountBalances,
   currentValue,
+  accountTypeLabel,
   investedValue,
   profitLoss,
   typeLabel,
@@ -64,7 +65,7 @@ export function toFlatInvestmentRows(investments: Investment[]) {
 function toFlatAccountRows(accounts: Account[], live?: Record<string, number>) {
   return accounts.map((a) => ({
     Name: a.name,
-    Type: a.type === 'bank' ? 'Bank Account' : 'Credit Card',
+    Type: accountTypeLabel(a),
     Balance: live?.[a.id] ?? a.balance,
     'Created At': a.createdAt,
   }));
@@ -80,6 +81,7 @@ function toFlatCashflowRows(cashflows: any[], accounts: Account[]) {
     Date: cf.date,
     Type: cf.type,
     Category: cf.category,
+    Subcategory: cf.subcategory ?? '',
     Account: cf.accountId ? (accountMap[cf.accountId] ?? cf.accountId) : '',
     Amount: cf.amount,
     Notes: cf.notes ?? '',

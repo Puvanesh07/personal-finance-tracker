@@ -240,7 +240,7 @@ function RichAssetDropdown({
           </div>
         </div>
         <FiChevronDown
-          className={`h-4 w-4 transition-transform duration-200 text-slate-500 dark:text-slate-400 ${open ? 'rotate-180 text-emerald-400' : ''}`}
+          className={`h-4 w-4 transition-transform duration-200 text-slate-500 dark:text-slate-400 ${open ? 'rotate-180 text-emerald-600 dark:text-emerald-400' : ''}`}
         />
       </button>
 
@@ -288,7 +288,7 @@ function RichAssetDropdown({
                             </div>
                             <div className='flex flex-col'>
                               <span
-                                className={`text-sm font-bold ${isSelected ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
+                                className={`text-sm font-bold ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-100'}`}
                               >
                                 {opt.label}
                               </span>
@@ -298,7 +298,7 @@ function RichAssetDropdown({
                             </div>
                           </div>
                           {isSelected && (
-                            <FiCheck className='h-4 w-4 text-emerald-400 shrink-0' />
+                            <FiCheck className='h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0' />
                           )}
                         </button>
                       );
@@ -658,9 +658,12 @@ export function UpsertInvestmentModal(props: Props) {
       open={props.open}
       onClose={props.onClose}
       title={props.mode === 'create' ? 'Add New Asset' : 'Edit Asset Details'}
+      subtitle='Quantity, price and dates you enter here drive portfolio value, P&L, XIRR, allocation and Net Worth automatically.'
     >
-      <div className='flex flex-col max-h-[60vh] md:max-h-none'>
-        <div className='mb-6 shrink-0'>
+      {/* Single scroll context — the Modal body already scrolls and is sized to
+          the visual viewport, so no max-height / nested overflow here. */}
+      <div className='flex flex-col'>
+        <div className='mb-4 shrink-0 md:mb-6'>
           <label className={labelCls}>Asset Category</label>
           <RichAssetDropdown
             value={state.uiCategory}
@@ -674,8 +677,8 @@ export function UpsertInvestmentModal(props: Props) {
           />
         </div>
 
-        <div className='overflow-y-auto md:overflow-visible custom-scrollbar pr-2 -mr-2 md:pr-0 md:mr-0 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 p-4 space-y-5'>
-          <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+        <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 p-3 space-y-4 md:p-4 md:space-y-5'>
+          <div className='grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4'>
             <div>
               <label className={labelCls}>Asset Name</label>
               <input
@@ -733,7 +736,7 @@ export function UpsertInvestmentModal(props: Props) {
                   type='button'
                   onClick={autoDetectSector}
                   disabled={detecting || !state.symbol.trim()}
-                  className='flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50'
+                  className='flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50'
                 >
                   <FiZap className='h-3 w-3' />
                   {detecting ? 'Detecting…' : 'Auto-Detect'}
@@ -749,7 +752,7 @@ export function UpsertInvestmentModal(props: Props) {
               />
               {detectMsg && (
                 <p
-                  className={`mt-1.5 text-xs font-semibold ${detectMsg.startsWith('✓') ? 'text-emerald-400' : 'text-rose-400'}`}
+                  className={`mt-1.5 text-xs font-semibold ${detectMsg.startsWith('✓') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
                 >
                   {detectMsg}
                 </p>
@@ -764,8 +767,8 @@ export function UpsertInvestmentModal(props: Props) {
               <div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-3'>
                 <div className='flex items-center justify-between'>
                   <div className='flex items-center gap-2'>
-                    <FiGlobe className='h-4 w-4 text-blue-400' />
-                    <span className='text-xs font-bold text-blue-400 uppercase tracking-widest'>
+                    <FiGlobe className='h-4 w-4 text-blue-500 dark:text-blue-400' />
+                    <span className='text-xs font-bold text-blue-700 uppercase tracking-widest dark:text-blue-400'>
                       USD → INR Conversion
                     </span>
                   </div>
@@ -773,7 +776,7 @@ export function UpsertInvestmentModal(props: Props) {
                     type='button'
                     onClick={() => void refreshUsdRate()}
                     disabled={fetchingRate}
-                    className='flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50'
+                    className='flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-500/20 dark:text-blue-400 transition-colors disabled:opacity-50'
                   >
                     <FiRefreshCw
                       className={`h-3 w-3 ${fetchingRate ? 'animate-spin' : ''}`}
@@ -782,7 +785,7 @@ export function UpsertInvestmentModal(props: Props) {
                   </button>
                 </div>
 
-                <div className='grid grid-cols-3 gap-3'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-3'>
                   <div>
                     <label className={labelCls}>Avg Buy Price (USD)</label>
 
@@ -817,7 +820,7 @@ export function UpsertInvestmentModal(props: Props) {
 
                 {/* Converted INR preview */}
                 {toNumber(state.usdToInr) > 0 && (
-                  <div className='grid grid-cols-2 gap-3 pt-1'>
+                  <div className='grid grid-cols-2 gap-2 pt-1 md:gap-3'>
                     <div className='rounded-lg bg-slate-200/70 dark:bg-slate-800/60 px-3 py-2'>
                       <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
                         Buy Price (INR)
@@ -833,7 +836,7 @@ export function UpsertInvestmentModal(props: Props) {
                       <p className='text-[10px] text-slate-500 dark:text-slate-400 mb-0.5'>
                         Current Price (INR)
                       </p>
-                      <p className='text-sm font-bold text-emerald-400'>
+                      <p className='text-sm font-bold text-emerald-600 dark:text-emerald-400'>
                         ₹
                         {(
                           toNumber(state.currentPriceUsd) *
@@ -1025,8 +1028,8 @@ export function UpsertInvestmentModal(props: Props) {
           {state.type === 'bond' && (
             <div className='rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-4'>
               <div className='flex items-center gap-2'>
-                <FiBriefcase className='h-4 w-4 text-violet-400' />
-                <span className='text-xs font-bold uppercase tracking-widest text-violet-400'>
+                <FiBriefcase className='h-4 w-4 text-violet-500 dark:text-violet-400' />
+                <span className='text-xs font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400'>
                   Interest Auto-Tracking
                 </span>
               </div>
@@ -1068,7 +1071,7 @@ export function UpsertInvestmentModal(props: Props) {
                   <option value=''>— No linked account —</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({a.type === 'credit' ? 'Credit' : 'Bank'})
+                      {a.name} ({a.type === 'credit' ? 'Credit' : a.type === 'cash' ? 'Cash' : 'Bank'})
                     </option>
                   ))}
                 </select>

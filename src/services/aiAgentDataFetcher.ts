@@ -13,6 +13,7 @@ import {
   currentValue,
   getLiveBankTotal,
   investedValue,
+  isCashBalanceAccount,
 } from '../utils/calculations';
 import { usePortfolioStore } from '../store/portfolioStore';
 import type { StockInvestment, MutualFundInvestment } from '../types/investmentTypes';
@@ -601,16 +602,28 @@ function fetchTodayCashflow(): AgentDataResult {
   ];
   if (inc.length) {
     lines.push(``, `### 💰 Income`, `| Category | Amount | Notes |`, `|---|---|---|`,
-      ...inc.map((e) => `| **${e.category}** | ${formatINR(e.amount)} | ${e.notes ?? '—'} |`));
+      ...inc.map((e) => `| **${e.category}${e.subcategory ? ` · ${e.subcategory}` : ''}** | ${formatINR(e.amount)} | ${e.notes ?? '—'} |`));
   }
   if (exp.length) {
     lines.push(``, `### 💸 Expenses`, `| Category | Amount | Notes |`, `|---|---|---|`,
-      ...exp.map((e) => `| **${e.category}** | ${formatINR(e.amount)} | ${e.notes ?? '—'} |`));
+      ...exp.map((e) => `| **${e.category}${e.subcategory ? ` · ${e.subcategory}` : ''}** | ${formatINR(e.amount)} | ${e.notes ?? '—'} |`));
     const catMap  = exp.reduce((acc, e) => { acc[e.category] = (acc[e.category] ?? 0) + e.amount; return acc; }, {} as Record<string, number>);
     const cats    = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
     if (cats.length > 1) {
       lines.push(``, `### 📊 Spending by Purpose`);
       cats.forEach(([cat, amt]) => lines.push(`- **${cat}**: ${formatINR(amt)} (${pct(amt, tExp)})`));
+    }
+    // Sub-category drill-down (e.g. Agriculture → Fertilizer / Labour).
+    const subMap = exp.reduce((acc, e) => {
+      if (!e.subcategory) return acc;
+      const k = `${e.category} → ${e.subcategory}`;
+      acc[k] = (acc[k] ?? 0) + e.amount;
+      return acc;
+    }, {} as Record<string, number>);
+    const subs = Object.entries(subMap).sort((a, b) => b[1] - a[1]);
+    if (subs.length > 1) {
+      lines.push(``, `### 🌿 Spending by sub-category`);
+      subs.forEach(([cat, amt]) => lines.push(`- **${cat}**: ${formatINR(amt)} (${pct(amt, tExp)})`));
     }
   }
   lines.push(``, `*From your FinTrackly Cashflow data.*`);
@@ -1445,7 +1458,7 @@ function fetchAccountsDistribution(): AgentDataResult {
 
 function fetchAccountsCash(): AgentDataResult {
   const { accounts, essentials, cashflows } = usePortfolioStore.getState();
-  const bankAccounts = accounts.filter((a) => a.type === 'bank');
+  const bankAccounts = accounts.filter(isCashBalanceAccount);
   const live   = calcLiveAccountBalances(accounts, cashflows);
   const total  = getLiveBankTotal(accounts, cashflows);
   const efCurr = essentials.emergencyFundCurrent ?? 0;
@@ -1453,7 +1466,7 @@ function fetchAccountsCash(): AgentDataResult {
     `## 💵 Cash Position`,
     ``,
     `| | |`, `|---|---|`,
-    `| **Bank Account Balance** | ${formatINR(total)} |`,
+    `| **Cash & Bank Balances** | ${formatINR(total)} |`,
     `| **Emergency Fund (set aside)** | ${formatINR(efCurr)} |`,
     `| **Total Liquid Cash** | ${formatINR(total + efCurr)} |`,
     ``,

@@ -11,7 +11,7 @@ import {
   useState, useCallback, useEffect, useRef, useMemo,
 } from 'react';
 import {
-  FiPlus, FiX, FiCheck, FiChevronDown,
+  FiPlus, FiX, FiCheck,
   FiArrowLeft, FiLoader,
 } from 'react-icons/fi';
 import { usePortfolioStore } from '../../store/portfolioStore';

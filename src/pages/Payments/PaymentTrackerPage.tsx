@@ -2,6 +2,7 @@
   FiAlertCircle,
   FiCalendar,
   FiCheck,
+  FiChevronRight,
   FiClock,
   FiDownload,
   FiEdit2,
@@ -20,6 +21,7 @@ import {
   computePaymentStats,
   daysUntilDue,
   paymentTypeLabel,
+  RECURRENCE_LABELS,
   seriesSummary,
 } from '../../utils/paymentTracker';
 import { formatINR } from '../../utils/format';
@@ -73,6 +75,19 @@ function StatusBadge({ payment }: { payment: TrackedPayment }) {
   );
 }
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className='flex items-start justify-between gap-4 py-2.5'>
+      <dt className='shrink-0 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+        {label}
+      </dt>
+      <dd className='min-w-0 text-right text-sm font-semibold text-slate-900 dark:text-slate-100'>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 export function PaymentTrackerPage() {
   const { premiumActionProps } = usePremiumActions();
   const ready = usePortfolioStore((s) => s.ready);
@@ -87,6 +102,8 @@ export function PaymentTrackerPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<TrackedPayment | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  /** Open bill in the read-only detail sheet (calendar view). */
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const stats = useMemo(
     () => computePaymentStats(trackedPayments),
@@ -110,6 +127,28 @@ export function PaymentTrackerPage() {
     });
     return Array.from(map.entries());
   }, [filtered]);
+
+  // Read straight from the store so the detail sheet refreshes itself when the
+  // bill is marked paid / edited underneath it.
+  const detailPayment = detailId
+    ? trackedPayments.find((p) => p.id === detailId) ?? null
+    : null;
+
+  const openEdit = (p: TrackedPayment) => {
+    setDetailId(null);
+    setEditPayment(p);
+    setModalOpen(true);
+  };
+
+  const markPaidNow = (p: TrackedPayment) =>
+    void run(async () => {
+      setPayingId(p.id);
+      try {
+        await markPaid(p.id);
+      } finally {
+        setPayingId(null);
+      }
+    });
 
   const tabCls = (tab: FilterTab) =>
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -293,16 +332,7 @@ if (!ready) return <GoalsSkeleton />;
                             title='Mark paid'
                             disabled={actionBusy}
                             className='btn-icon btn-icon-edit h-8 w-8 text-emerald-600 disabled:opacity-50'
-                            onClick={() =>
-                              void run(async () => {
-                                setPayingId(p.id);
-                                try {
-                                  await markPaid(p.id);
-                                } finally {
-                                  setPayingId(null);
-                                }
-                              })
-                            }
+                            onClick={() => markPaidNow(p)}
                           >
                             {payingId === p.id ? (
                               <ButtonSpinner className='h-4 w-4' />
@@ -315,10 +345,7 @@ if (!ready) return <GoalsSkeleton />;
                           type='button'
                           title='Edit'
                           className='btn-icon btn-icon-edit h-8 w-8'
-                          onClick={() => {
-                            setEditPayment(p);
-                            setModalOpen(true);
-                          }}
+                          onClick={() => openEdit(p)}
                         >
                           <FiEdit2 className='h-4 w-4' />
                         </button>
@@ -351,12 +378,15 @@ if (!ready) return <GoalsSkeleton />;
               </h3>
               <div className='space-y-2'>
                 {items.map((p) => (
-                  <div
+                  <button
                     key={p.id}
-                    className='flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/40 px-4 py-3'
+                    type='button'
+                    onClick={() => setDetailId(p.id)}
+                    aria-label={`View details for ${p.title}`}
+                    className='flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-left transition-colors hover:border-sky-400/60 hover:bg-sky-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40'
                   >
-                    <div>
-                      <p className='font-semibold text-slate-900 dark:text-slate-100'>
+                    <div className='min-w-0'>
+                      <p className='truncate font-semibold text-slate-900 dark:text-slate-100'>
                         {p.title}
                       </p>
                       <p className='text-xs text-slate-500'>
@@ -369,8 +399,9 @@ if (!ready) return <GoalsSkeleton />;
                         {formatINR(p.amount)}
                       </span>
                       <StatusBadge payment={p} />
+                      <FiChevronRight className='h-4 w-4 shrink-0 text-slate-400' />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -388,6 +419,126 @@ if (!ready) return <GoalsSkeleton />;
           ? { mode: 'edit' as const, payment: editPayment }
           : { mode: 'create' as const })}
       />
+
+      {/* ── Bill detail — opened from the calendar view ── */}
+      <Modal
+        open={!!detailPayment}
+        onClose={() => setDetailId(null)}
+        title={detailPayment?.title ?? 'Payment details'}
+        subtitle={
+          detailPayment
+            ? `${paymentTypeLabel(detailPayment.paymentType)} · due ${format(
+                parseISO(detailPayment.dueDate),
+                'dd MMM yyyy',
+              )}`
+            : undefined
+        }
+      >
+        {detailPayment && (
+          <div className='space-y-4'>
+            <div className='flex items-center justify-between gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/5 px-4 py-3'>
+              <span className='text-2xl font-black tabular-nums text-sky-600 dark:text-sky-400'>
+                {formatINR(detailPayment.amount)}
+              </span>
+              <StatusBadge payment={detailPayment} />
+            </div>
+
+            <dl className='divide-y divide-slate-200/70 text-slate-900 dark:divide-slate-800/60 dark:text-slate-100'>
+              <DetailRow
+                label='Due date'
+                value={format(parseISO(detailPayment.dueDate), 'dd MMM yyyy')}
+              />
+              <DetailRow
+                label='Recurrence'
+                value={RECURRENCE_LABELS[detailPayment.recurrence] ?? 'One-time'}
+              />
+              {seriesSummary(detailPayment) && (
+                <DetailRow label='Series' value={seriesSummary(detailPayment)!} />
+              )}
+              <DetailRow
+                label='Reminders'
+                value={
+                  detailPayment.reminderDays.length
+                    ? `${detailPayment.reminderDays.join(', ')} day(s) before`
+                    : 'None'
+                }
+              />
+              {detailPayment.status === 'paid' && detailPayment.paidAt && (
+                <DetailRow
+                  label='Paid on'
+                  value={format(parseISO(detailPayment.paidAt), 'dd MMM yyyy')}
+                />
+              )}
+              {detailPayment.endDate && (
+                <DetailRow
+                  label='Series ends'
+                  value={format(parseISO(detailPayment.endDate), 'dd MMM yyyy')}
+                />
+              )}
+              {detailPayment.notes && (
+                <DetailRow label='Notes' value={detailPayment.notes} />
+              )}
+              {detailPayment.insurancePolicyId && (
+                <DetailRow label='Linked to' value='Insurance policy premium' />
+              )}
+            </dl>
+
+            {detailPayment.status === 'pending' && (
+              <p className='text-xs font-medium text-slate-500 dark:text-slate-400'>
+                {(() => {
+                  const d = daysUntilDue(detailPayment.dueDate);
+                  if (d < 0) return `Overdue by ${Math.abs(d)} day(s).`;
+                  if (d === 0) return 'Due today.';
+                  return `Due in ${d} day(s).`;
+                })()}
+              </p>
+            )}
+
+            <div className='grid grid-cols-2 gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-800/60 sm:flex sm:justify-end'>
+              {detailPayment.status === 'pending' && (
+                <button
+                  type='button'
+                  disabled={actionBusy || payingId === detailPayment.id}
+                  onClick={() => markPaidNow(detailPayment)}
+                  className='inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50'
+                >
+                  {payingId === detailPayment.id ? (
+                    <ButtonSpinner className='h-4 w-4' />
+                  ) : (
+                    <FiCheck className='h-4 w-4' />
+                  )}
+                  Mark as Paid
+                </button>
+              )}
+              <button
+                type='button'
+                onClick={() => openEdit(detailPayment)}
+                className='inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'
+              >
+                <FiEdit2 className='h-4 w-4' /> Edit
+              </button>
+              <button
+                type='button'
+                onClick={() => {
+                  const id = detailPayment.id;
+                  setDetailId(null);
+                  setDeleteId(id);
+                }}
+                className='inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400 dark:hover:bg-rose-900/20'
+              >
+                <FiTrash2 className='h-4 w-4' /> Delete
+              </button>
+              <button
+                type='button'
+                onClick={() => setDetailId(null)}
+                className='inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={!!deleteId}

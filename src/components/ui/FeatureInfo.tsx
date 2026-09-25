@@ -35,6 +35,8 @@ export type FeatureKey =
   | 'cfo'
   | 'tools'
   | 'snapshots'
+  | 'networth'
+  | 'allocation'
   | 'reports'
   | 'notifications'
   | 'settings'
@@ -139,14 +141,15 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
 
   accounts: {
     emoji: '🏧',
-    summary: 'Link your bank accounts and credit cards so your account balances stay accurate automatically.',
-    what: 'The Accounts module tracks your bank accounts and credit cards. When you link cashflow entries to an account, the balance updates automatically — no manual entry needed.',
-    why: 'Knowing how much liquid cash you have across all accounts is essential for short-term financial decisions. It also feeds the Dashboard\'s "Available Cash" metric.',
-    how: 'Tap "+ Add Account" with name, type (Bank/Credit), and opening balance on a specific date. Then when you log cashflow entries, select the account — balances update live.',
+    summary: 'Link your bank accounts, credit cards and cash in hand so your available balances stay accurate automatically.',
+    what: 'The Accounts module tracks your bank accounts, credit cards and a built-in "Cash in Hand" figure. When you link cashflow entries to an account, that balance updates automatically — no manual recalculation needed.',
+    why: 'Knowing how much liquid cash you have across banks, wallets and physical cash is essential for short-term financial decisions. It also feeds the Dashboard\'s "Available Cash" metric and your Net Worth.',
+    how: 'Tap "+ Add Account" with name, type (Bank/Credit), and opening balance on a specific date. Set Cash in Hand with a single number. Then when you log cashflow entries, select the account — balances update live.',
     questions: [
       { q: 'What is Opening Balance?', a: 'Your account balance on the date you start tracking. Future cashflow adds or subtracts from this to keep the balance accurate.' },
       { q: 'Why is my balance wrong?', a: 'Check that cashflow entries are linked to this account and the opening balance date is correct. Entries before the opening date are excluded.' },
       { q: 'Should I add credit cards?', a: 'Yes — add them as "Credit" type. Your credit card balance represents a liability (money you owe), so it helps track total debt accurately.' },
+      { q: 'What is Cash in Hand?', a: 'Physical money you carry or keep at home. It is added to your available cash everywhere (Dashboard, Net Worth, Reports, AI answers) and counted only once — money you spend from it is recorded as a normal cashflow, so it leaves Cash in Hand rather than being double-tracked.' },
     ],
   },
 
@@ -324,6 +327,34 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
     ],
   },
 
+  networth: {
+    emoji: '💎',
+    summary: 'One number that says where you actually stand: everything you own minus everything you owe.',
+    what: 'Net Worth = Total Assets − Total Liabilities + Cashflow Savings. Assets counted here are your live bank balances (including In-Hand cash), the current value of every investment, and money owed to you. Liabilities are your active loans, credit-card bills and amounts borrowed.',
+    why: 'A big salary means little if nothing is left after debts. Net worth is the only headline number that captures the whole picture, and the direction it moves month over month is the real measure of financial progress.',
+    how: 'Nothing to fill in here — it is calculated live from Assets, Liabilities, Accounts and Cashflow. Take a Snapshot each month to freeze the number, and the Timeline tab plots how it changes.',
+    questions: [
+      { q: 'Why isn\'t my cash counted twice?', a: 'Cashflow entries linked to an account already moved that account\'s balance, so only entries with no linked account are added on top as "cashflow savings". That keeps the total honest.' },
+      { q: 'Do settled loans count?', a: 'No. Only active liabilities reduce your net worth — a loan marked paid off or returned is excluded.' },
+      { q: 'What is included in Assets?', a: 'Live bank and cash balances, current market value of stocks, mutual funds, FDs, bonds, gold, real estate and other holdings, plus pending money owed to you (principal + accrued interest).' },
+      { q: 'My net worth dropped — is that a problem?', a: 'Check the Assets tab first: investment values follow the market, so a fall in paper value lowers net worth without you spending anything. Look at the trend over months, not days.' },
+    ],
+  },
+
+  allocation: {
+    emoji: '🥧',
+    summary: 'See how your money is spread across asset types and how far it has drifted from your target mix.',
+    what: 'Allocation splits your investable assets two ways — by instrument (equity, mutual funds, FD, bonds, gold, real estate, cash) and by market cap (large, mid, small). The Monthly SIP Plan tab splits your planned monthly investment across instruments instead.',
+    why: 'Returns come mainly from how you allocate, not which stock you pick. A glance shows if you are over-concentrated (e.g. 80% in one broker or no debt at all) before a market move teaches it the hard way.',
+    how: 'Set a target % per asset class on this page. FinTrackly compares it with your actual holding values and shows the drift, plus ₹ worth of buying or selling needed to rebalance. Everything feeds from the Assets tab — nothing is entered twice.',
+    questions: [
+      { q: 'How are the percentages calculated?', a: 'Each holding\'s current value is bucketed by its asset type, then divided by the total investable value. Cash and In-Hand amounts are shown separately from invested assets.' },
+      { q: 'What is a sensible target mix?', a: 'A common starting rule is "100 minus your age" in equity, the rest in debt and gold — but adjust for your goals, EMIs and emergency fund. The targets here are yours to set.' },
+      { q: 'When should I rebalance?', a: 'When a class drifts more than about 5% from target, or once or twice a year. Rebalancing sells what has run up and buys what has lagged, which enforces buy-low discipline.' },
+      { q: 'Does the SIP Plan change my investments?', a: 'No. It is a budget for the month; recording what you actually invested still happens in the Assets tab (or via a SIP entry).' },
+    ],
+  },
+
   reports: {
     emoji: '📑',
     summary: 'A complete financial report — income, expenses, investments, goals, and insurance in one document.',
@@ -396,8 +427,9 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
   const positionPanel = () => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const panelWidth = 340;
     const margin = 8;
+    // Fit narrow phones instead of assuming 340px of room.
+    const panelWidth = Math.min(340, window.innerWidth - margin * 2);
 
     let left = rect.right - panelWidth; // right-align by default
     if (align === 'left')   left = rect.left;
@@ -406,7 +438,14 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
     // Clamp so panel never goes off-screen
     left = Math.max(margin, Math.min(left, window.innerWidth - panelWidth - margin));
 
-    const top = rect.bottom + 6; // 6px gap below button
+    // Open upward when there is no room below — keeps the panel on screen when
+    // the icon sits near the bottom of a short (mobile) viewport.
+    const estimatedH = expanded ? 420 : 190;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top =
+      spaceBelow < estimatedH + 16 && rect.top > spaceBelow
+        ? Math.max(margin, rect.top - estimatedH - 6)
+        : rect.bottom + 6;
 
     setPanelStyle({ position: 'fixed', top, left, width: panelWidth });
   };
@@ -428,12 +467,14 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
     document.addEventListener('mousedown', onPointer);
     document.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
     return () => {
       document.removeEventListener('mousedown', onPointer);
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
     };
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, expanded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!content) return null;
 
@@ -505,7 +546,7 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
 
     {/* ── Expanded detail ── */}
     {expanded && (
-      <div className='max-h-[380px] overflow-y-auto overscroll-contain'>
+      <div className='max-h-[60vh] overflow-y-auto overscroll-contain sm:max-h-[380px]'>
         <div className='px-4 pt-4 pb-2 space-y-4'>
           {[
             { label: '📌 What is it?',        text: content.what },
