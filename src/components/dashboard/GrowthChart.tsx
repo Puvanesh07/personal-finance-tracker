@@ -5,12 +5,12 @@
 import { useMemo } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { usePortfolioStore } from '../../store/portfolioStore'
-import { Card } from '../ui/Card'
 import { formatINR } from '../../utils/format'
 import { FiCamera, FiTrendingUp } from 'react-icons/fi'
 import { useAsyncAction } from '../../hooks/useAsyncAction'
 import { AsyncButton } from '../ui/AsyncButton'
 import { useNavigate } from 'react-router-dom'
+import { ACCENT, DashboardCard } from './DashboardCard'
 
 export function GrowthChart() {
   // Use networthSnapshots (manual snapshots with full detail) for the chart.
@@ -31,14 +31,17 @@ export function GrowthChart() {
   )
 
   return (
-    <Card
-      title={<div className="flex items-center gap-2"><FiTrendingUp className="text-emerald-500"/> Net Worth Growth</div>}
-      right={
+    <DashboardCard
+      icon={<FiTrendingUp className='h-5 w-5' />}
+      accent={ACCENT.emerald}
+      title='Net Worth Growth'
+      subtitle='How your wealth has changed'
+      action={
         <AsyncButton
           type="button"
           busy={busy}
           loadingLabel="Going…"
-          className="group flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50/50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+          className="group flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/50 px-3 py-1.5 text-[11px] font-bold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
           onClick={() => void run(() => { navigate('/wealth?tab=networth'); return Promise.resolve(); })}
         >
           <FiCamera className="h-3.5 w-3.5" />
@@ -91,6 +94,6 @@ export function GrowthChart() {
         )}
       </div>
       </div>
-    </Card>
+    </DashboardCard>
   )
 }

@@ -1,13 +1,12 @@
 // src/components/dashboard/DashboardLiabilitiesSummary.tsx
-import { FiArrowUpRight, FiTrendingDown } from 'react-icons/fi';
+import { FiTrendingDown } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
-import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useMemo } from 'react';
+import { ACCENT, CardGo, DashboardCard } from './DashboardCard';
 
 export function DashboardLiabilitiesSummary() {
   const liabilities = usePortfolioStore((s) => s.liabilities) ?? [];
-  const navigate = useNavigate();
 
   const active = liabilities.filter(
     (l) => l.status !== 'paid' && l.status !== 'returned',
@@ -27,55 +26,52 @@ export function DashboardLiabilitiesSummary() {
   }, [active]);
 
   return (
-    <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
-      <div className='mb-4 flex items-center justify-between'>
-        <h2 className='flex items-center gap-2 text-base font-bold text-slate-900 dark:text-slate-100'>
-          <FiTrendingDown className='text-rose-400' />
-          Liabilities
-        </h2>
-        <button
-          onClick={() => navigate('/wealth?tab=liabilities')}
-          title='Go to Liabilities'
-          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-rose-400 transition-colors'
-        >
-          <FiArrowUpRight className='h-4 w-4' />
-        </button>
-      </div>
-
+    <DashboardCard
+      icon={<FiTrendingDown className='h-5 w-5' />}
+      accent={ACCENT.rose}
+      title='Liabilities'
+      subtitle='Loans & outstanding debt'
+      action={<CardGo to='/wealth?tab=liabilities' />}
+    >
       {active.length === 0 ? (
-        <div className='flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-8 text-center'>
+        <div className='flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700'>
           <FiTrendingDown className='h-6 w-6 text-slate-300 dark:text-slate-600' />
-          <p className='text-xs text-slate-400 dark:text-slate-400'>
+          <p className='text-sm text-slate-500 dark:text-slate-400'>
             {liabilities.length > 0 ? 'All liabilities cleared!' : 'No liabilities recorded'}
           </p>
         </div>
       ) : (
         <>
-          <div className='mb-4'>
-            <p className='text-xs font-medium text-slate-500 uppercase tracking-wider'>Total Outstanding</p>
-            <p className='text-2xl font-bold text-rose-400 tabular-nums'>{formatINR(totalOutstanding)}</p>
+          <div className='mb-5'>
+            <p className='text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+              Total Outstanding
+            </p>
+            <p className='mt-1 text-3xl font-black tracking-tight text-rose-600 tabular-nums dark:text-rose-400'>
+              {formatINR(totalOutstanding)}
+            </p>
           </div>
 
-          <div className='mt-auto grid grid-cols-2 gap-3 border-t border-slate-200/70 dark:border-slate-800/60 pt-4'>
-            <div>
-              <p className='text-xs font-medium text-slate-500 mb-1'>Active Loans</p>
-              <p className='text-sm font-bold text-slate-700 dark:text-slate-200'>{active.length}</p>
+          <div className='grid grid-cols-2 gap-3'>
+            <div className='rounded-2xl bg-slate-50/80 px-4 py-3 dark:bg-slate-800/40'>
+              <p className='text-xs font-medium text-slate-500 dark:text-slate-400'>Active Loans</p>
+              <p className='mt-0.5 text-lg font-black text-slate-800 dark:text-slate-100'>{active.length}</p>
             </div>
-            <div>
-              <p className='text-xs font-medium text-slate-500 mb-1'>Monthly EMI</p>
-              <p className='text-sm font-bold text-rose-400 tabular-nums'>{formatINR(totalEmiMonthly)}</p>
+            <div className='rounded-2xl bg-slate-50/80 px-4 py-3 dark:bg-slate-800/40'>
+              <p className='text-xs font-medium text-slate-500 dark:text-slate-400'>Monthly EMI</p>
+              <p className='mt-0.5 text-lg font-black text-rose-600 tabular-nums dark:text-rose-400'>
+                {formatINR(totalEmiMonthly)}
+              </p>
             </div>
             {overdueCount > 0 && (
-              <div className='col-span-2'>
-                <p className='text-xs font-medium text-rose-500 mb-1'>Overdue</p>
-                <p className='text-sm font-bold text-rose-400'>
-                  {overdueCount} loan{overdueCount !== 1 ? 's' : ''} past due
+              <div className='col-span-2 rounded-2xl border border-rose-500/20 bg-rose-500/5 px-4 py-2.5'>
+                <p className='text-sm font-bold text-rose-600 dark:text-rose-400'>
+                  ⚠ {overdueCount} loan{overdueCount !== 1 ? 's' : ''} past due
                 </p>
               </div>
             )}
           </div>
         </>
       )}
-    </div>
+    </DashboardCard>
   );
 }

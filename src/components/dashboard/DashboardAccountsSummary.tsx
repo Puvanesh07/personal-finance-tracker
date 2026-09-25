@@ -1,90 +1,78 @@
 // src/components/dashboard/DashboardAccountsSummary.tsx
 //
-// FIX: Dashboard now shows LIVE balance (opening balance ± cashflow entries)
-//      instead of the raw stored balance. This matches what AccountsPage shows.
+// Live account balances (opening ± linked cashflows) — same source-of-truth
+// helper as AccountsPage and Net Worth. Rebuilt on the shared card shell; the
+// list now fills the card naturally instead of scrolling in a fixed box.
 
-import { FiArrowUpRight, FiCreditCard } from 'react-icons/fi';
+import { FiCreditCard } from 'react-icons/fi';
+import { useMemo } from 'react';
 
 import { calcLiveAccountBalances } from '../../utils/calculations';
 import { formatCurrency } from '../../utils/format';
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { ACCENT, CardGo, DashboardCard } from './DashboardCard';
 
 export function DashboardAccountsSummary() {
   const accounts = usePortfolioStore((s) => s.accounts);
   const cashflows = usePortfolioStore((s) => s.cashflows);
-  const navigate = useNavigate();
 
-  // ✅ Live balance = opening balance ± cashflows — shared helper, same rule
-  //    as AccountsPage and the Net Worth calculation (single source of truth).
   const liveBalances = useMemo(
     () => calcLiveAccountBalances(accounts, cashflows),
     [accounts, cashflows],
   );
 
   const totalBalance = useMemo(
-    () =>
-      accounts.reduce(
-        (sum, a) => sum + (liveBalances[a.id] ?? a.balance ?? 0),
-        0,
-      ),
+    () => accounts.reduce((sum, a) => sum + (liveBalances[a.id] ?? a.balance ?? 0), 0),
     [accounts, liveBalances],
   );
 
   return (
-    <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 shadow-sm flex flex-col h-full'>
-      <div className='mb-4 flex items-center justify-between'>
-        <h2 className='flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100'>
-          <FiCreditCard className='text-blue-400' />
-          Liquid Accounts
-        </h2>
-        {/* ✅ FIX: Redirect icon to navigate to Accounts page */}
-        <button
-          onClick={() => navigate('/cashflow?tab=accounts')}
-          title='Go to Accounts'
-          className='flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:bg-slate-800 hover:text-blue-400 transition-colors'
-        >
-          <FiArrowUpRight className='h-4 w-4' />
-        </button>
-      </div>
-
-      <div className='mb-4'>
-        <p className='text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider'>
+    <DashboardCard
+      icon={<FiCreditCard className='h-5 w-5' />}
+      accent={ACCENT.blue}
+      title='Cash & Accounts'
+      subtitle='Live available balance'
+      action={<CardGo to='/cashflow?tab=accounts' />}
+    >
+      <div className='mb-5'>
+        <p className='text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
           Total Live Balance
         </p>
-        <p className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
+        <p className='mt-1 text-3xl font-black tracking-tight text-blue-600 tabular-nums dark:text-blue-400'>
           {formatCurrency(totalBalance)}
         </p>
       </div>
 
-      <div className='flex-1 space-y-3 mt-2 overflow-y-auto custom-scrollbar max-h-32'>
-        {accounts.length === 0 ? (
-          <p className='text-sm text-slate-500 dark:text-slate-400'>No accounts added.</p>
-        ) : (
-          accounts.map((acc) => {
+      {accounts.length === 0 ? (
+        <div className='flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700'>
+          <FiCreditCard className='h-6 w-6 text-slate-300 dark:text-slate-600' />
+          <p className='text-sm text-slate-500 dark:text-slate-400'>No accounts added yet.</p>
+        </div>
+      ) : (
+        <div className='flex flex-col gap-1.5'>
+          {accounts.map((acc) => {
             const liveBalance = liveBalances[acc.id] ?? acc.balance ?? 0;
             return (
               <div
                 key={acc.id}
-                className='flex justify-between items-center border-t border-slate-200/70 dark:border-slate-800/60 pt-2'
+                className='flex items-center justify-between gap-3 rounded-2xl bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:bg-slate-100/80 dark:bg-slate-800/40 dark:hover:bg-slate-800/70'
               >
-                <div>
-                  <p className='text-sm font-medium text-slate-900 dark:text-slate-100'>
+                <div className='min-w-0'>
+                  <p className='truncate text-sm font-bold text-slate-800 dark:text-slate-100'>
                     {acc.name}
                   </p>
-                  <p className='text-[10px] text-slate-500 dark:text-slate-400 uppercase'>
+                  <p className='text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500'>
                     {acc.type}
                   </p>
                 </div>
-                <p className='text-sm font-semibold text-slate-700 dark:text-slate-200'>
+                <p className='shrink-0 text-sm font-black tabular-nums text-slate-700 dark:text-slate-200'>
                   {formatCurrency(liveBalance)}
                 </p>
               </div>
             );
-          })
-        )}
-      </div>
-    </div>
+          })}
+        </div>
+      )}
+    </DashboardCard>
   );
 }

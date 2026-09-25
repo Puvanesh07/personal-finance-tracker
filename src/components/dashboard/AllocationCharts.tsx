@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
-import { Card } from '../ui/Card';
 import { FiPieChart } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
 import { getAllocationTotals } from '../../utils/assetClassification';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { ACCENT, CardGo, DashboardCard } from './DashboardCard';
 
 const CATEGORY_META = [
   { key: 'stocks', label: 'Stocks', fill: '#6366F1' },
@@ -36,12 +36,12 @@ export function AllocationCharts() {
   }, [totals]);
 
   return (
-    <Card
-      title={
-        <div className='flex items-center gap-2'>
-          <FiPieChart className='text-indigo-500' /> Asset Allocation
-        </div>
-      }
+    <DashboardCard
+      icon={<FiPieChart className='h-5 w-5' />}
+      accent={ACCENT.indigo}
+      title='Asset Allocation'
+      subtitle='How your money is spread'
+      action={<CardGo to='/wealth?tab=assets' />}
     >
       <div className='mb-3 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-800/30'>
         <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
@@ -115,6 +115,6 @@ export function AllocationCharts() {
           )}
         </div>
       </div>
-    </Card>
+    </DashboardCard>
   );
 }

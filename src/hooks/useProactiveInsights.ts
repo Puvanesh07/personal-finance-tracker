@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { formatINR, formatNumber } from '../utils/format';
 import { calculateNetWorth, investedValue, currentValue } from '../utils/calculations';
+import { effectiveGoalCurrent } from '../utils/goalLinks';
 
 export type InsightSeverity = 'danger' | 'warning' | 'good' | 'info';
 
@@ -29,18 +30,17 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 function inDaysISO(d: number) { return new Date(Date.now() + d * 86400000).toISOString().slice(0, 10); }
 
 export function useProactiveInsights(): ProactiveInsight[] {
-  const {
-    investments,
-    liabilities,
-    cashflows,
-    trackedPayments,
-    insurancePolicies,
-    goals,
-    goalContributions,
-    essentials,
-    accounts,
-    pendingPayments,
-  } = usePortfolioStore.getState();
+  // Subscribe reactively (not getState) so every consumer — dashboard, AI coach,
+  // personal CFO — re-computes the moment the underlying data changes.
+  const investments       = usePortfolioStore((s) => s.investments);
+  const liabilities       = usePortfolioStore((s) => s.liabilities);
+  const cashflows         = usePortfolioStore((s) => s.cashflows);
+  const trackedPayments   = usePortfolioStore((s) => s.trackedPayments);
+  const insurancePolicies = usePortfolioStore((s) => s.insurancePolicies);
+  const goals             = usePortfolioStore((s) => s.goals);
+  const essentials        = usePortfolioStore((s) => s.essentials);
+  const accounts          = usePortfolioStore((s) => s.accounts);
+  const pendingPayments   = usePortfolioStore((s) => s.pendingPayments);
 
   return useMemo(() => {
     const insights: ProactiveInsight[] = [];
@@ -136,8 +136,9 @@ export function useProactiveInsights(): ProactiveInsight[] {
     // ── 6. Goal near completion ───────────────────────────────────────────
     const activeGoals = goals.filter((g) => !g.status || g.status === 'active');
     for (const g of activeGoals) {
-      const contributed = goalContributions.filter((c) => c.goalId === g.id).reduce((a, c) => a + c.amount, 0);
-      const saved       = g.currentAmount + contributed;
+      // Canonical goal value — contributions already live in currentAmount, plus
+      // the live market value of linked assets (single source of truth).
+      const saved       = effectiveGoalCurrent(g, investments);
       const progress    = g.targetAmount > 0 ? (saved / g.targetAmount) * 100 : 0;
       if (progress >= 80 && progress < 100) {
         insights.push({
@@ -282,7 +283,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `You have ${formatNumber(runwayMonths, 1)} months of runway — target is 6 months (${formatINR(expForRunway * 6)})`,
           severity: runwayMonths < 1 ? 'danger' : 'warning',
           question: 'How is my emergency fund?',
-          linkTo: '/cashflow?tab=insights',
+          linkTo: '/essentials',
         });
       } else if (emergencyTarget > 0 && emergencyCurrent < emergencyTarget * 0.5) {
         const pct = (emergencyCurrent / emergencyTarget) * 100;
@@ -293,7 +294,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatINR(emergencyCurrent)} saved of ${formatINR(emergencyTarget)} goal`,
           severity: 'warning',
           question: 'How is my emergency fund?',
-          linkTo: '/cashflow?tab=insights',
+          linkTo: '/essentials',
         });
       }
     }
@@ -301,8 +302,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
     // ── 13. Goal ahead of schedule ────────────────────────────────────────
     for (const g of activeGoals) {
       if (!g.dueDate) continue;
-      const contributed = goalContributions.filter((c) => c.goalId === g.id).reduce((a, c) => a + c.amount, 0);
-      const saved       = g.currentAmount + contributed;
+      const saved       = effectiveGoalCurrent(g, investments);
       const now         = new Date();
       const due         = new Date(g.dueDate);
       const totalMonths = Math.max(1,
@@ -337,6 +337,6 @@ export function useProactiveInsights(): ProactiveInsight[] {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     investments, liabilities, cashflows, trackedPayments,
-    insurancePolicies, goals, goalContributions, essentials,
+    insurancePolicies, goals, essentials, accounts, pendingPayments,
   ]);
 }
