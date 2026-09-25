@@ -11,18 +11,17 @@ import type {
   InsurancePayment,
   Investment,
   Liability,
+  LiabilityPayment,
   PendingPayment,
+  PaymentRecurrence,
   TrackedPayment,
   NetWorthSnapshot,
   NotionConfig,
-  PaymentRecurrence,
   PortfolioSnapshot,
   SoldTrade,
 } from '../types/investmentTypes';
 import {
-  collection,
   deleteDoc,
-  doc,
   getDoc,
   getDocs,
   limit,
@@ -40,7 +39,35 @@ import {
 
 import { create } from 'zustand';
 import { createId } from '../utils/id';
-import { db } from '../services/firebase';
+import { showUndoToast } from '../utils/undoToast';
+import {
+  fetchSub,
+  saveDoc as saveDocRaw,
+  saveDocsAtomically as saveDocsAtomicallyRaw,
+  settingsDocRef,
+  touchedDoc,
+  userCol,
+  userDoc,
+  db,
+} from './portfolioPersistence';
+
+// Settings vocabulary now lives in portfolioSettings.ts (audit Y1). Imported
+// for local use AND re-exported so existing consumers (TargetAllocationPanel,
+// backup) keep their imports from portfolioStore.
+import {
+  DEFAULT_ALLOCATION_TARGETS,
+  DEFAULT_NOTION,
+  DEFAULT_ESSENTIALS,
+  type AllocationTargets,
+  type SettingsRecord,
+} from './portfolioSettings';
+export {
+  DEFAULT_ALLOCATION_TARGETS,
+  DEFAULT_NOTION,
+  DEFAULT_ESSENTIALS,
+  type AllocationTargets,
+  type SettingsRecord,
+} from './portfolioSettings';
 import { calculateNetWorth, calcLiveAccountBalances, getLiveBankTotal, IN_HAND_CASH_ID, IN_HAND_CASH_NAME, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
 import { policyStatusOf } from '../utils/financialProfile';
@@ -48,6 +75,7 @@ import {
   nextDueDate,
   nextSeriesAmount,
   withinSeriesEnd,
+  advanceToCurrentOccurrence,
 } from '../utils/paymentTracker';
 import {
   analyseAfterTransaction,
@@ -87,18 +115,28 @@ function blockIfLimited(feature: TrialFeatureKey, currentCount: number): boolean
   return false;
 }
 
-const userCol = (uid: string, col: string) => collection(db, 'users', uid, col);
-const userDoc = (uid: string, col: string, id: string) =>
-  doc(db, 'users', uid, col, id);
-const settingsDocRef = (uid: string) =>
-  doc(db, 'users', uid, 'settings', 'config');
-
-/** Same reference as userDoc, but also flags the collection as changed so other
- *  tabs/devices can tell that they are stale without re-reading everything. */
-const touchedDoc = (uid: string, col: string, id: string) => {
-  markDataDirty(uid, col);
-  return doc(db, 'users', uid, col, id);
-};
+// ── Persistence shims (audit Y1) ───────────────────────────────────
+// The Firestore plumbing lives in portfolioPersistence.ts as a leaf module;
+// these wrappers keep the call sites untouched by defaulting to the store's
+// cached encryption flag (which is what saves a per-write Firestore read),
+// exactly like the pre-extraction helpers did. NOTE: syncInsuranceBill runs
+// before the store hook exists, so it calls saveDocRaw with an explicit flag.
+function saveDoc<
+  T extends { id: string; userId?: string; createdAt?: string; updatedAt?: string },
+>(uid: string, col: string, data: T, forceEncrypt?: boolean): Promise<void> {
+  return saveDocRaw(uid, col, data, forceEncrypt ?? get0().encryptionEnabled);
+}
+function saveDocsAtomically(
+  uid: string,
+  writes: { col: string; data: object }[],
+  deletes: { col: string; id: string }[] = [],
+): Promise<void> {
+  return saveDocsAtomicallyRaw(uid, writes, deletes, get0().encryptionEnabled);
+}
+/** get() is only available inside create(); this hook is wired right after. */
+function get0(): { encryptionEnabled: boolean } {
+  return usePortfolioStore.getState();
+}
 
 const safeCompare = (a: string | undefined, b: string | undefined) =>
   (a || '').localeCompare(b || '');
@@ -113,30 +151,29 @@ const now = () => new Date().toISOString();
 
 /** Highest one-time data fix currently defined. Bump when adding a migration to
  *  runMigrations(), and never renumber existing entries. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
-async function fetchSub<T>(uid: string, col: string): Promise<T[]> {
-  const snap = await getDocs(userCol(uid, col));
-  return Promise.all(
-    snap.docs.map((d) => decryptDoc<T>(uid, d.data() as FirestoreDoc)),
-  );
-}
-
-/** saveDoc — accepts an optional precomputed encryption flag so we never hit
- *  Firestore for it on every write. Pass the store's encryptionEnabled field. */
-async function saveDoc<
-  T extends {
-    id: string;
-    userId?: string;
-    createdAt?: string;
-    updatedAt?: string;
-  },
->(uid: string, col: string, data: T, forceEncrypt?: boolean): Promise<void> {
-  // If forceEncrypt not supplied, use store's cached flag (avoids per-write Firestore read)
-  const flag = forceEncrypt !== undefined ? forceEncrypt : usePortfolioStore.getState().encryptionEnabled;
-  const payload = await encryptDoc(uid, data, flag);
-  await setDoc(userDoc(uid, col, data.id), payload);
-  markDataDirty(uid, col);
+/** Build the derived transfer cashflow for a goal contribution. Deterministic
+ *  id ⇒ re-saving overwrites the same doc, so edits never duplicate and a
+ *  deleted contribution can be reversed by removing exactly this one entry. */
+function goalTransferCashflow(
+  uid: string,
+  contribution: { id: string; amount: number; date: string; accountId?: string; toAccountId?: string; note?: string },
+): CashflowEntry {
+  const t = now();
+  return clean({
+    id: `cf_goal_${contribution.id}`,
+    type: 'transfer' as const,
+    date: contribution.date,
+    category: 'Goal Contribution',
+    amount: contribution.amount,
+    notes: contribution.note,
+    accountId: contribution.accountId,
+    toAccountId: contribution.toAccountId,
+    createdAt: t,
+    updatedAt: t,
+    userId: uid,
+  }) as CashflowEntry;
 }
 
 /** Signed contribution of one cashflow entry to its linked account. */
@@ -305,6 +342,7 @@ function settingsPatch(settings: SettingsRecord): Partial<PortfolioState> {
  *  custom category edited on one device reaches the others instead of living
  *  there until a full reload. */
 async function saveSettings(uid: string, patch: Record<string, unknown>) {
+  // Settings are plain config (categories, Notion ids) — always stored unencrypted.
   await setDoc(settingsDocRef(uid), patch, { merge: true });
   markDataDirty(uid, 'settings');
 }
@@ -354,7 +392,7 @@ async function syncInsuranceBill(
       insurancePolicyId: policy.id,
       updatedAt: now(),
     }) as TrackedPayment;
-    await saveDoc(uid, 'trackedPayments', updated);
+    await saveDocRaw(uid, 'trackedPayments', updated, usePortfolioStore.getState().encryptionEnabled);
     usePortfolioStore.setState((s) => ({
       trackedPayments: s.trackedPayments
         .map((x) => (x.id === updated.id ? updated : x))
@@ -382,41 +420,13 @@ async function syncInsuranceBill(
     updatedAt: t,
     userId: uid,
   }) as TrackedPayment;
-  await saveDoc(uid, 'trackedPayments', bill);
+  await saveDocRaw(uid, 'trackedPayments', bill, usePortfolioStore.getState().encryptionEnabled);
   usePortfolioStore.setState((s) => ({
     trackedPayments: [...s.trackedPayments, bill].sort((a, b) =>
       safeCompare(a.dueDate, b.dueDate),
     ),
   }));
 }
-
-/** Target asset-allocation percentages (macro buckets) persisted in the
- *  settings doc. `null` in state means "use DEFAULT_ALLOCATION_TARGETS". */
-export type AllocationTargets = Record<
-  'equity' | 'debt' | 'realEstate' | 'commodities' | 'cash',
-  number
->;
-
-export const DEFAULT_ALLOCATION_TARGETS: AllocationTargets = {
-  equity: 55,
-  debt: 20,
-  realEstate: 10,
-  commodities: 10,
-  cash: 5,
-};
-
-export type SettingsRecord = {
-  notion: NotionConfig;
-  essentials?: EssentialsConfig;
-  encryptionEnabled?: boolean;
-  customCategories?: { expense: string[]; income: string[] };
-  hiddenCategories?: { expense: string[]; income: string[] };
-  customSubcategories?: Record<string, string[]>;
-  allocationTargets?: AllocationTargets;
-  /** Bumped by a migration run. One-time data fixes check this instead of
-   *  re-reading and re-writing the user's whole history on every login. */
-  schemaVersion?: number;
-};
 
 /** What a hydrate actually reloaded — lets callers report the truth. */
 export type HydrateResult = { documents: number; collections: number };
@@ -488,6 +498,11 @@ type PortfolioState = {
    *  on opening the app. */
   runMigrations: () => Promise<void>;
   backfillInsuranceBills: () => Promise<void>;
+  /** Idempotent, non-destructive repair (C1): ensure every goal contribution
+   *  that names a funding *and* destination account has its derived
+   *  net-worth-neutral transfer. Legacy contributions (no accounts) are left
+   *  exactly as saved — they never moved money between tracked accounts. */
+  backfillGoalTransfers: () => Promise<void>;
 
   /** One settings read; refetch only collections whose change stamp moved.
    *  This is what makes a tab-focus or reconnect refresh nearly free.
@@ -518,12 +533,35 @@ type PortfolioState = {
   ) => Promise<{ added: number; updated: number; skipped: number }>;
   updateInvestment: (id: string, patch: Partial<Investment>) => Promise<void>;
   deleteInvestment: (id: string) => Promise<void>;
+  /** Re-apply a just-deleted document (audit I5 undo). Writes the SAME id so
+   *  links survive, and is idempotent — a no-op if the row is already back. */
+  restoreEntity: (col: string, entity: { id: string }) => Promise<void>;
 
   addLiability: (
     liability: Omit<Liability, 'id' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
   updateLiability: (id: string, patch: Partial<Liability>) => Promise<void>;
   deleteLiability: (id: string) => Promise<void>;
+  /** Record an EMI / installment: principal reduces the outstanding balance,
+   *  interest is booked as a real expense, and the full amount leaves a funding
+   *  account — all in one atomic batch (C1/C5). Net-worth impact = interest. */
+  recordLiabilityPayment: (
+    liabilityId: string,
+    payment: {
+      date: string;
+      amount: number;
+      principal: number;
+      interest: number;
+      accountId?: string;
+      note?: string;
+    },
+  ) => Promise<void>;
+  /** Reverse a recorded EMI: restores the outstanding balance and removes its
+   *  two derived cashflows. */
+  deleteLiabilityPayment: (
+    liabilityId: string,
+    paymentId: string,
+  ) => Promise<void>;
 
   addPendingPayment: (
     payment: Omit<
@@ -550,6 +588,10 @@ type PortfolioState = {
   ) => Promise<void>;
   deleteTrackedPayment: (id: string) => Promise<void>;
   markTrackedPaymentPaid: (id: string) => Promise<void>;
+  /** Re-anchor overdue recurring bills to their current occurrence after the
+   *  app was closed for one or more cycles — latest occurrence only, never
+   *  minting the missed intermediate bills (audit I1). */
+  catchUpRecurringSeries: () => Promise<void>;
 
   addCashflow: (
     entry: Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>,
@@ -558,6 +600,16 @@ type PortfolioState = {
   deleteCashflow: (id: string) => Promise<void>;
   /** Atomic bulk delete — one state update so totals/charts refresh once. */
   deleteCashflows: (ids: string[]) => Promise<void>;
+  /** Bulk-import validated statement rows (audit I2). Writes every draft in
+   *  chunked atomic batches tagged with the SAME importBatchId, so a partial
+   *  failure can never leave a half-committed statement and the whole import
+   *  is reversible via deleteCashflowsByBatch. Returns how many landed. */
+  importCashflows: (
+    drafts: Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>[],
+    importBatchId: string,
+  ) => Promise<{ imported: number }>;
+  /** Roll back an entire statement import in one atomic pass, with undo. */
+  deleteCashflowsByBatch: (importBatchId: string) => Promise<{ removed: number }>;
 
   addGoal: (
     goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>,
@@ -630,16 +682,11 @@ type PortfolioState = {
   setEssentialsConfig: (patch: Partial<EssentialsConfig>) => Promise<void>;
   allocationTargets: AllocationTargets;
   setAllocationTargets: (targets: AllocationTargets) => Promise<void>;
-  recordSnapshotIfNeeded: () => Promise<void>;
-  recordSnapshotNow: () => Promise<void>;
   takeNetWorthSnapshot: (label?: string) => Promise<void>;
   saveInsightSnapshot: (
     insight: Omit<InsightSnapshot, 'id' | 'userId' | 'createdAt'>,
   ) => Promise<void>;
 };
-
-const DEFAULT_NOTION: NotionConfig = { enabled: false };
-const DEFAULT_ESSENTIALS: EssentialsConfig = {};
 
 // ── Live sync handles (one settings-document listener for the signed-in tab) ─
 let liveUnsub: (() => void) | null = null;
@@ -811,6 +858,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         void get().runMigrations().catch((err) =>
           console.error('[PortfolioStore] migrations failed:', err),
         );
+
+        // Recurring series that ran while the app was closed get re-anchored
+        // to their CURRENT occurrence (latest only — missed bills are never
+        // minted), so reminders don't pile up stuck in the past (audit I1).
+        // Runs after trackedPayments are in memory; idempotent no-op once
+        // every series is current.
+        void get().catchUpRecurringSeries().catch((err) =>
+          console.error('[PortfolioStore] recurring catch-up failed:', err),
+        );
       };
 
       const loadPhase2 = async () => {
@@ -892,6 +948,10 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     // Migration 2: give insurance policies saved before the bill sync their
     // matching pending bill. Kept idempotent so a half-finished run is safe.
     if (from < 2) await get().backfillInsuranceBills();
+    // Migration 3: (re)create any missing derived goal transfer for
+    // contributions that move money between two tracked accounts. Additive
+    // only — never edits or deletes a user's existing records.
+    if (from < 3) await get().backfillGoalTransfers();
 
     await saveSettings(uid, { schemaVersion: SCHEMA_VERSION });
     set({ _schemaVersion: SCHEMA_VERSION });
@@ -913,6 +973,37 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       if (hasPending) continue;
       await syncInsuranceBill(uid, get, pol);
     }
+  },
+
+  backfillGoalTransfers: async () => {
+    const uid = get().uid;
+    if (!uid) return;
+    // Contributions are lazy-loaded, so pull them in before scanning.
+    await get().loadGoalContributions();
+    const { goalContributions, cashflows } = get();
+    const existingIds = new Set(cashflows.map((c) => c.id));
+    const missing: CashflowEntry[] = [];
+    for (const gc of goalContributions) {
+      // Only contributions that move money between two tracked accounts get a
+      // transfer. Legacy rows (no accounts) intentionally stay untouched —
+      // they never changed any balance, so fabricating one here would be wrong.
+      if (!gc.accountId || !gc.toAccountId) continue;
+      const cfId = `cf_goal_${gc.id}`;
+      if (existingIds.has(cfId)) continue;
+      missing.push(goalTransferCashflow(uid, gc));
+    }
+    if (missing.length === 0) return;
+    // Additive only: write the missing derived transfers atomically, never
+    // modifying or deleting any existing document.
+    await saveDocsAtomically(
+      uid,
+      missing.map((c) => ({ col: 'cashflows', data: c })),
+    );
+    set((s) => ({
+      cashflows: [...missing, ...s.cashflows].sort((a, b) =>
+        safeCompare(b.date, a.date),
+      ),
+    }));
   },
 
   refreshIfStale: async (stamps) => {
@@ -1015,9 +1106,20 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     // hand and must stay untouched.
     const linkedDelta = (acc: Account) =>
       cashflows
-        .filter((cf) => cf.accountId === acc.id)
+        .filter(
+          (cf) =>
+            cf.accountId === acc.id ||
+            (cf.type === 'transfer' && cf.toAccountId === acc.id),
+        )
         .filter((cf) => cf.date >= (acc.openingBalanceDate ?? '1900-01-01'))
-        .reduce((sum, cf) => sum + cashflowDelta(cf), 0);
+        .reduce(
+          (sum, cf) =>
+            sum +
+            (cf.type === 'transfer' && cf.toAccountId === acc.id
+              ? cf.amount
+              : cashflowDelta(cf)),
+          0,
+        );
 
     let changed = 0;
     let legacy = 0;
@@ -1237,8 +1339,54 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteInvestment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
+    const removed = get().investments.find((x) => x.id === id);
     await deleteDoc(touchedDoc(uid, 'investments', id));
     set((s) => ({ investments: s.investments.filter((x) => x.id !== id) }));
+    if (removed)
+      showUndoToast('Investment deleted', () =>
+        get().restoreEntity('investments', removed),
+      );
+  },
+
+  restoreEntity: async (col, entity) => {
+    const uid = get().uid;
+    if (!uid) return;
+    await saveDoc(uid, col, entity as never);
+    set((s) => {
+      const e = entity as { id: string };
+      switch (col) {
+        case 'investments':
+          return s.investments.some((x) => x.id === e.id)
+            ? {}
+            : { investments: [entity as never, ...s.investments] };
+        case 'cashflows':
+          return s.cashflows.some((x) => x.id === e.id)
+            ? {}
+            : {
+                cashflows: [entity as never, ...s.cashflows].sort((a, b) =>
+                  safeCompare(b.date, a.date),
+                ),
+              };
+        case 'liabilities':
+          return s.liabilities.some((x) => x.id === e.id)
+            ? {}
+            : { liabilities: [entity as never, ...s.liabilities] };
+        case 'accounts':
+          return s.accounts.some((x) => x.id === e.id)
+            ? {}
+            : { accounts: [entity as never, ...s.accounts] };
+        case 'goals':
+          return s.goals.some((x) => x.id === e.id)
+            ? {}
+            : { goals: [entity as never, ...s.goals] };
+        case 'trackedPayments':
+          return s.trackedPayments.some((x) => x.id === e.id)
+            ? {}
+            : { trackedPayments: [entity as never, ...s.trackedPayments] };
+        default:
+          return {};
+      }
+    });
   },
 
   addLiability: async (liability) => {
@@ -1277,8 +1425,131 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteLiability: async (id) => {
     const uid = get().uid;
     if (!uid) return;
+    const removed = get().liabilities.find((x) => x.id === id);
     await deleteDoc(touchedDoc(uid, 'liabilities', id));
     set((s) => ({ liabilities: s.liabilities.filter((x) => x.id !== id) }));
+    if (removed)
+      showUndoToast('Liability deleted', () =>
+        get().restoreEntity('liabilities', removed),
+      );
+  },
+
+  recordLiabilityPayment: async (liabilityId, payment) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().liabilities.find((x) => x.id === liabilityId);
+    if (!existing) return;
+
+    const principal = Math.max(0, Number(payment.principal) || 0);
+    const interest = Math.max(0, Number(payment.interest) || 0);
+    const amount = Number(payment.amount) || principal + interest;
+    const paymentId = createId('lia_pay');
+    const t = now();
+
+    const pay: LiabilityPayment = clean({
+      id: paymentId,
+      date: payment.date,
+      amount,
+      principal,
+      interest,
+      accountId: payment.accountId,
+      note: payment.note,
+      createdAt: t,
+    }) as LiabilityPayment;
+
+    const newOutstanding = round2(Math.max(0, (existing.outstanding ?? 0) - principal));
+    const updatedLiability = clean({
+      ...existing,
+      outstanding: newOutstanding,
+      payments: [...(existing.payments ?? []), pay],
+      ...(newOutstanding <= 0 ? { status: 'paid' as const } : {}),
+      updatedAt: t,
+    }) as Liability;
+
+    // Derived cashflows only when a funding account is chosen (real money moved).
+    // Principal is a `transfer` (reduces the bank, NOT spending); interest is a
+    // true expense. Together the account drops by the full EMI while the debt
+    // drops by principal — so net worth falls by the interest only (C1).
+    const cfs: CashflowEntry[] = [];
+    if (payment.accountId) {
+      if (principal > 0) {
+        cfs.push(clean({
+          id: `cf_emip_${paymentId}`,
+          type: 'transfer' as const,
+          date: payment.date,
+          category: `${existing.name} — Principal`,
+          amount: principal,
+          notes: payment.note,
+          accountId: payment.accountId,
+          createdAt: t,
+          updatedAt: t,
+          userId: uid,
+        }) as CashflowEntry);
+      }
+      if (interest > 0) {
+        cfs.push(clean({
+          id: `cf_emii_${paymentId}`,
+          type: 'expense' as const,
+          date: payment.date,
+          category: `${existing.name} — Interest`,
+          amount: interest,
+          notes: payment.note,
+          accountId: payment.accountId,
+          createdAt: t,
+          updatedAt: t,
+          userId: uid,
+        }) as CashflowEntry);
+      }
+    }
+
+    await saveDocsAtomically(uid, [
+      { col: 'liabilities', data: updatedLiability },
+      ...cfs.map((c) => ({ col: 'cashflows', data: c })),
+    ]);
+
+    set((s) => ({
+      liabilities: s.liabilities.map((x) =>
+        x.id === liabilityId ? updatedLiability : x,
+      ),
+      cashflows: cfs.length
+        ? [...cfs, ...s.cashflows].sort((a, b) => safeCompare(b.date, a.date))
+        : s.cashflows,
+    }));
+  },
+
+  deleteLiabilityPayment: async (liabilityId, paymentId) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const existing = get().liabilities.find((x) => x.id === liabilityId);
+    if (!existing) return;
+    const pay = (existing.payments ?? []).find((p) => p.id === paymentId);
+    if (!pay) return;
+
+    const restoredOutstanding = round2((existing.outstanding ?? 0) + pay.principal);
+    const updatedLiability = clean({
+      ...existing,
+      outstanding: restoredOutstanding,
+      payments: (existing.payments ?? []).filter((p) => p.id !== paymentId),
+      ...(existing.status === 'paid' && restoredOutstanding > 0
+        ? { status: 'active' as const }
+        : {}),
+      updatedAt: now(),
+    }) as Liability;
+
+    // Remove the two derived cashflows (delete on a missing doc is a no-op).
+    const cfIds = [`cf_emip_${paymentId}`, `cf_emii_${paymentId}`];
+    await saveDocsAtomically(
+      uid,
+      [{ col: 'liabilities', data: updatedLiability }],
+      cfIds.map((id) => ({ col: 'cashflows', id })),
+    );
+
+    set((s) => ({
+      liabilities: s.liabilities.map((x) =>
+        x.id === liabilityId ? updatedLiability : x,
+      ),
+      cashflows: s.cashflows.filter((c) => !cfIds.includes(c.id)),
+    }));
   },
 
   addPendingPayment: async (payment) => {
@@ -1449,10 +1720,15 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteTrackedPayment: async (id) => {
     const uid = get().uid;
     if (!uid) return;
+    const removed = get().trackedPayments.find((x) => x.id === id);
     await deleteDoc(touchedDoc(uid, 'trackedPayments', id));
     set((s) => ({
       trackedPayments: s.trackedPayments.filter((x) => x.id !== id),
     }));
+    if (removed)
+      showUndoToast('Payment reminder deleted', () =>
+        get().restoreEntity('trackedPayments', removed),
+      );
   },
 
   markTrackedPaymentPaid: async (id) => {
@@ -1596,6 +1872,37 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     void analyseAfterPayment(existing);
   },
 
+  catchUpRecurringSeries: async () => {
+    const uid = get().uid;
+    if (!uid) return;
+    const today = todayISO();
+    const overdue = get().trackedPayments.filter(
+      (p) =>
+        p.status === 'pending' &&
+        p.recurrence !== 'none' &&
+        p.dueDate < today,
+    );
+    if (overdue.length === 0) return;
+    const advanced = new Map<string, TrackedPayment>();
+    for (const p of overdue) {
+      const next = advanceToCurrentOccurrence(p, today);
+      if (!next) continue; // within grace / series ended → stays a real overdue bill
+      const updated = clean({
+        ...p,
+        ...next,
+        updatedAt: now(),
+      }) as TrackedPayment;
+      await saveDoc(uid, 'trackedPayments', updated);
+      advanced.set(p.id, updated);
+    }
+    if (advanced.size === 0) return;
+    set((s) => ({
+      trackedPayments: s.trackedPayments
+        .map((x) => advanced.get(x.id) ?? x)
+        .sort((a, b) => safeCompare(a.dueDate, b.dueDate)),
+    }));
+  },
+
   addCashflow: async (entry) => {
     const uid = get().uid;
     if (!uid) return;
@@ -1647,22 +1954,104 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteCashflow: async (id) => {
     const uid = get().uid;
     if (!uid) return;
+    const removed = get().cashflows.find((x) => x.id === id);
     await deleteDoc(touchedDoc(uid, 'cashflows', id));
     set((s) => ({
       cashflows: s.cashflows.filter((x) => x.id !== id),
     }));
+    if (removed)
+      showUndoToast('Transaction deleted', () =>
+        get().restoreEntity('cashflows', removed),
+      );
   },
 
   deleteCashflows: async (ids) => {
     const uid = get().uid;
     if (!uid || ids.length === 0) return;
     const idSet = new Set(ids);
+    const removed = get().cashflows.filter((x) => idSet.has(x.id));
     await Promise.all(
       ids.map((id) => deleteDoc(touchedDoc(uid, 'cashflows', id))),
     );
     set((s) => ({
       cashflows: s.cashflows.filter((x) => !idSet.has(x.id)),
     }));
+    if (removed.length)
+      showUndoToast(
+        `${removed.length} transaction${removed.length > 1 ? 's' : ''} deleted`,
+        async () => {
+          for (const cf of removed) await get().restoreEntity('cashflows', cf);
+        },
+      );
+  },
+
+  importCashflows: async (drafts, importBatchId) => {
+    const uid = get().uid;
+    if (!uid || drafts.length === 0) return { imported: 0 };
+    // Honor the same trial gates addCashflow enforces — stop at the first
+    // blocked row (one toast, not one per remaining row).
+    const accepted: Omit<CashflowEntry, 'id' | 'createdAt' | 'updatedAt'>[] =
+      [];
+    for (const d of drafts) {
+      if (blockIfLimited('cashflows', get().cashflows.length + accepted.length))
+        break;
+      accepted.push(d);
+    }
+    if (accepted.length === 0) return { imported: 0 };
+    const t = now();
+    const withMeta = accepted.map(
+      (entry) =>
+        clean({
+          ...entry,
+          id: createId('cf'),
+          createdAt: t,
+          updatedAt: t,
+          userId: uid,
+          importBatchId,
+        }) as CashflowEntry,
+    );
+    // Firestore caps a batch at ~500 writes, so commit in chunks — each chunk
+    // is still all-or-nothing, and mirroring a chunk into state only after it
+    // commits keeps the UI truthful if a later chunk fails.
+    for (let i = 0; i < withMeta.length; i += 400) {
+      const chunk = withMeta.slice(i, i + 400);
+      await saveDocsAtomically(
+        uid,
+        chunk.map((c) => ({ col: 'cashflows', data: c })),
+      );
+      set((s) => ({
+        cashflows: [...chunk, ...s.cashflows].sort((a, b) =>
+          safeCompare(b.date, a.date),
+        ),
+      }));
+    }
+    return { imported: withMeta.length };
+  },
+
+  deleteCashflowsByBatch: async (importBatchId) => {
+    const uid = get().uid;
+    if (!uid || !importBatchId) return { removed: 0 };
+    const removed = get().cashflows.filter(
+      (x) => x.importBatchId === importBatchId,
+    );
+    if (removed.length === 0) return { removed: 0 };
+    const idSet = new Set(removed.map((x) => x.id));
+    for (let i = 0; i < removed.length; i += 400) {
+      const chunk = removed.slice(i, i + 400);
+      await saveDocsAtomically(
+        uid,
+        [],
+        chunk.map((x) => ({ col: 'cashflows', id: x.id })),
+      );
+    }
+    set((s) => ({ cashflows: s.cashflows.filter((x) => !idSet.has(x.id)) }));
+    showUndoToast(
+      `Import of ${removed.length} transaction${removed.length > 1 ? 's' : ''} removed`,
+      async () => {
+        for (const cf of removed) await get().restoreEntity('cashflows', cf);
+      },
+    );
+    return { removed: removed.length };
   },
 
   addGoal: async (goal) => {
@@ -1699,8 +2088,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
   deleteGoal: async (id) => {
     const uid = get().uid;
     if (!uid) return;
+    const removed = get().goals.find((x) => x.id === id);
     await deleteDoc(touchedDoc(uid, 'goals', id));
     set((s) => ({ goals: s.goals.filter((x) => x.id !== id) }));
+    if (removed)
+      showUndoToast('Goal deleted', () =>
+        get().restoreEntity('goals', removed),
+      );
   },
 
   addGoalContribution: async (contribution) => {
@@ -1714,20 +2108,51 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       updatedAt: t,
       userId: uid,
     }) as GoalContribution;
-    await saveDoc(uid, 'goalContributions', withMeta);
+
+    // When the contribution moves real money between two tracked accounts,
+    // emit a net-worth-neutral transfer in the SAME atomic batch (C5), so the
+    // ledger and the source/destination balances can never half-apply.
+    const isTransfer = !!(withMeta.accountId && withMeta.toAccountId);
+    const cf = isTransfer ? goalTransferCashflow(uid, withMeta) : null;
+    if (cf) {
+      await saveDocsAtomically(uid, [
+        { col: 'goalContributions', data: withMeta },
+        { col: 'cashflows', data: cf },
+      ]);
+    } else {
+      await saveDoc(uid, 'goalContributions', withMeta);
+    }
+
     set((s) => ({
       goalContributions: [withMeta, ...s.goalContributions].sort((a, b) =>
         safeCompare(b.date, a.date),
       ),
+      ...(cf
+        ? {
+            cashflows: [cf, ...s.cashflows].sort((a, b) =>
+              safeCompare(b.date, a.date),
+            ),
+          }
+        : {}),
     }));
   },
 
   deleteGoalContribution: async (id) => {
     const uid = get().uid;
     if (!uid) return;
-    await deleteDoc(touchedDoc(uid, 'goalContributions', id));
+    const cfId = `cf_goal_${id}`;
+    const hadTransfer = get().cashflows.some((c) => c.id === cfId);
+    if (hadTransfer) {
+      await saveDocsAtomically(uid, [], [
+        { col: 'goalContributions', id },
+        { col: 'cashflows', id: cfId },
+      ]);
+    } else {
+      await deleteDoc(touchedDoc(uid, 'goalContributions', id));
+    }
     set((s) => ({
       goalContributions: s.goalContributions.filter((x) => x.id !== id),
+      cashflows: s.cashflows.filter((c) => c.id !== cfId),
     }));
   },
 
@@ -1820,8 +2245,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     // Cash in Hand is part of the model, not a user account — clear it instead.
     if (id === IN_HAND_CASH_ID) return get().setInHandAmount(0);
+    const removed = get().accounts.find((x) => x.id === id);
     await deleteDoc(touchedDoc(uid, 'accounts', id));
     set((s) => ({ accounts: s.accounts.filter((x) => x.id !== id) }));
+    if (removed)
+      showUndoToast('Account deleted', () =>
+        get().restoreEntity('accounts', removed),
+      );
   },
 
   setInHandAmount: async (amount) => {
@@ -2231,43 +2661,6 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     if (!uid) return;
     await saveSettings(uid, { allocationTargets: targets });
     set({ allocationTargets: targets });
-  },
-
-  recordSnapshotIfNeeded: async () => {
-    const uid = get().uid;
-    if (!uid) return;
-    const date = todayISO();
-    if (get()._lastSnapshotDate === date) return;
-    const { totalValue } = summarizePortfolio(get().investments);
-    const deterministicId = `snap_${date}`;
-    const existing = get().snapshots.find((x) => x.date === date || x.id === deterministicId);
-    if (existing) {
-      const updated: PortfolioSnapshot = { ...existing, totalValue };
-      await saveDoc(uid, 'snapshots', updated);
-      set((s) => ({
-        snapshots: s.snapshots.map((x) => (x.id === updated.id ? updated : x)),
-        _lastSnapshotDate: date,
-      }));
-      return;
-    }
-    const snap = clean({
-      id: deterministicId,
-      date,
-      totalValue,
-      userId: uid,
-    }) as any;
-    await saveDoc(uid, 'snapshots', snap);
-    set((s) => ({
-      snapshots: [...s.snapshots, snap as PortfolioSnapshot].sort((a, b) =>
-        safeCompare(a.date, b.date),
-      ),
-      _lastSnapshotDate: date,
-    }));
-  },
-
-  recordSnapshotNow: async () => {
-    set({ _lastSnapshotDate: null });
-    await get().recordSnapshotIfNeeded();
   },
 
   takeNetWorthSnapshot: async (label) => {

@@ -59,6 +59,11 @@ import { useExportPresetsStore } from '../../store/exportPresetsStore';
 import { usePinnedInvestmentsStore } from '../../store/pinnedInvestmentsStore';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
+/** Holdings rows mounted at a time (see `visibleCount`) — mirrors the Cashflow
+ *  list windowing so a very large portfolio still opens fast. Totals/weighting
+ *  always use the full `displayRows`, so no figure ever changes with the window. */
+const INVESTMENTS_ROW_PAGE = 50;
+
 const BULK_CATEGORIES = [
   { id: 'stock', label: 'Indian Stocks', type: 'stock', icon: FiTrendingUp },
   {
@@ -237,7 +242,7 @@ function SectorCapCell({
 
   if (inv.type !== 'stock') {
     return (
-      <span className='text-[11px] text-slate-500 dark:text-slate-600'>—</span>
+      <span className='text-[11px] text-slate-500 dark:text-slate-400'>—</span>
     );
   }
 
@@ -258,26 +263,26 @@ function SectorCapCell({
             {inv.sector ? (
               <SectorChip sector={inv.sector} />
             ) : (
-              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>
+              <span className='text-[10px] text-slate-500 dark:text-slate-400 italic'>
                 —
               </span>
             )}
             {marketCap ? (
               <MarketCapChip cap={marketCap} />
             ) : (
-              <span className='text-[10px] text-slate-500 dark:text-slate-600 italic'>
+              <span className='text-[10px] text-slate-500 dark:text-slate-400 italic'>
                 —
               </span>
             )}
           </>
         ) : (
-          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors'>
+          <span className='inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors'>
             <FiTag size={9} /> Add Tags
           </span>
         )}
         <FiEdit2
           size={10}
-          className={`text-slate-500 dark:text-slate-600 transition-opacity shrink-0 ml-0.5 ${hasTags ? 'opacity-0 group-hover/class:opacity-100' : 'opacity-100'}`}
+          className={`text-slate-500 dark:text-slate-400 transition-opacity shrink-0 ml-0.5 ${hasTags ? 'opacity-0 group-hover/class:opacity-100' : 'opacity-100'}`}
         />
       </div>
 
@@ -488,7 +493,7 @@ function PriceCell({
 
   if (isRefreshing) {
     return (
-      <span className='inline-flex items-center gap-1 text-xs text-slate-900 dark:text-slate-500'>
+      <span className='inline-flex items-center gap-1 text-xs text-slate-900 dark:text-slate-400'>
         <FiRefreshCw size={10} className='animate-spin' />…
       </span>
     );
@@ -496,7 +501,7 @@ function PriceCell({
 
   if (price === null || price === undefined) {
     return (
-      <span className='text-slate-500 dark:text-slate-600 text-xs font-medium'>
+      <span className='text-slate-500 dark:text-slate-400 text-xs font-medium'>
         —
       </span>
     );
@@ -591,14 +596,14 @@ function FixedIncomeDetails({ inv }: { inv: any }) {
 
   if (rows.length === 0)
     return (
-      <span className='text-[12px] text-slate-500 dark:text-slate-600'>—</span>
+      <span className='text-[12px] text-slate-500 dark:text-slate-400'>—</span>
     );
 
   return (
     <div className='flex flex-col gap-0.5'>
       {rows.map((r) => (
         <div key={r.label} className='flex items-center gap-1.5'>
-          <span className='text-[9px] text-slate-500 dark:text-slate-600 uppercase tracking-wider w-12 shrink-0'>
+          <span className='text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-12 shrink-0'>
             {r.label}
           </span>
           <span
@@ -630,7 +635,7 @@ function RowRefreshButton({
       title='Refresh live price for this row'
       className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-all border ${
         refreshing
-          ? 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-600 cursor-not-allowed'
+          ? 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed'
           : 'border-emerald-500/25 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/50 active:scale-95'
       }`}
     >
@@ -686,7 +691,7 @@ function SortIcon({
     return (
       <FiArrowUp
         size={11}
-        className='text-slate-500 dark:text-slate-600 group-hover/th:text-slate-500 dark:group-hover/th:text-slate-400 transition-colors'
+        className='text-slate-500 dark:text-slate-400 group-hover/th:text-slate-500 dark:group-hover/th:text-slate-400 transition-colors'
       />
     );
   if (sortDir === 'asc')
@@ -1187,6 +1192,8 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
   const [selectedBulkCat, setSelectedBulkCat] = useState(BULK_CATEGORIES[0].id);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // Row windowing (C4): only the first slice of a long holdings list is mounted.
+  const [visibleCount, setVisibleCount] = useState(INVESTMENTS_ROW_PAGE);
 
   const rows = useMemo(
     () =>
@@ -1341,6 +1348,16 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
     return [...pinned, ...rest];
   }, [sortedRows, pinnedIds]);
 
+  // The mounted window. `displayRows` (full) still feeds totals + weighting, so
+  // paging only changes what is rendered, never what is calculated (C4).
+  const visibleRows = useMemo(
+    () => displayRows.slice(0, visibleCount),
+    [displayRows, visibleCount],
+  );
+  useEffect(() => {
+    setVisibleCount(INVESTMENTS_ROW_PAGE);
+  }, [displayRows]);
+
   const totals = useMemo(
     () =>
       displayRows.reduce(
@@ -1445,7 +1462,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
   if (rows.length === 0) {
     return (
-      <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 text-slate-900 dark:text-slate-500'>
+      <div className='flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/20 text-slate-900 dark:text-slate-400'>
         <FiSearch className='h-8 w-8 mb-2 opacity-20' />
         <p className='text-sm font-medium'>No assets found</p>
       </div>
@@ -1493,7 +1510,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               {item.label}
             </span>
           ))}
-          <span className='text-[9px] text-slate-500 dark:text-slate-600 whitespace-nowrap hidden sm:block'>
+          <span className='text-[9px] text-slate-500 dark:text-slate-400 whitespace-nowrap hidden sm:block'>
             · hover row → ⚡ Live to refresh one
           </span>
         </div>
@@ -1504,7 +1521,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         {/* Right: Actions */}
         <div className='flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar'>
           {lastUpdated && !refreshError && (
-            <span className='text-[10px] text-slate-900 dark:text-slate-500 whitespace-nowrap hidden md:block'>
+            <span className='text-[10px] text-slate-900 dark:text-slate-400 whitespace-nowrap hidden md:block'>
               Updated {lastUpdated}
             </span>
           )}
@@ -1520,7 +1537,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             disabled={refreshingAll}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
               refreshingAll
-                ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 cursor-not-allowed'
+                ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 cursor-not-allowed'
                 : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 active:scale-95'
             }`}
             title='Refresh live prices for all visible assets'
@@ -1551,7 +1568,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               disabled={divRefreshingAll}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
                 divRefreshingAll
-                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 cursor-not-allowed'
                   : 'bg-indigo-950/60 border-indigo-800/60 text-indigo-400 hover:bg-indigo-900/60 hover:border-indigo-700 hover:text-indigo-300 active:scale-95'
               }`}
               title='Fetch historical dividends for all Indian stocks'
@@ -1588,7 +1605,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               disabled={bulkFetching}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all border whitespace-nowrap ${
                 bulkFetching
-                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 cursor-not-allowed'
                   : 'bg-emerald-950/60 border-emerald-800/60 text-emerald-500 hover:bg-emerald-900/60 hover:border-emerald-700 hover:text-emerald-300 active:scale-95'
               }`}
               title='Auto-fetch fundamentals from Screener.in for all Indian equity stocks'
@@ -1683,7 +1700,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
             {/* Avg score */}
             <div className='flex items-center gap-1 shrink-0'>
-              <span className='text-[10px] text-slate-900 dark:text-slate-500'>
+              <span className='text-[10px] text-slate-900 dark:text-slate-400'>
                 Avg
               </span>
               <span
@@ -1699,7 +1716,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               >
                 {avgScore.toFixed(1)}
               </span>
-              <span className='text-[9px] text-slate-500 dark:text-slate-600'>
+              <span className='text-[9px] text-slate-500 dark:text-slate-400'>
                 /10
               </span>
             </div>
@@ -1744,7 +1761,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             {unscored > 0 && (
               <>
                 <span className='w-px h-4 bg-emerald-900/60 shrink-0' />
-                <span className='text-[10px] text-slate-500 dark:text-slate-600 whitespace-nowrap'>
+                <span className='text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap'>
                   {unscored} unscored
                 </span>
               </>
@@ -1759,7 +1776,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
         <div className='flex items-center justify-between px-1 py-1'>
           <button
             onClick={toggleSelectAll}
-            className='flex items-center gap-2 text-[11px] font-bold text-slate-900 dark:text-slate-500 uppercase tracking-wider hover:text-emerald-400 transition-colors'
+            className='flex items-center gap-2 text-[11px] font-bold text-slate-900 dark:text-slate-400 uppercase tracking-wider hover:text-emerald-400 transition-colors'
           >
             {isAllSelected ? (
               <FiCheckSquare size={15} className='text-emerald-500' />
@@ -1768,12 +1785,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             )}
             {isAllSelected ? 'Deselect All' : 'Select All'}
           </button>
-          <span className='text-[11px] text-slate-500 dark:text-slate-600 font-medium'>
+          <span className='text-[11px] text-slate-500 dark:text-slate-400 font-medium'>
             {displayRows.length} assets
           </span>
         </div>
 
-        {displayRows.map(
+        {visibleRows.map(
           ({
             inv,
             invested,
@@ -1815,7 +1832,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   <div className='flex items-start gap-2.5'>
                     <button
                       onClick={() => toggleRow(inv.id)}
-                      className='mt-0.5 shrink-0 text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
+                      className='mt-0.5 shrink-0 text-slate-900 dark:text-slate-400 hover:text-emerald-400 transition-colors'
                     >
                       {isSelected ? (
                         <FiCheckSquare size={15} className='text-emerald-500' />
@@ -1839,7 +1856,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               {formatPlatformName(inv.platform)}
                             </span>
                             {qty !== null && qty !== undefined && (
-                              <span className='text-[10px] text-slate-500 dark:text-slate-600 font-medium'>
+                              <span className='text-[10px] text-slate-500 dark:text-slate-400 font-medium'>
                                 ×{' '}
                                 {Number(qty).toLocaleString('en-IN', {
                                   maximumFractionDigits: 4,
@@ -1952,7 +1969,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   >
                     {/* Invested */}
                     <div className='flex flex-col gap-0.5'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                         Invested
                       </span>
                       <span className='text-[13px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums'>
@@ -1962,7 +1979,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                     {/* Current Value */}
                     <div className='flex flex-col gap-0.5 items-center'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                         Curr. Value
                       </span>
                       <span className='text-[13px] font-bold tabular-nums text-slate-900 dark:text-slate-100'>
@@ -1980,12 +1997,12 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     {/* Dividend (equity) | Details (fixed income) */}
                     {isEquityLike(inv) ? (
                       <div className='flex flex-col gap-0.5 items-center'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                           Div ({shortFYLabel})
                         </span>
                         {canFetchDiv ? (
                           isDivLoading ? (
-                            <span className='text-[10px] text-slate-900 dark:text-slate-500 mt-1'>
+                            <span className='text-[10px] text-slate-900 dark:text-slate-400 mt-1'>
                               <FiRefreshCw size={10} className='animate-spin' />
                             </span>
                           ) : dividendCurrentFY !== null &&
@@ -1998,7 +2015,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               <span className='text-[13px] font-bold text-emerald-400 tabular-nums'>
                                 {formatINR(dividendCurrentFY)}
                               </span>
-                              <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium tabular-nums'>
+                              <span className='text-[9px] text-slate-900 dark:text-slate-400 font-medium tabular-nums'>
                                 History
                               </span>
                             </div>
@@ -2009,10 +2026,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               title='Click to view full history'
                               onClick={() => setDivDetailsTarget(inv)}
                             >
-                              <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
+                              <span className='text-[13px] font-medium text-slate-500 dark:text-slate-400'>
                                 ₹0
                               </span>
-                              <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium tabular-nums'>
+                              <span className='text-[9px] text-slate-900 dark:text-slate-400 font-medium tabular-nums'>
                                 History
                               </span>
                             </div>
@@ -2028,14 +2045,14 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                             </button>
                           )
                         ) : (
-                          <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
+                          <span className='text-[13px] font-medium text-slate-500 dark:text-slate-400'>
                             —
                           </span>
                         )}
                       </div>
                     ) : (
                       <div className='flex flex-col gap-0.5 items-center'>
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                           Details
                         </span>
                         <FixedIncomeDetails inv={inv} />
@@ -2044,7 +2061,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
                     {/* P&L */}
                     <div className='flex flex-col gap-0.5 items-end'>
-                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-600'>
+                      <span className='text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                         P&amp;L
                       </span>
                       <span
@@ -2065,6 +2082,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             );
           },
         )}
+        {displayRows.length > visibleRows.length && (
+          <div className='flex items-center justify-center gap-3 px-1 py-2'>
+            <span className='text-[11px] font-medium text-slate-500 dark:text-slate-400'>
+              Showing {visibleRows.length} of {displayRows.length}
+            </span>
+            <button
+              type='button'
+              onClick={() => setVisibleCount((n) => n + INVESTMENTS_ROW_PAGE)}
+              className='fx-chip cursor-pointer rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200'
+            >
+              Show {Math.min(INVESTMENTS_ROW_PAGE, displayRows.length - visibleRows.length)} more
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── DESKTOP VIEW ── */}
@@ -2078,7 +2109,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-3 py-2.5 w-10 border-b border-slate-300/70 dark:border-slate-700/60'>
                   <button
                     onClick={toggleSelectAll}
-                    className='flex items-center justify-center text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
+                    className='flex items-center justify-center text-slate-900 dark:text-slate-400 hover:text-emerald-400 transition-colors'
                   >
                     {isAllSelected ? (
                       <FiCheckSquare size={14} className='text-emerald-500' />
@@ -2201,7 +2232,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                 </th>
 
                 {/* Refresh */}
-                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-2 py-2.5 w-10 text-center text-[10px] font-semibold text-slate-500 dark:text-slate-600 border-b border-slate-300/70 dark:border-slate-700/60'>
+                <th className='sticky top-0 z-10 bg-white dark:bg-slate-900 px-2 py-2.5 w-10 text-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-300/70 dark:border-slate-700/60'>
                   ⚡
                 </th>
 
@@ -2229,7 +2260,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                   <div className='flex items-center justify-end gap-2'>
                     <button
                       onClick={() => handleSort('pl')}
-                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors ${sortCol === 'pl' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-400'}`}
                     >
                       <span className='flex items-center gap-1'>
                         <SortIcon
@@ -2245,7 +2276,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     </span>
                     <button
                       onClick={() => handleSort('plPct')}
-                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
+                      className={`text-[10px] font-semibold uppercase tracking-widest hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors ${sortCol === 'plPct' ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-400'}`}
                     >
                       <span className='flex items-center gap-1'>
                         %{' '}
@@ -2266,7 +2297,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
 
             {/* ── BODY ── */}
             <tbody>
-              {displayRows.map(
+              {visibleRows.map(
                 (
                   {
                     inv,
@@ -2299,7 +2330,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         ? 'LTCG'
                         : 'STCG'
                       : null;
-                  const isLast = rowIdx === displayRows.length - 1;
+                  const isLast = rowIdx === visibleRows.length - 1;
                   const weightPct =
                     totals.current > 0 ? (current / totals.current) * 100 : 0;
                   const bdClass = !isLast
@@ -2315,7 +2346,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       <td className={`px-3 py-3.5 ${bdClass}`}>
                         <button
                           onClick={() => toggleRow(inv.id)}
-                          className='flex items-center justify-center text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors'
+                          className='flex items-center justify-center text-slate-900 dark:text-slate-400 hover:text-emerald-400 transition-colors'
                         >
                           {isSelected ? (
                             <FiCheckSquare
@@ -2340,7 +2371,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                           <div className='flex items-center gap-1.5'>
                             <TypeChip inv={inv} />
                             {inv.symbol && (
-                              <span className='text-[10px] font-bold text-slate-500 dark:text-slate-600 tracking-wide'>
+                              <span className='text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wide'>
                                 {inv.symbol}
                               </span>
                             )}
@@ -2430,7 +2461,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 maximumFractionDigits: 4,
                               })
                             ) : (
-                              <span className='text-slate-500 dark:text-slate-600'>
+                              <span className='text-slate-500 dark:text-slate-400'>
                                 —
                               </span>
                             )}
@@ -2467,7 +2498,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                         {isEquityLike(inv) ? (
                           canFetchDiv ? (
                             isDivLoading ? (
-                              <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-900 dark:text-slate-500'>
+                              <span className='inline-flex items-center justify-end w-full text-[10px] text-slate-900 dark:text-slate-400'>
                                 <FiRefreshCw
                                   size={10}
                                   className='animate-spin'
@@ -2483,7 +2514,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 <span className='text-[13px] font-bold text-emerald-400'>
                                   {formatINR(dividendCurrentFY)}
                                 </span>
-                                <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium'>
+                                <span className='text-[9px] text-slate-900 dark:text-slate-400 font-medium'>
                                   History
                                 </span>
                               </div>
@@ -2494,10 +2525,10 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 title='Click to view full history'
                                 onClick={() => setDivDetailsTarget(inv)}
                               >
-                                <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
+                                <span className='text-[13px] font-medium text-slate-500 dark:text-slate-400'>
                                   ₹0
                                 </span>
-                                <span className='text-[9px] text-slate-900 dark:text-slate-500 font-medium'>
+                                <span className='text-[9px] text-slate-900 dark:text-slate-400 font-medium'>
                                   History
                                 </span>
                               </div>
@@ -2515,7 +2546,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               </div>
                             )
                           ) : (
-                            <span className='text-[13px] font-medium text-slate-500 dark:text-slate-600'>
+                            <span className='text-[13px] font-medium text-slate-500 dark:text-slate-400'>
                               —
                             </span>
                           )
@@ -2682,6 +2713,20 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               </tr>
             </tfoot>
           </table>
+          {displayRows.length > visibleRows.length && (
+            <div className='flex items-center justify-center gap-3 border-t border-slate-200/70 dark:border-slate-800/60 px-5 py-3'>
+              <span className='text-xs font-medium text-slate-500 dark:text-slate-400'>
+                Showing {visibleRows.length} of {displayRows.length}
+              </span>
+              <button
+                type='button'
+                onClick={() => setVisibleCount((n) => n + INVESTMENTS_ROW_PAGE)}
+                className='fx-chip cursor-pointer rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200'
+              >
+                Show {Math.min(INVESTMENTS_ROW_PAGE, displayRows.length - visibleRows.length)} more
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -2702,7 +2747,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
             disabled={refreshingSelected}
             className={`flex items-center gap-2 text-sm font-bold transition-colors ${
               refreshingSelected
-                ? 'text-slate-900 dark:text-slate-500 cursor-not-allowed'
+                ? 'text-slate-900 dark:text-slate-400 cursor-not-allowed'
                 : 'text-emerald-400 hover:text-emerald-300'
             }`}
             title='Fetch live prices for selected assets'
@@ -2796,7 +2841,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
               <div className='space-y-4'>
                 <div className='bg-slate-200 dark:bg-slate-800 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex items-center justify-between'>
                   <div className='flex flex-col'>
-                    <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest'>
+                    <span className='text-[10px] text-slate-900 dark:text-slate-400 uppercase font-bold tracking-widest'>
                       Current Holdings
                     </span>
                     <span className='text-base font-bold text-slate-900 dark:text-slate-100 mt-1'>
@@ -2804,13 +2849,13 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                     </span>
                   </div>
                   <div className='flex flex-col text-right'>
-                    <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest'>
+                    <span className='text-[10px] text-slate-900 dark:text-slate-400 uppercase font-bold tracking-widest'>
                       {divFilterFY !== 'All' || divFilterMonth !== 'All'
                         ? 'Filtered Earned'
                         : 'Total Earned'}
                     </span>
                     <span className='text-base font-bold text-emerald-400 mt-1'>
-                      ₹{filteredTotal.toFixed(2)}
+                      {formatINR(filteredTotal)}
                     </span>
                   </div>
                 </div>
@@ -2870,7 +2915,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                               <span className='font-semibold text-slate-900 dark:text-slate-200'>
                                 {formattedDate}
                               </span>
-                              <span className='text-[9px] font-bold text-slate-900 dark:text-slate-500 mt-0.5'>
+                              <span className='text-[9px] font-bold text-slate-900 dark:text-slate-400 mt-0.5'>
                                 {getFinancialYear(h.date)}
                               </span>
                             </div>
@@ -2882,7 +2927,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                                 ₹{h.amount.toFixed(2)}/sh
                               </span>
                               <span className='font-bold text-emerald-400 ml-2'>
-                                Total: ₹{h.total.toFixed(2)}
+                                Total: {formatINR(h.total)}
                               </span>
                             </div>
                           </div>
@@ -2890,7 +2935,7 @@ export function InvestmentsTable({ investments }: { investments: any[] }) {
                       })}
                     </div>
                   ) : (
-                    <p className='text-center text-slate-900 dark:text-slate-500 py-8 text-xs italic bg-white dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
+                    <p className='text-center text-slate-900 dark:text-slate-400 py-8 text-xs italic bg-white dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-800'>
                       No historical dividend data found for this filter.
                     </p>
                   )}

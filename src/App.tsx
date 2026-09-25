@@ -16,6 +16,7 @@ import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 
 import { AppLayout } from './components/layout/AppLayout';
+import { RouteError } from './components/layout/RouteError';
 import { Loader } from './components/loader/Loader';
 import { Toaster } from 'react-hot-toast';
 import { useThemeStore } from './store/themeStore';
@@ -178,7 +179,7 @@ export default function App() {
       <AppToaster />
       <Suspense fallback={<Loader />}>
         <Routes>
-          <Route element={<AppLayout />}>
+          <Route element={<AppLayout />} errorElement={<RouteError />}>
             <Route path='/' element={<Navigate to='/dashboard' replace />} />
             <Route
               path='/dashboard'

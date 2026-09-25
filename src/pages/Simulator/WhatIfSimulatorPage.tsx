@@ -1,4 +1,4 @@
-﻿/**
+/**
  * src/pages/Simulator/WhatIfSimulatorPage.tsx
  *
  * What-If Simulator (Feature 8)
@@ -470,7 +470,7 @@ export default function WhatIfSimulatorPage() {
 
       {pageTab === 'whatif' && <div className='flex flex-col lg:flex-row gap-6'>
         <div className='lg:w-64 shrink-0'>
-          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3'>
             Choose a scenario
           </p>
           <div className='flex flex-col gap-1.5'>
@@ -493,7 +493,7 @@ export default function WhatIfSimulatorPage() {
                     <p className={`text-xs font-bold ${active ? c.text : 'text-slate-700 dark:text-slate-200'}`}>
                       {s.label}
                     </p>
-                    <p className='text-[10px] text-slate-400 dark:text-slate-500 truncate'>{s.description}</p>
+                    <p className='text-[10px] text-slate-400 dark:text-slate-400 truncate'>{s.description}</p>
                   </div>
                 </button>
               );

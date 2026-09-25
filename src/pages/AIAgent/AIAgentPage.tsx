@@ -150,9 +150,9 @@ function StatGridCard({ resp }: { resp: Extract<AgentResponse, { kind: 'stat_gri
       <div className='grid grid-cols-2 gap-px bg-slate-100 dark:bg-slate-800 sm:grid-cols-3'>
         {resp.stats.map((s, i) => (
           <div key={i} className='min-w-0 bg-white dark:bg-slate-900/80 px-2.5 py-2 sm:px-3 sm:py-2.5'>
-            <div className='mb-0.5 truncate text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>{s.label}</div>
+            <div className='mb-0.5 truncate text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400'>{s.label}</div>
             <div className={`break-words text-[13px] sm:text-sm font-bold tabular-nums ${s.severity ? severityColor(s.severity) : 'text-slate-900 dark:text-slate-100'}`}>{s.value}</div>
-            {s.sub && <div className='mt-0.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{s.sub}</div>}
+            {s.sub && <div className='mt-0.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{s.sub}</div>}
           </div>
         ))}
       </div>
@@ -167,7 +167,7 @@ function StatGridCard({ resp }: { resp: Extract<AgentResponse, { kind: 'stat_gri
         </div>
       ) : null}
       {resp.footer && (
-        <div className='border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{resp.footer}</div>
+        <div className='border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{resp.footer}</div>
       )}
     </div>
   );
@@ -209,7 +209,7 @@ function TableCard({ resp }: { resp: Extract<AgentResponse, { kind: 'table' }> }
         </table>
       </div>
       {resp.footer && (
-        <div className='border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{resp.footer}</div>
+        <div className='border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{resp.footer}</div>
       )}
     </div>
   );
@@ -236,13 +236,13 @@ function SingleCard({ resp }: { resp: Extract<AgentResponse, { kind: 'card' }> }
             <span className='min-w-0 truncate text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400'>{s.label}</span>
             <div className='shrink-0 text-right'>
               <span className={`text-[11px] sm:text-xs font-bold tabular-nums ${s.severity ? severityColor(s.severity) : 'text-slate-900 dark:text-slate-100'}`}>{s.value}</span>
-              {s.sub && <div className='text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{s.sub}</div>}
+              {s.sub && <div className='text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{s.sub}</div>}
             </div>
           </div>
         ))}
       </div>
       <div className='flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 sm:px-4 sm:py-2'>
-        {resp.footer && <span className='min-w-0 truncate text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{resp.footer}</span>}
+        {resp.footer && <span className='min-w-0 truncate text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{resp.footer}</span>}
         {resp.linkTo && (
           <button onClick={() => navigate(resp.linkTo!)} className='ml-auto flex h-7 shrink-0 items-center gap-1 text-[10px] sm:text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline'>
             View <FiExternalLink className='h-3 w-3' />
@@ -287,7 +287,7 @@ function ListCardComp({ resp }: { resp: Extract<AgentResponse, { kind: 'list_car
               {item.value && (
                 <div className={`text-[12px] sm:text-xs font-bold tabular-nums ${item.severity ? severityColor(item.severity) : 'text-slate-900 dark:text-slate-100'}`}>{item.value}</div>
               )}
-              {item.valueSub && <div className='text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{item.valueSub}</div>}
+              {item.valueSub && <div className='text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{item.valueSub}</div>}
               {item.badge && (
                 <span className='rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[9px] font-bold'>{item.badge}</span>
               )}
@@ -296,7 +296,7 @@ function ListCardComp({ resp }: { resp: Extract<AgentResponse, { kind: 'list_car
         ))}
       </div>
       {resp.footer && (
-        <div className='border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500'>{resp.footer}</div>
+        <div className='border-t border-slate-100 dark:border-slate-800 px-2.5 py-1.5 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400'>{resp.footer}</div>
       )}
     </div>
   );
@@ -307,7 +307,7 @@ function EmptyCard({ resp }: { resp: Extract<AgentResponse, { kind: 'empty' }> }
     <div className='rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-800/20 px-3 py-5 sm:px-4 sm:py-6 text-center'>
       {resp.emoji && <div className='mb-1.5 text-xl sm:text-2xl'>{resp.emoji}</div>}
       <p className='text-[13px] sm:text-sm font-semibold text-slate-600 dark:text-slate-300'>{resp.message}</p>
-      {resp.hint && <p className='mt-1 text-[11px] sm:text-xs text-slate-400 dark:text-slate-500'>{resp.hint}</p>}
+      {resp.hint && <p className='mt-1 text-[11px] sm:text-xs text-slate-400 dark:text-slate-400'>{resp.hint}</p>}
     </div>
   );
 }
@@ -452,7 +452,7 @@ function AffordabilityCard({ result }: { result: import('../../utils/affordabili
             <span className='text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:w-28 sm:shrink-0 sm:normal-case sm:tracking-normal sm:text-[11px]'>{d.label}</span>
             <div className='mt-0.5 flex items-baseline gap-2 text-[12px] sm:mt-0 sm:flex-1 sm:text-xs tabular-nums'>
               <span className='text-slate-700 dark:text-slate-300'>{d.before}</span>
-              <span className='text-slate-400 dark:text-slate-500'>→</span>
+              <span className='text-slate-400 dark:text-slate-400'>→</span>
               <span className={impactColor[d.impact] ?? 'text-slate-700 dark:text-slate-300'}>{d.after}</span>
               {d.note && <span className={`hidden min-w-0 flex-1 text-right text-[10px] sm:block ${impactColor[d.impact]}`}>{d.note}</span>}
             </div>
@@ -1067,7 +1067,7 @@ export default function AIAgentPage() {
                 <div className='flex flex-col gap-3 h-full'>
                   {/* Quick action pills — all 8 categories */}
                   <div>
-                    <p className='text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5'>Quick Add</p>
+                    <p className='text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-1.5'>Quick Add</p>
                     <div className='grid grid-cols-4 gap-1.5 sm:gap-2'>
                       {[
                         { emoji: '💸', label: 'Expense',    q: 'Add expense' },
@@ -1090,7 +1090,7 @@ export default function AIAgentPage() {
 
                   {/* Suggested questions */}
                   <div>
-                    <p className='text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5'>Ask AI</p>
+                    <p className='text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-1.5'>Ask AI</p>
                     <div className='flex flex-wrap gap-1.5'>
                       {suggestions.map(({ emoji, label, question }) => (
                         <button key={label} onClick={() => void sendMessage(question)} disabled={loading}
@@ -1102,7 +1102,7 @@ export default function AIAgentPage() {
                   </div>
 
                   {/* Legend */}
-                  <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 mt-auto pb-0.5'>
+                  <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400 mt-auto pb-0.5'>
                     <span className='flex items-center gap-1'><FiDatabase className='h-3 w-3 text-emerald-500'/>Instant from data</span>
                     <span className='flex items-center gap-1'><FiCpu className='h-3 w-3 text-violet-500'/>AI via Groq</span>
                     <span>✨ Type naturally in the bar above</span>
@@ -1122,11 +1122,11 @@ export default function AIAgentPage() {
                     ) : msg.role === 'user' ? (
                       <div className='flex flex-col items-end gap-0.5'>
                         <div className='break-words rounded-2xl rounded-tr-sm bg-violet-600 px-3 py-2 text-[13px] font-medium leading-snug text-white sm:px-4 sm:py-2.5 sm:text-sm'>{msg.textContent}</div>
-                        <span className='text-[9px] text-slate-400 dark:text-slate-500 pr-1'>{fmtTime(msg.timestamp)}</span>
+                        <span className='text-[9px] text-slate-400 dark:text-slate-400 pr-1'>{fmtTime(msg.timestamp)}</span>
                       </div>
                     ) : (
                       <div className='space-y-1.5 min-w-0'>
-                        <div className='flex items-center gap-2'><SourceBadge source={msg.source} /><span className='text-[9px] text-slate-400 dark:text-slate-500'>{fmtTime(msg.timestamp)}</span></div>
+                        <div className='flex items-center gap-2'><SourceBadge source={msg.source} /><span className='text-[9px] text-slate-400 dark:text-slate-400'>{fmtTime(msg.timestamp)}</span></div>
                         {msg.affordabilityResult
                           ? <AffordabilityCard result={msg.affordabilityResult} />
                           : msg.structuredContent
@@ -1155,7 +1155,7 @@ export default function AIAgentPage() {
             {/* Input bar — pinned to the top of the keyboard by the shell */}
             <div className='shrink-0'>
               <div className='flex gap-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 p-1 shadow-sm focus-within:ring-2 focus-within:ring-violet-500/30 transition-all sm:gap-2 sm:p-1.5'>
-                <div className='flex items-center pl-2 text-slate-400 dark:text-slate-500 shrink-0'><FiSearch className='h-3.5 w-3.5' /></div>
+                <div className='flex items-center pl-2 text-slate-400 dark:text-slate-400 shrink-0'><FiSearch className='h-3.5 w-3.5' /></div>
                 <input ref={inputRef} type='text' value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown}
                   placeholder='Ask AI or type a command…' disabled={loading}
                   enterKeyHint='send' autoCapitalize='sentences' autoComplete='off' aria-label='Message the AI Coach'
@@ -1165,7 +1165,7 @@ export default function AIAgentPage() {
                   {loading ? <FiRefreshCw className='h-4 w-4 animate-spin' /> : <FiSend className='h-4 w-4' />}
                 </button>
               </div>
-              <p className='mt-0.5 text-center text-[9px] text-slate-400 dark:text-slate-500'>AI via Groq · Not investment advice · <Link to='/settings' className='text-violet-500 dark:text-violet-400 hover:underline'>Settings</Link></p>
+              <p className='mt-0.5 text-center text-[9px] text-slate-400 dark:text-slate-400'>AI via Groq · Not investment advice · <Link to='/settings' className='text-violet-500 dark:text-violet-400 hover:underline'>Settings</Link></p>
             </div>
           </>
         )}

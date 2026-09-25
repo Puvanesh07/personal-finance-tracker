@@ -40,6 +40,50 @@ export function Modal({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  // Focus trap (audit Y5): move focus into the dialog on open and keep Tab
+  // cycling within it, so keyboard users can't wander into the hidden page
+  // behind the overlay. Focus is restored to the trigger on close.
+  useEffect(() => {
+    if (!open) return;
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const selector =
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusables = () =>
+      Array.from(overlay.querySelectorAll<HTMLElement>(selector)).filter(
+        (el) => el.offsetParent !== null || el === document.activeElement,
+      );
+    // Don't steal focus if the user is already on an element inside the dialog.
+    if (!overlay.contains(document.activeElement)) {
+      const first = focusables()[0];
+      (first ?? overlay).focus({ preventScroll: true });
+    }
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && (active === first || !overlay.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    overlay.addEventListener('keydown', onTab);
+    return () => {
+      overlay.removeEventListener('keydown', onTab);
+      previouslyFocused?.focus?.({ preventScroll: true });
+    };
+  }, [open]);
+
   // Lock background scroll while open.
   useEffect(() => {
     if (!open) return;
@@ -98,6 +142,7 @@ export function Modal({
       role='dialog'
       aria-modal='true'
       aria-label={title}
+      tabIndex={-1}
     >
       <div
         className={`flex max-h-[92%] w-full flex-col bg-white shadow-2xl dark:bg-slate-900/95 ${
@@ -123,6 +168,7 @@ export function Modal({
             className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500 transition-colors hover:bg-rose-500/20 hover:text-rose-400 dark:bg-slate-800 dark:text-slate-400'
             onClick={onClose}
             title='Close'
+            aria-label='Close dialog'
           >
             <FiX className='h-4 w-4' />
           </button>

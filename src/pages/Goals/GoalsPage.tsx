@@ -1,4 +1,4 @@
-﻿// src/pages/Goals/GoalsPage.tsx
+// src/pages/Goals/GoalsPage.tsx
 //
 // UPDATED:
 //  • Status badge shown on each goal card/row
@@ -94,18 +94,23 @@ function GoalProbabilityPanel({
   const [expanded, setExpanded]       = useState(false);
   const [sliderVal, setSliderVal]     = useState(monthlyInvestment);
 
+  // The panel's `result` is computed from the EFFECTIVE current (saved + linked
+  // assets). Derive that same figure instead of goal.currentAmount, so the
+  // what-if projection and "Saved" stat agree with the card progress bar.
+  const effectiveSaved = (result.savingsRate / 100) * goal.targetAmount;
+
   const whatIf = useMemo(
     () =>
       whatIfMonthly(
         {
           targetAmount:      goal.targetAmount,
-          currentSaved:      goal.currentAmount,
+          currentSaved:      effectiveSaved,
           expectedReturnPct: 12,
           targetDate:        goal.dueDate,
         },
         sliderVal,
       ),
-    [sliderVal, goal],
+    [sliderVal, goal, effectiveSaved],
   );
 
   const sliderMin = Math.max(500,  Math.round(monthlyInvestment * 0.25 / 500) * 500);
@@ -152,7 +157,7 @@ function GoalProbabilityPanel({
               },
               {
                 label: 'Saved',
-                value: `${formatINR(goal.currentAmount)} (${result.savingsRate.toFixed(0)}%)`,
+                value: `${formatINR(effectiveSaved)} (${result.savingsRate.toFixed(0)}%)`,
                 color: 'text-emerald-600 dark:text-emerald-400',
               },
               {
@@ -260,7 +265,7 @@ export function GoalsPage() {
   const goals = usePortfolioStore((s) => s.goals);
   const cashflows = usePortfolioStore((s) => s.cashflows);
   const essentials = usePortfolioStore((s) => s.essentials);
-  const goalContributions = usePortfolioStore((s) => s.goalContributions);
+  const addGoalContribution = usePortfolioStore((s) => s.addGoalContribution);
   const investments = usePortfolioStore((s) => s.investments);
   const loadGoalContributions = usePortfolioStore((s) => s.loadGoalContributions);
   const deleteGoal = usePortfolioStore((s) => s.deleteGoal);
@@ -334,22 +339,41 @@ export function GoalsPage() {
   };
 
   // Handle contribution: add amount to currentAmount and save contribution record
-  async function handleContribute(amount: number, date: string) {
+  async function handleContribute(
+    amount: number,
+    note: string,
+    date: string,
+    accountId?: string,
+    toAccountId?: string,
+  ) {
     if (!contributeGoal) return;
     const newAmount = contributeGoal.currentAmount + amount;
+    // Progress counts saved contributions PLUS live linked assets, so the
+    // "reached target" check must use the same effective current the cards and
+    // detail modal show (otherwise linked funds are ignored for auto-success).
+    const newEffective = effectiveGoalCurrent(contributeGoal, investments) + amount;
     // Update the goal's currentAmount in Firestore
     await updateGoal(contributeGoal.id, {
       currentAmount: newAmount,
       // Auto-mark as success if target reached
-      ...(newAmount >= contributeGoal.targetAmount
+      ...(newEffective >= contributeGoal.targetAmount
         ? {
             status: 'success' as GoalStatus,
             completedAt: date,
           }
         : {}),
     } as any);
-    // Optionally: also save a GoalContribution sub-doc via addGoalContribution store action
-    // await addGoalContribution({ goalId: contributeGoal.id, amount, note, date })
+    // Record the contribution. When both a funding and a destination account are
+    // chosen the store emits a net-worth-neutral transfer in the same atomic
+    // batch (C1/C5); otherwise it is stored as a progress-only entry.
+    await addGoalContribution({
+      goalId: contributeGoal.id,
+      amount,
+      note,
+      date,
+      accountId,
+      toAccountId,
+    } as any);
   }
 
   const filteredGoals = goals.filter((g) => {
@@ -391,10 +415,10 @@ export function GoalsPage() {
   const goalProbabilityMap = useMemo(() => {
     const map = new Map<string, GoalProbabilityResult>();
     for (const g of goals) {
-      const contributions = goalContributions
-        .filter((c) => c.goalId === g.id)
-        .reduce((a, c) => a + c.amount, 0);
-      const currentSaved = effectiveGoalCurrent(g, investments, contributions);
+      // currentAmount already includes every recorded contribution (handleContribute
+      // bumps it), so progress = currentAmount + live linked assets. Summing the
+      // contribution rows again here would double-count them (C1).
+      const currentSaved = effectiveGoalCurrent(g, investments);
       map.set(
         g.id,
         goalProbabilityResult({
@@ -407,7 +431,7 @@ export function GoalsPage() {
       );
     }
     return map;
-  }, [goals, goalContributions, monthlyInvestment, investments]);
+  }, [goals, investments, monthlyInvestment]);
 
   const tabCls = (tab: FilterTab) =>
     `px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -618,7 +642,7 @@ export function GoalsPage() {
                       <button
                         type='button'
                         title='View details'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
                         onClick={() => setDetailGoal(g)}
                       >
                         <FiEye className='h-4 w-4' />
@@ -628,7 +652,7 @@ export function GoalsPage() {
                         <button
                           type='button'
                           title='Add Contribution'
-                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
                           onClick={() => setContributeGoal(g)}
                         >
                           <FiTrendingUp className='h-4 w-4' />
@@ -637,7 +661,7 @@ export function GoalsPage() {
                       <button
                         type='button'
                         title='Edit'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                         onClick={() => setEdit(g)}
                       >
                         <FiEdit2 className='h-4 w-4' />
@@ -645,7 +669,7 @@ export function GoalsPage() {
                       <button
                         type='button'
                         title='Delete'
-                        className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
+                        className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                         onClick={() => openDeleteModal(g.id)}
                       >
                         <FiTrash2 className='h-4 w-4' />
@@ -656,7 +680,7 @@ export function GoalsPage() {
                   {/* Progress Bar */}
                   <div className='flex flex-col gap-2'>
                     <div className='flex items-center justify-between text-xs font-bold'>
-                      <span className='text-slate-900 dark:text-slate-500 uppercase tracking-wider text-[10px]'>
+                      <span className='text-slate-900 dark:text-slate-400 uppercase tracking-wider text-[10px]'>
                         Progress
                       </span>
                       <span
@@ -718,7 +742,7 @@ export function GoalsPage() {
           <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/50'>
             <div className='overflow-x-auto custom-scrollbar'>
               <table className='min-w-full text-left text-sm whitespace-nowrap'>
-                <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
+                <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
                   <tr>
                     <th className='px-5 py-4 w-12'>
                       <input
@@ -802,7 +826,7 @@ export function GoalsPage() {
                                 className={
                                   isCompleted
                                     ? 'text-emerald-600 dark:text-emerald-400'
-                                    : 'text-slate-900 dark:text-slate-500'
+                                    : 'text-slate-900 dark:text-slate-400'
                                 }
                               >
                                 {pct.toFixed(1)}%

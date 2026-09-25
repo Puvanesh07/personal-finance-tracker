@@ -1,4 +1,4 @@
-﻿// src/pages/Insurance/InsurancePage.tsx
+// src/pages/Insurance/InsurancePage.tsx
 
 import {
   FiAlertTriangle,
@@ -244,13 +244,13 @@ function OverviewTab({
             key={card.label}
             className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 md:p-5'
           >
-            <p className='text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
+            <p className='text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-400'>
               {card.label}
             </p>
             <p className={`text-xl md:text-2xl font-bold mt-1.5 ${card.color}`}>
               {card.value}
             </p>
-            <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>{card.sub}</p>
+            <p className='text-xs text-slate-900 dark:text-slate-400 mt-0.5'>{card.sub}</p>
           </div>
         ))}
       </div>
@@ -322,7 +322,7 @@ function OverviewTab({
 
       {byType.length > 0 && (
         <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-4'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-4'>
             Coverage by Type
           </p>
           <div className='space-y-4'>
@@ -337,7 +337,7 @@ function OverviewTab({
                       <span className={`text-sm font-bold ${t.color}`}>
                         {t.label}
                       </span>
-                      <span className='text-xs text-slate-900 dark:text-slate-500 ml-1 hidden sm:inline'>
+                      <span className='text-xs text-slate-900 dark:text-slate-400 ml-1 hidden sm:inline'>
                         ({t.count} {t.count === 1 ? 'policy' : 'policies'})
                       </span>
                     </div>
@@ -359,7 +359,7 @@ function OverviewTab({
       )}
 
       {policies.length === 0 && (
-        <div className='text-center py-16 text-slate-900 dark:text-slate-500'>
+        <div className='text-center py-16 text-slate-900 dark:text-slate-400'>
           <FiShield className='h-12 w-12 mx-auto mb-3 opacity-30' />
           <p className='font-bold'>No policies yet</p>
           <p className='text-sm mt-1'>
@@ -435,7 +435,7 @@ function PoliciesTab({
       </div>
 
       {filtered.length === 0 ? (
-        <div className='text-center py-12 text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed'>
+        <div className='text-center py-12 text-slate-900 dark:text-slate-400 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed'>
           <FiShield className='h-8 w-8 mx-auto mb-2 opacity-30' />
           <p className='text-sm'>No policies found</p>
         </div>
@@ -495,7 +495,7 @@ function PoliciesTab({
 
                       <div className='grid grid-cols-2 gap-y-3 gap-x-4 mt-4'>
                         <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase tracking-wider font-bold mb-0.5'>
                             Coverage
                           </p>
                           <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
@@ -503,7 +503,7 @@ function PoliciesTab({
                           </p>
                         </div>
                         <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase tracking-wider font-bold mb-0.5'>
                             Premium ({policy.premiumFrequency})
                           </p>
                           <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
@@ -511,7 +511,7 @@ function PoliciesTab({
                           </p>
                         </div>
                         <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase tracking-wider font-bold mb-0.5'>
                             Next Due
                           </p>
                           <p
@@ -521,7 +521,7 @@ function PoliciesTab({
                           </p>
                         </div>
                         <div className='bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg'>
-                          <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5'>
+                          <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase tracking-wider font-bold mb-0.5'>
                             Last Paid
                           </p>
                           <p className='text-sm font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
@@ -802,7 +802,7 @@ function PaymentsTab({
             />
           </div>
           {(selectedPolicy.paymentsAlreadyMade ?? 0) > 0 && (
-            <p className='text-[10px] text-slate-900 dark:text-slate-500 italic'>
+            <p className='text-[10px] text-slate-900 dark:text-slate-400 italic'>
               * Includes {selectedPolicy.paymentsAlreadyMade} legacy payments
               made before using this tracker.
             </p>
@@ -812,7 +812,7 @@ function PaymentsTab({
 
       {/* Mobile-Friendly Payment Cards */}
       {sorted.length === 0 ? (
-        <div className='text-center py-16 text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed'>
+        <div className='text-center py-16 text-slate-900 dark:text-slate-400 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed'>
           <p className='text-sm font-medium'>No payments recorded yet.</p>
           <p className='text-xs mt-1'>
             Click "Record Payment" to add your first transaction.
@@ -846,7 +846,7 @@ function PaymentsTab({
                     <p className='text-lg font-bold text-emerald-400 tabular-nums'>
                       {formatCurrency(p.amount)}
                     </p>
-                    <p className='text-[10px] font-bold text-slate-900 dark:text-slate-500 uppercase tracking-wider mt-0.5'>
+                    <p className='text-[10px] font-bold text-slate-900 dark:text-slate-400 uppercase tracking-wider mt-0.5'>
                       {safeFormat(p.paidAt)}
                     </p>
                   </div>
@@ -972,12 +972,12 @@ function ReportsTab({
 
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
         <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-5'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-5'>
             Coverage by Type
           </p>
           <div className='space-y-4'>
             {byType.length === 0 ? (
-              <p className='text-sm text-slate-900 dark:text-slate-500'>No data available</p>
+              <p className='text-sm text-slate-900 dark:text-slate-400'>No data available</p>
             ) : (
               byType.map((t) => {
                 const pct =
@@ -1006,7 +1006,7 @@ function ReportsTab({
         </div>
 
         <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-5'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-5'>
             Renewal Urgency
           </p>
           <div className='space-y-4'>
@@ -1057,7 +1057,7 @@ function ReportsTab({
         </div>
 
         <div className='bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 lg:col-span-2'>
-          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-5'>
+          <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-5'>
             Detailed Summary by Category
           </p>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
@@ -1077,7 +1077,7 @@ function ReportsTab({
                 </div>
                 <div className='flex justify-between items-end mt-auto pt-3 border-t border-slate-300/60 dark:border-slate-700/50'>
                   <div>
-                    <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
+                    <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase'>
                       Annual Premium
                     </p>
                     <p className='text-sm font-bold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
@@ -1085,7 +1085,7 @@ function ReportsTab({
                     </p>
                   </div>
                   <div className='text-right'>
-                    <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase'>
+                    <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase'>
                       Total Coverage
                     </p>
                     <p className='text-lg font-black text-slate-900 dark:text-slate-100'>

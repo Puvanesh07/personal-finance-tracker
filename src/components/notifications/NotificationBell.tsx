@@ -151,7 +151,7 @@ function NotifCard({
         <p
           className={`mt-0.5 text-[11px] leading-relaxed ${
             notif.read
-              ? 'text-slate-400 dark:text-slate-500'
+              ? 'text-slate-400 dark:text-slate-400'
               : 'text-slate-600 dark:text-slate-300'
           }`}
         >
@@ -159,7 +159,7 @@ function NotifCard({
         </p>
 
         {notif.dueDate && (
-          <p className='mt-1 text-[10px] font-medium text-slate-500 dark:text-slate-500'>
+          <p className='mt-1 text-[10px] font-medium text-slate-500 dark:text-slate-400'>
             Due{' '}
             {format(new Date(notif.dueDate), 'dd MMM yyyy')}
           </p>
@@ -201,7 +201,7 @@ function NotifCard({
       <button
         type='button'
         onClick={onDismiss}
-        className='shrink-0 flex h-5 w-5 items-center justify-center rounded-md text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 hover:text-slate-700 dark:hover:text-slate-200 transition-all'
+        className='shrink-0 flex h-5 w-5 items-center justify-center rounded-md text-slate-400 dark:text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 hover:text-slate-700 dark:hover:text-slate-200 transition-all'
         title='Dismiss notification'
         aria-label='Dismiss notification'
       >
@@ -227,7 +227,7 @@ function EmptyState() {
         <p className='text-sm font-bold text-slate-800 dark:text-slate-200'>
           You&apos;re all caught up!
         </p>
-        <p className='mt-1 text-xs text-slate-400 dark:text-slate-500 leading-relaxed max-w-[200px] mx-auto'>
+        <p className='mt-1 text-xs text-slate-400 dark:text-slate-400 leading-relaxed max-w-[200px] mx-auto'>
           No new notifications right now. We&apos;ll let you know when something
           needs your attention.
         </p>
@@ -499,7 +499,7 @@ export function NotificationBell() {
                 <button
                   type='button'
                   onClick={() => setOpen(false)}
-                  className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'
+                  className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'
                   title='Close notifications'
                   aria-label='Close notifications panel'
                 >
@@ -554,7 +554,7 @@ export function NotificationBell() {
                   <button
                     type='button'
                     onClick={handleClearAll}
-                    className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-colors'
+                    className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-400 dark:text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-colors'
                     title='Clear all notifications'
                     aria-label='Clear all notifications'
                   >
@@ -571,7 +571,7 @@ export function NotificationBell() {
                   className='h-3.5 w-3.5 text-emerald-400 shrink-0'
                   aria-hidden='true'
                 />
-                <p className='text-[11px] font-medium text-slate-400 dark:text-slate-500'>
+                <p className='text-[11px] font-medium text-slate-400 dark:text-slate-400'>
                   All notifications read
                 </p>
               </div>

@@ -1,4 +1,4 @@
-﻿// src/components/investments/SellInvestmentModal.tsx
+// src/components/investments/SellInvestmentModal.tsx
 
 import { FiSave, FiTrendingDown, FiTrendingUp } from 'react-icons/fi';
 import { currentValue, investedValue } from '../../utils/calculations';
@@ -106,7 +106,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:placeholder:text-slate-500 dark:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:placeholder:text-slate-500 dark:text-slate-400';
   const labelCls =
     'text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5 block ml-1';
 
@@ -119,18 +119,18 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
             <p className='font-bold text-slate-900 dark:text-slate-100 text-sm truncate'>
               {investment.name}
             </p>
-            <p className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5 capitalize'>
+            <p className='text-[11px] text-slate-900 dark:text-slate-400 mt-0.5 capitalize'>
               {investment.type.replace('_', ' ')} ·{' '}
               {investment.platform ?? 'Manual'}
             </p>
           </div>
           <div className='text-right shrink-0'>
-            <p className='text-[10px] text-slate-900 dark:text-slate-500'>Portfolio Value</p>
+            <p className='text-[10px] text-slate-900 dark:text-slate-400'>Portfolio Value</p>
             <p className='text-sm font-bold text-white'>
               {formatINR(originalCurrentVal)}
             </p>
             {hasQty && (
-              <p className='text-[10px] text-slate-900 dark:text-slate-500 mt-0.5'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-400 mt-0.5'>
                 {totalQty} units total
               </p>
             )}
@@ -142,7 +142,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
           <div>
             <label className={labelCls}>
               Quantity to Sell{' '}
-              <span className='text-slate-500 dark:text-slate-600 font-normal normal-case tracking-normal'>
+              <span className='text-slate-500 dark:text-slate-400 font-normal normal-case tracking-normal'>
                 (max: {totalQty})
               </span>
             </label>
@@ -174,7 +174,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
               </div>
             )}
             {perUnitSellPrice > 0 && (
-              <p className='text-[10px] text-slate-500 dark:text-slate-600 mt-1 ml-1'>
+              <p className='text-[10px] text-slate-500 dark:text-slate-400 mt-1 ml-1'>
                 ~{formatINR(perUnitSellPrice)} per unit (current) · ~
                 {formatINR(perUnitBuyPrice)} per unit (buy)
               </p>
@@ -191,7 +191,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
               value={buyTotal}
               onChange={setBuyTotal}
             />
-            <p className='text-[10px] text-slate-500 dark:text-slate-600 mt-1 ml-1'>
+            <p className='text-[10px] text-slate-500 dark:text-slate-400 mt-1 ml-1'>
               Original invested amount
             </p>
           </div>
@@ -202,7 +202,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
               value={sellTotal}
               onChange={setSellTotal}
             />
-            <p className='text-[10px] text-slate-500 dark:text-slate-600 mt-1 ml-1'>
+            <p className='text-[10px] text-slate-500 dark:text-slate-400 mt-1 ml-1'>
               Amount credited to bank
             </p>
           </div>
@@ -222,7 +222,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
             )}
           </div>
           <div className='flex-1'>
-            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
+            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-400'>
               {isProfit ? 'Realized Profit' : 'Realized Loss'}
             </p>
             <p
@@ -235,7 +235,7 @@ export function SellInvestmentModal({ open, onClose, investment }: Props) {
           <div
             className={`text-right ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}
           >
-            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
+            <p className='text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-400'>
               Return
             </p>
             <p className='text-lg font-bold tabular-nums mt-0.5'>

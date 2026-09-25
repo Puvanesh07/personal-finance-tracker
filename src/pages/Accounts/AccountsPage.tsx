@@ -1,4 +1,4 @@
-﻿import type { Account, AccountType } from '../../types/investmentTypes';
+import type { Account, AccountType } from '../../types/investmentTypes';
 import {
   Bar,
   BarChart,
@@ -99,12 +99,22 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
   const linkedCashflows = useMemo(
     () =>
       mode === 'edit' && entry
-        ? cashflows.filter((c) => c.accountId === entry.id)
+        ? cashflows.filter(
+            (c) => c.accountId === entry.id || c.toAccountId === entry.id,
+          )
         : [],
     [cashflows, entry, mode],
   );
   const deltaOf = (list: typeof linkedCashflows) =>
-    list.reduce((sum, c) => sum + (c.type === 'income' ? c.amount : -c.amount), 0);
+    list.reduce(
+      (sum, c) =>
+        sum +
+        (c.type === 'income' ||
+        (c.type === 'transfer' && c.toAccountId === entry?.id)
+          ? c.amount
+          : -c.amount),
+      0,
+    );
   const excludedCashflows = linkedCashflows.filter(
     (c) => c.date < openingBalanceDate,
   );
@@ -148,9 +158,9 @@ function AccountFormModal({ open, onClose, mode, entry }: AccountFormProps) {
   }
 
   const inputCls =
-    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:placeholder:text-slate-500 dark:text-slate-600';
+    'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:placeholder:text-slate-500 dark:text-slate-400';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-1.5 block';
+    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-400 mb-1.5 block';
 
   return (
     <Modal
@@ -366,7 +376,7 @@ function AccountCard({
             <p className='font-bold text-slate-900 dark:text-white'>
               {account.name}
             </p>
-            <p className='text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+            <p className='text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-400'>
               {accountTypeLabel(account)}
             </p>
           </div>
@@ -401,7 +411,7 @@ function AccountCard({
           {formatINR(liveBalance)}
         </p>
         {liveBalance !== openingBal && (
-          <p className='text-[11px] text-slate-900 dark:text-slate-500'>
+          <p className='text-[11px] text-slate-900 dark:text-slate-400'>
             Opening: {formatINR(openingBal)}
             {account.openingBalanceDate
               ? ` · ${account.openingBalanceDate}`
@@ -576,20 +586,34 @@ export function AccountsPage() {
     }
 
     for (const cf of cashflows) {
-      if (!cf.accountId) continue;
-      const acc = accounts.find((a) => a.id === cf.accountId);
-      if (!acc || !stats[acc.id]) continue;
-
-      // Only count cashflows on or after the opening balance date
-      const cutoff = acc.openingBalanceDate ?? '1900-01-01';
-      if (cf.date < cutoff) continue;
-
-      if (cf.type === 'income') {
-        stats[acc.id].income += cf.amount;
-        stats[acc.id].liveBalance += cf.amount;
-      } else {
-        stats[acc.id].expense += cf.amount;
-        stats[acc.id].liveBalance -= cf.amount;
+      // Source side: money arrives (income) or leaves (expense / transfer-out).
+      if (cf.accountId) {
+        const acc = accounts.find((a) => a.id === cf.accountId);
+        if (acc && stats[acc.id]) {
+          // Only count cashflows on or after the opening balance date
+          const cutoff = acc.openingBalanceDate ?? '1900-01-01';
+          if (cf.date >= cutoff) {
+            if (cf.type === 'income') {
+              stats[acc.id].income += cf.amount;
+              stats[acc.id].liveBalance += cf.amount;
+            } else if (cf.type === 'expense') {
+              stats[acc.id].expense += cf.amount;
+              stats[acc.id].liveBalance -= cf.amount;
+            } else {
+              // Transfer out: moves existing money, never income/expense.
+              stats[acc.id].liveBalance -= cf.amount;
+            }
+          }
+        }
+      }
+      // Transfer destination: mirror calcLiveAccountBalances so this page's
+      // per-account live balance matches the dashboard exactly.
+      if (cf.type === 'transfer' && cf.toAccountId) {
+        const dest = accounts.find((a) => a.id === cf.toAccountId);
+        if (dest && stats[dest.id]) {
+          const cutoff = dest.openingBalanceDate ?? '1900-01-01';
+          if (cf.date >= cutoff) stats[dest.id].liveBalance += cf.amount;
+        }
       }
     }
 
@@ -783,10 +807,10 @@ export function AccountsPage() {
       {userAccounts.length === 0 ? (
         <div className='flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/30 p-16 text-center'>
           <BsBank2 className='h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600' />
-          <p className='text-lg font-bold text-slate-400 dark:text-slate-500'>
+          <p className='text-lg font-bold text-slate-400 dark:text-slate-400'>
             No accounts yet
           </p>
-          <p className='mt-1 text-sm text-slate-400 dark:text-slate-500'>
+          <p className='mt-1 text-sm text-slate-400 dark:text-slate-400'>
             Add your bank accounts and credit cards to start tracking.
           </p>
           <button

@@ -75,7 +75,7 @@ export function PortfolioRebalancing() {
       {summary.totalValue === 0 ? <EmptyState msg="Add investments to see rebalancing suggestions." /> : (
         <div className="p-6 space-y-4">
           <div className="flex justify-between items-end">
-            <span className="text-xs font-bold uppercase text-slate-900 dark:text-slate-500">Current Equity Allocation</span>
+            <span className="text-xs font-bold uppercase text-slate-900 dark:text-slate-400">Current Equity Allocation</span>
             <span className="text-2xl font-black text-slate-900 dark:text-white">{currentEquityPct.toFixed(1)}%</span>
           </div>
           {/* Bar: current */}
@@ -114,7 +114,7 @@ export function PortfolioRebalancing() {
                 return (
                   <div key={type}>
                     <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-900 dark:text-slate-500 capitalize font-semibold">{type.replace('_', ' ')}</span>
+                      <span className="text-slate-900 dark:text-slate-400 capitalize font-semibold">{type.replace('_', ' ')}</span>
                       <span className="font-black text-slate-700 dark:text-slate-200">{pct.toFixed(1)}%</span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -290,7 +290,7 @@ export function AssetAllocationMap() {
             )
           })}
           <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex justify-between">
-            <span className="text-xs font-bold text-slate-900 dark:text-slate-500">Total Portfolio</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-400">Total Portfolio</span>
             <span className="text-sm font-black text-slate-900 dark:text-white">{formatINR(summary.totalValue)}</span>
           </div>
         </div>
@@ -342,7 +342,7 @@ export function StockPLSummary() {
                       {r.name}
                       <span className="ml-1 text-[10px] text-slate-500 dark:text-slate-400">×{r.quantity}</span>
                     </td>
-                    <td className="py-2.5 pr-2 text-right tabular-nums text-slate-900 dark:text-slate-500 text-xs">{formatINR(r.invested)}</td>
+                    <td className="py-2.5 pr-2 text-right tabular-nums text-slate-900 dark:text-slate-400 text-xs">{formatINR(r.invested)}</td>
                     <td className="py-2.5 pr-2 text-right tabular-nums text-xs text-slate-700 dark:text-slate-200">{formatINR(r.current)}</td>
                     <td className={`py-2.5 text-right tabular-nums text-xs font-black ${r.pl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                       <div>{r.pl >= 0 ? '+' : ''}{formatINR(r.pl)}</div>

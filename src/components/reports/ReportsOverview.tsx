@@ -211,7 +211,7 @@ export function ReportsOverview() {
       <Card title={<div className="flex items-center gap-2"><FiPieChart className="text-purple-500"/> Asset Allocation</div>}>
         {allocation.length === 0 ? (
           <div className="flex h-32 items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800/50">
-            <span className="text-sm font-medium text-slate-900 dark:text-slate-500">Add investments to see allocation breakdown.</span>
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-400">Add investments to see allocation breakdown.</span>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

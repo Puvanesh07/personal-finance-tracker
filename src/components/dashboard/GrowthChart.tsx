@@ -49,7 +49,7 @@ export function GrowthChart() {
       <div className="min-h-0">
       <div className="h-80 min-h-[320px] w-full pt-4">
         {data.length === 0 ? (
-          <div className="grid h-full min-h-[320px] place-items-center rounded-xl bg-slate-50/50 text-sm font-medium text-slate-900 dark:text-slate-500 dark:bg-slate-800/30 dark:text-slate-400">
+          <div className="grid h-full min-h-[320px] place-items-center rounded-xl bg-slate-50/50 text-sm font-medium text-slate-900 dark:text-slate-400 dark:bg-slate-800/30 dark:text-slate-400">
             Take your first snapshot to start tracking net worth growth over time.
           </div>
         ) : (

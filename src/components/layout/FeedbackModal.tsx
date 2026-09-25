@@ -205,7 +205,7 @@ export function FeedbackModal() {
           </button>
         </div>
 
-        <div className='flex items-center justify-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500'>
+        <div className='flex items-center justify-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-400'>
           <FiMail className='h-3 w-3' />
           <span>
             Submission opens your email client to{' '}

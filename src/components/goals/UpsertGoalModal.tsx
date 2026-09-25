@@ -28,14 +28,25 @@ import { NumericInput } from '../ui/NumericInput';
 import { CalendarPicker } from '../ui/CalendarPicker';
 import { AssetLinkPicker } from './AssetLinkPicker';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { calcLiveAccountBalances } from '../../utils/calculations';
+import { effectiveGoalCurrent, goalLinkedCurrentValue } from '../../utils/goalLinks';
+import { formatINR } from '../../utils/format';
 
 // ── Smart Calendar Picker ──────────────────────────────────────────────────
 type ContributeProps = {
   open: boolean;
   onClose: () => void;
   goal: Goal;
-  /** Called with the amount to add to currentAmount */
-  onContribute: (amount: number, note: string, date: string) => Promise<void>;
+  /** Called with the amount to add. accountId/toAccountId make the contribution
+   *  a net-worth-neutral transfer between two tracked accounts (C1); leave both
+   *  empty to record progress only (legacy behaviour, no money moved). */
+  onContribute: (
+    amount: number,
+    note: string,
+    date: string,
+    accountId?: string,
+    toAccountId?: string,
+  ) => Promise<void>;
 };
 
 export function GoalContributeModal({
@@ -48,33 +59,65 @@ export function GoalContributeModal({
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
+  const [accountId, setAccountId] = useState('');
+  const [toAccountId, setToAccountId] = useState('');
+  const accounts = usePortfolioStore((s) => s.accounts);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
+  const investments = usePortfolioStore((s) => s.investments);
+  const liveBalances = useMemo(
+    () => calcLiveAccountBalances(accounts, cashflows),
+    [accounts, cashflows],
+  );
+
+  // Goal "current" must match the rest of the app: saved contributions PLUS the
+  // live market value of linked investments. Using goal.currentAmount alone hid
+  // linked assets (e.g. mutual funds) from this modal.
+  const savedAmount = goal.currentAmount;
+  const linkedValue = useMemo(
+    () => goalLinkedCurrentValue(goal, investments),
+    [goal, investments],
+  );
+  const current = useMemo(
+    () => effectiveGoalCurrent(goal, investments),
+    [goal, investments],
+  );
 
   useEffect(() => {
     if (open) {
       setAmount('');
       setNote('');
       setDate(new Date().toISOString().split('T')[0]);
+      setAccountId('');
+      setToAccountId('');
     }
   }, [open]);
 
   const inputCls =
     'w-full rounded-xl border border-slate-300/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-400 dark:placeholder:text-slate-500';
   const labelCls =
-    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500 mb-1.5 block';
+    'text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-400 mb-1.5 block';
 
   const toNum = (v: string) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   };
 
-  const remaining = goal.targetAmount - goal.currentAmount;
+  const remaining = goal.targetAmount - current;
+  const progressPct =
+    goal.targetAmount > 0 ? Math.min(100, (current / goal.targetAmount) * 100) : 0;
 
   async function handleSubmit() {
     const amt = toNum(amount);
     if (amt <= 0) return;
     setSaving(true);
     try {
-      await onContribute(amt, note.trim(), date);
+      await onContribute(
+        amt,
+        note.trim(),
+        date,
+        accountId || undefined,
+        toAccountId || undefined,
+      );
       onClose();
     } finally {
       setSaving(false);
@@ -86,21 +129,41 @@ export function GoalContributeModal({
       <div className='grid grid-cols-1 gap-5'>
         {/* Progress summary */}
         <div className='rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3'>
-          <div className='flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-2'>
-            <span>Current: ₹{goal.currentAmount.toLocaleString('en-IN')}</span>
-            <span>Target: ₹{goal.targetAmount.toLocaleString('en-IN')}</span>
+          <div className='mb-2 flex items-end justify-between gap-3'>
+            <div>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                Current
+              </p>
+              <p className='text-xl font-black tabular-nums text-slate-900 dark:text-white'>
+                {formatINR(current)}
+              </p>
+            </div>
+            <div className='text-right'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                Target
+              </p>
+              <p className='text-xl font-black tabular-nums text-slate-900 dark:text-white'>
+                {formatINR(goal.targetAmount)}
+              </p>
+            </div>
           </div>
           <div className='h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800'>
             <div
               className='h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700'
-              style={{
-                width: `${Math.min(100, (goal.currentAmount / goal.targetAmount) * 100)}%`,
-              }}
+              style={{ width: `${progressPct}%` }}
             />
           </div>
-          <p className='mt-2 text-[11px] text-slate-900 dark:text-slate-500'>
-            ₹{Math.max(0, remaining).toLocaleString('en-IN')} remaining
-          </p>
+          {/* Where the current amount comes from, so linked assets are visible */}
+          <div className='mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400'>
+            <span>{formatINR(Math.max(0, remaining))} remaining · {progressPct.toFixed(1)}%</span>
+            <span className='text-slate-400 dark:text-slate-500'>=</span>
+            <span>💰 {formatINR(savedAmount)} saved</span>
+            {linkedValue > 0 && (
+              <span className='text-emerald-600 dark:text-emerald-400'>
+                + 🔗 {formatINR(linkedValue)} linked assets
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Amount */}
@@ -133,6 +196,58 @@ export function GoalContributeModal({
             onChange={(e) => setNote(e.target.value)}
             placeholder='e.g. Monthly SIP, Bonus allocation…'
           />
+        </div>
+
+        {/* Funding + destination accounts (net-worth-neutral transfer, C1) */}
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50/60 dark:bg-slate-900/30 p-4'>
+          <p className='text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-3'>
+            Move money from a real account (optional). Pick both to record a
+            transfer — it will <span className='font-bold'>not</span> reduce your
+            net worth, it just relocates cash into the goal account.
+          </p>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div>
+              <label className={labelCls}>From (funding account)</label>
+              <Select
+                className={inputCls}
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                placeholder='Select account…'
+              >
+                {accounts
+                  .filter((a) => a.id !== toAccountId)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {formatINR(liveBalances[a.id] ?? a.balance)}
+                    </option>
+                  ))}
+              </Select>
+            </div>
+            <div>
+              <label className={labelCls}>To (goal account)</label>
+              <Select
+                className={inputCls}
+                value={toAccountId}
+                onChange={(e) => setToAccountId(e.target.value)}
+                placeholder='Select account…'
+              >
+                {accounts
+                  .filter((a) => a.id !== accountId)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {formatINR(liveBalances[a.id] ?? a.balance)}
+                    </option>
+                  ))}
+              </Select>
+            </div>
+          </div>
+          {!!accountId && !!toAccountId && (
+            <p className='mt-2 text-[11px] text-emerald-600 dark:text-emerald-400'>
+              A “Goal Contribution” transfer of {formatINR(toNum(amount))} will be
+              recorded: {accounts.find((a) => a.id === accountId)?.name} →{' '}
+              {accounts.find((a) => a.id === toAccountId)?.name}.
+            </p>
+          )}
         </div>
 
         {/* Footer */}
@@ -492,9 +607,9 @@ export function UpsertGoalModal(props: Props) {
 
               {futureValue > 0 && (
                 <div className='md:col-span-3 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300'>
-                  ₹{toNum(state.todayValue).toLocaleString('en-IN')} today →{' '}
+                  {formatINR(toNum(state.todayValue))} today →{' '}
                   <span className='font-bold'>
-                    ₹{futureValue.toLocaleString('en-IN')}
+                    {formatINR(futureValue)}
                   </span>{' '}
                   in {toNum(state.years)} yrs @ {toNum(state.inflationPct)}% —
                   target auto-filled

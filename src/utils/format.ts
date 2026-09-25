@@ -43,6 +43,20 @@ export function formatCurrency(value: number) {
 }
 
 /**
+ * Canonical delta formatter (audit I7). Always places the sign in front of the
+ * symbol (`+₹1,000` / `-₹1,000`) and respects privacy masking, so no surface can
+ * produce the inconsistent `₹-1,000` form. Use for gains / losses / changes.
+ */
+export function formatSignedINR(value: number) {
+  const n = Number(value) || 0;
+  const formatted = formatINR(Math.abs(n));
+  if (shouldMask()) return formatted;
+  if (n > 0) return `+${formatted}`;
+  if (n < 0) return `-${formatted}`;
+  return formatted;
+}
+
+/**
  * Formats a number using the Indian numbering system.
  * Example: 1234567 -> 12,34,567
  */

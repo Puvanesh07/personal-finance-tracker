@@ -187,7 +187,7 @@ export function InstallAppModal({ open, onClose }: InstallAppModalProps) {
 
                   {/* ── Instructions ── */}
                   <div className='px-5 pb-4'>
-                    <p className='text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+                    <p className='text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3'>
                       To install, use your browser menu:
                     </p>
 
@@ -243,7 +243,7 @@ export function InstallAppModal({ open, onClose }: InstallAppModalProps) {
 
                     {/* Prompt ready indicator */}
                     {!canNativeInstall && !ios && (
-                      <div className='mt-3 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500'>
+                      <div className='mt-3 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-400'>
                         <span className='h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse' />
                         Prompt ready ✓
                       </div>
@@ -254,7 +254,7 @@ export function InstallAppModal({ open, onClose }: InstallAppModalProps) {
                   <div className='border-t border-slate-100 dark:border-slate-800 px-5 py-3'>
                     <button
                       onClick={onClose}
-                      className='w-full text-sm font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors py-1'
+                      className='w-full text-sm font-semibold text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors py-1'
                     >
                       Not now
                     </button>

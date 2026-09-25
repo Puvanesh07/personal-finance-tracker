@@ -82,7 +82,7 @@ export function ScoreRing({
           {score.toFixed(1)}
         </span>
         <span
-          className='text-slate-900 dark:text-slate-500 leading-none'
+          className='text-slate-900 dark:text-slate-400 leading-none'
           style={{ fontSize: size * 0.14 }}
         >
           /10
@@ -363,7 +363,7 @@ export function FolioSyncInputForm({
               <span className='text-xs font-black uppercase tracking-widest text-emerald-500'>
                 FolioSync
               </span>
-              <span className='text-slate-500 dark:text-slate-600 text-xs'>·</span>
+              <span className='text-slate-500 dark:text-slate-400 text-xs'>·</span>
               <span className='text-xs text-slate-500 dark:text-slate-400'>
                 Fundamental Analysis
               </span>
@@ -377,7 +377,7 @@ export function FolioSyncInputForm({
           </div>
           <button
             onClick={onClose}
-            className='text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors p-1'
+            className='text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1'
           >
             <svg
               className='w-5 h-5'
@@ -396,14 +396,14 @@ export function FolioSyncInputForm({
         </div>
 
         <div className='p-6 space-y-6'>
-          <p className='text-xs text-slate-900 dark:text-slate-500'>
+          <p className='text-xs text-slate-900 dark:text-slate-400'>
             Enter fundamentals from Screener.in, Tickertape or any source. Leave
             blank if unknown — scores are computed only from available data.
           </p>
 
           {FIELD_GROUPS.map((group) => (
             <div key={group.label}>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-2'>
                 {group.label}
               </div>
               <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
@@ -423,7 +423,7 @@ export function FolioSyncInputForm({
                           [f.key]: e.target.value,
                         }))
                       }
-                      className='w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-2.5 py-1.5 text-xs text-white outline-none focus:border-emerald-500 placeholder:text-slate-500 dark:text-slate-600'
+                      className='w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-2.5 py-1.5 text-xs text-white outline-none focus:border-emerald-500 placeholder:text-slate-500 dark:text-slate-400'
                     />
                   </div>
                 ))}
@@ -433,7 +433,7 @@ export function FolioSyncInputForm({
 
           {/* Qualitative Signals */}
           <div>
-            <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
+            <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-2'>
               Qualitative Signals
             </div>
             <div className='grid grid-cols-2 gap-2'>
@@ -483,7 +483,7 @@ export function FolioSyncInputForm({
               <div className='text-[10px] font-black uppercase tracking-widest text-rose-500'>
                 ⚠ Hard Cap Flags
               </div>
-              <span className='text-[9px] text-slate-500 dark:text-slate-600'>
+              <span className='text-[9px] text-slate-500 dark:text-slate-400'>
                 Score capped at 4.0 if any are checked
               </span>
             </div>
@@ -590,7 +590,7 @@ function MetricRow({
   if (value === undefined || value === null) {
     return (
       <div className='flex items-center justify-between py-1.5 border-b border-slate-200/70 dark:border-slate-800/60 last:border-0'>
-        <span className='text-[11px] text-slate-900 dark:text-slate-500'>{label}</span>
+        <span className='text-[11px] text-slate-900 dark:text-slate-400'>{label}</span>
         <span className='text-slate-600 dark:text-slate-700 text-[11px]'>—</span>
       </div>
     );
@@ -604,7 +604,7 @@ function MetricRow({
   }
   return (
     <div className='flex items-center justify-between py-1.5 border-b border-slate-200/70 dark:border-slate-800/60 last:border-0'>
-      <span className='text-[11px] text-slate-900 dark:text-slate-500'>{label}</span>
+      <span className='text-[11px] text-slate-900 dark:text-slate-400'>{label}</span>
       <span className={`text-[12px] font-bold tabular-nums ${statusColor}`}>
         {typeof value === 'number'
           ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
@@ -673,7 +673,7 @@ export function FolioSyncDetailDrawer({
                 >
                   {signalConf.label}
                 </span>
-                <span className='inline-flex items-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-slate-900 dark:text-slate-500'>
+                <span className='inline-flex items-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-bold text-slate-900 dark:text-slate-400'>
                   {ASSET_CLASS_LABELS[assetClass] ?? assetClass}
                 </span>
                 {result.hardCapApplied && (
@@ -731,7 +731,7 @@ export function FolioSyncDetailDrawer({
             </button>
             <button
               onClick={onClose}
-              className='text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors p-1'
+              className='text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors p-1'
             >
               <svg
                 className='w-5 h-5'
@@ -759,7 +759,7 @@ export function FolioSyncDetailDrawer({
               className={`px-3 py-2.5 text-[11px] font-bold whitespace-nowrap transition-colors border-b-2 ${
                 activeTab === tab.id
                   ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'
+                  : 'border-transparent text-slate-900 dark:text-slate-400 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'
               }`}
             >
               {tab.label}
@@ -773,7 +773,7 @@ export function FolioSyncDetailDrawer({
             <div className='space-y-5'>
               {/* Category scores */}
               <div>
-                <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+                <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                   Category Scores
                 </div>
                 <div className='grid grid-cols-3 gap-2'>
@@ -792,7 +792,7 @@ export function FolioSyncDetailDrawer({
                         key={key}
                         className='rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-800/40 p-3 flex flex-col gap-1'
                       >
-                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-500'>
+                        <span className='text-[9px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-400'>
                           {labels[key]}
                         </span>
                         <span
@@ -819,7 +819,7 @@ export function FolioSyncDetailDrawer({
               {/* Pros */}
               {result.pros.length > 0 && (
                 <div>
-                  <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
+                  <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-2'>
                     Strengths
                   </div>
                   <div className='space-y-1.5'>
@@ -841,7 +841,7 @@ export function FolioSyncDetailDrawer({
               {/* Cons */}
               {result.cons.length > 0 && (
                 <div>
-                  <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
+                  <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-2'>
                     Weaknesses
                   </div>
                   <div className='space-y-1.5'>
@@ -859,7 +859,7 @@ export function FolioSyncDetailDrawer({
               )}
 
               {result.pros.length === 0 && result.cons.length === 0 && (
-                <p className='text-xs text-slate-500 dark:text-slate-600 text-center py-4'>
+                <p className='text-xs text-slate-500 dark:text-slate-400 text-center py-4'>
                   Add more fundamentals to generate analysis
                 </p>
               )}
@@ -873,7 +873,7 @@ export function FolioSyncDetailDrawer({
 
           {activeTab === 'valuation' && (
             <div className='space-y-1'>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                 Valuation Metrics
               </div>
               <MetricRow
@@ -902,7 +902,7 @@ export function FolioSyncDetailDrawer({
                 weak={18}
               />
               <div className='mt-4 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800'>
-                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-500 mb-1'>
+                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-400 mb-1'>
                   Valuation Score
                 </div>
                 <span
@@ -911,14 +911,14 @@ export function FolioSyncDetailDrawer({
                 >
                   {result.categories.valuation.toFixed(1)}
                 </span>
-                <span className='text-slate-500 dark:text-slate-600 text-sm'>/10</span>
+                <span className='text-slate-500 dark:text-slate-400 text-sm'>/10</span>
               </div>
             </div>
           )}
 
           {activeTab === 'profitability' && (
             <div className='space-y-1'>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                 Profitability Metrics
               </div>
               <MetricRow label='ROE %' value={f.roe} strong={22} weak={12} />
@@ -956,7 +956,7 @@ export function FolioSyncDetailDrawer({
                 }
               />
               <div className='mt-4 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800'>
-                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-500 mb-1'>
+                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-400 mb-1'>
                   Profitability Score
                 </div>
                 <span
@@ -967,14 +967,14 @@ export function FolioSyncDetailDrawer({
                 >
                   {result.categories.profitability.toFixed(1)}
                 </span>
-                <span className='text-slate-500 dark:text-slate-600 text-sm'>/10</span>
+                <span className='text-slate-500 dark:text-slate-400 text-sm'>/10</span>
               </div>
             </div>
           )}
 
           {activeTab === 'growth' && (
             <div className='space-y-1'>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                 Growth Metrics
               </div>
               <MetricRow
@@ -1038,7 +1038,7 @@ export function FolioSyncDetailDrawer({
                 weak={15}
               />
               <div className='mt-4 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800'>
-                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-500 mb-1'>
+                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-400 mb-1'>
                   Growth Score
                 </div>
                 <span
@@ -1047,14 +1047,14 @@ export function FolioSyncDetailDrawer({
                 >
                   {result.categories.growth.toFixed(1)}
                 </span>
-                <span className='text-slate-500 dark:text-slate-600 text-sm'>/10</span>
+                <span className='text-slate-500 dark:text-slate-400 text-sm'>/10</span>
               </div>
             </div>
           )}
 
           {activeTab === 'health' && (
             <div className='space-y-1'>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                 Financial Health
               </div>
               <MetricRow
@@ -1089,7 +1089,7 @@ export function FolioSyncDetailDrawer({
                 </div>
               )}
               <div className='mt-4 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800'>
-                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-500 mb-1'>
+                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-400 mb-1'>
                   Financial Health Score
                 </div>
                 <span
@@ -1100,14 +1100,14 @@ export function FolioSyncDetailDrawer({
                 >
                   {result.categories.financialHealth.toFixed(1)}
                 </span>
-                <span className='text-slate-500 dark:text-slate-600 text-sm'>/10</span>
+                <span className='text-slate-500 dark:text-slate-400 text-sm'>/10</span>
               </div>
             </div>
           )}
 
           {activeTab === 'dividends' && (
             <div className='space-y-1'>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                 Income & Dividends
               </div>
               <MetricRow
@@ -1135,7 +1135,7 @@ export function FolioSyncDetailDrawer({
                 weak={5}
               />
 
-              <div className='mt-4 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-900 dark:text-slate-500 space-y-1'>
+              <div className='mt-4 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-900 dark:text-slate-400 space-y-1'>
                 <p className='font-bold text-slate-500 dark:text-slate-400 mb-2'>
                   Scoring Thresholds
                 </p>
@@ -1161,7 +1161,7 @@ export function FolioSyncDetailDrawer({
               </div>
 
               <div className='mt-4 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800'>
-                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-500 mb-1'>
+                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-400 mb-1'>
                   Income Score
                 </div>
                 <span
@@ -1170,14 +1170,14 @@ export function FolioSyncDetailDrawer({
                 >
                   {result.categories.income.toFixed(1)}
                 </span>
-                <span className='text-slate-500 dark:text-slate-600 text-sm'>/10</span>
+                <span className='text-slate-500 dark:text-slate-400 text-sm'>/10</span>
               </div>
             </div>
           )}
 
           {activeTab === 'market' && (
             <div className='space-y-1'>
-              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+              <div className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
                 Market Context
               </div>
               <MetricRow
@@ -1192,7 +1192,7 @@ export function FolioSyncDetailDrawer({
                 value={f.marketCapCategory}
               />
 
-              <div className='mt-3 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-900 dark:text-slate-500 space-y-1'>
+              <div className='mt-3 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-900 dark:text-slate-400 space-y-1'>
                 <p className='font-bold text-slate-500 dark:text-slate-400 mb-2'>
                   Scoring Thresholds
                 </p>
@@ -1213,7 +1213,7 @@ export function FolioSyncDetailDrawer({
               </div>
 
               <div className='mt-4 p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800'>
-                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-500 mb-1'>
+                <div className='text-[10px] font-bold text-slate-900 dark:text-slate-400 mb-1'>
                   Market Score
                 </div>
                 <span
@@ -1224,7 +1224,7 @@ export function FolioSyncDetailDrawer({
                 >
                   {result.categories.marketContext.toFixed(1)}
                 </span>
-                <span className='text-slate-500 dark:text-slate-600 text-sm'>/10</span>
+                <span className='text-slate-500 dark:text-slate-400 text-sm'>/10</span>
               </div>
             </div>
           )}
@@ -1309,7 +1309,7 @@ function FetchStatusBadge({
       {(status === 'success' || status === 'partial') && onRefresh && (
         <button
           onClick={onRefresh}
-          className='ml-1 text-slate-500 dark:text-slate-600 hover:text-emerald-400 transition-colors'
+          className='ml-1 text-slate-500 dark:text-slate-400 hover:text-emerald-400 transition-colors'
           title='Re-fetch from Screener.in'
         >
           ↻
@@ -1480,7 +1480,7 @@ export function FolioSyncCell({
                 >
                   ↻
                 </span>
-                {cacheAge && <span className='text-slate-500 dark:text-slate-600'>{cacheAge}</span>}
+                {cacheAge && <span className='text-slate-500 dark:text-slate-400'>{cacheAge}</span>}
               </button>
             )}
           </div>
@@ -1495,7 +1495,7 @@ export function FolioSyncCell({
               disabled={fetchStatus === 'fetching'}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition-all border whitespace-nowrap ${
                 fetchStatus === 'fetching'
-                  ? 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-500 cursor-not-allowed'
+                  ? 'border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-400 cursor-not-allowed'
                   : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400/60 active:scale-95'
               }`}
               title='Auto-fetch from Screener.in and score'
@@ -1524,7 +1524,7 @@ export function FolioSyncCell({
                 e.stopPropagation();
                 setShowForm(true);
               }}
-              className='flex items-center gap-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 px-2 py-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-600 hover:text-slate-900 dark:text-slate-500 dark:hover:text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600 transition-all whitespace-nowrap'
+              className='flex items-center gap-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 px-2 py-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:border-slate-600 transition-all whitespace-nowrap'
               title='Enter fundamentals manually'
             >
               <svg
@@ -1550,7 +1550,7 @@ export function FolioSyncCell({
               e.stopPropagation();
               setShowForm(true);
             }}
-            className='flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-600 hover:text-emerald-400 hover:border-emerald-500/40 transition-all whitespace-nowrap'
+            className='flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40 transition-all whitespace-nowrap'
             title='Enter fundamentals manually'
           >
             <svg

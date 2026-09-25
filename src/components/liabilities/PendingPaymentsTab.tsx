@@ -364,7 +364,7 @@ export function PendingPaymentsTab() {
                         <button
                           type='button'
                           title='Mark as received'
-                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                          className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
                           onClick={() => void markReceived(p)}
                         >
                           <FiCheck className='h-4 w-4' />
@@ -373,7 +373,7 @@ export function PendingPaymentsTab() {
                       <button
                         type='button'
                         title='Edit'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                         onClick={() => {
                           setEditPayment(p);
                           setModalOpen(true);
@@ -384,7 +384,7 @@ export function PendingPaymentsTab() {
                       <button
                         type='button'
                         title='Delete'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                         onClick={() => setDeleteId(p.id)}
                       >
                         <FiTrash2 className='h-4 w-4' />

@@ -1,6 +1,8 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import * as logger from 'firebase-functions/logger';
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
 
 import {
@@ -11,6 +13,8 @@ import {
   revokePremiumAccess,
   findUidByEmail,
   syncAuthClaims,
+  deleteAllUserData,
+  USER_SUBCOLLECTIONS,
   type Plan,
 } from './subscriptionUtils';
 import {
@@ -334,60 +338,103 @@ export const adminManageSubscription = onCall(
       // captured Razorpay payment that our user records do not reflect, and
       // optionally re-activates it through the same code path as the webhook.
       const apply = request.data?.apply === true;
-      const payments = await listRecentPayments(100);
-      const db = getDb();
-      const mismatches: Array<{
-        paymentId: string;
-        orderId: string;
-        uid: string;
-        amount: number;
-        action: string;
-      }> = [];
-
-      for (const payment of payments) {
-        if (String(payment.status) !== 'captured' && String(payment.status) !== 'authorized') {
-          continue;
-        }
-        const uid = String(payment.notes?.userId ?? '');
-        if (!uid) continue;
-
-        const userSnap = await db.collection('users').doc(uid).get();
-        const user = userSnap.data() ?? {};
-        const alreadyApplied = user.paymentId === payment.id || user.premiumGranted === true;
-        if (alreadyApplied) continue;
-
-        let what = 'missing activation';
-        if (apply) {
-          const order = await fetchOrder(String(payment.order_id ?? ''));
-          if (order) {
-            const plan = resolvePaidPlan(order, order.notes?.plan);
-            assertPaymentMatchesOrder(payment, order, String(payment.order_id ?? ''));
-            const claimed = await claimOrderPaid(uid, String(payment.order_id), String(payment.id), {
-              plan,
-              amount: Number(order.amount),
-            });
-            if (claimed) {
-              await activatePaidPlan(uid, plan, String(payment.id));
-              what = `activated ${plan}`;
-            } else {
-              what = 'order already applied';
-            }
-          }
-        }
-
-        mismatches.push({
-          paymentId: String(payment.id ?? ''),
-          orderId: String(payment.order_id ?? ''),
-          uid,
-          amount: Number(payment.amount ?? 0) / 100,
-          action: what,
-        });
-      }
-
-      return { success: true, action, checked: payments.length, mismatches };
+      const { checked, mismatches } = await runPaymentReconcile(apply);
+      return { success: true, action, checked, mismatches };
     }
 
     throw new HttpsError('invalid-argument', 'Unknown action');
+  },
+);
+
+type ReconcileMismatch = {
+  paymentId: string;
+  orderId: string;
+  uid: string;
+  amount: number;
+  action: string;
+};
+
+/** Find captured Razorpay payments that no user record reflects, and (when
+ *  `apply` is true) re-activate them through the same code path the webhook
+ *  uses. Shared by the admin action and the daily schedule (audit C7). */
+async function runPaymentReconcile(
+  apply: boolean,
+): Promise<{ checked: number; mismatches: ReconcileMismatch[] }> {
+  const payments = await listRecentPayments(100);
+  const db = getDb();
+  const mismatches: ReconcileMismatch[] = [];
+
+  for (const payment of payments) {
+    if (String(payment.status) !== 'captured' && String(payment.status) !== 'authorized') {
+      continue;
+    }
+    const uid = String(payment.notes?.userId ?? '');
+    if (!uid) continue;
+
+    const userSnap = await db.collection('users').doc(uid).get();
+    const user = userSnap.data() ?? {};
+    const alreadyApplied = user.paymentId === payment.id || user.premiumGranted === true;
+    if (alreadyApplied) continue;
+
+    let what = 'missing activation';
+    if (apply) {
+      const order = await fetchOrder(String(payment.order_id ?? ''));
+      if (order) {
+        const plan = resolvePaidPlan(order, order.notes?.plan);
+        assertPaymentMatchesOrder(payment, order, String(payment.order_id ?? ''));
+        const claimed = await claimOrderPaid(uid, String(payment.order_id), String(payment.id), {
+          plan,
+          amount: Number(order.amount),
+        });
+        if (claimed) {
+          await activatePaidPlan(uid, plan, String(payment.id));
+          what = `activated ${plan}`;
+        } else {
+          what = 'order already applied';
+        }
+      }
+    }
+
+    mismatches.push({
+      paymentId: String(payment.id ?? ''),
+      orderId: String(payment.order_id ?? ''),
+      uid,
+      amount: Number(payment.amount ?? 0) / 100,
+      action: what,
+    });
+  }
+
+  return { checked: payments.length, mismatches };
+}
+
+/** dailyPaymentReconcile — safety net for the "I paid, still locked out"
+ *  ticket. Runs once a day, self-heals any captured-but-unapplied payments,
+ *  and emits a structured error log (for Cloud Logging alerting) if anything
+ *  slipped past the webhook. Scheduled functions are billed per invocation —
+ *  not as idle Cloud Run containers — so this stays free at launch volumes. */
+export const dailyPaymentReconcile = onSchedule(
+  {
+    region,
+    secrets: [...razorpaySecrets, ...ownerSecrets],
+    schedule: 'every 24 hours from 6:00pm',
+    timeZone: 'Asia/Kolkata',
+    timeoutSeconds: 300,
+  },
+  async () => {
+    try {
+      const { checked, mismatches } = await runPaymentReconcile(true);
+      if (mismatches.length === 0) {
+        logger.info('dailyPaymentReconcile: all payments reconciled', { checked });
+        return;
+      }
+      logger.error('dailyPaymentReconcile: payment activation mismatches (webhook gaps)', {
+        checked,
+        count: mismatches.length,
+        mismatches,
+      });
+    } catch (err) {
+      logger.error('dailyPaymentReconcile failed', err);
+    }
   },
 );
 
@@ -568,6 +615,84 @@ export const restorePurchase = onCall(
     };
   },
 );
+
+// ── Account lifecycle (audit C6 — data portability & right-to-erasure) ─────
+
+/** Recent sign-in gate (5 min). Deleting an account or exporting everything is
+ *  high-impact, so we refuse to run on a stale session an unlocked device could
+ *  replay. Mirrors Firebase's own `requires-recent-login` posture. */
+function assertRecentLogin(request: { auth?: { token: { auth_time?: number } } }) {
+  const authTime = request.auth?.token?.auth_time ?? 0;
+  const FIVE_MIN = 5 * 60;
+  if (Date.now() / 1000 - authTime > FIVE_MIN) {
+    throw new HttpsError(
+      'permission-denied',
+      'Please sign in again to continue (recent authentication required).',
+    );
+  }
+}
+
+/** exportMyData — full, structured JSON of everything the user owns.
+ *  Satisfies GDPR/IT-Amendment Act data-portability: the client downloads it as
+ *  a file. Timestamps serialize to {_seconds,_nanoseconds} by Firestore. */
+export const exportMyData = onCall(callableOptions, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Authentication required');
+  }
+  assertRecentLogin(request);
+  const uid = request.auth.uid;
+  const db = getDb();
+
+  const profile = (await db.collection('users').doc(uid).get()).data() ?? null;
+
+  const collections: Record<string, unknown[]> = {};
+  for (const col of USER_SUBCOLLECTIONS) {
+    const snap = await db.collection(`users/${uid}/${col}`).get();
+    collections[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+  const notifSnap = await db
+    .collection(`notifications/${uid}/items`)
+    .get()
+    .catch(() => null);
+
+  return {
+    exportedAt: new Date().toISOString(),
+    uid,
+    profile,
+    collections,
+    notifications: notifSnap ? notifSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
+  };
+});
+
+/** deleteMyAccount — irreversible erasure of every document + the auth user.
+ *  Reuses the same `deleteAllUserData` the admin purge uses (all 20
+ *  sub-collections + notifications + the user doc), then deletes the login so
+ *  the uid can never read anything again. Client must re-auth first. */
+export const deleteMyAccount = onCall(callableOptions, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Authentication required');
+  }
+  assertRecentLogin(request);
+  const uid = request.auth.uid;
+
+  // Belt-and-braces: require the client to echo a confirmation token so a
+  // mis-fired call can never wipe an account.
+  if (request.data?.confirm !== 'DELETE') {
+    throw new HttpsError('invalid-argument', 'Missing confirmation');
+  }
+
+  await deleteAllUserData(uid);
+  try {
+    await getAuth().deleteUser(uid);
+  } catch (err) {
+    // Data is already gone; a lingering auth user is not a privacy leak, but
+    // surface it so we can clean up.
+    logger.error('deleteMyAccount: data deleted but auth user removal failed', err);
+    return { deleted: true, authDeleted: false };
+  }
+  logger.info('deleteMyAccount: account fully deleted', { uid });
+  return { deleted: true, authDeleted: true };
+});
  
 
 // expireSubscriptions — removed from Cloud Functions.

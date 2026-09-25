@@ -12,11 +12,13 @@ import {
 } from 'react-icons/fi';
 
 import { formatCurrency } from '../../utils/format';
+import { effectiveGoalCurrent } from '../../utils/goalLinks';
 import { useNavigate } from 'react-router-dom';
 import { usePortfolioStore } from '../../store/portfolioStore';
 
 export function GoalsEssentialsSummary() {
   const goals = usePortfolioStore((s) => s.goals);
+  const investments = usePortfolioStore((s) => s.investments);
   const essentials = usePortfolioStore((s) => s.essentials);
   const insurancePolicies = usePortfolioStore((s) => s.insurancePolicies) || [];
   const navigate = useNavigate();
@@ -58,7 +60,7 @@ export function GoalsEssentialsSummary() {
 
         {goals.length === 0 ? (
           <div className='flex flex-col h-36 items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 gap-3'>
-            <p className='text-sm text-slate-900 dark:text-slate-500'>No goals set yet.</p>
+            <p className='text-sm text-slate-900 dark:text-slate-400'>No goals set yet.</p>
             <button
               onClick={() => navigate('/essentials?tab=goals')}
               className='text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors'
@@ -69,10 +71,11 @@ export function GoalsEssentialsSummary() {
         ) : (
           <div className='space-y-4'>
             {goals.slice(0, 4).map((goal) => {
+              const cur = effectiveGoalCurrent(goal, investments);
               const progress =
                 goal.targetAmount > 0
                   ? Math.min(
-                      (goal.currentAmount / goal.targetAmount) * 100,
+                      (cur / goal.targetAmount) * 100,
                       100,
                     )
                   : 0;
@@ -85,7 +88,7 @@ export function GoalsEssentialsSummary() {
                     </span>
                     <div className='flex items-center gap-2 shrink-0'>
                       <span className='text-slate-500 dark:text-slate-400 text-xs tabular-nums'>
-                        {formatCurrency(goal.currentAmount)} /{' '}
+                        {formatCurrency(cur)} /{' '}
                         {formatCurrency(goal.targetAmount)}
                       </span>
                       {isComplete && (
@@ -103,7 +106,7 @@ export function GoalsEssentialsSummary() {
                   </div>
                   <div className='mt-1 text-right'>
                     <span
-                      className={`text-[10px] font-bold ${isComplete ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-500'}`}
+                      className={`text-[10px] font-bold ${isComplete ? 'text-emerald-400' : 'text-slate-900 dark:text-slate-400'}`}
                     >
                       {progress.toFixed(0)}%
                     </span>
@@ -114,7 +117,7 @@ export function GoalsEssentialsSummary() {
             {goals.length > 4 && (
               <button
                 onClick={() => navigate('/essentials?tab=goals')}
-                className='text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors w-full text-center pt-1'
+                className='text-xs font-bold text-slate-900 dark:text-slate-400 hover:text-emerald-400 transition-colors w-full text-center pt-1'
               >
                 +{goals.length - 4} more goals →
               </button>
@@ -163,7 +166,7 @@ export function GoalsEssentialsSummary() {
             {efTarget === 0 && (
               <button
                 onClick={() => navigate('/essentials')}
-                className='mt-1 text-[11px] font-bold text-slate-900 dark:text-slate-500 hover:text-blue-400 transition-colors'
+                className='mt-1 text-[11px] font-bold text-slate-900 dark:text-slate-400 hover:text-blue-400 transition-colors'
               >
                 Set a target in Essentials →
               </button>
@@ -184,7 +187,7 @@ export function GoalsEssentialsSummary() {
                 <p className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                   Term Insurance
                 </p>
-                <p className='text-xs text-slate-900 dark:text-slate-500'>Total life coverage</p>
+                <p className='text-xs text-slate-900 dark:text-slate-400'>Total life coverage</p>
               </div>
             </div>
             <div className='flex items-center gap-2'>
@@ -192,7 +195,7 @@ export function GoalsEssentialsSummary() {
                 {totalLifeCover > 0 ? formatCurrency(totalLifeCover) : '₹0'}
               </p>
               {/* ✅ Direction icon */}
-              <FiArrowUpRight className='h-4 w-4 text-slate-900 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
+              <FiArrowUpRight className='h-4 w-4 text-slate-900 dark:text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity' />
             </div>
           </button>
 
@@ -210,7 +213,7 @@ export function GoalsEssentialsSummary() {
                 <p className='text-sm font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
                   Health Insurance
                 </p>
-                <p className='text-xs text-slate-900 dark:text-slate-500'>Total medical coverage</p>
+                <p className='text-xs text-slate-900 dark:text-slate-400'>Total medical coverage</p>
               </div>
             </div>
             <div className='flex items-center gap-2'>
@@ -218,7 +221,7 @@ export function GoalsEssentialsSummary() {
                 {totalHealthCover > 0 ? formatCurrency(totalHealthCover) : '₹0'}
               </p>
               {/* ✅ Direction icon */}
-              <FiArrowUpRight className='h-4 w-4 text-slate-900 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
+              <FiArrowUpRight className='h-4 w-4 text-slate-900 dark:text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity' />
             </div>
           </button>
         </div>

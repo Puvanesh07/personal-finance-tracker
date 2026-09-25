@@ -66,13 +66,13 @@ export function CashflowForecastCard({ compact = false }: { compact?: boolean })
 
       {/* Available cash */}
       <div className='px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20'>
-        <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1'>
+        <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1'>
           Available After Obligations (30d)
         </p>
         <p className={`text-2xl font-black tabular-nums ${balanceColor}`}>
           {formatINR(forecast.availableAfterObligations)}
         </p>
-        <p className='text-[11px] text-slate-400 dark:text-slate-500 mt-0.5'>
+        <p className='text-[11px] text-slate-400 dark:text-slate-400 mt-0.5'>
           Bank balance {formatINR(forecast.currentCash)} − upcoming bills {formatINR(forecast.forecast30.totalOut)}
         </p>
       </div>
@@ -87,7 +87,7 @@ export function CashflowForecastCard({ compact = false }: { compact?: boolean })
             className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition-all ${
               period === p
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                : 'text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
             {p}d
@@ -105,7 +105,7 @@ export function CashflowForecastCard({ compact = false }: { compact?: boolean })
           <div key={label} className='bg-white dark:bg-slate-900/60 px-3 py-2.5 text-center'>
             <div className='flex items-center justify-center gap-1 mb-0.5'>
               <Icon className={`h-3 w-3 ${color}`} />
-              <p className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>{label}</p>
+              <p className='text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400'>{label}</p>
             </div>
             <p className={`text-sm font-black tabular-nums ${color}`}>
               {value >= 0 ? '' : '-'}{formatINR(Math.abs(value))}
@@ -135,7 +135,7 @@ export function CashflowForecastCard({ compact = false }: { compact?: boolean })
       {/* Upcoming events (compact: top 3) */}
       {!compact && fp.events.length > 0 && (
         <div className='border-t border-slate-100 dark:border-slate-800'>
-          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-4 pt-3 pb-1'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 px-4 pt-3 pb-1'>
             Upcoming ({fp.events.length})
           </p>
           <div className='divide-y divide-slate-50 dark:divide-slate-800/60 max-h-48 overflow-y-auto'>
@@ -145,7 +145,7 @@ export function CashflowForecastCard({ compact = false }: { compact?: boolean })
                   <span className='text-sm shrink-0'>{ev.direction === 'in' ? '💰' : ev.category === 'emi' ? '🏦' : ev.category === 'sip' ? '📈' : '💳'}</span>
                   <div className='min-w-0'>
                     <p className='text-xs font-medium text-slate-700 dark:text-slate-300 truncate'>{ev.label}</p>
-                    <p className='text-[9px] text-slate-400 dark:text-slate-500'>{ev.date}</p>
+                    <p className='text-[9px] text-slate-400 dark:text-slate-400'>{ev.date}</p>
                   </div>
                 </div>
                 <span className={`text-xs font-bold tabular-nums shrink-0 ${ev.direction === 'in' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>

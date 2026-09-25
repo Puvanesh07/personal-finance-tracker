@@ -143,7 +143,7 @@ export function EncryptionSettings({ uid }: EncryptionSettingsProps) {
             Because a whole document becomes one opaque field, the app reads your
             full history from the server instead of asking the database for “last
             3 months”.{' '}
-            <span className='text-slate-500 dark:text-slate-500'>
+            <span className='text-slate-500 dark:text-slate-400'>
               A passphrase-derived key with a recovery kit (real zero-access
               encryption) is on the roadmap; the Credentials vault is the first
               place it will apply.

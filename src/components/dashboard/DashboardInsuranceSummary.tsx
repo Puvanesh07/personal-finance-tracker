@@ -48,7 +48,7 @@ export function DashboardInsuranceSummary() {
       {insurancePolicies.length === 0 ? (
         <div className='flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-8 text-center'>
           <FiShield className='h-6 w-6 text-slate-300 dark:text-slate-600' />
-          <p className='text-xs text-slate-400 dark:text-slate-500'>No policies added yet</p>
+          <p className='text-xs text-slate-400 dark:text-slate-400'>No policies added yet</p>
           <button
             onClick={() => navigate('/insurance')}
             className='text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors'

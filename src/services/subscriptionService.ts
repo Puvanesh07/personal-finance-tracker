@@ -362,6 +362,31 @@ export async function restorePurchase(): Promise<{ restored: boolean; message: s
   return result.data;
 }
 
+// ── Account lifecycle (audit C6) ───────────────────────────────────────────
+
+/** Server-side full export of every collection the user owns (includes the
+ *  receipts / device tokens / push ledger the client can't enumerate). */
+export async function exportMyDataComplete(): Promise<Record<string, unknown>> {
+  const fn = httpsCallable<void, Record<string, unknown>>(functions, 'exportMyData');
+  const result = await fn();
+  return result.data;
+}
+
+/** Irreversible deletion: wipes every collection + notifications and removes
+ *  the auth user, all with admin privileges. Throws `functions/permission-denied`
+ *  if the session is older than 5 minutes (client must prompt re-login). */
+export async function deleteMyAccountServer(): Promise<{
+  deleted: boolean;
+  authDeleted: boolean;
+}> {
+  const fn = httpsCallable<{ confirm: string }, { deleted: boolean; authDeleted: boolean }>(
+    functions,
+    'deleteMyAccount',
+  );
+  const result = await fn({ confirm: 'DELETE' });
+  return result.data;
+}
+
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown> | { key: string }) => {

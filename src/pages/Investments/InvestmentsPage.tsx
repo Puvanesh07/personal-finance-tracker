@@ -1,4 +1,4 @@
-﻿// src/pages/Investments/InvestmentsPage.tsx
+// src/pages/Investments/InvestmentsPage.tsx
 
 import {
   FiBox,
@@ -130,11 +130,11 @@ function FilterDropdown<T extends { id: string; label: string; icon: any }>({
         }`}
       >
         <div className='flex items-center gap-3'>
-          <Icon className={`h-4 w-4 ${open ? iconActive : 'text-slate-900 dark:text-slate-500'}`} />
+          <Icon className={`h-4 w-4 ${open ? iconActive : 'text-slate-900 dark:text-slate-400'}`} />
           <span>{selected.label}</span>
         </div>
         <FiChevronDown
-          className={`h-4 w-4 transition-transform duration-300 text-slate-900 dark:text-slate-500 ${open ? `rotate-180 ${iconActive}` : ''}`}
+          className={`h-4 w-4 transition-transform duration-300 text-slate-900 dark:text-slate-400 ${open ? `rotate-180 ${iconActive}` : ''}`}
         />
       </button>
 
@@ -236,7 +236,7 @@ function StatCard({
   return (
     <div className='flex flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/50 p-3 md:p-4'>
       <div className='flex items-center gap-1.5'>
-        {icon && <span className='text-slate-400 dark:text-slate-500'>{icon}</span>}
+        {icon && <span className='text-slate-400 dark:text-slate-400'>{icon}</span>}
         <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
           {label}
         </p>
@@ -708,7 +708,7 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
           {/* ── Search + Filters ── */}
           <div className='flex flex-col gap-3'>
             <div className='relative group'>
-              <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors' />
+              <FiSearch className='absolute left-4 top-1/2 -translate-y-1/2 text-slate-900 dark:text-slate-400 group-focus-within:text-emerald-500 transition-colors' />
               <input
                 ref={searchInputRef}
                 value={query}
@@ -720,7 +720,7 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
 
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
               <div>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-1.5 ml-1'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-1.5 ml-1'>
                   Asset Type
                 </p>
                 <FilterDropdown
@@ -731,7 +731,7 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
                 />
               </div>
               <div>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-1.5 ml-1'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-1.5 ml-1'>
                   Broker / Platform
                 </p>
                 <FilterDropdown

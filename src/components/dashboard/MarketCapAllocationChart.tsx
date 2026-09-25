@@ -161,7 +161,7 @@ export function MarketCapAllocationChart() {
         <button
           type='button'
           onClick={handleRefresh}
-          className='group flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/50 px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-600 transition-all hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:bg-slate-800'
+          className='group flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/50 px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 transition-all hover:bg-slate-50 dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:bg-slate-800'
         >
           <FiRefreshCw
             className={`h-3.5 w-3.5 text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 transition-colors ${isLoading ? 'animate-spin text-emerald-500' : ''}`}
@@ -173,7 +173,7 @@ export function MarketCapAllocationChart() {
       }
     >
       {investments.length === 0 ? (
-        <div className='grid h-40 place-items-center text-sm font-medium text-slate-900 dark:text-slate-500'>
+        <div className='grid h-40 place-items-center text-sm font-medium text-slate-900 dark:text-slate-400'>
           Add investments to see market cap breakdown.
         </div>
       ) : (
@@ -287,7 +287,7 @@ export function MarketCapAllocationChart() {
                   </span>
                 </div>
                 <div className='flex items-center gap-3 tabular-nums'>
-                  <span className='text-slate-900 dark:text-slate-500 text-xs font-semibold'>
+                  <span className='text-slate-900 dark:text-slate-400 text-xs font-semibold'>
                     {formatINR(e.value)}
                   </span>
                   <span
@@ -296,7 +296,7 @@ export function MarketCapAllocationChart() {
                   >
                     {e.pct}%
                   </span>
-                  <FiArrowUpRight className='h-3.5 w-3.5 text-slate-900 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity' />
+                  <FiArrowUpRight className='h-3.5 w-3.5 text-slate-900 dark:text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity' />
                 </div>
               </button>
             ))}

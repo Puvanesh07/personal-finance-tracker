@@ -459,7 +459,7 @@ function ScoreRing({ score }: { score: number }) {
         >
           {score}
         </span>
-        <span className='text-[10px] text-slate-900 dark:text-slate-500'>
+        <span className='text-[10px] text-slate-900 dark:text-slate-400'>
           /100
         </span>
       </div>
@@ -522,7 +522,7 @@ function MetricCard({
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-1.5'>
           <span className='text-base'>{icon}</span>
-          <span className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-semibold'>
+          <span className='text-[10px] text-slate-900 dark:text-slate-400 uppercase tracking-wider font-semibold'>
             {label}
           </span>
         </div>
@@ -544,7 +544,7 @@ function MetricCard({
         {value}
       </div>
       {sub && (
-        <div className='text-[11px] text-slate-900 dark:text-slate-500'>
+        <div className='text-[11px] text-slate-900 dark:text-slate-400'>
           {sub}
         </div>
       )}
@@ -565,7 +565,7 @@ function FireCard({
 }) {
   return (
     <div className='rounded-xl p-3.5 bg-slate-50 dark:bg-slate-950'>
-      <div className='text-[10px] text-slate-900 dark:text-slate-500 uppercase tracking-wider font-semibold mb-1.5'>
+      <div className='text-[10px] text-slate-900 dark:text-slate-400 uppercase tracking-wider font-semibold mb-1.5'>
         {label}
       </div>
       <div
@@ -574,7 +574,7 @@ function FireCard({
       >
         {value}
       </div>
-      <div className='text-[11px] text-slate-900 dark:text-slate-500 mt-0.5'>
+      <div className='text-[11px] text-slate-900 dark:text-slate-400 mt-0.5'>
         {sub}
       </div>
     </div>
@@ -956,7 +956,7 @@ export default function InsightsPage({
           <p className='text-base font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300 mb-1'>
             No data yet
           </p>
-          <p className='text-sm text-slate-900 dark:text-slate-500 max-w-xs mx-auto'>
+          <p className='text-sm text-slate-900 dark:text-slate-400 max-w-xs mx-auto'>
             Add investments, cashflow entries, or set your emergency fund in{' '}
             <span className='text-emerald-400 font-semibold'>
               Settings → Essentials
@@ -1210,7 +1210,7 @@ export default function InsightsPage({
               <h2 className='text-base font-bold text-slate-900 dark:text-slate-100'>
                 FIRE Projection
               </h2>
-              <span className='text-xs text-slate-900 dark:text-slate-500 hidden sm:block'>
+              <span className='text-xs text-slate-900 dark:text-slate-400 hidden sm:block'>
                 Financial Independence, Retire Early
               </span>
             </div>

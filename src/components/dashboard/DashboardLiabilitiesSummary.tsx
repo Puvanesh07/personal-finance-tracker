@@ -45,7 +45,7 @@ export function DashboardLiabilitiesSummary() {
       {active.length === 0 ? (
         <div className='flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-8 text-center'>
           <FiTrendingDown className='h-6 w-6 text-slate-300 dark:text-slate-600' />
-          <p className='text-xs text-slate-400 dark:text-slate-500'>
+          <p className='text-xs text-slate-400 dark:text-slate-400'>
             {liabilities.length > 0 ? 'All liabilities cleared!' : 'No liabilities recorded'}
           </p>
         </div>

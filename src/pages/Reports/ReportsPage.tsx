@@ -99,7 +99,7 @@ function SectionCard({
         {to && (
           <button
             onClick={() => navigate(to)}
-            className='flex items-center cursor-pointer gap-1 text-xs font-bold text-slate-900 dark:text-slate-500 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
+            className='flex items-center cursor-pointer gap-1 text-xs font-bold text-slate-900 dark:text-slate-400 hover:text-emerald-400 transition-colors rounded-lg px-2 py-1 hover:bg-slate-200 dark:bg-slate-800'
           >
             View <FiArrowUpRight className='h-3.5 w-3.5' />
           </button>
@@ -527,7 +527,7 @@ export function ReportsPage() {
                         );
                       })}
                     {incomeByCategory.length > 8 && (
-                      <p className='text-[10px] text-slate-400 dark:text-slate-500 pt-1 -mb-1 px-2'>
+                      <p className='text-[10px] text-slate-400 dark:text-slate-400 pt-1 -mb-1 px-2'>
                         Showing {incomeByCategory.length} sources — only top 8
                         are coloured distinctly.
                       </p>
@@ -611,7 +611,7 @@ export function ReportsPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <p className='text-xs text-center text-slate-900 dark:text-slate-500 mt-2'>
+          <p className='text-xs text-center text-slate-900 dark:text-slate-400 mt-2'>
             Distribution of your invested capital.
           </p>
         </SectionCard>

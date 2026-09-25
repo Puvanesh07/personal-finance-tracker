@@ -5,6 +5,7 @@ import type {
   TrackedPayment,
 } from '../types/investmentTypes';
 import {
+  differenceInCalendarDays,
   differenceInCalendarMonths,
   differenceInCalendarYears,
   endOfMonth,
@@ -190,6 +191,68 @@ export function nextSeriesAmount(
 /** True when a recurrence may generate `date` (series end date respected). */
 export function withinSeriesEnd(endDate: string | undefined, date: string): boolean {
   return !endDate || date <= endDate;
+}
+
+/** Latest-occurrence catch-up for a pending recurring bill (audit I1).
+ *
+ *  When a user has not opened the app for a while, a monthly/yearly series
+ *  would otherwise sit stuck on a past due date. This re-anchors the SINGLE
+ *  pending reminder to the first occurrence on/after `today`, recomputing the
+ *  escalated amount from the series anchor. It deliberately does NOT mint the
+ *  missed intermediate bills (no silent mass-creation of past entries) and it
+ *  never fabricates a settled transaction — the user still confirms payment.
+ *
+ *  Returns the new { dueDate, amount, seriesIndex } when the bill should move,
+ *  or null when nothing changes (not recurring, not overdue, already current,
+ *  or the series ends before today). */
+const CATCH_UP_GRACE_DAYS: Record<PaymentRecurrence, number> = {
+  none: 0,
+  weekly: 14,
+  every_2_weeks: 28,
+  monthly: 45,
+  every_2_months: 90,
+  quarterly: 135,
+  half_yearly: 270,
+  yearly: 540,
+};
+
+export function advanceToCurrentOccurrence(
+  p: TrackedPayment,
+  today: string,
+): { dueDate: string; amount: number; seriesIndex: number } | null {
+  if (!p.recurrence || p.recurrence === 'none') return null;
+  if (p.status !== 'pending') return null;
+  if (p.dueDate >= today) return null;
+  // A slightly-overdue bill is still "missed payment" — the user must be able
+  // to mark it paid late. Only a bill left behind by an app that stayed shut
+  // for more than a full cycle gets re-anchored to the current one.
+  const grace = CATCH_UP_GRACE_DAYS[p.recurrence] ?? 0;
+  if (differenceInCalendarDays(parseISO(today), parseISO(p.dueDate)) <= grace)
+    return null;
+
+  const startDate = p.seriesStartDate ?? p.dueDate;
+  const baseAmount = p.seriesBaseAmount ?? p.amount;
+  let date = p.dueDate;
+  let index = p.seriesIndex ?? 0;
+
+  for (let guard = 0; guard < 600; guard++) {
+    const next = getNextRecurringDate(date, p.recurrence);
+    if (!next || !withinSeriesEnd(p.endDate, next)) return null;
+    date = next;
+    index += 1;
+    if (date >= today) {
+      const amount = computeSeriesAmount({
+        baseAmount,
+        increaseAmount: p.increaseAmount,
+        increaseEvery: p.increaseEvery,
+        startDate,
+        date,
+        index,
+      });
+      return { dueDate: date, amount, seriesIndex: index };
+    }
+  }
+  return null;
 }
 
 /** First `count` occurrences of a series (starting bill included) — used

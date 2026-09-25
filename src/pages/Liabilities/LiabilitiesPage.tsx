@@ -1,4 +1,4 @@
-﻿// src/pages/Liabilities/LiabilitiesPage.tsx
+// src/pages/Liabilities/LiabilitiesPage.tsx
 
 import {
   FiCheck,
@@ -17,6 +17,7 @@ import type { Liability } from '../../types/investmentTypes';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
 import { UpsertLiabilityModal, liabilityTypeLabel } from '../../components/liabilities/UpsertLiabilityModal';
+import { RecordEmiPaymentModal } from '../../components/liabilities/RecordEmiPaymentModal';
 import { buildLiabilityInsights } from '../../utils/advancedInsights';
 import { formatINR } from '../../utils/format';
 import { exportLiabilitiesCSV } from '../../utils/exportUtils';
@@ -69,6 +70,10 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const edit = liabilities.find((l) => l.id === editId) ?? null;
+
+  // Record EMI / installment payment (C1)
+  const [payId, setPayId] = useState<string | null>(null);
+  const payLiability = liabilities.find((l) => l.id === payId) ?? null;
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -546,7 +551,7 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
                       <button
                         type='button'
                         title='Mark as Returned'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-teal-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-teal-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-teal-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-teal-400'
                         onClick={() => void markAsReturned(l)}
                       >
                         <FiCheck className='h-4 w-4' />
@@ -556,17 +561,28 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
                       <button
                         type='button'
                         title='Mark Bill as Paid'
-                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-emerald-400'
                         onClick={() => void markAsPaid(l)}
                       >
                         <FiCheck className='h-4 w-4' />
                       </button>
                     )}
 
+                    {!isSettled && (
+                      <button
+                        type='button'
+                        title='Record EMI payment'
+                        className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                        onClick={() => setPayId(l.id)}
+                      >
+                        <FiCreditCard className='h-4 w-4' />
+                      </button>
+                    )}
+
                     <button
                       type='button'
                       title='Edit'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-indigo-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-indigo-400'
                       onClick={() => setEditId(l.id)}
                     >
                       <FiEdit2 className='h-4 w-4' />
@@ -574,7 +590,7 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
                     <button
                       type='button'
                       title='Delete'
-                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-500 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
+                      className='flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-slate-900 dark:text-slate-400 transition-colors hover:bg-white hover:text-rose-600 hover:shadow-sm dark:hover:bg-slate-700 dark:hover:text-rose-400'
                       onClick={() => openDeleteModal(l.id)}
                     >
                       <FiTrash2 className='h-4 w-4' />
@@ -614,7 +630,7 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
       <div className='hidden md:block overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/50'>
         <div className='overflow-x-auto custom-scrollbar'>
           <table className='min-w-full text-left text-sm whitespace-nowrap'>
-            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
+            <thead className='border-b border-slate-200/60 bg-slate-50/50 text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 dark:border-slate-800/60 dark:bg-slate-800/50 dark:text-slate-400'>
               <tr>
                 <th className='px-5 py-4 w-12'>
                   <input
@@ -638,7 +654,7 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
               {filteredLiabilities.length === 0 ? (
                 <tr>
                   <td
-                    className='px-5 py-12 text-center text-slate-900 dark:text-slate-500'
+                    className='px-5 py-12 text-center text-slate-900 dark:text-slate-400'
                     colSpan={6}
                   >
                     <div className='flex flex-col items-center justify-center gap-3'>
@@ -795,6 +811,13 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
           onClose={() => setEditId(null)}
           mode='edit'
           liability={edit}
+        />
+      ) : null}
+      {payLiability ? (
+        <RecordEmiPaymentModal
+          open={!!payLiability}
+          onClose={() => setPayId(null)}
+          liability={payLiability}
         />
       ) : null}
 

@@ -40,7 +40,62 @@ export interface FinancialDNAResult {
 
 function clamp(n: number, min = 0, max = 100) { return Math.min(max, Math.max(min, n)); }
 
+// ── Memo cache (audit Y6) ──────────────────────────────────────────
+// computeFinancialDNA is pure and deterministic, and three surfaces
+// (Financial DNA, Personal CFO, Insights) call it with the *same* store
+// arrays on the same data. Rather than re-walk the whole history per mount,
+// we cache the last few results keyed on a cheap content signature. The store
+// bumps `updatedAt` on every write and array length changes on add/delete, so
+// `count + maxUpdatedAt` reliably invalidates whenever the numbers could move.
+const DNA_CACHE_MAX = 4;
+const dnaCache = new Map<string, FinancialDNAResult>();
+
+function maxStamp(rows: { updatedAt?: string; createdAt?: string }[]): string {
+  let max = '';
+  for (const r of rows) {
+    const s = r.updatedAt || r.createdAt || '';
+    if (s > max) max = s;
+  }
+  return max;
+}
+
+function dnaSignature(
+  cashflows: CashflowEntry[],
+  investments: Investment[],
+  liabilities: Liability[],
+  essentials: { emergencyFundCurrent?: number; emergencyFundTarget?: number },
+): string {
+  return [
+    cashflows.length, investments.length, liabilities.length,
+    maxStamp(cashflows), maxStamp(investments), maxStamp(liabilities),
+    essentials.emergencyFundCurrent ?? 0, essentials.emergencyFundTarget ?? 0,
+  ].join('|');
+}
+
 export function computeFinancialDNA(
+  cashflows: CashflowEntry[],
+  investments: Investment[],
+  liabilities: Liability[],
+  essentials: { emergencyFundCurrent?: number; emergencyFundTarget?: number },
+): FinancialDNAResult {
+  const key = dnaSignature(cashflows, investments, liabilities, essentials);
+  const hit = dnaCache.get(key);
+  if (hit) {
+    // Refresh recency (cheap LRU): re-insert so it's the last evicted.
+    dnaCache.delete(key);
+    dnaCache.set(key, hit);
+    return hit;
+  }
+  const result = computeFinancialDNAUncached(cashflows, investments, liabilities, essentials);
+  dnaCache.set(key, result);
+  if (dnaCache.size > DNA_CACHE_MAX) {
+    const oldest = dnaCache.keys().next().value;
+    if (oldest !== undefined) dnaCache.delete(oldest);
+  }
+  return result;
+}
+
+function computeFinancialDNAUncached(
   cashflows: CashflowEntry[],
   investments: Investment[],
   liabilities: Liability[],

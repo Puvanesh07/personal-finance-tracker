@@ -596,13 +596,27 @@ export function calcLiveAccountBalances(
     balances[acc.id] = acc.openingBalance ?? acc.balance ?? 0;
   }
   for (const cf of cashflows || []) {
-    if (!cf.accountId) continue;
-    const acc = accounts.find((a) => a.id === cf.accountId);
-    if (!acc) continue;
-    // Only count cashflows on or after the account's opening balance date
-    const cutoff = acc.openingBalanceDate ?? '1900-01-01';
-    if (cf.date < cutoff) continue;
-    balances[acc.id] += cf.type === 'income' ? cf.amount : -cf.amount;
+    // Source side: money arrives (income) or leaves (expense / transfer).
+    if (cf.accountId) {
+      const acc = accounts.find((a) => a.id === cf.accountId);
+      if (acc) {
+        // Only count cashflows on or after the account's opening balance date
+        const cutoff = acc.openingBalanceDate ?? '1900-01-01';
+        if (cf.date >= cutoff) {
+          balances[acc.id] += cf.type === 'income' ? cf.amount : -cf.amount;
+        }
+      }
+    }
+    // Transfer destination: the same money lands in another tracked account,
+    // which is what makes a transfer net-worth-neutral (nothing leaves the
+    // balance sheet; it just moves between buckets).
+    if (cf.type === 'transfer' && cf.toAccountId) {
+      const dest = accounts.find((a) => a.id === cf.toAccountId);
+      if (dest) {
+        const cutoff = dest.openingBalanceDate ?? '1900-01-01';
+        if (cf.date >= cutoff) balances[dest.id] += cf.amount;
+      }
+    }
   }
   return balances;
 }
@@ -628,6 +642,8 @@ export function getOffAccountCashflowNet(
 ): number {
   let net = 0;
   for (const cf of cashflows || []) {
+    // Transfers are never income or expense — they move existing net worth.
+    if (cf.type === 'transfer') continue;
     const linked = cf.accountId && accounts.some((a) => a.id === cf.accountId);
     if (linked) continue;
     net += cf.type === 'income' ? cf.amount : -cf.amount;

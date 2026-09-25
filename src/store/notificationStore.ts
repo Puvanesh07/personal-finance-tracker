@@ -76,6 +76,11 @@ interface NotificationState {
    *  primary hidden mechanism is now clearedAt, so this field is a no-op but
    *  still persisted for migration safety. */
   clearedDerivedIds: string[];
+  /** Per-item snooze (audit I3): notification id → ISO timestamp until which
+   *  it stays hidden. Expired entries are pruned on the next read/filter, so a
+   *  snoozed reminder re-surfaces automatically once its window passes —
+   *  without a timer, purely from the next recompute of the derived list. */
+  snoozedMap: Record<string, string>;
 
   /** Per-uid scoping — each user gets their own persisted read/dismissed state */
   setScope: (uid: string) => void;
@@ -87,6 +92,12 @@ interface NotificationState {
   markAllRead: (ids: readonly string[]) => void;
   /** Dismiss + mark read. Idempotent. */
   dismiss: (id: string) => void;
+  /** Snooze a notification until `untilIso` (audit I3). Also marks it read so
+   *  the unread badge drops immediately. Hidden from Bell + Notifications page
+   *  until the timestamp passes, then it re-surfaces on the next recompute. */
+  snooze: (id: string, untilIso: string) => void;
+  /** How many notifications are currently snoozed (used for a small UI hint). */
+  activeSnoozeCount: () => number;
   /**
    * Clear All: atomically hides every notification currently visible in the
    * UI. The semantics are:
@@ -127,6 +138,7 @@ type PersistedShape = {
   dismissedIds: string[];
   clearedAt: string | null;
   clearedDerivedIds: string[];
+  snoozedMap?: Record<string, string>;
 };
 
 export const useNotificationStore = create<NotificationState>()(
@@ -137,6 +149,7 @@ export const useNotificationStore = create<NotificationState>()(
       dismissedIds: [],
       clearedAt: null,
       clearedDerivedIds: [],
+      snoozedMap: {},
 
       setScope: (uid: string) => {
         const current = get();
@@ -147,6 +160,7 @@ export const useNotificationStore = create<NotificationState>()(
           dismissedIds: [],
           clearedAt: null,
           clearedDerivedIds: [],
+          snoozedMap: {},
         });
       },
 
@@ -157,6 +171,7 @@ export const useNotificationStore = create<NotificationState>()(
           dismissedIds: [],
           clearedAt: null,
           clearedDerivedIds: [],
+          snoozedMap: {},
         });
       },
 
@@ -189,6 +204,25 @@ export const useNotificationStore = create<NotificationState>()(
           if (nextRead === s.readIds && nextDismissed === s.dismissedIds) return {};
           return { readIds: nextRead, dismissedIds: nextDismissed };
         }),
+
+      snooze: (id: string, untilIso: string) =>
+        set((s) => {
+          const nextRead = s.readIds.includes(id) ? s.readIds : [...s.readIds, id];
+          return {
+            readIds: nextRead,
+            snoozedMap: { ...s.snoozedMap, [id]: untilIso },
+          };
+        }),
+
+      activeSnoozeCount: () => {
+        const nowMs = Date.now();
+        const map = get().snoozedMap;
+        let n = 0;
+        for (const id in map) {
+          if (new Date(map[id]).getTime() > nowMs) n++;
+        }
+        return n;
+      },
 
       clearAll: (currentVisibleIds: readonly string[] = []) =>
         set((s) => {
@@ -238,6 +272,23 @@ export const useNotificationStore = create<NotificationState>()(
         const readSet = new Set(state.readIds);
         const dismissedSet = new Set(state.dismissedIds);
         const clearedAt = state.clearedAt ? new Date(state.clearedAt) : null;
+        const nowMs = Date.now();
+        // Live snoozes hide the item; expired ones are ignored (and pruned
+        // below) so a reminder re-surfaces on the next recompute for free.
+        const snoozes = state.snoozedMap;
+        const liveSnooze = new Set<string>();
+        const expiredSnoozeIds: string[] = [];
+        for (const id in snoozes) {
+          if (new Date(snoozes[id]).getTime() > nowMs) liveSnooze.add(id);
+          else expiredSnoozeIds.push(id);
+        }
+        if (expiredSnoozeIds.length > 0) {
+          const pruned: Record<string, string> = {};
+          for (const id in snoozes) {
+            if (!expiredSnoozeIds.includes(id)) pruned[id] = snoozes[id];
+          }
+          set({ snoozedMap: pruned });
+        }
 
         const seen = new Set<string>();
         const deduped: AppNotification[] = [];
@@ -255,6 +306,7 @@ export const useNotificationStore = create<NotificationState>()(
           })
           .filter((n) => {
             if (n.dismissed) return false;
+            if (liveSnooze.has(n.id)) return false;
             if (clearedAt && n.createdAt && new Date(n.createdAt) <= clearedAt) {
               return false;
             }
@@ -279,9 +331,11 @@ export const useNotificationStore = create<NotificationState>()(
           dismissedIds: state.dismissedIds,
           clearedAt: state.clearedAt,
           clearedDerivedIds: state.clearedDerivedIds,
+          snoozedMap: state.snoozedMap,
         }) as unknown as NotificationState,
       storage: {
         getItem: (name): any => {
+          if (typeof localStorage === 'undefined') return null;
           const raw = localStorage.getItem(name);
           if (!raw) return null;
           try {
@@ -297,6 +351,11 @@ export const useNotificationStore = create<NotificationState>()(
                 clearedDerivedIds: Array.isArray(parsed.clearedDerivedIds)
                   ? parsed.clearedDerivedIds
                   : [],
+                // Defensive: pre-snooze payloads simply omit this → default {}.
+                snoozedMap:
+                  parsed.snoozedMap && typeof parsed.snoozedMap === 'object'
+                    ? parsed.snoozedMap
+                    : {},
               };
             }
             return null;
@@ -305,6 +364,7 @@ export const useNotificationStore = create<NotificationState>()(
           }
         },
         setItem: (name, value: any) => {
+          if (typeof localStorage === 'undefined') return;
           const live = useNotificationStore.getState();
           const uid = value?.uid || live.uid || 'orphan';
           const readIds = Array.isArray(value?.readIds) ? value.readIds : live.readIds;
@@ -317,16 +377,24 @@ export const useNotificationStore = create<NotificationState>()(
           const clearedDerivedIds = Array.isArray(value?.clearedDerivedIds)
             ? value.clearedDerivedIds
             : live.clearedDerivedIds;
+          const snoozedMap =
+            value?.snoozedMap && typeof value.snoozedMap === 'object'
+              ? value.snoozedMap
+              : live.snoozedMap;
           const payload = JSON.stringify({
             uid,
             readIds,
             dismissedIds,
             clearedAt,
             clearedDerivedIds,
+            snoozedMap,
           });
           localStorage.setItem(name, payload);
         },
-        removeItem: (name) => localStorage.removeItem(name),
+        removeItem: (name) => {
+          if (typeof localStorage === 'undefined') return;
+          localStorage.removeItem(name);
+        },
       },
     },
   ),

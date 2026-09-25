@@ -238,7 +238,7 @@ function TF({ label, value, onChange, placeholder, hint = 'next', wide, type = '
     <F label={label} wide={wide}>
       <div className='relative flex items-center'>
         {prefix && (
-          <span className='pointer-events-none absolute left-1.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 sm:left-2.5 sm:text-[13px]'>
+          <span className='pointer-events-none absolute left-1.5 text-[11px] font-bold text-slate-400 dark:text-slate-400 sm:left-2.5 sm:text-[13px]'>
             {prefix}
           </span>
         )}
@@ -728,7 +728,7 @@ export function BulkAddPanel({ onClose }: { onClose: () => void }) {
       {/* ── Rows ── */}
       <div className='min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-2 py-2 sm:space-y-2 sm:px-3'>
         {entries.length === 0 && (
-          <div className='flex flex-col items-center justify-center gap-2 py-8 text-slate-400 dark:text-slate-500 sm:py-10'>
+          <div className='flex flex-col items-center justify-center gap-2 py-8 text-slate-400 dark:text-slate-400 sm:py-10'>
             <FiPlus className='h-6 w-6 sm:h-8 sm:w-8' />
             <p className='text-[11px] font-semibold sm:text-xs'>No rows yet — add one or load a template</p>
           </div>
@@ -779,7 +779,7 @@ export function BulkAddPanel({ onClose }: { onClose: () => void }) {
         </button>
 
         <div className='ml-auto flex min-w-0 items-center gap-2'>
-          <span className='hidden shrink-0 text-[10px] text-slate-400 dark:text-slate-500 sm:block'>
+          <span className='hidden shrink-0 text-[10px] text-slate-400 dark:text-slate-400 sm:block'>
             {entries.length} to save
           </span>
           <button

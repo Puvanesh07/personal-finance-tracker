@@ -68,7 +68,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
               <h3 className='text-sm font-bold text-slate-900 dark:text-slate-100 truncate'>
                 {credential.title}
               </h3>
-              <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500'>
+              <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-400'>
                 {credential.category}
               </p>
             </div>
@@ -94,7 +94,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
         <div className='flex flex-col gap-3 flex-1'>
           {credential.identifier && (
             <div className='rounded-xl bg-slate-100/90 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700/30 p-3'>
-              <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest mb-1'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase font-bold tracking-widest mb-1'>
                 {credential.category === 'identity'
                   ? 'ID Number'
                   : 'Identifier'}
@@ -107,7 +107,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
                   onClick={() =>
                     copyToClipboard(credential.identifier!, 'Identifier')
                   }
-                  className='text-slate-900 dark:text-slate-500 hover:text-emerald-400'
+                  className='text-slate-900 dark:text-slate-400 hover:text-emerald-400'
                 >
                   <FiCopy size={14} />
                 </button>
@@ -117,7 +117,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
 
           {credential.secret && (
             <div className='rounded-xl bg-slate-100/90 dark:bg-slate-800/40 border border-slate-300 dark:border-slate-700/30 p-3'>
-              <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest mb-1'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase font-bold tracking-widest mb-1'>
                 Secret / Password
               </p>
               <div className='flex items-center justify-between gap-2'>
@@ -127,7 +127,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
                 <div className='flex items-center gap-2'>
                   <button
                     onClick={() => setShowSecret(!showSecret)}
-                    className='text-slate-900 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    className='text-slate-900 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   >
                     {showSecret ? <FiEyeOff size={14} /> : <FiEye size={14} />}
                   </button>
@@ -135,7 +135,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
                     onClick={() =>
                       copyToClipboard(credential.secret!, 'Password')
                     }
-                    className='text-slate-900 dark:text-slate-500 hover:text-emerald-400'
+                    className='text-slate-900 dark:text-slate-400 hover:text-emerald-400'
                   >
                     <FiCopy size={14} />
                   </button>
@@ -146,7 +146,7 @@ export function CredentialCard({ credential }: { credential: Credential }) {
 
           {credential.notes && (
             <div className='mt-2'>
-              <p className='text-[10px] text-slate-900 dark:text-slate-500 uppercase font-bold tracking-widest mb-1'>
+              <p className='text-[10px] text-slate-900 dark:text-slate-400 uppercase font-bold tracking-widest mb-1'>
                 Notes
               </p>
               <p className='text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap leading-relaxed'>

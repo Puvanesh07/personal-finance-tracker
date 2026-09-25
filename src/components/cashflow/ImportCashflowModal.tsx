@@ -6,9 +6,10 @@
 // → Preview & validate → Confirm import.
 //
 // Reuses the existing Cashflow data structure (`CashflowEntry`), the same
-// default category lists used in `UpsertCashflowModal`, and writes through
-// `usePortfolioStore().addCashflow` so imported rows go through the exact
-// same persistence path as manually-added entries.
+// default category lists used in `UpsertCashflowModal`, and commits through
+// `usePortfolioStore().importCashflows` — one atomic, chunked batch tagged
+// with an import-batch id so a whole statement can be undone in one click
+// (audit I2). Duplicate rows are detected up-front and left unchecked.
 
 import {
   FiAlertTriangle,
@@ -24,12 +25,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import { showUndoToast } from '../../utils/undoToast';
+import { smartCategorize } from '../../utils/smartCategorize';
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES,
 } from './UpsertCashflowModal';
 import {
   collectDistinctTypeValues,
+  findDuplicateRowNumbers,
   parseImportFile,
   suggestMapping,
   validateImportRows,
@@ -73,8 +77,12 @@ export function ImportCashflowModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const addCashflow = usePortfolioStore((s) => s.addCashflow);
+  const importCashflows = usePortfolioStore((s) => s.importCashflows);
+  const deleteCashflowsByBatch = usePortfolioStore(
+    (s) => s.deleteCashflowsByBatch,
+  );
   const accounts = usePortfolioStore((s) => s.accounts);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -89,6 +97,7 @@ export function ImportCashflowModal({
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [excludedRows, setExcludedRows] = useState<Set<number>>(new Set());
+  const [skipDuplicates, setSkipDuplicates] = useState(true);
 
   const accountsByName = useMemo(() => {
     const m = new Map<string, string>();
@@ -108,6 +117,7 @@ export function ImportCashflowModal({
       setMapping(emptyMapping());
       setTypeValueMap({});
       setExcludedRows(new Set());
+      setSkipDuplicates(true);
       setImporting(false);
       setImportProgress(0);
     }
@@ -216,19 +226,59 @@ export function ImportCashflowModal({
         ?.key ??
       DEFAULT_EXPENSE_CATEGORIES[0]?.key ??
       'Other Expense';
-    return validateImportRows(activeSheet.rows, {
+    const rows = validateImportRows(activeSheet.rows, {
       mapping,
       typeValueMap,
       defaultIncomeCategory,
       defaultExpenseCategory,
       accountsByName,
     });
+    // Bank / UPI statements rarely carry a category column, so every row would
+    // land as "Other Expense". When the mapped category (if any) ended up as a
+    // default bucket, run the local merchant rules over the note/description to
+    // auto-file it. Only non-low-confidence guesses override, and the income /
+    // expense split is preserved so we never flip a row's sign (audit I2).
+    const uncategorized = new Set([
+      defaultIncomeCategory,
+      defaultExpenseCategory,
+    ]);
+    if (uncategorized.size > 0) {
+      for (const r of rows) {
+        if (!r.valid || !r.draft) continue;
+        if (!uncategorized.has(r.draft.category)) continue;
+        const hint = r.draft.notes?.trim();
+        if (!hint) continue;
+        const guess = smartCategorize(hint, r.draft.amount);
+        if (guess.confidence !== 'low' && guess.type === r.draft.type) {
+          r.draft = { ...r.draft, category: guess.category };
+        }
+      }
+    }
+    return rows;
   }, [activeSheet, step, mapping, typeValueMap, accountsByName]);
 
   const validResults = results.filter((r) => r.valid);
   const invalidResults = results.filter((r) => !r.valid);
+
+  // ── Duplicate detection (audit I2) ────────────────────────────────────
+  // Content fingerprint lives in cashflowImport.ts (unit-tested). A row is a
+  // duplicate if it matches something already stored OR an earlier row in this
+  // same file.
+  const duplicateRowNumbers = useMemo(
+    () =>
+      findDuplicateRowNumbers(
+        validResults
+          .filter((r) => !!r.draft)
+          .map((r) => ({ rowNumber: r.rowNumber, draft: r.draft! })),
+        cashflows,
+      ),
+    [validResults, cashflows],
+  );
+
   const selectedForImport = validResults.filter(
-    (r) => !excludedRows.has(r.rowNumber),
+    (r) =>
+      !excludedRows.has(r.rowNumber) &&
+      (!skipDuplicates || !duplicateRowNumbers.has(r.rowNumber)),
   );
 
   function toggleRowExcluded(rowNumber: number) {
@@ -254,6 +304,8 @@ export function ImportCashflowModal({
         return;
       }
     }
+    // Duplicates arrive already unchecked; the user can still re-check a row
+    // (or flip "Skip duplicates" off) if the statement really has two of them.
     setExcludedRows(new Set());
     setStep('preview');
   }
@@ -265,26 +317,36 @@ export function ImportCashflowModal({
     }
     setImporting(true);
     setImportProgress(0);
-    let ok = 0;
-    let failed = 0;
-    for (let i = 0; i < selectedForImport.length; i++) {
-      const draft = selectedForImport[i].draft!;
-      try {
-        await addCashflow(draft as any);
-        ok++;
-      } catch {
-        failed++;
-      }
-      setImportProgress(i + 1);
-    }
-    setImporting(false);
-    if (ok > 0) {
-      toast.success(
-        `Imported ${ok} transaction${ok !== 1 ? 's' : ''}${failed ? ` (${failed} failed)` : ''}.`,
+    // One batch id for the whole statement → "Undo" rolls back every row it
+    // wrote, and nothing else, in a single pass (audit I2).
+    const batchId = `imp_${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    let imported = 0;
+    try {
+      const res = await importCashflows(
+        selectedForImport.map((r) => r.draft!),
+        batchId,
       );
+      imported = res.imported;
+    } catch {
+      imported = 0;
+    }
+    setImportProgress(selectedForImport.length);
+    setImporting(false);
+    if (imported > 0) {
+      const skipped = selectedForImport.length - imported;
+      toast.success(
+        `Imported ${imported} transaction${imported !== 1 ? 's' : ''}${
+          skipped ? ` (${skipped} blocked by your plan limit)` : ''
+        }.`,
+      );
+      showUndoToast('Undo this import', async () => {
+        await deleteCashflowsByBatch(batchId);
+      });
       onClose();
     } else {
-      toast.error('Import failed. Please try again.');
+      toast.error('Import failed — nothing was saved. Please try again.');
     }
   }
 
@@ -320,7 +382,7 @@ export function ImportCashflowModal({
                       i === stepIndex
                         ? 'text-emerald-500'
                         : i < stepIndex
-                          ? 'text-slate-400 dark:text-slate-500'
+                          ? 'text-slate-400 dark:text-slate-400'
                           : 'text-slate-300 dark:text-slate-700'
                     }`}
                   >
@@ -600,7 +662,7 @@ export function ImportCashflowModal({
                             <span className='truncate text-sm font-semibold text-slate-900 dark:text-slate-100'>
                               {d.value}
                             </span>
-                            <span className='shrink-0 text-[10px] font-bold text-slate-400 dark:text-slate-500'>
+                            <span className='shrink-0 text-[10px] font-bold text-slate-400 dark:text-slate-400'>
                               ({d.count} row{d.count !== 1 ? 's' : ''})
                             </span>
                           </div>
@@ -628,7 +690,7 @@ export function ImportCashflowModal({
                                       : opt === 'expense'
                                         ? 'bg-rose-500/20 text-rose-500'
                                         : 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                 }`}
                               >
                                 {opt}
@@ -697,10 +759,22 @@ export function ImportCashflowModal({
               )}
 
               <div className='rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden'>
-                <div className='px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between'>
+                <div className='px-4 py-2.5 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap'>
                   <p className='text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                     Preview ({validResults.length} valid rows)
                   </p>
+                  {duplicateRowNumbers.size > 0 && (
+                    <label className='flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400 cursor-pointer'>
+                      <input
+                        type='checkbox'
+                        checked={skipDuplicates}
+                        onChange={(e) => setSkipDuplicates(e.target.checked)}
+                        className='h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-600'
+                      />
+                      Skip {duplicateRowNumbers.size} possible duplicate
+                      {duplicateRowNumbers.size > 1 ? 's' : ''}
+                    </label>
+                  )}
                 </div>
                 <div className='max-h-72 overflow-y-auto'>
                   <table className='min-w-full text-left text-xs'>
@@ -727,15 +801,19 @@ export function ImportCashflowModal({
                     <tbody className='divide-y divide-slate-100 dark:divide-slate-800'>
                       {validResults.map((r) => {
                         const excluded = excludedRows.has(r.rowNumber);
+                        const isDuplicate = duplicateRowNumbers.has(
+                          r.rowNumber,
+                        );
+                        const willImport = !excluded && !(isDuplicate && skipDuplicates);
                         return (
                           <tr
                             key={r.rowNumber}
-                            className={excluded ? 'opacity-40' : ''}
+                            className={willImport ? '' : 'opacity-40'}
                           >
                             <td className='px-3 py-2'>
                               <input
                                 type='checkbox'
-                                checked={!excluded}
+                                checked={willImport}
                                 onChange={() => toggleRowExcluded(r.rowNumber)}
                                 className='h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600'
                               />
@@ -756,6 +834,14 @@ export function ImportCashflowModal({
                             </td>
                             <td className='px-3 py-2 text-slate-700 dark:text-slate-200'>
                               {r.draft!.category}
+                              {isDuplicate && (
+                                <span
+                                  className='ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                                  title='Matches an existing transaction (same account, date, type and amount)'
+                                >
+                                  dup?
+                                </span>
+                              )}
                             </td>
                             <td className='px-3 py-2 max-w-[160px] truncate text-slate-500 dark:text-slate-400'>
                               {r.draft!.notes ?? '—'}

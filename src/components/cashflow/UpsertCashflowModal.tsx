@@ -1,4 +1,4 @@
-﻿// src/components/cashflow/UpsertCashflowModal.tsx
+// src/components/cashflow/UpsertCashflowModal.tsx
 //
 // Two-step entry flow:
 //   Step 1 — what kind of entry + category (+ subcategory when the category
@@ -184,7 +184,7 @@ function TilePicker({
       <div className='flex items-center justify-between gap-2'>
         <label className={LABEL_CLS}>{label}</label>
         {options.length > 0 && (
-          <span className='mb-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500'>
+          <span className='mb-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-400'>
             {options.length}
           </span>
         )}
@@ -298,7 +298,7 @@ function ManageCategoriesModal({
             <h3 className='text-base font-bold text-slate-900 dark:text-slate-100'>
               {type === 'expense' ? 'Expense' : 'Income'} Categories
             </h3>
-            <p className='text-[11px] text-slate-400 dark:text-slate-500 mt-0.5'>
+            <p className='text-[11px] text-slate-400 dark:text-slate-400 mt-0.5'>
               Toggle visibility · Add custom · Delete custom
             </p>
           </div>
@@ -314,7 +314,7 @@ function ManageCategoriesModal({
 
         {/* Category list */}
         <div className='flex-1 overflow-y-auto px-4 py-3 space-y-0.5'>
-          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 px-1'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2 px-1'>
             Default ({defaults.length})
           </p>
           {defaults.map((cat) => {
@@ -347,7 +347,7 @@ function ManageCategoriesModal({
 
           {customs.length > 0 && (
             <>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-4 mb-2 px-1'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mt-4 mb-2 px-1'>
                 Custom ({customs.length})
               </p>
               {customs.map((cat) => {
@@ -393,7 +393,7 @@ function ManageCategoriesModal({
           {/* Subcategories of the selected category */}
           {category && subOptions.length > 0 && (
             <>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-5 mb-2 px-1'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mt-5 mb-2 px-1'>
                 {categoryIcon(category)} {category} · Subcategories ({subOptions.length})
               </p>
               {subOptions.map((sub) => {
@@ -428,7 +428,7 @@ function ManageCategoriesModal({
 
         {/* Add new */}
         <div className='px-4 pb-4 pt-3 border-t border-slate-200 dark:border-slate-700 shrink-0 space-y-2'>
-          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400'>
             Add New Category
           </p>
           <div className='flex gap-2'>
@@ -451,7 +451,7 @@ function ManageCategoriesModal({
           </div>
           {category && subOptions.length > 0 && (
             <>
-              <p className='pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+              <p className='pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400'>
                 Add New {category} Subcategory
               </p>
               <div className='flex gap-2'>
@@ -649,7 +649,7 @@ export function UpsertCashflowModal(props: Props) {
           }`}
         />
       ))}
-      <span className='shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+      <span className='shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400'>
         {step}/2
       </span>
     </div>

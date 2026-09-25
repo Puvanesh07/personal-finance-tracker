@@ -271,7 +271,7 @@ export function UpsertLiabilityModal(props: Props) {
             className={
               value
                 ? 'text-slate-900 dark:text-slate-100'
-                : 'text-slate-400 dark:text-slate-500'
+                : 'text-slate-400 dark:text-slate-400'
             }
           >
             {formatDateLabel(value)}
@@ -483,7 +483,7 @@ export function UpsertLiabilityModal(props: Props) {
                     className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
                       state.status === opt.value
                         ? opt.cls
-                        : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:border-slate-500 dark:border-slate-700 dark:hover:text-slate-200'
+                        : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:border-slate-500 dark:border-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
                     {opt.label}
@@ -516,7 +516,7 @@ export function UpsertLiabilityModal(props: Props) {
         <div className='mt-2 flex items-center justify-end gap-3 border-t border-slate-200/60 pt-5 dark:border-slate-800/60'>
           <button
             type='button'
-            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-900 dark:text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+            className='rounded-xl px-5 py-2.5 text-sm font-bold text-slate-900 dark:text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
             onClick={props.onClose}
             disabled={saving}
           >

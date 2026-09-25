@@ -62,7 +62,7 @@ export default function MilestonesPage() {
       {/* Unlocked */}
       {unlocked.length > 0 && (
         <div>
-          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3'>
             🏆 Achieved ({unlocked.length})
           </p>
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>
@@ -93,7 +93,7 @@ export default function MilestonesPage() {
       {/* Locked */}
       {locked.length > 0 && (
         <div>
-          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3'>
             🔒 In Progress ({locked.length})
           </p>
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>

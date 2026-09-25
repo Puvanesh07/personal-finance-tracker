@@ -78,7 +78,7 @@ function CardShell({
               title='Expand details'
               aria-label={`Expand ${title} details`}
               onClick={onExpand}
-              className='flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/40'
+              className='flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/40'
             >
               <FiMaximize2 className='h-3.5 w-3.5' />
             </button>
@@ -181,7 +181,7 @@ function ScaleBar({
           style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
         />
       </div>
-      <div className='mt-1 flex justify-between text-[10px] font-semibold text-slate-400 dark:text-slate-500'>
+      <div className='mt-1 flex justify-between text-[10px] font-semibold text-slate-400 dark:text-slate-400'>
         {marks.map((m) => (
           <span key={m}>{m}</span>
         ))}
@@ -474,7 +474,7 @@ export function EssentialsHealthCards() {
               <label className='text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
                 Dependents
               </label>
-              <span className='text-[10px] font-medium text-slate-400 dark:text-slate-500'>
+              <span className='text-[10px] font-medium text-slate-400 dark:text-slate-400'>
                 people who rely on your income (0–20)
               </span>
             </div>

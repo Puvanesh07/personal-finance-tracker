@@ -88,7 +88,7 @@ function FeatureRow({ f }: { f: FeatureUsage }) {
           to add more.
         </p>
       ) : (
-        <p className='text-[11px] text-slate-400 dark:text-slate-500 tabular-nums'>
+        <p className='text-[11px] text-slate-400 dark:text-slate-400 tabular-nums'>
           {f.count} used · {Math.max(0, f.limit - f.count)} remaining
         </p>
       )}

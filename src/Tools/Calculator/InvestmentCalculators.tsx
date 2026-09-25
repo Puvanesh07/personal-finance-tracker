@@ -127,7 +127,7 @@ export function PPFCalculator() {
     <CardShell color="emerald" title="PPF Calculator" subtitle="Public Provident Fund" Icon={FiShield}>
       <div className="p-6 space-y-1">
         <div className="mb-4 flex items-center justify-between rounded-xl bg-emerald-500/5 border border-emerald-500/15 px-4 py-3">
-          <span className="text-xs font-semibold text-slate-900 dark:text-slate-500">Govt. Fixed PPF Rate</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-slate-400">Govt. Fixed PPF Rate</span>
           <span className="text-sm font-black text-emerald-600">7.1% p.a.</span>
         </div>
         <InputField label="Yearly Deposit (max ₹1.5L)" value={yearly} min={500} max={150000} step={500} onChange={setYearly} unit="₹" color="emerald" />

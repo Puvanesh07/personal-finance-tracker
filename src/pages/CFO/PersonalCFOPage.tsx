@@ -418,7 +418,7 @@ export default function PersonalCFOPage() {
             {/* Unlocked */}
             {unlockedMilestones.length > 0 && (
               <div>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3'>
                   🏆 Achieved ({unlockedMilestones.length})
                 </p>
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>
@@ -451,7 +451,7 @@ export default function PersonalCFOPage() {
             {/* Locked */}
             {lockedMilestones.length > 0 && (
               <div>
-                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3'>
+                <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3'>
                   🔒 In Progress ({lockedMilestones.length})
                 </p>
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3'>

@@ -45,7 +45,7 @@ function iconOnlyLinkClass(isActive: boolean, accent: string, bg: string) {
     'flex items-center justify-center rounded-xl w-10 h-10 transition-all duration-150 mx-auto';
   return isActive
     ? `${base} ${bg} ${accent}`
-    : `${base} text-slate-500 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200`;
+    : `${base} text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200`;
 }
 
 export function AppLayout() {
@@ -172,7 +172,7 @@ export function AppLayout() {
             <h1 className='text-sm font-black tracking-tight text-slate-900 leading-tight dark:text-white'>
               Fin<span className='text-emerald-600 dark:text-emerald-500'>Trackly</span>
             </h1>
-            <p className='text-[11px] font-medium text-slate-500 dark:text-slate-500'>
+            <p className='text-[11px] font-medium text-slate-500 dark:text-slate-400'>
               Personal Portfolio
             </p>
           </div>
@@ -403,7 +403,7 @@ export function AppLayout() {
 
           <div className='mt-16 md:mt-20 border-t border-slate-200/70 dark:border-slate-800/60 pt-8'>
             <footer className='flex flex-col md:flex-row md:items-center md:justify-between gap-5 text-sm'>
-              <nav className='flex flex-wrap items-center gap-x-5 gap-y-2 text-slate-500 dark:text-slate-500'>
+              <nav className='flex flex-wrap items-center gap-x-5 gap-y-2 text-slate-500 dark:text-slate-400'>
                 <NavLink
                   to='/privacy'
                   className='font-medium hover:text-slate-900 dark:hover:text-slate-300 transition-colors'
@@ -429,7 +429,7 @@ export function AppLayout() {
                   Terms & Conditions
                 </NavLink>
               </nav>
-              <p className='text-xs text-slate-500 dark:text-slate-500 md:text-right font-medium'>
+              <p className='text-xs text-slate-500 dark:text-slate-400 md:text-right font-medium'>
                 © 2026 Fintrackly · Made in India
               </p>
             </footer>

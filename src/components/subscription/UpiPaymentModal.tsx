@@ -1,22 +1,45 @@
-import { FiCheck, FiLoader, FiX } from 'react-icons/fi';
+import { FiAlertTriangle, FiCheck, FiLoader, FiRefreshCw, FiX } from 'react-icons/fi';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { auth } from '../../services/firebase';
+import { useSubscription } from '../../context/SubscriptionContext';
 import {
   createRazorpayOrder,
   isValidUpiId,
   payWithStandardCheckout,
   payWithUpiApp,
   payWithUpiIdAndWait,
+  restorePurchase,
   verifyRazorpayPayment,
 } from '../../services/subscriptionService';
 import { PRICING_PLANS, type PaidPlan } from '../../types/subscription';
 
-type PayStep = 'form' | 'waiting' | 'processing';
+type PayStep = 'form' | 'waiting' | 'processing' | 'pending';
 type UpiApp = 'gpay' | 'phonepe' | 'paytm';
 
 function isMobileDevice() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+/**
+ * After the Razorpay window has completed, the money may already have moved
+ * even if our client-side confirmation call fails or races the webhook. For
+ * those transient/uncertain cases we must NOT show "Payment failed" — the user
+ * would retry and risk a double charge (audit C7). Only a clean, definitive
+ * rejection (bad signature, validation, an explicit decline) is a real failure.
+ */
+function isUncertainPaymentError(err: unknown): boolean {
+  const code = String((err as { code?: string })?.code ?? '').toLowerCase();
+  const message = String((err as Error)?.message ?? '').toLowerCase();
+  const uncertainCodes = [
+    'internal',
+    'unavailable',
+    'deadline-exceeded',
+    'unknown',
+    'failed-precondition',
+  ];
+  if (uncertainCodes.some((c) => code.includes(c))) return true;
+  return /network|timeout|failed to fetch|not completed|execution failed/.test(message);
 }
 
 function GPayIcon() {
@@ -95,6 +118,7 @@ interface UpiPaymentModalProps {
 
 export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps) {
   const user = auth.currentUser;
+  const { hasPremiumAccess, refreshSubscription } = useSubscription();
   const planInfo = useMemo(() => PRICING_PLANS.find((p) => p.id === plan), [plan]);
   const isMobile = isMobileDevice();
   const isTestMode = (import.meta.env.VITE_RAZORPAY_KEY_ID ?? '').startsWith('rzp_test_');
@@ -102,6 +126,7 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
   const [upiId, setUpiId] = useState('');
   const [step, setStep] = useState<PayStep>('form');
   const [statusText, setStatusText] = useState('');
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -110,6 +135,52 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // Move into the "confirming" state instead of a hard failure (audit C7).
+  const enterPendingState = () => {
+    setStatusText('');
+    setStep('pending');
+  };
+
+  // Once the webhook lands, restorePurchase re-syncs claims + Firestore and
+  // refreshSubscription updates context -> hasPremiumAccess flips -> close out.
+  const checkPaymentStatus = async () => {
+    setCheckingStatus(true);
+    try {
+      await restorePurchase();
+      await refreshSubscription();
+    } catch {
+      toast.error('Still confirming your payment — please try again in a moment.');
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  // Auto-finish as soon as premium access shows up while we're pending.
+  useEffect(() => {
+    if (step === 'pending' && hasPremiumAccess) onPaid(plan);
+  }, [step, hasPremiumAccess, onPaid, plan]);
+
+  // Self-heal: poll a few times while pending so the user rarely has to act.
+  useEffect(() => {
+    if (step !== 'pending') return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        await restorePurchase();
+        if (alive) await refreshSubscription();
+      } catch {
+        /* keep polling until the stop timeout */
+      }
+    };
+    const id = setInterval(poll, 5000);
+    const stop = setTimeout(() => clearInterval(id), 90000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      clearTimeout(stop);
+    };
+  }, [step, refreshSubscription]);
 
   const handleCheckoutPay = async () => {
     if (!user?.email) {
@@ -120,6 +191,7 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
     setStep('waiting');
     setStatusText('Opening Razorpay…');
 
+    let checkoutOpened = false;
     try {
       const order = await createRazorpayOrder(plan);
       const response = await payWithStandardCheckout({
@@ -131,6 +203,7 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
         contact: user.phoneNumber || '9999999999',
         planName: planInfo?.name ?? plan,
       });
+      checkoutOpened = true;
       setStep('processing');
       setStatusText('Confirming payment…');
       await verifyRazorpayPayment({ ...response, plan });
@@ -138,9 +211,13 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
       onPaid(plan);
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : 'Payment failed');
-      setStep('form');
-      setStatusText('');
+      if (checkoutOpened || isUncertainPaymentError(err)) {
+        enterPendingState();
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Payment failed');
+        setStep('form');
+        setStatusText('');
+      }
     }
   };
 
@@ -171,9 +248,13 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
       onPaid(plan);
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : 'Payment failed');
-      setStep('form');
-      setStatusText('');
+      if (isUncertainPaymentError(err)) {
+        enterPendingState();
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Payment failed');
+        setStep('form');
+        setStatusText('');
+      }
     }
   };
 
@@ -186,6 +267,7 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
     setStep('waiting');
     setStatusText('Opening UPI app…');
 
+    let checkoutOpened = false;
     try {
       const order = await createRazorpayOrder(plan);
       const response = await payWithUpiApp({
@@ -197,15 +279,20 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
         contact: user.phoneNumber || '9999999999',
         app,
       });
+      checkoutOpened = true;
       setStep('processing');
       setStatusText('Confirming payment…');
       await verifyRazorpayPayment({ ...response, plan });
       onPaid(plan);
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : 'Payment failed');
-      setStep('form');
-      setStatusText('');
+      if (checkoutOpened || isUncertainPaymentError(err)) {
+        enterPendingState();
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Payment failed');
+        setStep('form');
+        setStatusText('');
+      }
     }
   };
 
@@ -309,6 +396,43 @@ export function UpiPaymentModal({ plan, onClose, onPaid }: UpiPaymentModalProps)
                 </>
               )}
             </>
+          ) : step === 'pending' ? (
+            <div className='flex flex-col items-center py-8 text-center'>
+              <span className='flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-500'>
+                <FiAlertTriangle className='h-7 w-7' />
+              </span>
+              <p className='mt-4 text-lg font-bold text-slate-900 dark:text-white'>
+                Payment received — confirming…
+              </p>
+              <p className='mt-2 max-w-sm text-sm text-slate-600 dark:text-slate-400'>
+                Your payment went through and your{' '}
+                <strong className='font-semibold text-slate-800 dark:text-slate-200'>
+                  {planInfo?.name}
+                </strong>{' '}
+                plan will activate automatically within a few seconds. You can safely close this
+                window — if it doesn't switch over, tap below to check again.
+              </p>
+              <button
+                type='button'
+                onClick={checkPaymentStatus}
+                disabled={checkingStatus}
+                className='mt-5 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-500 disabled:opacity-60'
+              >
+                {checkingStatus ? (
+                  <FiLoader className='h-4 w-4 animate-spin' />
+                ) : (
+                  <FiRefreshCw className='h-4 w-4' />
+                )}
+                Check status now
+              </button>
+              <button
+                type='button'
+                onClick={onClose}
+                className='mt-3 text-sm font-semibold text-slate-500 underline'
+              >
+                Close
+              </button>
+            </div>
           ) : (
             <div className='flex flex-col items-center py-10 text-center'>
               {step === 'processing' ? (

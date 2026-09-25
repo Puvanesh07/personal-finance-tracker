@@ -45,7 +45,7 @@ function AmountInput({
   useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
   return (
     <div className='flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'>
-      <span className='pl-4 pr-2 text-slate-400 dark:text-slate-500 font-bold text-lg shrink-0'>₹</span>
+      <span className='pl-4 pr-2 text-slate-400 dark:text-slate-400 font-bold text-lg shrink-0'>₹</span>
       <input
         ref={ref}
         type='number'
@@ -644,7 +644,7 @@ export function QuickAddFAB() {
               </span>
             )}
             <button type='button' onClick={close}
-              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'>
+              className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'>
               <FiX className='h-4 w-4' />
             </button>
           </div>
@@ -667,7 +667,7 @@ export function QuickAddFAB() {
                     </button>
                   ))}
                 </div>
-                <p className='text-center text-[10px] text-slate-400 dark:text-slate-500 mt-4'>
+                <p className='text-center text-[10px] text-slate-400 dark:text-slate-400 mt-4'>
                   All entries save directly to your account
                 </p>
               </>

@@ -188,7 +188,8 @@ export function computeMilestones(
           const m = e.date.slice(0, 7);
           if (!monthMap.has(m)) monthMap.set(m, { inc: 0, exp: 0 });
           const b = monthMap.get(m)!;
-          if (e.type === 'income') b.inc += e.amount; else b.exp += e.amount;
+          if (e.type === 'income') b.inc += e.amount;
+          else if (e.type === 'expense') b.exp += e.amount;
         }
         const sorted = [...monthMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
         let streak = 0;
@@ -205,7 +206,8 @@ export function computeMilestones(
           const m = e.date.slice(0, 7);
           if (!monthMap.has(m)) monthMap.set(m, { inc: 0, exp: 0 });
           const b = monthMap.get(m)!;
-          if (e.type === 'income') b.inc += e.amount; else b.exp += e.amount;
+          if (e.type === 'income') b.inc += e.amount;
+          else if (e.type === 'expense') b.exp += e.amount;
         }
         const sorted = [...monthMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
         let streak = 0;

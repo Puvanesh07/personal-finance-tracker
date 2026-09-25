@@ -24,8 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRef, useState } from 'react';
 
 import { Modal } from '../ui/Modal';
-import { auth } from '../../services/firebase';
-import { deleteUser } from 'firebase/auth';
+import { deleteMyAccountServer } from '../../services/subscriptionService';
 import toast from 'react-hot-toast';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -37,12 +36,12 @@ function StatBadge({ label, count }: { label: string; count: number }) {
     <div className='flex items-center justify-between bg-slate-200/70 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700/50 rounded-lg px-3 py-2'>
       <span className='text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5'>
         <FiCheck
-          className={`h-3 w-3 ${count > 0 ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-600'}`}
+          className={`h-3 w-3 ${count > 0 ? 'text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}
         />
         {label}
       </span>
       <span
-        className={`text-xs font-bold ${count > 0 ? 'text-slate-900 dark:text-slate-200' : 'text-slate-500 dark:text-slate-600'}`}
+        className={`text-xs font-bold ${count > 0 ? 'text-slate-900 dark:text-slate-200' : 'text-slate-500 dark:text-slate-400'}`}
       >
         {count}
       </span>
@@ -273,7 +272,7 @@ export function ExportImport() {
             <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
               Export as CSV
             </p>
-            <p className='text-xs text-slate-900 dark:text-slate-500'>
+            <p className='text-xs text-slate-900 dark:text-slate-400'>
               Open in Excel, Google Sheets, or any spreadsheet app.
             </p>
           </div>
@@ -287,7 +286,7 @@ export function ExportImport() {
                 Separate Files
               </p>
             </div>
-            <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
+            <p className='text-xs text-slate-900 dark:text-slate-400 leading-relaxed'>
               One CSV per section.
             </p>
             <button
@@ -308,7 +307,7 @@ export function ExportImport() {
                 All-in-one
               </span>
             </div>
-            <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
+            <p className='text-xs text-slate-900 dark:text-slate-400 leading-relaxed'>
               All sections packaged into one ZIP file.
             </p>
             <button
@@ -323,7 +322,7 @@ export function ExportImport() {
         </div>
 
         <div className='border-t border-slate-200 dark:border-slate-800 pt-3'>
-          <p className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-3'>
+          <p className='text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-3'>
             What will be included ({totalRecords} records)
           </p>
           <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
@@ -341,7 +340,7 @@ export function ExportImport() {
                 >
                   {label}{' '}
                   {count > 0 && (
-                    <span className='text-slate-900 dark:text-slate-500 ml-1'>
+                    <span className='text-slate-900 dark:text-slate-400 ml-1'>
                       ({count})
                     </span>
                   )}
@@ -366,7 +365,7 @@ export function ExportImport() {
                 Recommended
               </span>
             </div>
-            <p className='text-xs text-slate-900 dark:text-slate-500'>
+            <p className='text-xs text-slate-900 dark:text-slate-400'>
               Complete backup of your entire account in one restorable file.
             </p>
           </div>
@@ -389,7 +388,7 @@ export function ExportImport() {
           <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
             Restore from Backup
           </p>
-          <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>
+          <p className='text-xs text-slate-900 dark:text-slate-400 mt-0.5'>
             Import a previously exported JSON backup to restore all your data.
           </p>
         </div>
@@ -418,7 +417,7 @@ export function ExportImport() {
             <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
               Data health
             </p>
-            <p className='text-xs text-slate-900 dark:text-slate-500'>
+            <p className='text-xs text-slate-900 dark:text-slate-400'>
               Reload from the cloud, or repair account balances written by an
               older version of the app.
             </p>
@@ -433,7 +432,7 @@ export function ExportImport() {
                 Sync now
               </p>
             </div>
-            <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
+            <p className='text-xs text-slate-900 dark:text-slate-400 leading-relaxed'>
               Discard what is cached on this device and read everything again
               from the cloud.
             </p>
@@ -453,7 +452,7 @@ export function ExportImport() {
                 Re-check account balances
               </p>
             </div>
-            <p className='text-xs text-slate-900 dark:text-slate-500 leading-relaxed'>
+            <p className='text-xs text-slate-900 dark:text-slate-400 leading-relaxed'>
               Builds before this one added every cashflow entry straight into
               the stored account balance, which double-counted it. This puts
               those numbers back.
@@ -486,7 +485,7 @@ export function ExportImport() {
               alone and reported at the end, so you can fix it yourself.
             </p>
           </div>
-          <p className='text-xs text-slate-900 dark:text-slate-500'>
+          <p className='text-xs text-slate-900 dark:text-slate-400'>
             Unsure? Export a Full Backup (JSON) above first — it is the only way
             to undo this.
           </p>
@@ -526,7 +525,7 @@ export function ExportImport() {
             </p>
           </div>
           <div>
-            <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
+            <p className='text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-2'>
               What will be restored
             </p>
             <div className='grid grid-cols-2 gap-1.5'>
@@ -594,18 +593,23 @@ export function DangerZone() {
     if (deleteAccountText.trim().toLowerCase() !== 'delete my account') return;
     setBusy(true);
     try {
-      await clearAllData();
+      // Authoritative server-side wipe: every user collection + notifications +
+      // the auth user, using admin privileges. The client-only path left
+      // receipts / device tokens / the push ledger behind (audit C6 GDPR hole).
+      await deleteMyAccountServer();
       try {
         localStorage.removeItem(SIP_STORAGE_KEY);
       } catch {}
-      const user = auth.currentUser;
-      if (user) await deleteUser(user);
       toast.success('Account deleted. Goodbye!');
       setTimeout(() => {
         window.location.href = '/';
       }, 1500);
     } catch (err: any) {
-      if (err.code === 'auth/requires-recent-login') {
+      const code = String(err?.code ?? '');
+      if (
+        code === 'auth/requires-recent-login' ||
+        code.includes('permission-denied')
+      ) {
         toast.error(
           'For security, please log out and log back in before deleting your account.',
         );
@@ -628,7 +632,7 @@ export function DangerZone() {
             <p className='font-bold text-slate-900 dark:text-slate-100 text-sm'>
               Clear All Data
             </p>
-            <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>
+            <p className='text-xs text-slate-900 dark:text-slate-400 mt-0.5'>
               Permanently wipes all data. Your login credentials remain intact.
             </p>
           </div>
@@ -650,7 +654,7 @@ export function DangerZone() {
           </div>
           <div className='flex-1 min-w-0'>
             <p className='font-bold text-rose-300 text-sm'>Delete My Account</p>
-            <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>
+            <p className='text-xs text-slate-900 dark:text-slate-400 mt-0.5'>
               Permanently deletes all your data AND removes your login
               credentials.
             </p>

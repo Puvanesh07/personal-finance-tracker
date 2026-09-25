@@ -58,7 +58,7 @@ function BudgetModal({
           </h3>
           <button
             onClick={onClose}
-            className='text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 cursor-pointer transition-colors'
+            className='text-slate-900 dark:text-slate-400 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300 cursor-pointer transition-colors'
           >
             <FiX className='h-4 w-4' />
           </button>
@@ -76,7 +76,7 @@ function BudgetModal({
             value={val}
             onChange={(e) => setVal(e.target.value)}
             placeholder='e.g. 25000'
-            className='w-full rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 pl-8 pr-4 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-600'
+            className='w-full rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-slate-200 dark:bg-slate-800 pl-8 pr-4 py-3 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 placeholder:text-slate-500 dark:text-slate-400'
             autoFocus
           />
         </div>
@@ -161,14 +161,14 @@ function InstrumentForm({
         <button
           type='button'
           onClick={() => setMode('asset')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'asset' ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'asset' ? 'bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-900 dark:text-slate-400 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
         >
           ⇌ From Assets
         </button>
         <button
           type='button'
           onClick={() => setMode('custom')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-bold transition-all border ${mode === 'custom' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-500 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-bold transition-all border ${mode === 'custom' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-400 hover:text-slate-600 dark:text-slate-700 dark:hover:text-slate-600 dark:text-slate-700 dark:text-slate-300'}`}
         >
           T Custom Name
         </button>
@@ -180,7 +180,7 @@ function InstrumentForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder='e.g. Goldbees, Axis Small Cap…'
-            className='flex-1 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 placeholder:text-slate-500 dark:text-slate-600'
+            className='flex-1 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 placeholder:text-slate-500 dark:text-slate-400'
             autoFocus
           />
         ) : (
@@ -202,7 +202,7 @@ function InstrumentForm({
           <button
             type='button'
             onClick={() => setAmtMode('pct')}
-            className={`px-2 py-1.5 transition-colors cursor-pointer ${amtMode === 'pct' ? 'bg-emerald-600 text-white' : 'text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800'}`}
+            className={`px-2 py-1.5 transition-colors cursor-pointer ${amtMode === 'pct' ? 'bg-emerald-600 text-white' : 'text-slate-900 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800'}`}
           >
             %
           </button>
@@ -211,7 +211,7 @@ function InstrumentForm({
             onClick={() => setAmtMode('inr')}
             disabled={budget <= 0}
             title={budget > 0 ? 'Enter monthly amount in ₹' : 'Set a monthly budget first'}
-            className={`px-2 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${amtMode === 'inr' ? 'bg-emerald-600 text-white' : 'text-slate-900 dark:text-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800'}`}
+            className={`px-2 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${amtMode === 'inr' ? 'bg-emerald-600 text-white' : 'text-slate-900 dark:text-slate-400 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800'}`}
           >
             ₹
           </button>
@@ -227,7 +227,7 @@ function InstrumentForm({
               max={100}
               className='w-24 rounded-xl cursor-pointer border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none focus:border-emerald-500/60 pr-6'
             />
-            <FiPercent className='absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-900 dark:text-slate-500' />
+            <FiPercent className='absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-900 dark:text-slate-400' />
           </div>
         ) : (
           <div className='relative shrink-0'>
@@ -272,7 +272,7 @@ function InstrumentForm({
             {formatINR(monthlyPreview)}
           </span>
           {amtMode === 'inr' && (
-            <span className='ml-1.5 text-slate-900 dark:text-slate-500'>
+            <span className='ml-1.5 text-slate-900 dark:text-slate-400'>
               ({effectivePct.toFixed(1)}% of {formatINR(budget)})
             </span>
           )}
@@ -415,7 +415,7 @@ export function MonthlySipPlanPage() {
             <p className='text-xs text-slate-500 dark:text-slate-400'>
               {totalPct.toFixed(0)}% allocated
               {remaining > 0 && (
-                <span className='text-slate-900 dark:text-slate-500'>
+                <span className='text-slate-900 dark:text-slate-400'>
                   {' '}
                   · {remaining.toFixed(0)}% remaining
                 </span>
@@ -442,11 +442,11 @@ export function MonthlySipPlanPage() {
             <p className='text-base font-semibold text-slate-600 dark:text-slate-700 dark:text-slate-300'>
               No monthly SIP plan yet
             </p>
-            <p className='text-sm text-slate-900 dark:text-slate-500 mt-1 max-w-xs'>
+            <p className='text-sm text-slate-900 dark:text-slate-400 mt-1 max-w-xs'>
               Track your monthly investments across mutual funds, stocks, and
               other instruments.
             </p>
-            <p className='text-xs text-slate-500 dark:text-slate-600 mt-1'>
+            <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
               Add your SIPs to see where your money goes each month.
             </p>
           </div>
@@ -479,7 +479,7 @@ export function MonthlySipPlanPage() {
                       {inst.name}
                     </p>
                     {inst.fromAsset && (
-                      <p className='text-[10px] text-slate-900 dark:text-slate-500 mt-0.5'>
+                      <p className='text-[10px] text-slate-900 dark:text-slate-400 mt-0.5'>
                         Linked from assets
                       </p>
                     )}
@@ -493,7 +493,7 @@ export function MonthlySipPlanPage() {
                     <span className='text-sm font-bold text-slate-900 dark:text-slate-800 dark:text-slate-200 tabular-nums'>
                       {inst.percentage}
                     </span>
-                    <span className='text-xs text-slate-900 dark:text-slate-500'>%</span>
+                    <span className='text-xs text-slate-900 dark:text-slate-400'>%</span>
                   </div>
                   <div className='flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0'>
                     <button

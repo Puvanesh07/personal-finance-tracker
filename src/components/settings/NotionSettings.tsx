@@ -95,7 +95,7 @@ export function NotionSettings() {
             <span className="relative">{busy ? 'Syncing to Notion…' : 'Sync Now'}</span>
           </button>
           
-          <div className="flex w-full justify-between items-center text-xs font-medium text-slate-900 dark:text-slate-500">
+          <div className="flex w-full justify-between items-center text-xs font-medium text-slate-900 dark:text-slate-400">
             <span>{notion.lastSyncAt ? `Last sync: ${new Date(notion.lastSyncAt).toLocaleString()}` : 'Never synced'}</span>
           </div>
         </div>

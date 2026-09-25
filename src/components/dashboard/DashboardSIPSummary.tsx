@@ -34,7 +34,7 @@ export function DashboardSIPSummary() {
       {monthlyBudget === 0 && sipInstruments.length === 0 ? (
         <div className='flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-8 text-center'>
           <FiLayers className='h-6 w-6 text-slate-300 dark:text-slate-600' />
-          <p className='text-xs text-slate-400 dark:text-slate-500'>No SIP plan set up yet</p>
+          <p className='text-xs text-slate-400 dark:text-slate-400'>No SIP plan set up yet</p>
           <button
             onClick={() => navigate('/wealth?tab=allocation&sub=sip')}
             className='text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors'

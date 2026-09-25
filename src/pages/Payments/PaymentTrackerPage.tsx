@@ -1,4 +1,4 @@
-﻿import {
+import {
   FiAlertCircle,
   FiCalendar,
   FiCheck,
@@ -307,7 +307,7 @@ if (!ready) return <GoalsSkeleton />;
                     <td className='px-4 py-3 font-semibold text-slate-900 dark:text-slate-100'>
                       {p.title}
                       {seriesSummary(p) && (
-                        <span className='mt-0.5 block text-[10px] font-semibold text-slate-400 dark:text-slate-500'>
+                        <span className='mt-0.5 block text-[10px] font-semibold text-slate-400 dark:text-slate-400'>
                           {seriesSummary(p)}
                         </span>
                       )}

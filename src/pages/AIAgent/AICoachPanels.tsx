@@ -71,7 +71,7 @@ export function SearchTab() {
                       <span className='text-base shrink-0 sm:text-lg'>{r.emoji}</span>
                       <div className='min-w-0'>
                         <p className='truncate text-[13px] font-semibold text-slate-800 dark:text-slate-200 sm:text-sm'>{r.title}</p>
-                        <p className='truncate text-[10px] text-slate-400 dark:text-slate-500'>{r.type} · {r.sub}</p>
+                        <p className='truncate text-[10px] text-slate-400 dark:text-slate-400'>{r.type} · {r.sub}</p>
                       </div>
                     </div>
                     <div className='flex shrink-0 items-center gap-1.5 sm:gap-2'>
@@ -83,7 +83,7 @@ export function SearchTab() {
               </div>
           }
         </div>
-      ) : <div className='py-6 text-center text-[13px] text-slate-400 dark:text-slate-500 sm:py-8 sm:text-sm'>Type 2+ characters to search across all records</div>}
+      ) : <div className='py-6 text-center text-[13px] text-slate-400 dark:text-slate-400 sm:py-8 sm:text-sm'>Type 2+ characters to search across all records</div>}
     </div>
   );
 }
@@ -177,7 +177,7 @@ export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
       {/* Anomaly alerts */}
       {anomalies.length > 0 && (
         <div className='space-y-2'>
-          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500'>Financial Alerts</p>
+          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400'>Financial Alerts</p>
           {anomalies.map(a => (
             <button key={a.id} type='button' onClick={() => onAsk(a.question)} className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm sm:gap-3 sm:px-4 sm:py-3 ${alertCls[a.severity]}`}>
               <span className='text-base shrink-0 sm:text-lg'>{a.emoji}</span>
@@ -190,7 +190,7 @@ export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
       {/* Proactive insights fallback */}
       {proactive.length > 0 && anomalies.length === 0 && (
         <div className='space-y-2'>
-          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500'>Needs Attention</p>
+          <p className='text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400'>Needs Attention</p>
           {proactive.slice(0, 3).map(ins => (
             <button key={ins.id} type='button' onClick={() => onAsk(ins.question)} className='flex w-full items-start gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors sm:gap-3 sm:px-4 sm:py-3'>
               <span className='text-base shrink-0 sm:text-lg'>{ins.emoji}</span>

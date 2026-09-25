@@ -89,7 +89,7 @@ export function RetirementPlanner() {
     <CardShell color="indigo" title="Retirement Planner" subtitle="Golden Years Corpus" Icon={FiAward}>
       <div className="p-6 space-y-1">
         <div className="mb-4 flex justify-between items-center rounded-xl bg-indigo-500/5 border border-indigo-500/15 px-4 py-3">
-          <span className="text-xs font-semibold text-slate-900 dark:text-slate-500">Current Monthly Expense</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-slate-400">Current Monthly Expense</span>
           <span className="text-sm font-black text-indigo-600">{formatINR(avgMonthlyExpense)}</span>
         </div>
         <InputField label="Current Age" value={currentAge} min={18} max={59} onChange={setCurrentAge} unit=" Yrs" color="indigo" />
@@ -314,7 +314,7 @@ export function RiskAnalyser() {
           ].map(item => (
             <div key={item.label}>
               <div className="flex justify-between mb-1">
-                <span className="text-xs font-semibold text-slate-900 dark:text-slate-500">{item.label}</span>
+                <span className="text-xs font-semibold text-slate-900 dark:text-slate-400">{item.label}</span>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-black text-slate-700 dark:text-slate-200">{item.pct.toFixed(1)}%</span>
                   <span className="text-slate-500 dark:text-slate-400">{formatINR(item.val)}</span>

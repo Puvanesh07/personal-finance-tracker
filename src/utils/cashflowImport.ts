@@ -21,6 +21,44 @@ import type ExcelJS from 'exceljs';
 
 export type ImportRow = Record<string, string>;
 
+// ── Duplicate detection (audit I2) ────────────────────────────────────
+
+/** Shape needed only for fingerprinting an import draft / stored entry. */
+type DupKeySource = {
+  accountId?: string;
+  date: string;
+  type: string;
+  amount: number;
+};
+
+/** Content fingerprint for duplicate detection. Statements get re-downloaded
+ *  and cashflow rows have no natural key, so we match on the fields a user
+ *  can't help repeating when they import the same month twice: account +
+ *  date + income/expense + whole-rupee amount (rounding absorbs paise-format
+ *  differences between a statement and the manually-entered original). */
+export function cashflowDuplicateKey(cf: DupKeySource): string {
+  return `${cf.accountId ?? '__any__'}|${cf.date}|${cf.type}|${Math.round(
+    Number(cf.amount) || 0,
+  )}`;
+}
+
+/** Row numbers whose draft collides with an already-stored entry OR with an
+ *  earlier valid row in the same batch (first occurrence wins). */
+export function findDuplicateRowNumbers(
+  validDrafts: { rowNumber: number; draft: DupKeySource }[],
+  existingEntries: DupKeySource[],
+): Set<number> {
+  const existingKeys = new Set(existingEntries.map(cashflowDuplicateKey));
+  const seen = new Set<string>();
+  const dupes = new Set<number>();
+  for (const { rowNumber, draft } of validDrafts) {
+    const key = cashflowDuplicateKey(draft);
+    if (existingKeys.has(key) || seen.has(key)) dupes.add(rowNumber);
+    seen.add(key);
+  }
+  return dupes;
+}
+
 export type ParsedSheet = {
   name: string;
   headers: string[];

@@ -103,18 +103,18 @@ export function CalendarPicker({
     >
       <FiCalendar
         className={`h-4 w-4 shrink-0 ${
-          open ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'
+          open ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-400'
         }`}
       />
       <span
         className={`flex-1 text-left ${
-          selectedDate ? '' : 'text-slate-400 dark:text-slate-500'
+          selectedDate ? '' : 'text-slate-400 dark:text-slate-400'
         }`}
       >
         {selectedDate ? format(selectedDate, 'dd MMM yyyy') : placeholder}
       </span>
       <FiChevronDown
-        className={`h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500 transition-transform ${
+        className={`h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-400 transition-transform ${
           open ? 'rotate-180 text-emerald-500' : ''
         }`}
       />
@@ -151,7 +151,7 @@ export function CalendarPicker({
         {WEEKDAYS.map((d) => (
           <div
             key={d}
-            className='py-1 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500'
+            className='py-1 text-center text-[10px] font-bold text-slate-400 dark:text-slate-400'
           >
             {d}
           </div>
@@ -193,7 +193,7 @@ export function CalendarPicker({
             onChange('');
             setOpen(false);
           }}
-          className='rounded-lg px-2 py-1 text-xs font-bold text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300'
+          className='rounded-lg px-2 py-1 text-xs font-bold text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300'
         >
           Clear
         </button>

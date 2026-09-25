@@ -384,7 +384,7 @@ export function PWAInstallBanner() {
                     <div className='text-[10px] font-bold text-white text-center'>
                       {s.title}
                     </div>
-                    <div className='text-[9px] text-slate-900 dark:text-slate-500 text-center'>
+                    <div className='text-[9px] text-slate-900 dark:text-slate-400 text-center'>
                       {s.desc}
                     </div>
                   </div>
@@ -392,12 +392,12 @@ export function PWAInstallBanner() {
               </div>
 
               <div className='flex items-center justify-between'>
-                <p className='text-[10px] text-slate-900 dark:text-slate-500'>
+                <p className='text-[10px] text-slate-900 dark:text-slate-400'>
                   ⓘ Tap the □↑ Share icon at the bottom of Safari
                 </p>
                 <button
                   onClick={dismiss}
-                  className='text-[10px] text-slate-900 dark:text-slate-500 underline'
+                  className='text-[10px] text-slate-900 dark:text-slate-400 underline'
                 >
                   Dismiss
                 </button>
@@ -493,7 +493,7 @@ export function PWAInstallBanner() {
                     <div className='text-[10px] font-bold text-white text-center'>
                       {s.title}
                     </div>
-                    <div className='text-[9px] text-slate-900 dark:text-slate-500 text-center'>
+                    <div className='text-[9px] text-slate-900 dark:text-slate-400 text-center'>
                       {s.desc}
                     </div>
                   </div>
@@ -501,13 +501,13 @@ export function PWAInstallBanner() {
               </div>
 
               <div className='flex items-center justify-between'>
-                <p className='text-[10px] text-slate-900 dark:text-slate-500'>
+                <p className='text-[10px] text-slate-900 dark:text-slate-400'>
                   ⓘ Tap the <span className='font-bold text-slate-500 dark:text-slate-400'>⋮</span>{' '}
                   icon at the top-right of Chrome
                 </p>
                 <button
                   onClick={dismiss}
-                  className='text-[10px] text-slate-900 dark:text-slate-500 underline'
+                  className='text-[10px] text-slate-900 dark:text-slate-400 underline'
                 >
                   Dismiss
                 </button>

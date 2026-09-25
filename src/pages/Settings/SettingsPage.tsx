@@ -1,4 +1,4 @@
-﻿// src/pages/Settings/SettingsPage.tsx
+// src/pages/Settings/SettingsPage.tsx
 //
 // REDESIGNED — Full tabbed Settings page with:
 //   1. Profile tab  — edit display name, view email, avatar
@@ -222,13 +222,13 @@ function ProfileTab() {
 
       {/* UID card */}
       <div className='rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/40 p-5'>
-        <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-500 mb-2'>
+        <p className='text-[10px] font-bold uppercase tracking-widest text-slate-900 dark:text-slate-400 mb-2'>
           Account ID
         </p>
         <p className='font-mono text-xs text-emerald-400 break-all'>
           {user?.uid}
         </p>
-        <p className='mt-2 text-[11px] text-slate-900 dark:text-slate-500'>
+        <p className='mt-2 text-[11px] text-slate-900 dark:text-slate-400'>
           Your data is stored securely on Firebase, tied to this unique ID.
         </p>
       </div>
@@ -239,7 +239,7 @@ function ProfileTab() {
           <p className='text-sm font-bold text-slate-900 dark:text-slate-200'>
             Sign Out
           </p>
-          <p className='text-xs text-slate-900 dark:text-slate-500 mt-0.5'>
+          <p className='text-xs text-slate-900 dark:text-slate-400 mt-0.5'>
             You will need to log in again to access your data.
           </p>
         </div>
@@ -347,7 +347,7 @@ function AppSecurityTab() {
               </div>
             </div>
 
-            <div className='flex items-center gap-1.5 mb-5 text-[11px] text-slate-400 dark:text-slate-500'>
+            <div className='flex items-center gap-1.5 mb-5 text-[11px] text-slate-400 dark:text-slate-400'>
               <span className='h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse' />
               Prompt ready ✓
             </div>

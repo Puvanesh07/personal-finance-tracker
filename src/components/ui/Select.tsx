@@ -84,7 +84,7 @@ export function Select({
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full cursor-pointer items-center justify-between gap-2 text-left outline-none transition-all focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60 ${className ?? ''}`}
       >
-        <span className={`truncate ${selected ? '' : 'text-slate-400 dark:text-slate-500'}`}>
+        <span className={`truncate ${selected ? '' : 'text-slate-400 dark:text-slate-400'}`}>
           {selected ? selected.label : placeholder ?? 'Select…'}
         </span>
         <FiChevronDown

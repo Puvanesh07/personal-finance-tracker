@@ -40,7 +40,7 @@ function EmptyState() {
         <p className='text-base font-bold text-slate-800 dark:text-slate-200'>
           No notifications yet
         </p>
-        <p className='mt-1 text-sm text-slate-400 dark:text-slate-500 leading-relaxed max-w-[280px] mx-auto'>
+        <p className='mt-1 text-sm text-slate-400 dark:text-slate-400 leading-relaxed max-w-[280px] mx-auto'>
           We&apos;ll let you know when something needs your attention.
         </p>
       </div>
@@ -60,23 +60,25 @@ export function NotificationsPage() {
   } = useSubscription();
   // See the Bell component for why we select the raw arrays + use shallow:
   // ensures re-renders actually fire whenever read / dismissed / cleared change.
-  const { markRead, markAllRead, dismiss, clearAll, readIds, dismissedIds, clearedAt } =
+  const { markRead, markAllRead, dismiss, clearAll, snooze, readIds, dismissedIds, clearedAt, snoozedMap } =
     useNotificationStore(
       useShallow((s) => ({
         markRead: s.markRead,
         markAllRead: s.markAllRead,
         dismiss: s.dismiss,
         clearAll: s.clearAll,
+        snooze: s.snooze,
         readIds: s.readIds,
         dismissedIds: s.dismissedIds,
         clearedAt: s.clearedAt,
+        snoozedMap: s.snoozedMap,
       })),
     );
 
   const notifications = useMemo(() => {
     const combined = mergeAndNormalizeNotifs(derivedNotifications, subscriptionNotifications);
     return useNotificationStore.getState().enrichAndFilter(combined);
-  }, [derivedNotifications, subscriptionNotifications, readIds, dismissedIds, clearedAt]);
+  }, [derivedNotifications, subscriptionNotifications, readIds, dismissedIds, clearedAt, snoozedMap]);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
@@ -93,6 +95,15 @@ export function NotificationsPage() {
   const handleDismiss = (notif: AppNotification) => {
     dismiss(notif.id);
     dismissNotificationRemote(notif.id);
+  };
+
+  // Per-item snooze (audit I3): hide for a chosen window, then it re-surfaces
+  // automatically once the timestamp passes. Marks read locally so the unread
+  // badge drops now; intentionally NOT pushed remote (dismiss does that) since
+  // snooze is a "remind me later" for the in-app ledger, not a dismissal.
+  const handleSnooze = (notif: AppNotification, hours: number) => {
+    const until = new Date(Date.now() + hours * 3600_000).toISOString();
+    snooze(notif.id, until);
   };
 
   const handleMarkAllRead = () => {
@@ -140,7 +151,7 @@ export function NotificationsPage() {
             <button
               type='button'
               onClick={handleClearAll}
-              className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-colors'
+              className='flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 dark:text-slate-400 hover:bg-rose-500/10 hover:text-rose-500 transition-colors'
             >
               <FiTrash2 className='h-3.5 w-3.5' aria-hidden='true' />
               Clear all
@@ -206,7 +217,7 @@ export function NotificationsPage() {
                     <p
                       className={`mt-1 text-xs leading-relaxed ${
                         notif.read
-                          ? 'text-slate-400 dark:text-slate-500'
+                          ? 'text-slate-400 dark:text-slate-400'
                           : 'text-slate-600 dark:text-slate-300'
                       }`}
                     >
@@ -216,11 +227,11 @@ export function NotificationsPage() {
                       <span className='rounded-full bg-slate-200/70 dark:bg-slate-700/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400'>
                         {category}
                       </span>
-                      <span className='text-[10px] text-slate-400 dark:text-slate-500 tabular-nums'>
+                      <span className='text-[10px] text-slate-400 dark:text-slate-400 tabular-nums'>
                         {relativeTime(notif.createdAt)}
                       </span>
                       {notif.dueDate && (
-                        <span className='text-[10px] text-slate-400 dark:text-slate-500'>
+                        <span className='text-[10px] text-slate-400 dark:text-slate-400'>
                           Due {format(new Date(notif.dueDate), 'dd MMM yyyy')}
                         </span>
                       )}
@@ -241,13 +252,31 @@ export function NotificationsPage() {
                     )}
                   </div>
 
+                  <select
+                    aria-label='Snooze notification'
+                    title='Snooze — remind me later'
+                    value=''
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      const h = Number(e.target.value);
+                      if (h > 0) handleSnooze(notif, h);
+                    }}
+                    className='shrink-0 cursor-pointer rounded-md border border-slate-200 bg-white/80 px-1.5 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:text-slate-200 transition-all'
+                  >
+                    <option value=''>Snooze…</option>
+                    <option value='3'>3 hours</option>
+                    <option value='24'>Tomorrow</option>
+                    <option value='72'>3 days</option>
+                    <option value='168'>1 week</option>
+                  </select>
                   <button
                     type='button'
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDismiss(notif);
                     }}
-                    className='shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 hover:text-slate-700 dark:hover:text-slate-200 transition-all'
+                    className='shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 dark:text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 hover:text-slate-700 dark:hover:text-slate-200 transition-all'
                     title='Dismiss notification'
                     aria-label='Dismiss notification'
                   >
@@ -261,7 +290,7 @@ export function NotificationsPage() {
       </div>
 
       {hasAny && (
-        <div className='mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-500 text-center'>
+        <div className='mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-400 text-center'>
           {notifications.length} notification{notifications.length !== 1 ? 's' : ''} ·{' '}
           {unreadCount} unread
         </div>

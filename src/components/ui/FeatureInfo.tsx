@@ -526,7 +526,7 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
         type='button'
         onClick={() => { setOpen(false); setExpanded(false); }}
         aria-label='Close'
-        className='shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'
+        className='shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors'
       >
         <FiX className='h-4 w-4' />
       </button>
@@ -565,7 +565,7 @@ export function FeatureInfo({ feature, align = 'right', className = '' }: Featur
         </div>
 
         <div className='px-4 pb-4'>
-          <p className='text-xs font-semibold tracking-wide text-slate-400 dark:text-slate-500 mb-2 mt-1'>
+          <p className='text-xs font-semibold tracking-wide text-slate-400 dark:text-slate-400 mb-2 mt-1'>
             ❓ Common questions
           </p>
           <div className='space-y-2'>

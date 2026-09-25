@@ -16,6 +16,7 @@ import {
   FiGitBranch,
 } from 'react-icons/fi';
 import { AiFillCalculator } from 'react-icons/ai';
+import { isRouteEnabled } from '../config/featureFlags';
 
 export type AppNavItem = {
   to: string;
@@ -163,12 +164,14 @@ export const NAV_GROUPS: AppNavGroup[] = RAW_NAV_GROUPS.map((group) => ({
   ...group,
   items: group.items
     .filter((item) => !MORE_DESTINATIONS.includes(item.to))
+    .filter((item) => isRouteEnabled(item.to))
     .map((item) => ({ ...item, more: false })),
 })).filter((group) => group.items.length > 0);
 
 /** The grouped leftovers, in the order they were listed above. */
 export const MORE_ITEMS: AppNavItem[] = RAW_NAV_GROUPS.flatMap((g) => g.items)
   .filter((item) => MORE_DESTINATIONS.includes(item.to))
+  .filter((item) => isRouteEnabled(item.to))
   .map((item) => ({ ...item, more: true }));
 
 export const PRIMARY_NAV_ITEMS: AppNavItem[] = NAV_GROUPS.flatMap((g) => g.items);

@@ -294,6 +294,24 @@ export type LiabilityType =
   | 'misc';
 export type LiabilityStatus = 'active' | 'paid' | 'paused' | 'returned';
 
+/** One recorded EMI / installment payment. Stored on the liability so we can
+ *  show history and reverse a payment without a separate Firestore collection
+ *  (backward compatible: absent on every pre-existing liability). */
+export type LiabilityPayment = {
+  id: string;
+  date: ISODateString;
+  /** Full amount that left the account (principal + interest). */
+  amount: number;
+  /** Portion that reduced the outstanding balance. */
+  principal: number;
+  /** Portion booked as a real expense. */
+  interest: number;
+  /** Account the EMI was paid from. */
+  accountId?: string;
+  note?: string;
+  createdAt: string;
+};
+
 export type Liability = {
   id: string;
   type: LiabilityType;
@@ -311,6 +329,8 @@ export type Liability = {
   currency?: string;
   status?: LiabilityStatus;
   returnedAt?: string;
+  /** EMI / installment payment history (principal/interest split). */
+  payments?: LiabilityPayment[];
   createdAt: string;
   updatedAt: string;
   userId?: string;
@@ -340,7 +360,13 @@ export type Account = {
 };
 
 // ── Cashflow ───────────────────────────────────────────────────────────────
-export type CashflowType = 'income' | 'expense';
+// `transfer` is a movement between the user's own buckets (goal funding, or an
+// EMI principal repayment leaving a bank account). It is deliberately a THIRD
+// type — not income/expense — so every existing `filter(type==='income'|'expense')`
+// consumer (dashboards, DNA, insights, AI, spend velocity…) automatically skips
+// it and it never inflates income or expenses. Account balances still move, and
+// net worth is unaffected because the money stays on the balance sheet.
+export type CashflowType = 'income' | 'expense' | 'transfer';
 
 export type CashflowEntry = {
   id: string;
@@ -352,10 +378,18 @@ export type CashflowEntry = {
   subcategory?: string;
   amount: number;
   notes?: string;
+  /** Source account for income/expense/transfer (money leaves here). */
   accountId?: string;
+  /** For `transfer`: the account money lands in. Undefined for a transfer that
+   *  settles outside the tracked accounts (e.g. EMI principal → reduced debt). */
+  toAccountId?: string;
   createdAt: string;
   updatedAt: string;
   userId?: string;
+  /** Set on rows created by the statement-import wizard (audit I2) so an
+   *  entire import can be rolled back in one action. Additive — every
+   *  existing entry simply leaves it undefined. */
+  importBatchId?: string;
 };
 
 // ── Payment Tracker (upcoming dues & reminders) ─────────────────────────
@@ -450,6 +484,10 @@ export type GoalContribution = {
   amount: number;
   date: ISODateString;
   note?: string;
+  /** When the contribution moves real money, the account it comes from. */
+  accountId?: string;
+  /** The savings/bank account the money lands in (net-worth-neutral transfer). */
+  toAccountId?: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
