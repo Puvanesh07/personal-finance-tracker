@@ -2,7 +2,7 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import * as logger from 'firebase-functions/logger';
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
+// import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { Timestamp } from 'firebase-admin/firestore';
 
 import {
@@ -412,31 +412,31 @@ async function runPaymentReconcile(
  *  and emits a structured error log (for Cloud Logging alerting) if anything
  *  slipped past the webhook. Scheduled functions are billed per invocation —
  *  not as idle Cloud Run containers — so this stays free at launch volumes. */
-export const dailyPaymentReconcile = onSchedule(
-  {
-    region,
-    secrets: [...razorpaySecrets, ...ownerSecrets],
-    schedule: 'every 24 hours from 6:00pm',
-    timeZone: 'Asia/Kolkata',
-    timeoutSeconds: 300,
-  },
-  async () => {
-    try {
-      const { checked, mismatches } = await runPaymentReconcile(true);
-      if (mismatches.length === 0) {
-        logger.info('dailyPaymentReconcile: all payments reconciled', { checked });
-        return;
-      }
-      logger.error('dailyPaymentReconcile: payment activation mismatches (webhook gaps)', {
-        checked,
-        count: mismatches.length,
-        mismatches,
-      });
-    } catch (err) {
-      logger.error('dailyPaymentReconcile failed', err);
-    }
-  },
-);
+// export const dailyPaymentReconcile = onSchedule(
+//   {
+//     region,
+//     secrets: [...razorpaySecrets, ...ownerSecrets],
+//     schedule: 'every 24 hours from 6:00pm',
+//     timeZone: 'Asia/Kolkata',
+//     timeoutSeconds: 300,
+//   },
+//   async () => {
+//     try {
+//       const { checked, mismatches } = await runPaymentReconcile(true);
+//       if (mismatches.length === 0) {
+//         logger.info('dailyPaymentReconcile: all payments reconciled', { checked });
+//         return;
+//       }
+//       logger.error('dailyPaymentReconcile: payment activation mismatches (webhook gaps)', {
+//         checked,
+//         count: mismatches.length,
+//         mismatches,
+//       });
+//     } catch (err) {
+//       logger.error('dailyPaymentReconcile failed', err);
+//     }
+//   },
+// );
 
 export const verifyRazorpayPayment = onCall(
   { ...callableOptions, secrets: [...razorpaySecrets, ...ownerSecrets] },

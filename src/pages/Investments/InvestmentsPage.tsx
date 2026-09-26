@@ -41,6 +41,7 @@ import {
   currentValue,
   earliestInvestmentDate,
   investedValue,
+  isRealizedInvestment,
   summarizePortfolio,
 } from '../../utils/calculations';
 import { formatINR } from '../../utils/format';
@@ -354,6 +355,10 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return investments.filter((inv) => {
+      // Redeemed/closed bonds & deposits are archived out of the live holdings
+      // list — their value has already been settled to cash (see the Bond
+      // Interest Tracker's Close & Settle), so they are no longer positions.
+      if (isRealizedInvestment(inv)) return false;
       if (typeFilter !== 'all') {
         const cat = FILTER_CATEGORIES.find((c) => c.id === typeFilter);
         if (cat) {

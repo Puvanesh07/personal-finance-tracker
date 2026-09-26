@@ -41,6 +41,14 @@ export function safeInvestmentType(inv: unknown): InvestmentType {
   return isKnownInvestmentType(type) ? type : 'other';
 }
 
+/** A bond/deposit that has matured and been redeemed, or was otherwise closed.
+ *  Realized holdings stay in the data for history but are no longer live assets
+ *  — their value has already been converted to cash (see settleBondMaturity), so
+ *  counting them again would double-count net worth. */
+export function isRealizedInvestment(inv: Investment): boolean {
+  return inv.status === 'matured' || inv.status === 'closed';
+}
+
 export function investedValue(inv: Investment): number {
   switch (inv.type) {
     case 'stock':
@@ -217,6 +225,9 @@ export function summarizePortfolio(
 
   for (const inv of investments ?? []) {
     if (!inv) continue; // guard against null/undefined entries in imported data
+    // Redeemed/closed positions are no longer live assets — their value has
+    // already been settled to cash, so skip them to avoid double-counting.
+    if (isRealizedInvestment(inv)) continue;
 
     // Route unrecognized/malformed types into the 'other' bucket instead of
     // crashing — byType[inv.type] used to be indexed directly, which threw

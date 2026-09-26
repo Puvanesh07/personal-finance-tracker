@@ -70,6 +70,11 @@ export {
 } from './portfolioSettings';
 import { calculateNetWorth, calcLiveAccountBalances, getLiveBankTotal, IN_HAND_CASH_ID, IN_HAND_CASH_NAME, summarizePortfolio } from '../utils/calculations';
 import { todayISO } from '../utils/dateUtils';
+import {
+  bondCouponId,
+  bondMaturityItemId,
+  generateBondSchedule,
+} from '../utils/bondSchedule';
 import { policyStatusOf } from '../utils/financialProfile';
 import {
   nextDueDate,
@@ -536,6 +541,15 @@ type PortfolioState = {
   /** Re-apply a just-deleted document (audit I5 undo). Writes the SAME id so
    *  links survive, and is idempotent — a no-op if the row is already back. */
   restoreEntity: (col: string, entity: { id: string }) => Promise<void>;
+
+  /** Post a bond's received-but-unsynced coupon interest to Cashflow as income.
+   *  Idempotent (each entry keyed by the deterministic schedule id). Optionally
+   *  restrict to specific coupon indexes. Returns how many rows were created. */
+  syncBondInterest: (bondId: string, indexes?: number[]) => Promise<number>;
+  /** Close a matured bond: sync all received interest, post the returned
+   *  principal as a `transfer` into the linked account, and mark the bond
+   *  `matured` (kept for history, dropped from live assets — not deleted). */
+  settleBondMaturity: (bondId: string) => Promise<void>;
 
   addLiability: (
     liability: Omit<Liability, 'id' | 'createdAt' | 'updatedAt'>,
@@ -1346,6 +1360,111 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       showUndoToast('Investment deleted', () =>
         get().restoreEntity('investments', removed),
       );
+  },
+
+  syncBondInterest: async (bondId, indexes) => {
+    const uid = get().uid;
+    if (!uid) return 0;
+    const bond = get().investments.find((x) => x.id === bondId);
+    if (!bond || bond.type !== 'bond') return 0;
+
+    const existingIds = new Set(get().cashflows.map((c) => c.id));
+    const today = todayISO();
+    const t = now();
+    const onlyIdx = indexes ? new Set(indexes) : null;
+
+    const newCF: CashflowEntry[] = [];
+    for (const row of generateBondSchedule(bond)) {
+      if (row.interest <= 0) continue; // nothing to post
+      if (row.date > today) continue; // only money actually received
+      if (onlyIdx && !onlyIdx.has(row.index)) continue;
+      const id = bondCouponId(bond.id, row.index);
+      if (existingIds.has(id)) continue; // idempotent — never duplicate
+      newCF.push(
+        clean({
+          id,
+          type: 'income' as const,
+          date: row.date,
+          category: 'Bond Interest',
+          amount: row.interest,
+          notes: `${bond.name} · interest ${row.date}`,
+          accountId: bond.accountId,
+          createdAt: t,
+          updatedAt: t,
+          userId: uid,
+        }) as CashflowEntry,
+      );
+    }
+    if (newCF.length === 0) return 0;
+
+    await saveDocsAtomically(
+      uid,
+      newCF.map((c) => ({ col: 'cashflows', data: c })),
+    );
+    set((s) => ({
+      cashflows: [...newCF, ...s.cashflows].sort((a, b) =>
+        safeCompare(b.date, a.date),
+      ),
+    }));
+    return newCF.length;
+  },
+
+  settleBondMaturity: async (bondId) => {
+    const uid = get().uid;
+    if (!uid) return;
+    const bond = get().investments.find((x) => x.id === bondId);
+    if (!bond || bond.type !== 'bond') return;
+
+    // 1. Post every received coupon's interest as income (idempotent).
+    await get().syncBondInterest(bondId);
+
+    // 2. Post the returned principal as a transfer into the linked account.
+    const t = now();
+    const existingIds = new Set(get().cashflows.map((c) => c.id));
+    const maturity = generateBondSchedule(bond).find(
+      (r) => r.kind === 'maturity',
+    );
+    const principal = bond.investedAmount ?? 0;
+    const prinId = bondMaturityItemId(bond.id);
+
+    const writes: { col: string; data: object }[] = [];
+    let addedPrincipal: CashflowEntry | null = null;
+    if (principal > 0 && !existingIds.has(prinId)) {
+      addedPrincipal = clean({
+        id: prinId,
+        type: 'transfer' as const,
+        date: maturity?.date ?? todayISO(),
+        category: `${bond.name} — Principal Redemption`,
+        amount: principal,
+        notes: 'Bond matured · principal returned to account',
+        toAccountId: bond.accountId,
+        createdAt: t,
+        updatedAt: t,
+        userId: uid,
+      }) as CashflowEntry;
+      writes.push({ col: 'cashflows', data: addedPrincipal });
+    }
+
+    // 3. Mark the bond realized — kept for history, dropped from live assets.
+    const updatedBond = clean({
+      ...bond,
+      status: 'matured' as const,
+      updatedAt: t,
+    }) as Investment;
+    writes.push({ col: 'investments', data: updatedBond });
+
+    await saveDocsAtomically(uid, writes);
+
+    set((s) => ({
+      investments: s.investments.map((x) =>
+        x.id === bondId ? updatedBond : x,
+      ),
+      cashflows: addedPrincipal
+        ? [addedPrincipal, ...s.cashflows].sort((a, b) =>
+            safeCompare(b.date, a.date),
+          )
+        : s.cashflows,
+    }));
   },
 
   restoreEntity: async (col, entity) => {

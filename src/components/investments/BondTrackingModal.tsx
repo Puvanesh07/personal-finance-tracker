@@ -4,16 +4,20 @@ import {
   FiAlertCircle,
   FiBriefcase,
   FiCalendar,
+  FiCheck,
   FiCheckCircle,
   FiClock,
+  FiRefreshCw,
   FiTrendingUp,
 } from 'react-icons/fi';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import type { BondInvestment } from '../../types/investmentTypes';
 import { Modal } from '../ui/Modal';
 import {
   PAYOUT_FREQUENCY_LABELS,
+  bondCouponId,
+  bondMaturityItemId,
   summarizeBond,
   type BondPaymentStatus,
 } from '../../utils/bondSchedule';
@@ -94,10 +98,46 @@ export function BondTrackingModal({
   bond: BondInvestment;
 }) {
   const accounts = usePortfolioStore((s) => s.accounts);
+  const cashflows = usePortfolioStore((s) => s.cashflows);
+  const syncBondInterest = usePortfolioStore((s) => s.syncBondInterest);
+  const settleBondMaturity = usePortfolioStore((s) => s.settleBondMaturity);
+  const [busy, setBusy] = useState<null | 'sync' | 'settle'>(null);
 
   const summary = useMemo(() => summarizeBond(bond), [bond]);
   const account = accounts.find((a) => a.id === bond.accountId);
   const freq = bond.payoutFrequency ?? 'monthly';
+
+  const syncedIds = useMemo(
+    () => new Set(cashflows.map((c) => c.id)),
+    [cashflows],
+  );
+  const isRowSynced = (index: number) =>
+    syncedIds.has(bondCouponId(bond.id, index));
+  const isSettled = syncedIds.has(bondMaturityItemId(bond.id));
+  const pendingInterest = summary.schedule.filter(
+    (r) =>
+      r.kind === 'interest' &&
+      r.status === 'received' &&
+      r.interest > 0 &&
+      !isRowSynced(r.index),
+  );
+
+  const onSync = async (indexes?: number[]) => {
+    setBusy('sync');
+    try {
+      await syncBondInterest(bond.id, indexes);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const onSettle = async () => {
+    setBusy('settle');
+    try {
+      await settleBondMaturity(bond.id);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const progressPct =
     summary.totalExpectedInterest > 0
@@ -208,9 +248,65 @@ export function BondTrackingModal({
         {summary.isMatured && (
           <div className='flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400'>
             <FiTrendingUp className='h-4 w-4' />
-            This bond has matured — principal settled.
+            {isSettled
+              ? 'This bond has matured — principal settled.'
+              : 'This bond has matured — ready to close & settle.'}
           </div>
         )}
+
+        {/* Cashflow sync actions */}
+        <div className='rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700/70 dark:bg-slate-900/40'>
+          {summary.isMatured && !isSettled ? (
+            <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+              <div>
+                <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>
+                  Close &amp; settle this matured bond
+                </p>
+                <p className='mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400'>
+                  Posts {formatCurrency(summary.principal)} principal as a
+                  transfer{account ? ` into ${account.name}` : ''} and syncs all
+                  received interest to Cashflow.
+                </p>
+              </div>
+              <button
+                type='button'
+                onClick={onSettle}
+                disabled={busy !== null}
+                className='inline-flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-50'
+              >
+                <FiCheckCircle className='h-4 w-4' />
+                {busy === 'settle' ? 'Settling…' : 'Close & Settle'}
+              </button>
+            </div>
+          ) : isSettled ? (
+            <p className='flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400'>
+              <FiCheckCircle className='h-4 w-4' />
+              Settled — principal and interest posted to Cashflow.
+            </p>
+          ) : (
+            <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+              <div>
+                <p className='text-xs font-bold text-slate-700 dark:text-slate-200'>
+                  Sync received interest to Cashflow
+                </p>
+                <p className='mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400'>
+                  {pendingInterest.length > 0
+                    ? `${pendingInterest.length} received payment(s) ready to post as Bond Interest income${account ? ` → ${account.name}` : ''}.`
+                    : 'All received interest is already in Cashflow.'}
+                </p>
+              </div>
+              <button
+                type='button'
+                onClick={() => onSync()}
+                disabled={busy !== null || pendingInterest.length === 0}
+                className='inline-flex shrink-0 items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-violet-500 disabled:opacity-50'
+              >
+                <FiRefreshCw className={`h-4 w-4 ${busy === 'sync' ? 'animate-spin' : ''}`} />
+                {busy === 'sync' ? 'Syncing…' : 'Sync to Cashflow'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Month-by-month interest received */}
         {summary.byMonth.length > 0 && (
@@ -241,7 +337,7 @@ export function BondTrackingModal({
           <p className='mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400'>
             Payment schedule
           </p>
-          <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700/70'>
+          <div className='overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700/70'>
             <table className='w-full text-left'>
               <thead className='bg-slate-100 dark:bg-slate-800/60'>
                 <tr>
@@ -262,6 +358,9 @@ export function BondTrackingModal({
                   </th>
                   <th className='px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
                     Status
+                  </th>
+                  <th className='px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                    Cashflow
                   </th>
                 </tr>
               </thead>
@@ -295,15 +394,38 @@ export function BondTrackingModal({
                     <td className='px-3 py-2 text-right'>
                       <StatusPill status={row.status} />
                     </td>
+                    <td className='px-3 py-2 text-right'>
+                      {row.interest > 0 && row.status === 'received' ? (
+                        isRowSynced(row.index) ? (
+                          <span className='inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400'>
+                            <FiCheck size={12} /> Synced
+                          </span>
+                        ) : (
+                          <button
+                            type='button'
+                            onClick={() => onSync([row.index])}
+                            disabled={busy !== null}
+                            className='rounded-md border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold text-violet-600 transition hover:bg-violet-500/20 disabled:opacity-50 dark:text-violet-300'
+                          >
+                            Record
+                          </button>
+                        )
+                      ) : (
+                        <span className='text-[10px] font-semibold text-slate-400 dark:text-slate-500'>
+                          —
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className='mt-2 text-[11px] font-medium text-slate-500 dark:text-slate-400 leading-snug'>
-            Interest is tracked here in the Investments section only. Nothing is
-            posted to Cashflow or Accounts automatically — add an entry manually
-            if you want a payment reflected there.
+            Recording posts each received coupon to Cashflow as{' '}
+            <b>Bond Interest</b> income; at maturity the principal is posted as a
+            transfer. Entries are keyed so re-syncing never duplicates — upcoming
+            payments can only be recorded once their date has passed.
           </p>
         </div>
       </div>
