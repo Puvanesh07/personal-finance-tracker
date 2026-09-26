@@ -14,7 +14,6 @@ import {
   findUidByEmail,
   syncAuthClaims,
   deleteAllUserData,
-  USER_SUBCOLLECTIONS,
   type Plan,
 } from './subscriptionUtils';
 import {
@@ -616,11 +615,11 @@ export const restorePurchase = onCall(
   },
 );
 
-// ── Account lifecycle (audit C6 — data portability & right-to-erasure) ─────
+// ── Account lifecycle (audit C6 — right-to-erasure) ─────
 
-/** Recent sign-in gate (5 min). Deleting an account or exporting everything is
- *  high-impact, so we refuse to run on a stale session an unlocked device could
- *  replay. Mirrors Firebase's own `requires-recent-login` posture. */
+/** Recent sign-in gate (5 min). Deleting an account is high-impact, so we
+ *  refuse to run on a stale session an unlocked device could replay. Mirrors
+ *  Firebase's own `requires-recent-login` posture. */
 function assertRecentLogin(request: { auth?: { token: { auth_time?: number } } }) {
   const authTime = request.auth?.token?.auth_time ?? 0;
   const FIVE_MIN = 5 * 60;
@@ -631,38 +630,6 @@ function assertRecentLogin(request: { auth?: { token: { auth_time?: number } } }
     );
   }
 }
-
-/** exportMyData — full, structured JSON of everything the user owns.
- *  Satisfies GDPR/IT-Amendment Act data-portability: the client downloads it as
- *  a file. Timestamps serialize to {_seconds,_nanoseconds} by Firestore. */
-export const exportMyData = onCall(callableOptions, async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError('unauthenticated', 'Authentication required');
-  }
-  assertRecentLogin(request);
-  const uid = request.auth.uid;
-  const db = getDb();
-
-  const profile = (await db.collection('users').doc(uid).get()).data() ?? null;
-
-  const collections: Record<string, unknown[]> = {};
-  for (const col of USER_SUBCOLLECTIONS) {
-    const snap = await db.collection(`users/${uid}/${col}`).get();
-    collections[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  }
-  const notifSnap = await db
-    .collection(`notifications/${uid}/items`)
-    .get()
-    .catch(() => null);
-
-  return {
-    exportedAt: new Date().toISOString(),
-    uid,
-    profile,
-    collections,
-    notifications: notifSnap ? notifSnap.docs.map((d) => ({ id: d.id, ...d.data() })) : [],
-  };
-});
 
 /** deleteMyAccount — irreversible erasure of every document + the auth user.
  *  Reuses the same `deleteAllUserData` the admin purge uses (all 20
