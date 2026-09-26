@@ -59,8 +59,43 @@ function reportError(error: unknown, source: string) {
     /* logging must never throw */
   }
 }
-window.addEventListener('error', (event) => reportError(event.error ?? event.message, 'window'));
-window.addEventListener('unhandledrejection', (event) => reportError(event.reason, 'promise'));
+
+/**
+ * Third-party noise filter. Firebase Analytics bundles `web-vitals`, which on
+ * some Chrome sessions fires `reportAllChanges` before the LCP / INP metric
+ * object is populated — producing a completely harmless
+ * "Cannot read properties of undefined (reading 'startTime')" TypeError in
+ * the console. We don't own that code path, and swallowing it here keeps real
+ * app errors visible while the analytics beacon silently retries.
+ */
+const IGNORED_ERRORS = [
+  /Cannot read properties of undefined \(reading 'startTime'\)/,
+  /reading 'startTime'/,
+];
+function isIgnoredError(text: string): boolean {
+  return IGNORED_ERRORS.some((re) => re.test(text));
+}
+
+window.addEventListener('error', (event) => {
+  const msg = event.error?.message ?? event.message ?? '';
+  if (isIgnoredError(String(msg))) {
+    // Prevent the browser's default noisy console output for this specific case.
+    event.preventDefault?.();
+    return;
+  }
+  reportError(event.error ?? event.message, 'window');
+});
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason;
+  const msg =
+    typeof reason === 'string'
+      ? reason
+      : reason instanceof Error
+        ? reason.message
+        : String(reason ?? '');
+  if (isIgnoredError(msg)) return;
+  reportError(reason, 'promise');
+});
 
 // This SPA manages scroll itself (AppLayout resets to the top on every route
 // change), so disable the browser's native scroll restoration — otherwise it

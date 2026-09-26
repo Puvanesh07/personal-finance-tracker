@@ -50,17 +50,17 @@ export function GrowthChart() {
       }
     >
       <div className="min-h-0">
-      <div className="h-80 min-h-[320px] w-full pt-4">
+      <div className="h-52 min-h-[208px] w-full pt-1">
         {data.length === 0 ? (
-          <div className="grid h-full min-h-[320px] place-items-center rounded-xl bg-slate-50/50 text-sm font-medium text-slate-900 dark:text-slate-400 dark:bg-slate-800/30 dark:text-slate-400">
+          <div className="grid h-full min-h-[208px] place-items-center rounded-xl bg-slate-50/50 px-6 text-center text-xs font-medium text-slate-500 dark:bg-slate-800/30 dark:text-slate-400">
             Take your first snapshot to start tracking net worth growth over time.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={208}>
             <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 500 }} axisLine={false} tickLine={false} dy={10} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 500 }} axisLine={false} tickLine={false} dy={8} />
               <YAxis
-                tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 500 }}
+                tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 500 }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v) => `₹${Math.round(Number(v) / 100000)}L`}
@@ -70,11 +70,12 @@ export function GrowthChart() {
                 formatter={(v: any) => [formatINR(Number(v)), 'Net Worth']}
                 labelFormatter={(l: any) => `${String(l)}`}
                 contentStyle={{
-                  borderRadius: 16,
+                  borderRadius: 12,
                   border: '1px solid rgba(255,255,255,0.1)',
                   backgroundColor: 'rgba(15, 23, 42, 0.9)',
                   backdropFilter: 'blur(8px)',
                   color: '#F8FAFC',
+                  fontSize: 11,
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
                 }}
                 itemStyle={{ color: '#10B981', fontWeight: 'bold' }}
@@ -83,11 +84,11 @@ export function GrowthChart() {
                 type="monotone"
                 dataKey="value"
                 stroke="#10B981"
-                strokeWidth={3}
-                dot={{ r: 3, fill: '#10B981', stroke: '#fff', strokeWidth: 1 }}
-                activeDot={{ r: 6, fill: '#10B981', stroke: '#fff', strokeWidth: 2 }}
+                strokeWidth={2}
+                dot={{ r: 2, fill: '#10B981', stroke: '#fff', strokeWidth: 1 }}
+                activeDot={{ r: 4, fill: '#10B981', stroke: '#fff', strokeWidth: 2 }}
                 isAnimationActive
-                animationDuration={1500}
+                animationDuration={900}
               />
             </LineChart>
           </ResponsiveContainer>

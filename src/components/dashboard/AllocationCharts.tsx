@@ -51,29 +51,30 @@ export function AllocationCharts() {
           {formatINR(totals.overall)}
         </p>
       </div>
-      <div className='flex min-h-0 flex-col gap-4'>
-        <div className='mx-auto h-56 w-full max-w-[260px]'>
-          <ResponsiveContainer width='100%' height={224}>
+      <div className='flex min-h-0 flex-col gap-3'>
+        <div className='mx-auto h-44 w-full max-w-[200px]'>
+          <ResponsiveContainer width='100%' height={176}>
             <PieChart>
               <Pie
                 data={data}
                 dataKey='value'
                 nameKey='name'
-                innerRadius={60}
-                outerRadius={85}
+                innerRadius={48}
+                outerRadius={68}
                 paddingAngle={3}
                 isAnimationActive
-                animationDuration={1000}
+                animationDuration={800}
                 stroke='none'
               />
               <Tooltip
                 formatter={(value: any) => formatINR(Number(value))}
                 contentStyle={{
-                  borderRadius: 16,
+                  borderRadius: 12,
                   border: '1px solid rgba(255,255,255,0.1)',
                   backgroundColor: 'rgba(15, 23, 42, 0.9)',
                   backdropFilter: 'blur(8px)',
                   color: '#F8FAFC',
+                  fontSize: 11,
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
                 }}
                 itemStyle={{ color: '#F8FAFC', fontWeight: 600 }}
@@ -82,31 +83,31 @@ export function AllocationCharts() {
           </ResponsiveContainer>
         </div>
 
-        <div className='flex min-w-0 flex-col gap-2 rounded-xl bg-slate-50/50 p-3 dark:bg-slate-800/30'>
+        <div className='flex min-w-0 flex-col gap-0.5 rounded-xl bg-slate-50/50 p-2 dark:bg-slate-800/30'>
           {data.length === 0 ? (
-            <div className='grid h-full place-items-center text-sm font-medium text-slate-900 dark:text-slate-400'>
+            <div className='grid h-full place-items-center text-xs font-medium text-slate-500 dark:text-slate-400'>
               No assets to display.
             </div>
           ) : (
             data.map((d) => (
               <div
                 key={d.key}
-                className='flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white dark:hover:bg-slate-800/80'
+                className='flex items-center justify-between gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-white dark:hover:bg-slate-800/80'
               >
-                <div className='flex min-w-0 items-center gap-2.5'>
+                <div className='flex min-w-0 items-center gap-2'>
                   <span
-                    className='inline-block h-3 w-3 rounded-full shadow-sm'
+                    className='inline-block h-2.5 w-2.5 rounded-full shadow-sm'
                     style={{ background: d.fill }}
                   />
-                  <span className='truncate text-sm font-semibold text-slate-700 dark:text-slate-300'>
+                  <span className='truncate text-xs font-semibold text-slate-700 dark:text-slate-300'>
                     {d.name}
                   </span>
                 </div>
                 <div className='text-right'>
-                  <div className='text-sm font-bold tabular-nums text-slate-900 dark:text-slate-50'>
+                  <div className='text-xs font-bold tabular-nums text-slate-900 dark:text-slate-50'>
                     {formatINR(d.value)}
                   </div>
-                  <div className='text-[10px] font-semibold text-slate-500 dark:text-slate-400'>
+                  <div className='text-[9px] font-semibold text-slate-500 dark:text-slate-400'>
                     {d.pct}%
                   </div>
                 </div>

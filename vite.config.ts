@@ -28,9 +28,9 @@ export default defineConfig(({ mode }) => ({
         name: 'Fintrackly – Personal Finance Tracker',
         short_name: 'Fintrackly',
         description:
-          'Personal finance and investment portfolio tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, expenses, and financial goals.',
-        theme_color: '#10b981',
-        background_color: '#020617',
+          'Personal finance and investment portfolio tracker for Indian investors. Track net worth, stocks, mutual funds, SIPs, bonds, expenses, receivables and financial goals — with an AI financial coach.',
+        theme_color: '#7c3aed',
+        background_color: '#f6f1fe',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

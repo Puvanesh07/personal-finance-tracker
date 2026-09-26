@@ -34,38 +34,38 @@ export function DashboardAccountsSummary() {
       subtitle='Live available balance'
       action={<CardGo to='/cashflow?tab=accounts' />}
     >
-      <div className='mb-5'>
-        <p className='text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+      <div className='mb-3'>
+        <p className='text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
           Total Live Balance
         </p>
-        <p className='mt-1 text-3xl font-black tracking-tight text-blue-600 tabular-nums dark:text-blue-400'>
+        <p className='mt-0.5 text-xl font-black tracking-tight text-blue-600 tabular-nums dark:text-blue-400'>
           {formatCurrency(totalBalance)}
         </p>
       </div>
 
       {accounts.length === 0 ? (
-        <div className='flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700'>
-          <FiCreditCard className='h-6 w-6 text-slate-300 dark:text-slate-600' />
-          <p className='text-sm text-slate-500 dark:text-slate-400'>No accounts added yet.</p>
+        <div className='flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-200 py-5 text-center dark:border-slate-700'>
+          <FiCreditCard className='h-5 w-5 text-slate-300 dark:text-slate-600' />
+          <p className='text-xs text-slate-500 dark:text-slate-400'>No accounts added yet.</p>
         </div>
       ) : (
-        <div className='flex flex-col gap-1.5'>
+        <div className='flex flex-col gap-1'>
           {accounts.map((acc) => {
             const liveBalance = liveBalances[acc.id] ?? acc.balance ?? 0;
             return (
               <div
                 key={acc.id}
-                className='flex items-center justify-between gap-3 rounded-2xl bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:bg-slate-100/80 dark:bg-slate-800/40 dark:hover:bg-slate-800/70'
+                className='flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 px-3 py-2 transition-colors hover:bg-slate-100/80 dark:bg-slate-800/40 dark:hover:bg-slate-800/70'
               >
                 <div className='min-w-0'>
-                  <p className='truncate text-sm font-bold text-slate-800 dark:text-slate-100'>
+                  <p className='truncate text-[13px] font-bold text-slate-800 dark:text-slate-100'>
                     {acc.name}
                   </p>
-                  <p className='text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500'>
+                  <p className='text-[9px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500'>
                     {acc.type}
                   </p>
                 </div>
-                <p className='shrink-0 text-sm font-black tabular-nums text-slate-700 dark:text-slate-200'>
+                <p className='shrink-0 text-[13px] font-black tabular-nums text-slate-700 dark:text-slate-200'>
                   {formatCurrency(liveBalance)}
                 </p>
               </div>

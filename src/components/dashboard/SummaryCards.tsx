@@ -61,10 +61,10 @@ function MetricCard({
   return (
     <div
       onClick={() => navigateTo && navigate(navigateTo)}
-      className={`group relative cursor-pointer overflow-hidden rounded-3xl border p-5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${shell}`}
+      className={`group relative cursor-pointer overflow-hidden rounded-2xl border p-3.5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${shell}`}
     >
       <div className='flex items-start justify-between gap-3'>
-        <span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${chipClass}`}>
+        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${chipClass}`}>
           {icon}
         </span>
         <FiArrowUpRight
@@ -74,7 +74,7 @@ function MetricCard({
         />
       </div>
 
-      <div className={`mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider ${labelClass}`}>
+      <div className={`mt-2.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider ${labelClass}`}>
         {label}
         {badge && (
           <span
@@ -88,10 +88,10 @@ function MetricCard({
           </span>
         )}
       </div>
-      <div className={`mt-1 text-2xl font-black tabular-nums tracking-tight ${valueColor}`}>
+      <div className={`mt-0.5 text-lg font-black tabular-nums tracking-tight ${valueColor}`}>
         {value}
       </div>
-      {sub && <div className={`mt-1 text-[11px] font-medium ${subClass}`}>{sub}</div>}
+      {sub && <div className={`mt-0.5 truncate text-[10px] font-medium ${subClass}`}>{sub}</div>}
     </div>
   );
 }
@@ -128,18 +128,18 @@ export function SummaryCards() {
   }, [cashflows, essentials]);
 
   return (
-    <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+    <div className='grid grid-cols-2 gap-2.5 lg:grid-cols-4'>
       <MetricCard
         label='Total Assets'
         value={formatINR(totalAssets)}
-        icon={<FiPieChart className='h-5 w-5' />}
+        icon={<FiPieChart className='h-4 w-4' />}
         navigateTo='/wealth?tab=assets'
-        sub='Investments + balances + receivables'
+        sub='Investments + balances'
       />
       <MetricCard
         label='Total Liabilities'
         value={formatINR(totalLiabilities)}
-        icon={<FiTrendingDown className='h-5 w-5' />}
+        icon={<FiTrendingDown className='h-4 w-4' />}
         variant={totalLiabilities > 0 ? 'danger' : 'default'}
         navigateTo='/wealth?tab=liabilities'
         sub='Loans & outstanding debt'
@@ -147,16 +147,16 @@ export function SummaryCards() {
       <MetricCard
         label='Net Worth'
         value={formatINR(netWorth)}
-        icon={<FiDollarSign className='h-5 w-5' />}
+        icon={<FiDollarSign className='h-4 w-4' />}
         variant='primary'
         navigateTo='/wealth?tab=networth'
         badge='incl. savings'
-        sub={`Projected next month ${formatINR(netWorth + cashflow.net)}`}
+        sub={`Next month ${formatINR(netWorth + cashflow.net)}`}
       />
       <MetricCard
         label='Monthly Cash Flow'
         value={`${cashflow.net >= 0 ? '+' : '−'}${formatINR(Math.abs(cashflow.net))}`}
-        icon={<FiTrendingUp className='h-5 w-5' />}
+        icon={<FiTrendingUp className='h-4 w-4' />}
         trend={cashflow.net > 0 ? 'up' : cashflow.net < 0 ? 'down' : 'neutral'}
         navigateTo='/cashflow'
         badge={cashflow.fromProfile ? 'from profile' : 'this month'}

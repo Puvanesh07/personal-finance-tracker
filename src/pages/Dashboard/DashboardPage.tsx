@@ -61,15 +61,15 @@ function SectionHeading({
   hint?: string;
 }) {
   return (
-    <div className='mb-3 flex items-center gap-3 px-1'>
-      <span className='flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500'>
-        <Icon className='h-4 w-4' />
+    <div className='mb-2.5 flex items-center gap-2.5 px-1'>
+      <span className='flex h-6 w-6 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500'>
+        <Icon className='h-3.5 w-3.5' />
       </span>
-      <h2 className='text-sm font-bold tracking-tight text-slate-800 md:text-base dark:text-slate-100'>
+      <h2 className='text-[13px] font-bold tracking-tight text-slate-800 md:text-sm dark:text-slate-100'>
         {label}
       </h2>
       {hint && (
-        <span className='hidden text-xs font-medium text-slate-400 sm:inline dark:text-slate-500'>
+        <span className='hidden text-[11px] font-medium text-slate-400 sm:inline dark:text-slate-500'>
           · {hint}
         </span>
       )}
@@ -91,19 +91,19 @@ export function DashboardPage() {
   });
 
   return (
-    <div className='flex flex-col gap-6 pb-10 md:gap-7'>
+    <div className='flex flex-col gap-5 pb-10 md:gap-6'>
       {/* ── Header ── */}
-      <header className='flex flex-col gap-4 rounded-3xl border border-violet-500/20 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/5 to-transparent p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-6'>
-        <div className='flex items-center gap-3'>
-          <div className='flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20 md:h-12 md:w-12'>
-            <FiHome className='h-5 w-5 md:h-6 md:w-6' />
+      <header className='flex flex-col gap-3 rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/5 to-transparent p-3.5 shadow-sm md:flex-row md:items-center md:justify-between md:p-5'>
+        <div className='flex items-center gap-2.5'>
+          <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20 md:h-11 md:w-11'>
+            <FiHome className='h-5 w-5 md:h-5 md:w-5' />
           </div>
           <div>
-            <h1 className='flex items-center gap-2 text-xl font-bold leading-tight tracking-tight text-slate-900 md:text-2xl dark:text-white'>
+            <h1 className='flex items-center gap-2 text-lg font-bold leading-tight tracking-tight text-slate-900 md:text-xl dark:text-white'>
               Dashboard
               <FeatureInfo feature='dashboard' />
             </h1>
-            <p className='mt-0.5 text-[11px] font-medium text-slate-500 md:text-sm dark:text-slate-400'>
+            <p className='mt-0.5 text-[11px] font-medium text-slate-500 md:text-xs dark:text-slate-400'>
               {today} · your money at a glance
             </p>
           </div>
@@ -137,7 +137,7 @@ export function DashboardPage() {
       {/* ── Overview: insights + upcoming payments ── */}
       <section>
         <SectionHeading icon={FiZap} label='Overview' hint='what needs your attention' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-3'>
+        <div className='grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-3'>
           <div className='xl:col-span-2'>
             <InsightsCard />
           </div>
@@ -148,7 +148,7 @@ export function DashboardPage() {
       {/* ── Investments ── */}
       <section>
         <SectionHeading icon={FiTrendingUp} label='Investments' hint='holdings and allocation' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-3'>
+        <div className='grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-3'>
           <div className='xl:col-span-2'>
             <TopHoldingsCard />
           </div>
@@ -159,7 +159,7 @@ export function DashboardPage() {
       {/* ── Cash & growth trend ── */}
       <section>
         <SectionHeading icon={FiCreditCard} label='Cash & Progress' hint='balances and net-worth trend' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-3'>
+        <div className='grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-3'>
           <DashboardAccountsSummary />
           <div className='xl:col-span-2'>
             <GrowthChart />
@@ -176,7 +176,7 @@ export function DashboardPage() {
       {/* ── Borrowing, lending & SIP ── */}
       <section>
         <SectionHeading icon={FiTrendingDown} label='Borrowing & Lending' hint='loans, money owed and SIP plan' />
-        <div className='grid grid-cols-1 gap-4 md:gap-5 sm:grid-cols-2 xl:grid-cols-3'>
+        <div className='grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2 xl:grid-cols-3'>
           <DashboardLiabilitiesSummary />
           <DashboardReceivablesSummary />
           <DashboardSIPSummary />

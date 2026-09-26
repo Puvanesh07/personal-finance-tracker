@@ -5,9 +5,11 @@ User-agent: *
 Allow: /
 Allow: /privacy
 Allow: /terms
+Allow: /contact
 
 # Block authenticated app routes — these require login and should not be indexed
 Disallow: /dashboard
+Disallow: /wealth
 Disallow: /investments
 Disallow: /cashflow
 Disallow: /accounts
@@ -15,6 +17,7 @@ Disallow: /liabilities
 Disallow: /payments
 Disallow: /insurance
 Disallow: /goals
+Disallow: /essentials
 Disallow: /credentials
 Disallow: /insights
 Disallow: /ai-agent

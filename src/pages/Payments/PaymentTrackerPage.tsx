@@ -32,6 +32,10 @@ import { AsyncButton } from '../../components/ui/AsyncButton';
 import { ButtonSpinner } from '../../components/ui/ButtonSpinner';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 import { GoalsSkeleton } from '../../components/loader/skeletons';
+import {
+  buildMarkPaidPrompt,
+  confirmAutoSync,
+} from '../../utils/autoSyncConfirm';
 
 type FilterTab = 'pending' | 'paid' | 'all';
 type ViewMode = 'list' | 'calendar';
@@ -142,6 +146,21 @@ export function PaymentTrackerPage() {
 
   const markPaidNow = (p: TrackedPayment) =>
     void run(async () => {
+      // Auto-sync confirmation gate: paying this bill also writes a Cashflow
+      // expense (and for recurring bills, generates the next one + advances
+      // the linked insurance policy). Let the user veto the cascade.
+      if (
+        !confirmAutoSync(
+          buildMarkPaidPrompt({
+            title: p.title,
+            amount: p.amount,
+            recurrence: p.recurrence ?? 'none',
+            isLinkedToInsurance: !!p.insurancePolicyId,
+          }),
+        )
+      ) {
+        return;
+      }
       setPayingId(p.id);
       try {
         await markPaid(p.id);

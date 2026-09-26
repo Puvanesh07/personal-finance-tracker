@@ -35,7 +35,7 @@ import {
   FiTool,
 } from 'react-icons/fi';
 import { signOut, updateProfile } from 'firebase/auth';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 import EncryptionSettings from './EncryptionSettings';
@@ -92,6 +92,7 @@ const TABS: {
 
 function ProfileTab() {
   const user = auth.currentUser;
+  const navigate = useNavigate();
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(user?.displayName || '');
   const [saving, setSaving] = useState(false);
@@ -114,10 +115,12 @@ function ProfileTab() {
   };
 
   const confirmLogout = async () => {
+    // Soft logout (no hard reload) so the landing page appears without the
+    // Loader flash — AuthWrapper reacts to signOut and renders the landing.
     try {
       await signOut(auth);
-      window.location.href = '/';
     } catch {}
+    navigate('/', { replace: true });
   };
 
   // First letter of display name, or first letter of email, or 'U'

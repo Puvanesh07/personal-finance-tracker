@@ -156,7 +156,7 @@ export function GoalsEssentialsSummary() {
                 <span className='block text-[11px] font-semibold text-slate-500 dark:text-slate-400'>
                   Life Cover
                 </span>
-                <span className='block text-base font-black text-slate-800 dark:text-slate-100'>
+                <span className='block text-sm font-black text-slate-800 dark:text-slate-100'>
                   {totalLifeCover > 0 ? formatCurrency(totalLifeCover) : '₹0'}
                 </span>
               </span>
@@ -173,7 +173,7 @@ export function GoalsEssentialsSummary() {
                 <span className='block text-[11px] font-semibold text-slate-500 dark:text-slate-400'>
                   Health Cover
                 </span>
-                <span className='block text-base font-black text-slate-800 dark:text-slate-100'>
+                <span className='block text-sm font-black text-slate-800 dark:text-slate-100'>
                   {totalHealthCover > 0 ? formatCurrency(totalHealthCover) : '₹0'}
                 </span>
               </span>

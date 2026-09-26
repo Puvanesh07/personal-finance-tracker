@@ -4,7 +4,7 @@
   <!-- Public landing page — primary SEO target -->
   <url>
     <loc>https://fintrackly.web.app/</loc>
-    <lastmod>2026-09-04</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -12,15 +12,23 @@
   <!-- Privacy Policy — public legal page -->
   <url>
     <loc>https://fintrackly.web.app/privacy</loc>
-    <lastmod>2026-09-04</lastmod>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.5</priority>
   </url>
 
   <!-- Terms and Conditions — public legal page -->
   <url>
     <loc>https://fintrackly.web.app/terms</loc>
-    <lastmod>2026-09-04</lastmod>
+    <lastmod>2026-09-26</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Contact Us — public support page -->
+  <url>
+    <loc>https://fintrackly.web.app/contact</loc>
+    <lastmod>2026-09-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>

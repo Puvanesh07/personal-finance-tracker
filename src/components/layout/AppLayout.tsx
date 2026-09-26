@@ -9,7 +9,7 @@ import {
   FiTrendingUp,
   FiX,
 } from 'react-icons/fi';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -84,6 +84,7 @@ export function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const user = auth.currentUser;
   const mainRef = useRef<HTMLElement>(null);
   // The content wrapper below <main> — NOT <main> itself — is the element that
@@ -112,9 +113,20 @@ export function AppLayout() {
   const [sidebarImgError, setSidebarImgError] = useState(false);
 
   const confirmLogout = async () => {
-    await signOut(auth);
+    // Soft logout: Firebase's onAuthStateChanged flips AuthWrapper to its
+    // logged-out state, which renders the landing page directly. We must NOT
+    // hard-reload (window.location.href) here — that remounts the whole SPA,
+    // flashing the Loader between the landing and the app. Just drop the
+    // overlays and move the URL back to the root so re-sign-in starts clean.
+    try {
+      await signOut(auth);
+    } catch {
+      /* even if sign-out rejects, fall through to the landing */
+    }
     setLogoutOpen(false);
-    window.location.href = '/';
+    setIsMobileMenuOpen(false);
+    setShowMore(false);
+    navigate('/', { replace: true });
   };
 
   // Always open a newly-navigated page at the top — never carry over the
@@ -511,6 +523,21 @@ export function AppLayout() {
             </span>
           </button>
         </div>
+
+        {/* Logout lives in the mobile menu too — until now the only way out on a
+            phone was digging into Settings. Opens the same confirm modal the
+            desktop sidebar uses. */}
+        <button
+          type='button'
+          onClick={() => {
+            setIsMobileMenuOpen(false);
+            setLogoutOpen(true);
+          }}
+          className='mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-500/15 active:scale-[0.98] dark:text-rose-400'
+        >
+          <FiLogOut className='h-4 w-4' />
+          Logout
+        </button>
       </div>
 
       <Modal

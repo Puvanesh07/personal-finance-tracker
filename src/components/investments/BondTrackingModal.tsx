@@ -15,6 +15,11 @@ import { useMemo, useState } from 'react';
 import type { BondInvestment } from '../../types/investmentTypes';
 import { Modal } from '../ui/Modal';
 import {
+  buildBondSettlePrompt,
+  buildBondSyncPrompt,
+  confirmAutoSync,
+} from '../../utils/autoSyncConfirm';
+import {
   PAYOUT_FREQUENCY_LABELS,
   bondCouponId,
   bondMaturityItemId,
@@ -123,6 +128,12 @@ export function BondTrackingModal({
   );
 
   const onSync = async (indexes?: number[]) => {
+    const targets = indexes
+      ? pendingInterest.filter((r) => indexes.includes(r.index))
+      : pendingInterest;
+    if (targets.length === 0) return;
+    const total = targets.reduce((sum, r) => sum + r.interest, 0);
+    if (!confirmAutoSync(buildBondSyncPrompt(targets.length, total))) return;
     setBusy('sync');
     try {
       await syncBondInterest(bond.id, indexes);
@@ -131,6 +142,14 @@ export function BondTrackingModal({
     }
   };
   const onSettle = async () => {
+    const remainingCoupons = pendingInterest.length;
+    if (
+      !confirmAutoSync(
+        buildBondSettlePrompt(bond.name, bond.investedAmount ?? 0, remainingCoupons),
+      )
+    ) {
+      return;
+    }
     setBusy('settle');
     try {
       await settleBondMaturity(bond.id);

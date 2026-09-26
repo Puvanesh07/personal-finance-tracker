@@ -35,6 +35,7 @@ import {
 } from 'firebase/firestore';
 import { encryptDoc } from './encryptionService';
 import { markDataDirty } from '../utils/dataVersion';
+import { TRIAL_FEATURE_LIMITS } from '../types/subscription';
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
 const now = () => new Date();
@@ -332,34 +333,37 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
 
   // 1. Accounts
   const accounts = generateAccounts();
-  const accountDocs = accounts.slice(0, 2).map((a) => ({
+  const accountDocs = accounts.slice(0, TRIAL_FEATURE_LIMITS.accounts).map((a) => ({
     id: genId('acc'), ...a, createdAt: past(30), updatedAt: today, userId: uid,
   }));
   await batchWrite(uid, 'accounts', accountDocs);
   counts['accounts'] = accountDocs.length;
 
   // 2. Investments
-  const investments = generateInvestments(uid).slice(0, 5);
+  const investments = generateInvestments(uid).slice(0, TRIAL_FEATURE_LIMITS.investments);
   await batchWrite(uid, 'investments', investments);
   counts['investments'] = investments.length;
 
   // 3. Liabilities
-  const liabilities = generateLiabilities(uid).slice(0, 2);
+  const liabilities = generateLiabilities(uid).slice(0, TRIAL_FEATURE_LIMITS.liabilities);
   await batchWrite(uid, 'liabilities', liabilities);
   counts['liabilities'] = liabilities.length;
 
-  // 4. Tracked Payments
-  const trackedPayments = generateTrackedPayments(uid).slice(0, 4);
+  // 4. Tracked Payments — shares the 'payments' bucket with pendingPayments in
+  //    the free-tier limiter (`blockIfLimited('payments', tracked + pending)`),
+  //    so split the allowance 1/1 to keep the sample within the free cap.
+  const trackedCap = Math.max(1, Math.floor(TRIAL_FEATURE_LIMITS.payments / 2));
+  const trackedPayments = generateTrackedPayments(uid).slice(0, trackedCap);
   await batchWrite(uid, 'trackedPayments', trackedPayments);
   counts['trackedPayments'] = trackedPayments.length;
 
   // 5. Pending Payments (Receivables)
-  const pendingPayments = generatePendingPayments(uid).slice(0, 3);
+  const pendingPayments = generatePendingPayments(uid).slice(0, TRIAL_FEATURE_LIMITS.payments - trackedCap);
   await batchWrite(uid, 'pendingPayments', pendingPayments);
   counts['pendingPayments'] = pendingPayments.length;
 
   // 6. Cashflows
-  const cashflowItems = generateCashflows().slice(0, 8);
+  const cashflowItems = generateCashflows().slice(0, TRIAL_FEATURE_LIMITS.cashflows);
   const cashflowDocs = cashflowItems.map((cf) => ({
     ...cf, userId: uid,
   }));
@@ -367,7 +371,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   counts['cashflows'] = cashflowDocs.length;
 
   // 7. Goals
-  const goals = generateGoals(uid).slice(0, 3);
+  const goals = generateGoals(uid).slice(0, TRIAL_FEATURE_LIMITS.goals);
   await batchWrite(uid, 'goals', goals);
   counts['goals'] = goals.length;
 
@@ -377,7 +381,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   counts['goalContributions'] = contributions.length;
 
   // 9. Insurance Policies
-  const policies = generateInsurancePolicies(uid).slice(0, 2);
+  const policies = generateInsurancePolicies(uid).slice(0, TRIAL_FEATURE_LIMITS.insurance);
   await batchWrite(uid, 'insurancePolicies', policies);
   counts['insurancePolicies'] = policies.length;
 
@@ -387,7 +391,7 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
   counts['insurancePayments'] = insPayments.length;
 
   // 11. Credentials
-  const credentials = generateCredentials(uid).slice(0, 2);
+  const credentials = generateCredentials(uid).slice(0, TRIAL_FEATURE_LIMITS.credentials);
   await batchWrite(uid, 'credentials', credentials);
   counts['credentials'] = credentials.length;
 
@@ -437,18 +441,19 @@ export async function loadDummyData(uid: string): Promise<DummyDataResult> {
 }
 
 export function getDummyDataPreview(): Record<string, number> {
+  const trackedCap = Math.max(1, Math.floor(TRIAL_FEATURE_LIMITS.payments / 2));
   const counts: Record<string, number> = {};
-  counts['accounts'] = 2;
-  counts['investments'] = 5;
-  counts['liabilities'] = 2;
-  counts['trackedPayments'] = 4;
-  counts['pendingPayments'] = 3;
-  counts['cashflows'] = 7;
-  counts['goals'] = 3;
+  counts['accounts'] = TRIAL_FEATURE_LIMITS.accounts;
+  counts['investments'] = TRIAL_FEATURE_LIMITS.investments;
+  counts['liabilities'] = TRIAL_FEATURE_LIMITS.liabilities;
+  counts['trackedPayments'] = trackedCap;
+  counts['pendingPayments'] = TRIAL_FEATURE_LIMITS.payments - trackedCap;
+  counts['cashflows'] = TRIAL_FEATURE_LIMITS.cashflows;
+  counts['goals'] = TRIAL_FEATURE_LIMITS.goals;
   counts['goalContributions'] = 5;
-  counts['insurancePolicies'] = 2;
+  counts['insurancePolicies'] = TRIAL_FEATURE_LIMITS.insurance;
   counts['insurancePayments'] = 1;
-  counts['credentials'] = 2;
+  counts['credentials'] = TRIAL_FEATURE_LIMITS.credentials;
   counts['snapshots'] = 5;
   counts['networthSnapshots'] = 3;
   counts['grandTotal'] = Object.values(counts).reduce((a, b) => a + b, 0);

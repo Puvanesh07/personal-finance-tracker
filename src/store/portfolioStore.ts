@@ -777,7 +777,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     set({ uid });
     try {
 
-      // Phase 1: dashboard-critical only — show UI as soon as this completes
+      // Phase 1: dashboard-critical only — show UI as soon as this completes.
+      // The settings doc is fetched in the same batch (it used to be a separate
+      // await right after), so first paint drops one full network round-trip.
       const [
         investments,
         liabilities,
@@ -785,6 +787,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         goals,
         accounts,
         pendingPayments,
+        settingsSnap,
       ] = await Promise.all([
         fetchSub<Investment>(uid, 'investments'),
         fetchSub<Liability>(uid, 'liabilities'),
@@ -792,9 +795,9 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
         fetchSub<Goal>(uid, 'goals'),
         fetchSub<Account>(uid, 'accounts'),
         fetchSub<PendingPayment>(uid, 'pendingPayments'),
+        getDoc(settingsDocRef(uid)),
       ]);
 
-      const settingsSnap = await getDoc(settingsDocRef(uid));
       const settings: SettingsRecord = settingsSnap.exists()
         ? (settingsSnap.data() as SettingsRecord)
         : { notion: DEFAULT_NOTION, essentials: DEFAULT_ESSENTIALS };

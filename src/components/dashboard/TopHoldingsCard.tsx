@@ -60,10 +60,10 @@ function HoldingRow({ inv }: { inv: Investment }) {
   const pct = iv > 0 ? (pl / iv) * 100 : 0;
 
   return (
-    <div className='flex items-center justify-between gap-3 rounded-2xl bg-slate-50/80 px-3.5 py-2.5 transition-colors hover:bg-slate-100/80 dark:bg-slate-800/40 dark:hover:bg-slate-800/70'>
+    <div className='flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 px-3 py-2 transition-colors hover:bg-slate-100/80 dark:bg-slate-800/40 dark:hover:bg-slate-800/70'>
       <div className='min-w-0 flex-1'>
         <div className='flex items-center gap-2'>
-          <p className='truncate text-sm font-bold text-slate-800 dark:text-slate-100'>{inv.name}</p>
+          <p className='truncate text-[13px] font-bold text-slate-800 dark:text-slate-100'>{inv.name}</p>
           <span className='shrink-0 rounded-md bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
             {bucketLabel(inv)}
           </span>
@@ -73,7 +73,7 @@ function HoldingRow({ inv }: { inv: Investment }) {
         </p>
       </div>
       <div className='shrink-0 text-right'>
-        <p className='text-sm font-black tabular-nums text-slate-800 dark:text-slate-50'>{shortINR(cv)}</p>
+        <p className='text-[13px] font-black tabular-nums text-slate-800 dark:text-slate-50'>{shortINR(cv)}</p>
         {iv > 0 && (
           <p
             className={`text-[11px] font-bold tabular-nums ${
@@ -112,13 +112,13 @@ export function TopHoldingsCard() {
       subtitle='Largest positions by value'
       action={<CardGo to='/wealth?tab=assets' />}
     >
-      <div className='mb-4 flex flex-wrap gap-1.5'>
+      <div className='mb-3 flex flex-wrap gap-1.5'>
         {FILTERS.map((f) => (
           <button
             key={f.value}
             type='button'
             onClick={() => setFilter(f.value)}
-            className={`cursor-pointer rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
+            className={`cursor-pointer rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-colors ${
               filter === f.value
                 ? 'bg-emerald-500 text-white'
                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'

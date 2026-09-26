@@ -41,34 +41,34 @@ export function InsightsCard() {
       action={<CardGo to='/cashflow?tab=insights' label='Full analysis' />}
     >
       {insights.length === 0 ? (
-        <div className='flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 py-10 text-center dark:border-slate-700'>
-          <FiZap className='h-7 w-7 text-slate-300 dark:text-slate-600' />
-          <p className='text-sm font-medium text-slate-500 dark:text-slate-400'>
+        <div className='flex h-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-200 py-6 text-center dark:border-slate-700'>
+          <FiZap className='h-6 w-6 text-slate-300 dark:text-slate-600' />
+          <p className='text-xs font-medium text-slate-500 dark:text-slate-400'>
             You're all clear — no insights yet.
           </p>
-          <p className='text-xs text-slate-400 dark:text-slate-500'>
+          <p className='text-[11px] text-slate-400 dark:text-slate-500'>
             Add data and proactive tips will appear here.
           </p>
         </div>
       ) : (
-        <div className='flex flex-col gap-2'>
+        <div className='flex flex-col gap-1.5'>
           {insights.map((ins) => (
             <button
               key={ins.id}
               type='button'
               onClick={() => ins.linkTo && navigate(ins.linkTo)}
-              className={`flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors ${SEVERITY_CLS[ins.severity]}`}
+              className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors ${SEVERITY_CLS[ins.severity]}`}
             >
-              <span className='mt-0.5 shrink-0 text-base' aria-hidden>{ins.emoji}</span>
+              <span className='mt-0.5 shrink-0 text-sm' aria-hidden>{ins.emoji}</span>
               <span className='min-w-0 flex-1'>
-                <span className={`block text-sm font-bold ${SEVERITY_TEXT[ins.severity].title}`}>
+                <span className={`block text-[13px] font-bold ${SEVERITY_TEXT[ins.severity].title}`}>
                   {ins.title}
                 </span>
-                <span className={`mt-0.5 block text-xs leading-snug ${SEVERITY_TEXT[ins.severity].body}`}>
+                <span className={`mt-0.5 block text-[11px] leading-snug ${SEVERITY_TEXT[ins.severity].body}`}>
                   {ins.body}
                 </span>
               </span>
-              {ins.linkTo && <FiArrowUpRight className='mt-1 h-4 w-4 shrink-0 text-slate-400' />}
+              {ins.linkTo && <FiArrowUpRight className='mt-1 h-3.5 w-3.5 shrink-0 text-slate-400' />}
             </button>
           ))}
         </div>

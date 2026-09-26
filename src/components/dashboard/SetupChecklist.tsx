@@ -158,7 +158,42 @@ export function SetupChecklist() {
     [hydrate, uid],
   );
 
-  if (!ready || dismissed || doneCount === steps.length) return null;
+  if (!ready || dismissed) return null;
+
+  // All basics are covered, so the checklist itself is finished. But if sample
+  // data is still loaded we must keep its exact undo reachable — otherwise a
+  // visitor who explored with “Load sample data” could never clear it from the
+  // dashboard (the whole card used to hide once every step turned green).
+  if (doneCount === steps.length) {
+    if (!sample) return null;
+    return (
+      <section
+        aria-label='Sample data'
+        className='rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 shadow-sm md:p-5'
+      >
+        <div className='flex flex-wrap items-center justify-between gap-3'>
+          <p className='text-xs text-slate-600 dark:text-slate-400'>
+            <span className='font-bold text-slate-900 dark:text-slate-100'>
+              Sample data is loaded.
+            </span>{' '}
+            {sample.documents} demo record{sample.documents === 1 ? '' : 's'} are still
+            in your account
+            {sample.loadedAt ? ` (added ${sample.loadedAt})` : ''} and count toward your
+            plan limits until you clear them.
+          </p>
+          <button
+            type='button'
+            disabled={busy}
+            onClick={() => void runSample('clear')}
+            className='flex cursor-pointer items-center gap-1.5 rounded-xl border border-amber-500/40 px-3 py-2 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-500/10 disabled:opacity-60 dark:text-amber-400'
+          >
+            <FiTrash2 className='h-3.5 w-3.5' />
+            {busy ? 'Working…' : 'Clear sample data'}
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

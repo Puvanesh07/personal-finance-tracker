@@ -52,40 +52,40 @@ export function UpcomingPaymentsCard() {
       subtitle='Bills due in the next 14 days'
       action={<CardGo to='/payments' />}
     >
-      <div className='mb-4 rounded-2xl bg-slate-50/80 px-4 py-3 dark:bg-slate-800/40'>
-        <p className='text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+      <div className='mb-3 rounded-xl bg-slate-50/80 px-3 py-2.5 dark:bg-slate-800/40'>
+        <p className='text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
           Due this month
         </p>
-        <p className='mt-1 text-2xl font-black tracking-tight text-slate-800 tabular-nums dark:text-slate-100'>
+        <p className='mt-0.5 text-lg font-black tracking-tight text-slate-800 tabular-nums dark:text-slate-100'>
           {formatINR(dueThisMonthTotal)}
         </p>
-        <p className='text-[11px] font-medium text-slate-400 dark:text-slate-500'>
+        <p className='text-[10px] font-medium text-slate-400 dark:text-slate-500'>
           {dueThisMonthCount} bill{dueThisMonthCount !== 1 ? 's' : ''}
         </p>
       </div>
 
       {rows.length === 0 ? (
-        <div className='flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700'>
-          <FiCheck className='h-6 w-6 text-emerald-500' />
-          <p className='text-sm font-medium text-slate-500 dark:text-slate-400'>
+        <div className='flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-200 py-5 text-center dark:border-slate-700'>
+          <FiCheck className='h-5 w-5 text-emerald-500' />
+          <p className='text-xs font-medium text-slate-500 dark:text-slate-400'>
             No bills due in the next 14 days.
           </p>
         </div>
       ) : (
-        <div className='flex flex-col gap-1.5'>
+        <div className='flex flex-col gap-1'>
           {rows.map(({ p, kind }) => {
             const days = computeDays(p.dueDate);
             return (
               <div
                 key={p.id}
-                className='flex items-center justify-between gap-3 rounded-2xl bg-slate-50/80 px-3.5 py-2.5 dark:bg-slate-800/40'
+                className='flex items-center justify-between gap-3 rounded-xl bg-slate-50/80 px-3 py-2 dark:bg-slate-800/40'
               >
                 <div className='min-w-0'>
-                  <p className='truncate text-sm font-bold text-slate-800 dark:text-slate-100'>
+                  <p className='truncate text-[13px] font-bold text-slate-800 dark:text-slate-100'>
                     {p.title}
                   </p>
                   <p
-                    className={`mt-0.5 text-[11px] font-bold ${
+                    className={`mt-0.5 text-[10px] font-bold ${
                       kind === 'overdue'
                         ? 'text-rose-600 dark:text-rose-400'
                         : days <= 3
@@ -96,7 +96,7 @@ export function UpcomingPaymentsCard() {
                     {dueLabel(days)} · {p.dueDate}
                   </p>
                 </div>
-                <p className='shrink-0 text-sm font-black tabular-nums text-slate-800 dark:text-slate-100'>
+                <p className='shrink-0 text-[13px] font-black tabular-nums text-slate-800 dark:text-slate-100'>
                   {formatINR(p.amount)}
                 </p>
               </div>

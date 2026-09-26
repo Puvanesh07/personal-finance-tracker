@@ -23,6 +23,10 @@ import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { AsyncButton } from '../ui/AsyncButton';
+import {
+  buildMarkReceivedPrompt,
+  confirmAutoSync,
+} from '../../utils/autoSyncConfirm';
 
 type FilterTab = 'pending' | 'received' | 'all';
 
@@ -126,6 +130,13 @@ export function PendingPaymentsTab() {
     }`;
 
   const markReceived = async (p: PendingPayment) => {
+    if (
+      !confirmAutoSync(
+        buildMarkReceivedPrompt(p.buyerName, p.amount),
+      )
+    ) {
+      return;
+    }
     await markPendingPaymentReceived(p.id);
   };
 

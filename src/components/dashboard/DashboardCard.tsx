@@ -46,23 +46,23 @@ export function DashboardCard({
 }) {
   return (
     <section
-      className={`relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:border-slate-300/70 dark:border-slate-800/70 dark:bg-slate-900/40 dark:ring-white/[0.03] dark:hover:border-slate-700 sm:p-6 ${className}`}
+      className={`relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 p-3.5 shadow-sm ring-1 ring-black/[0.02] backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:border-slate-300/70 dark:border-slate-800/70 dark:bg-slate-900/40 dark:ring-white/[0.03] dark:hover:border-slate-700 sm:p-4 ${className}`}
     >
-      <header className='mb-5 flex items-start justify-between gap-3'>
-        <div className='flex min-w-0 items-center gap-3'>
+      <header className='mb-3 flex items-start justify-between gap-2.5'>
+        <div className='flex min-w-0 items-center gap-2'>
           {icon && (
             <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${accent}`}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg [&_svg]:h-4 [&_svg]:w-4 ${accent}`}
             >
               {icon}
             </span>
           )}
           <div className='min-w-0'>
-            <h2 className='truncate text-[15px] font-bold tracking-tight text-slate-800 dark:text-slate-100'>
+            <h2 className='truncate text-[13px] font-bold tracking-tight text-slate-800 dark:text-slate-100'>
               {title}
             </h2>
             {subtitle && (
-              <p className='mt-0.5 truncate text-xs font-medium text-slate-400 dark:text-slate-500'>
+              <p className='mt-0.5 truncate text-[11px] font-medium text-slate-400 dark:text-slate-500'>
                 {subtitle}
               </p>
             )}
@@ -95,10 +95,10 @@ export function CardGo({
     <button
       type='button'
       onClick={handle}
-      className='flex cursor-pointer items-center gap-1 rounded-full border border-slate-200/70 bg-slate-50/80 px-3 py-1.5 text-[11px] font-bold text-slate-500 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-800 dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+      className='flex cursor-pointer items-center gap-1 rounded-full border border-slate-200/70 bg-slate-50/80 px-2.5 py-1 text-[10px] font-bold text-slate-500 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-800 dark:border-slate-700/60 dark:bg-slate-800/50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
     >
       {label && <span>{label}</span>}
-      <FiArrowUpRight className='h-3.5 w-3.5' />
+      <FiArrowUpRight className='h-3 w-3' />
     </button>
   );
 }

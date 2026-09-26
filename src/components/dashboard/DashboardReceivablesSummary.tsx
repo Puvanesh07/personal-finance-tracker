@@ -46,60 +46,60 @@ export function DashboardReceivablesSummary() {
       action={<CardGo to='/wealth?tab=liabilities&section=pending_payments' />}
     >
       {active.length === 0 ? (
-        <div className='flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700'>
-          <FiDollarSign className='h-6 w-6 text-slate-300 dark:text-slate-600' />
-          <p className='text-sm text-slate-500 dark:text-slate-400'>
+        <div className='flex h-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-200 py-5 text-center dark:border-slate-700'>
+          <FiDollarSign className='h-5 w-5 text-slate-300 dark:text-slate-600' />
+          <p className='text-xs text-slate-500 dark:text-slate-400'>
             {pendingPayments.length > 0 ? 'All receivables collected!' : 'No money owed recorded'}
           </p>
         </div>
       ) : (
         <>
-          <div className='mb-5'>
-            <p className='text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+          <div className='mb-3'>
+            <p className='text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
               Receivable Total
             </p>
-            <p className='mt-1 text-3xl font-black tracking-tight text-indigo-600 tabular-nums dark:text-indigo-400'>
+            <p className='mt-0.5 text-xl font-black tracking-tight text-indigo-600 tabular-nums dark:text-indigo-400'>
               {formatINR(totals.total)}
             </p>
             {totals.interest > 0 && (
-              <div className='mt-2 flex items-center gap-2 text-[11px] font-semibold'>
-                <span className='rounded-lg bg-slate-500/10 px-2 py-0.5 text-slate-600 dark:text-slate-300'>
+              <div className='mt-1.5 flex items-center gap-1.5 text-[10px] font-semibold'>
+                <span className='rounded-md bg-slate-500/10 px-1.5 py-0.5 text-slate-600 dark:text-slate-300'>
                   Prin. {formatINR(totals.principal)}
                 </span>
-                <span className='rounded-lg bg-rose-500/10 px-2 py-0.5 text-rose-600 dark:text-rose-400'>
+                <span className='rounded-md bg-rose-500/10 px-1.5 py-0.5 text-rose-600 dark:text-rose-400'>
                   +Int. {formatINR(totals.interest)}
                 </span>
               </div>
             )}
           </div>
 
-          <div className='flex flex-col gap-1.5'>
+          <div className='flex flex-col gap-1'>
             {topItems.map((p) => (
               <div
                 key={p.id}
-                className='flex items-center justify-between gap-2 rounded-2xl bg-slate-50/80 px-3.5 py-2.5 dark:bg-slate-800/40'
+                className='flex items-center justify-between gap-2 rounded-xl bg-slate-50/80 px-3 py-2 dark:bg-slate-800/40'
               >
                 <div className='min-w-0'>
-                  <p className='truncate text-sm font-bold text-slate-800 dark:text-slate-100'>{p.buyerName}</p>
+                  <p className='truncate text-[13px] font-bold text-slate-800 dark:text-slate-100'>{p.buyerName}</p>
                   <p className='truncate text-[10px] font-medium text-slate-400 dark:text-slate-500'>
                     {p.isLoan ? `Loan @ ${p.interestRate}%` : p.itemDescription}
                   </p>
                 </div>
-                <p className='shrink-0 text-sm font-black tabular-nums text-indigo-600 dark:text-indigo-400'>
+                <p className='shrink-0 text-[13px] font-black tabular-nums text-indigo-600 dark:text-indigo-400'>
                   {formatINR(p.isLoan && p.principal ? p.principal + (p.interestAccruedToDate ?? 0) : p.amount)}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className='mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200/60 pt-3 text-[11px] font-semibold dark:border-slate-800/60'>
+          <div className='mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200/60 pt-2 text-[10px] font-semibold dark:border-slate-800/60'>
             <span className='inline-flex items-center gap-1 text-slate-500 dark:text-slate-400'>
-              <FiDollarSign className='h-3.5 w-3.5' /> {active.length} open
+              <FiDollarSign className='h-3 w-3' /> {active.length} open
               {loansCount > 0 && <span className='text-indigo-500'> · {loansCount} loans</span>}
             </span>
             {overdueCount > 0 && (
               <span className='inline-flex items-center gap-1 text-rose-500'>
-                <FiPercent className='h-3.5 w-3.5' /> {overdueCount} overdue
+                <FiPercent className='h-3 w-3' /> {overdueCount} overdue
               </span>
             )}
             {dueSoonCount > 0 && (

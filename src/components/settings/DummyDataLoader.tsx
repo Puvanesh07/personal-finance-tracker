@@ -4,13 +4,19 @@
  * Only visible to the owner account (puvanesh1964@gmail.com).
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { auth } from '../../services/firebase';
 import { OWNER_EMAIL } from '../../utils/subscriptionUtils';
-import { loadDummyData, getDummyDataPreview } from '../../services/dummyDataService';
+import {
+  clearSampleData,
+  loadDummyData,
+  getDummyDataPreview,
+  readSampleDataState,
+  type SampleDataState,
+} from '../../services/dummyDataService';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import {
-  FiCheckCircle, FiLoader, FiAlertCircle, FiDatabase, FiRefreshCw,
+  FiCheckCircle, FiLoader, FiAlertCircle, FiDatabase, FiRefreshCw, FiTrash2,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -20,11 +26,25 @@ export function DummyDataLoader() {
   const isOwner = currentUserEmail === ownerEmail;
 
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [progress, setProgress] = useState<string>('');
   const [result, setResult] = useState<{ success: boolean; message: string; counts: Record<string, number> } | null>(null);
+  const [sample, setSample] = useState<SampleDataState | null>(null);
 
    const hydrateAll = usePortfolioStore((s) => s.hydrate);
+   const uid = auth.currentUser?.uid;
 
+  // Show the clear action only when this account actually holds sample data.
+  useEffect(() => {
+    if (!uid) return;
+    let cancelled = false;
+    void readSampleDataState(uid).then((state) => {
+      if (!cancelled) setSample(state);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, result]);
 
   const preview = getDummyDataPreview();
 
@@ -59,6 +79,30 @@ export function DummyDataLoader() {
     } finally {
       setLoading(false);
       setProgress('');
+    }
+  }
+
+  async function handleClear() {
+    if (!uid) {
+      toast.error('Please log in first.');
+      return;
+    }
+    setClearing(true);
+    try {
+      const deleted = await clearSampleData(uid);
+      await hydrateAll(uid, { force: true });
+      setSample(null);
+      setResult(null);
+      toast.success(
+        deleted
+          ? `Removed ${deleted} sample record${deleted === 1 ? '' : 's'}`
+          : 'No sample records to clear',
+      );
+    } catch (err) {
+      console.error('[DummyData] Clear failed:', err);
+      toast.error(`Failed to clear dummy data: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -116,6 +160,26 @@ export function DummyDataLoader() {
           <FiLoader className="h-3 w-3 animate-spin" />
           {progress}
         </p>
+      )}
+
+      {sample && (
+        <button
+          onClick={handleClear}
+          disabled={clearing || loading}
+          className="mt-3 ml-2 flex items-center gap-2 rounded-xl border border-rose-500/40 px-4 py-2.5 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-500/10 disabled:opacity-60 dark:text-rose-400"
+        >
+          {clearing ? (
+            <>
+              <FiLoader className="h-4 w-4 animate-spin" />
+              Clearing...
+            </>
+          ) : (
+            <>
+              <FiTrash2 className="h-4 w-4" />
+              Clear Dummy Data ({sample.documents})
+            </>
+          )}
+        </button>
       )}
 
       {result && !loading && (
