@@ -35,6 +35,7 @@ import { usePortfolioStore } from '../store/portfolioStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useSubscriptionOptional } from '../context/SubscriptionContext';
 import type { NotifType, AppNotification } from '../store/notificationStore';
+import type { SipBudgetPlan, SipInstrumentPlan } from '../types/investmentTypes';
 import {
   buildMoneyAlerts,
   sortBySeverity,
@@ -297,10 +298,14 @@ export function useDerivedNotifications(): AppNotification[] {
     // ── SIP ─────────────────────────────────────────────────────────────────
     (() => {
       if (!wants('sipReminders')) return;
-      const budget = (portfolio.sipPlans || []).find((x: any) => x && x.type === 'budget');
-      const instruments = (portfolio.sipPlans || []).filter((x: any) => x && x.type === 'instrument');
+      const budget = (portfolio.sipPlans || []).find(
+        (x): x is SipBudgetPlan => x.type === 'budget',
+      );
+      const instruments = (portfolio.sipPlans || []).filter(
+        (x): x is SipInstrumentPlan => x.type === 'instrument',
+      );
       const budgetAmt = budget?.budget || 0;
-      const totalPct = instruments.reduce((s: number, i: any) => s + (i.percentage || 0), 0);
+      const totalPct = instruments.reduce((s, i) => s + (i.percentage || 0), 0);
 
       if (budgetAmt > 0 && t.getDate() <= 7) {
         notifs.push(

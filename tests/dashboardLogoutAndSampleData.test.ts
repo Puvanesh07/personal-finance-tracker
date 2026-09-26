@@ -23,6 +23,9 @@ const dummyLoader = read('../src/components/settings/DummyDataLoader.tsx');
 const appLayout = read('../src/components/layout/AppLayout.tsx');
 const settingsPage = read('../src/pages/Settings/SettingsPage.tsx');
 const portfolioStore = read('../src/store/portfolioStore.ts');
+// hydrate now lives in the sync slice (portfolioStore.ts is a thin composition
+// root), so the parallel-fetch assertions read that file.
+const syncSlice = read('../src/store/slices/syncSlice.ts');
 const summaryCards = read('../src/components/dashboard/SummaryCards.tsx');
 const accountsCard = read('../src/components/dashboard/DashboardAccountsSummary.tsx');
 const liabilitiesCard = read('../src/components/dashboard/DashboardLiabilitiesSummary.tsx');
@@ -80,10 +83,18 @@ describe('dashboard load + UI optimisation', () => {
   it('hydrate fetches settings in the same parallel batch as collections', () => {
     // Previously `await getDoc(settingsDocRef(uid))` ran sequentially after the
     // Promise.all; now it is an element of the batch.
-    expect(portfolioStore).toContain('getDoc(settingsDocRef(uid)),');
-    expect(portfolioStore).not.toContain(
+    expect(syncSlice).toContain('getDoc(settingsDocRef(uid)),');
+    expect(syncSlice).not.toContain(
       'const settingsSnap = await getDoc(settingsDocRef(uid));',
     );
+  });
+
+  it('portfolioStore.ts stays a thin composition root exporting the same hook', () => {
+    // The store was split into per-module slices; the public surface must not
+    // change, so consumers keep importing { usePortfolioStore } from here.
+    expect(portfolioStore).toContain('export const usePortfolioStore');
+    expect(portfolioStore).toContain('createSyncSlice');
+    expect(portfolioStore).toContain('createSettingsSlice');
   });
 
   it('summary KPI cards are compacted', () => {

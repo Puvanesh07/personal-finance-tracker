@@ -20,6 +20,7 @@ import { usePortfolioStore } from '../../store/portfolioStore';
 import { useShallow } from 'zustand/react/shallow';
 import { formatINR } from '../../utils/format';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
+import type { SipBudgetPlan } from '../../types/investmentTypes';
 
 // ─── Event types ──────────────────────────────────────────────────────────────
 
@@ -148,8 +149,8 @@ export default function FinancialCalendarPage() {
     }
 
     // SIP plans — budget document gives the monthly amount; instruments show on 1st
-    const sipBudget = sipPlans.find((s: any) => s.type === 'budget');
-    if (sipBudget?.budget > 0) {
+    const sipBudget = sipPlans.find((s): s is SipBudgetPlan => s.type === 'budget');
+    if (sipBudget && sipBudget.budget > 0) {
       for (const mStr of [prevStr, monthStr, nextStr]) {
         const dateStr = `${mStr}-01`;
         ev.push({

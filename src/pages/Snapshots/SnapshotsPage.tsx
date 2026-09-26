@@ -31,7 +31,7 @@ import {
   summarizePortfolio,
 } from '../../utils/calculations';
 import { usePortfolioStore } from '../../store/portfolioStore';
-import type { NetWorthSnapshot } from '../../types/investmentTypes';
+import type { NetWorthSnapshot, SipBudgetPlan } from '../../types/investmentTypes';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -492,7 +492,7 @@ export function SnapshotsPage({ embedded = false }: { embedded?: boolean }) {
   const goalsSaved  = goals.reduce((a, g) => a + g.currentAmount, 0);
   const goalsProgress = goalsTarget > 0 ? (goalsSaved / goalsTarget) * 100 : 0;
 
-  const sipBudget = sipPlans.find((x: any) => x.type === 'budget');
+  const sipBudget = sipPlans.find((x): x is SipBudgetPlan => x.type === 'budget');
   const sipMonthly = sipBudget?.budget || 0;
 
   const realizedProfit = useMemo(

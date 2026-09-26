@@ -79,6 +79,225 @@ import {
 
 type ShellTab = 'cashflow' | 'accounts' | 'budget' | 'insights';
 
+// ─────────────────────────────────────────────────────────────────────────
+// Tier-2 visuals live in their own component so the expensive advanced-metric
+// + category-donut aggregation only runs once the collapsible first mounts its
+// children (lazy). While collapsed, none of these memos execute.
+// ─────────────────────────────────────────────────────────────────────────
+function CashflowChartsPanel({
+  filteredRows,
+  categoryFilter,
+  onPieClick,
+}: {
+  filteredRows: CashflowEntry[];
+  categoryFilter: string;
+  onPieClick: (data: any) => void;
+}) {
+  const advanced = useMemo(
+    () => buildCashflowAdvancedInsights(filteredRows),
+    [filteredRows],
+  );
+
+  // While a single category is selected the pies break the same money down
+  // one level deeper, by subcategory.
+  const chartGroupKey = (r: CashflowEntry) =>
+    categoryFilter !== 'all' && r.subcategory ? r.subcategory : r.category;
+
+  const incomeByCategory = useMemo(() => {
+    const grouped: Record<string, number> = {};
+    filteredRows.forEach((r) => {
+      if (r.type === 'income')
+        grouped[chartGroupKey(r)] = (grouped[chartGroupKey(r)] || 0) + r.amount;
+    });
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRows, categoryFilter]);
+
+  const expenseByCategory = useMemo(() => {
+    const grouped: Record<string, number> = {};
+    filteredRows.forEach((r) => {
+      if (r.type === 'expense')
+        grouped[chartGroupKey(r)] = (grouped[chartGroupKey(r)] || 0) + r.amount;
+    });
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRows, categoryFilter]);
+
+  return (
+    <Collapsible
+      title='Advanced metrics &amp; breakdown charts'
+      subtitle='Savings rate, burn rate, top expenses &amp; category donuts — click to expand'
+      icon={<FiPieChart className='h-3.5 w-3.5' />}
+      storageKey='fintrackly-cashflow-charts-open'
+    >
+      {/* ── Advanced metrics strip (lazy, inside the collapsible) ── */}
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Savings rate
+          </p>
+          <p
+            className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+          >
+            {advanced.savingsRate.toFixed(1)}%
+          </p>
+          <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+            {advanced.savingsRate >= 25
+              ? 'Strong'
+              : advanced.savingsRate >= 10
+                ? 'Watch'
+                : 'Risk'}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Burn rate / month
+          </p>
+          <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+            {formatINR(advanced.burnRateMonthly)}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Top expense category
+          </p>
+          <p className='mt-1 text-sm font-black text-slate-900 dark:text-slate-100'>
+            {advanced.topExpenseCategory}
+          </p>
+        </div>
+        <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+            Top expense amount
+          </p>
+          <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
+            {formatINR(advanced.topExpenseAmount)}
+          </p>
+        </div>
+      </div>
+
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
+        <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
+          <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
+            <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10'>
+              <FiPieChart className='h-3.5 w-3.5 text-emerald-500' />
+            </div>{' '}
+            Income Breakdown
+          </div>
+          {incomeByCategory.length > 0 ? (
+            <div className='h-[280px] w-full'>
+              <ResponsiveContainer width='100%' height='100%'>
+                <PieChart>
+                  <Pie
+                    data={incomeByCategory}
+                    dataKey='value'
+                    nameKey='name'
+                    cx='50%'
+                    cy='50%'
+                    innerRadius={70}
+                    outerRadius={105}
+                    paddingAngle={3}
+                    onClick={onPieClick}
+                    className='cursor-pointer outline-none'
+                  >
+                    {incomeByCategory.map((_, i) => (
+                      <Cell
+                        key={`cell-${i}`}
+                        fill={INCOME_COLORS[i % INCOME_COLORS.length]}
+                        className='hover:opacity-80 transition-opacity outline-none'
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: any) => formatINR(val as number)}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: 'none',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                      backgroundColor: 'rgba(15,23,42,0.95)',
+                      color: '#f1f5f9',
+                    }}
+                  />
+                  <Legend
+                    verticalAlign='bottom'
+                    height={36}
+                    iconType='circle'
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className='flex h-[280px] flex-col items-center justify-center text-slate-500 dark:text-slate-400'>
+              <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
+              <p className='text-sm font-medium'>No income data.</p>
+            </div>
+          )}
+        </div>
+
+        <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
+          <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
+            <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10'>
+              <FiPieChart className='h-3.5 w-3.5 text-rose-500' />
+            </div>{' '}
+            Expense Breakdown
+          </div>
+          {expenseByCategory.length > 0 ? (
+            <div className='h-[280px] w-full'>
+              <ResponsiveContainer width='100%' height='100%'>
+                <PieChart>
+                  <Pie
+                    data={expenseByCategory}
+                    dataKey='value'
+                    nameKey='name'
+                    cx='50%'
+                    cy='50%'
+                    innerRadius={70}
+                    outerRadius={105}
+                    paddingAngle={3}
+                    onClick={onPieClick}
+                    className='cursor-pointer outline-none'
+                  >
+                    {expenseByCategory.map((_, i) => (
+                      <Cell
+                        key={`cell-${i}`}
+                        fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
+                        className='hover:opacity-80 transition-opacity outline-none'
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: any) => formatINR(val as number)}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: 'none',
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                      backgroundColor: 'rgba(15,23,42,0.95)',
+                      color: '#f1f5f9',
+                    }}
+                  />
+                  <Legend
+                    verticalAlign='bottom'
+                    height={36}
+                    iconType='circle'
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className='flex h-[280px] flex-col items-center justify-center text-slate-500 dark:text-slate-400'>
+              <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
+              <p className='text-sm font-medium'>No expense data.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </Collapsible>
+  );
+}
+
 export function CashflowPage() {
   const { premiumActionProps } = usePremiumActions();
 
@@ -408,37 +627,8 @@ export function CashflowPage() {
       monthsCount: months,
     };
   }, [filteredRows, filterMode, customStart, customEnd]);
-  const advanced = useMemo(
-    () => buildCashflowAdvancedInsights(filteredRows),
-    [filteredRows],
-  );
-
-  // While a single category is selected the pies break the same money down
-  // one level deeper, by subcategory.
-  const chartGroupKey = (r: CashflowEntry) =>
-    categoryFilter !== 'all' && r.subcategory ? r.subcategory : r.category;
-
-  const incomeByCategory = useMemo(() => {
-    const grouped: Record<string, number> = {};
-    filteredRows.forEach((r) => {
-      if (r.type === 'income')
-        grouped[chartGroupKey(r)] = (grouped[chartGroupKey(r)] || 0) + r.amount;
-    });
-    return Object.entries(grouped)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredRows, categoryFilter]);
-
-  const expenseByCategory = useMemo(() => {
-    const grouped: Record<string, number> = {};
-    filteredRows.forEach((r) => {
-      if (r.type === 'expense')
-        grouped[chartGroupKey(r)] = (grouped[chartGroupKey(r)] || 0) + r.amount;
-    });
-    return Object.entries(grouped)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredRows, categoryFilter]);
+  // Advanced metrics + category donuts are computed lazily inside
+  // <CashflowChartsPanel>, which the collapsible only mounts on first open.
 
   // Selection always tracks the visible (filtered) rows: switching filters
   // drops hidden rows from the selection so bulk actions never touch them.
@@ -737,175 +927,14 @@ export function CashflowPage() {
 
           {/* TIER 2: collapsible visuals — collapsed by default so the
               transactions table is reachable without scrolling past a wall of
-              charts. Lazy: the donuts AND the advanced-metric strip below only
-              mount once the user opens this panel. */}
-          <Collapsible
-            title='Advanced metrics &amp; breakdown charts'
-            subtitle='Savings rate, burn rate, top expenses &amp; category donuts — click to expand'
-            icon={<FiPieChart className='h-3.5 w-3.5' />}
-            storageKey='fintrackly-cashflow-charts-open'
-          >
-          {/* ── Advanced metrics strip (lazy, inside the collapsible) ── */}
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'>
-            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-                Savings rate
-              </p>
-              <p
-                className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
-              >
-                {advanced.savingsRate.toFixed(1)}%
-              </p>
-              <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-                {advanced.savingsRate >= 25
-                  ? 'Strong'
-                  : advanced.savingsRate >= 10
-                    ? 'Watch'
-                    : 'Risk'}
-              </p>
-            </div>
-            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-                Burn rate / month
-              </p>
-              <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
-                {formatINR(advanced.burnRateMonthly)}
-              </p>
-            </div>
-            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-                Top expense category
-              </p>
-              <p className='mt-1 text-sm font-black text-slate-900 dark:text-slate-100'>
-                {advanced.topExpenseCategory}
-              </p>
-            </div>
-            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-                Top expense amount
-              </p>
-              <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
-                {formatINR(advanced.topExpenseAmount)}
-              </p>
-            </div>
-          </div>
-
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
-            <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
-              <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
-                <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10'>
-                  <FiPieChart className='h-3.5 w-3.5 text-emerald-500' />
-                </div>{' '}
-                Income Breakdown
-              </div>
-              {incomeByCategory.length > 0 ? (
-                <div className='h-[280px] w-full'>
-                  <ResponsiveContainer width='100%' height='100%'>
-                    <PieChart>
-                      <Pie
-                        data={incomeByCategory}
-                        dataKey='value'
-                        nameKey='name'
-                        cx='50%'
-                        cy='50%'
-                        innerRadius={70}
-                        outerRadius={105}
-                        paddingAngle={3}
-                        onClick={handlePieClick}
-                        className='cursor-pointer outline-none'
-                      >
-                        {incomeByCategory.map((_, i) => (
-                          <Cell
-                            key={`cell-${i}`}
-                            fill={INCOME_COLORS[i % INCOME_COLORS.length]}
-                            className='hover:opacity-80 transition-opacity outline-none'
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(val: any) => formatINR(val as number)}
-                        contentStyle={{
-                          borderRadius: '12px',
-                          border: 'none',
-                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
-                          backgroundColor: 'rgba(15,23,42,0.95)',
-                          color: '#f1f5f9',
-                        }}
-                      />
-                      <Legend
-                        verticalAlign='bottom'
-                        height={36}
-                        iconType='circle'
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className='flex h-[280px] flex-col items-center justify-center text-slate-500 dark:text-slate-400'>
-                  <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
-                  <p className='text-sm font-medium'>No income data.</p>
-                </div>
-              )}
-            </div>
-
-            <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
-              <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
-                <div className='flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/10'>
-                  <FiPieChart className='h-3.5 w-3.5 text-rose-500' />
-                </div>{' '}
-                Expense Breakdown
-              </div>
-              {expenseByCategory.length > 0 ? (
-                <div className='h-[280px] w-full'>
-                  <ResponsiveContainer width='100%' height='100%'>
-                    <PieChart>
-                      <Pie
-                        data={expenseByCategory}
-                        dataKey='value'
-                        nameKey='name'
-                        cx='50%'
-                        cy='50%'
-                        innerRadius={70}
-                        outerRadius={105}
-                        paddingAngle={3}
-                        onClick={handlePieClick}
-                        className='cursor-pointer outline-none'
-                      >
-                        {expenseByCategory.map((_, i) => (
-                          <Cell
-                            key={`cell-${i}`}
-                            fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
-                            className='hover:opacity-80 transition-opacity outline-none'
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(val: any) => formatINR(val as number)}
-                        contentStyle={{
-                          borderRadius: '12px',
-                          border: 'none',
-                          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
-                          backgroundColor: 'rgba(15,23,42,0.95)',
-                          color: '#f1f5f9',
-                        }}
-                      />
-                      <Legend
-                        verticalAlign='bottom'
-                        height={36}
-                        iconType='circle'
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className='flex h-[280px] flex-col items-center justify-center text-slate-500 dark:text-slate-400'>
-                  <FiPieChart className='h-10 w-10 mb-2 opacity-20' />
-                  <p className='text-sm font-medium'>No expense data.</p>
-                </div>
-              )}
-            </div>
-          </div>
-          </Collapsible>
+              charts. The heavy advanced-metric + donut aggregation lives in
+              <CashflowChartsPanel>, which the lazy collapsible only mounts on
+              first open. */}
+          <CashflowChartsPanel
+            filteredRows={filteredRows}
+            categoryFilter={categoryFilter}
+            onPieClick={handlePieClick}
+          />
         </div>
 
         {/* ── Bulk actions ── */}

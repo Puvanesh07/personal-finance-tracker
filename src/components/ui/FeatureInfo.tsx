@@ -29,10 +29,7 @@ export type FeatureKey =
   | 'timeline'
   | 'calendar'
   | 'budget'
-  | 'forecast'
   | 'dna'
-  | 'milestones'
-  | 'cfo'
   | 'tools'
   | 'snapshots'
   | 'networth'
@@ -255,18 +252,6 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
     ],
   },
 
-  forecast: {
-    emoji: '🔮',
-    summary: 'See predicted account balances for the next 6 months based on your income/expense patterns.',
-    what: 'The Forecast module projects your bank account balances 3–6 months into the future using your recurring income and expense patterns. It helps you spot future cash shortfalls before they happen.',
-    why: 'You can see that in March your balance will dip below ₹20,000 because three big bills coincide — and take action now (save more in Jan/Feb) rather than scramble in March.',
-    how: 'The forecast runs automatically based on your cashflow history and recurring payments. You can adjust assumptions (expected income, one-time expenses) to model scenarios.',
-    questions: [
-      { q: 'How accurate is the forecast?', a: 'It\'s a projection, not a guarantee. Accuracy improves with more cashflow history (3+ months of data).' },
-      { q: 'What is a recurring pattern?', a: 'An income or expense that repeats monthly (salary, rent, EMI). The forecast identifies these automatically from your cashflow entries.' },
-    ],
-  },
-
   dna: {
     emoji: '🧬',
     summary: 'Discover your financial personality — are you a Saver, Investor, Spender, or Protector?',
@@ -276,29 +261,6 @@ const FEATURE_INFO: Record<FeatureKey, FeatureContent> = {
     questions: [
       { q: 'What are the personality types?', a: 'Saver (prioritises cash buffer), Investor (maximises investment allocation), Spender (high discretionary expenses), Protector (insurance-first mindset), and Balanced (even distribution).' },
       { q: 'Can my DNA type change?', a: 'Yes — it recalculates monthly as your patterns change. Improving your savings rate or starting investments will shift your type.' },
-    ],
-  },
-
-  milestones: {
-    emoji: '🏆',
-    summary: 'Mark and celebrate major life financial milestones — first crore, debt-free, FIRE number reached.',
-    what: 'Milestones are significant financial achievements you can define and track — first ₹1L saved, debt-free, net worth ₹1Cr, emergency fund complete, FIRE number reached.',
-    why: 'Large financial goals take years. Milestones break the journey into visible checkpoints and give you a sense of progress and celebration along the way.',
-    how: 'FinTrackly auto-detects some milestones (net worth thresholds, debt paid off). You can also define custom milestones and manually mark them when achieved.',
-    questions: [
-      { q: 'What are the default milestones?', a: 'First ₹1L net worth, First ₹10L, Debt-Free, Emergency Fund Complete, First ₹1Cr, and FIRE Number Reached.' },
-    ],
-  },
-
-  cfo: {
-    emoji: '👔',
-    summary: 'A CFO-style dashboard with your most important financial KPIs and strategic recommendations.',
-    what: 'The Personal CFO view presents your finances the way a Chief Financial Officer would see a company — key ratios, strategic health indicators, cash runway, investment allocation analysis, and recommended actions.',
-    why: 'Most people manage money reactively. A CFO thinks strategically — "my emergency runway is 2.3 months; that\'s below the 3-month target; corrective action needed." This view encourages that mindset.',
-    how: 'Automatic — calculated from all your existing data. Review it monthly to track strategic KPIs beyond just net worth.',
-    questions: [
-      { q: 'What KPIs does it show?', a: 'Net Worth, Savings Rate, Debt-to-Asset Ratio, Emergency Runway (months), Investment Allocation %, Monthly Surplus, and Passive Income Ratio.' },
-      { q: 'What is Cash Runway?', a: 'How many months you could survive without any income if you only spent from your savings. Target: 3–6 months minimum.' },
     ],
   },
 

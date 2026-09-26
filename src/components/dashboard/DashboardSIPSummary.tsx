@@ -2,15 +2,16 @@
 import { FiLayers } from 'react-icons/fi';
 import { formatINR } from '../../utils/format';
 import { usePortfolioStore } from '../../store/portfolioStore';
+import type { SipBudgetPlan, SipInstrumentPlan } from '../../types/investmentTypes';
 import { ACCENT, CardGo, DashboardCard } from './DashboardCard';
 
 export function DashboardSIPSummary() {
   const sipPlans = usePortfolioStore((s) => s.sipPlans) ?? [];
 
-  const sipBudget = sipPlans.find((x: any) => x?.type === 'budget');
-  const sipInstruments = sipPlans.filter((x: any) => x?.type === 'instrument');
+  const sipBudget = sipPlans.find((x): x is SipBudgetPlan => x.type === 'budget');
+  const sipInstruments = sipPlans.filter((x): x is SipInstrumentPlan => x.type === 'instrument');
   const monthlyBudget = sipBudget?.budget || 0;
-  const totalAllocPct = sipInstruments.reduce((s: number, i: any) => s + (i.percentage || 0), 0);
+  const totalAllocPct = sipInstruments.reduce((s, i) => s + (i.percentage || 0), 0);
   const unallocatedPct = Math.max(0, 100 - totalAllocPct);
   const overAllocated = totalAllocPct > 100;
 

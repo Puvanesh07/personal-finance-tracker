@@ -8,6 +8,28 @@ export type InvestmentType =
 export type Platform = 'zerodha' | 'angel_one' | 'indmoney' | 'manual';
 export type ISODateString = string; // YYYY-MM-DD
 
+// ── Monthly SIP plan documents (users/{uid}/sipPlans) ────────────────────────
+// A single collection holds two discriminated shapes keyed by `type`.
+export type SipBudgetPlan = {
+  id: string;
+  type: 'budget';
+  budget: number;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type SipInstrumentPlan = {
+  id: string;
+  type: 'instrument';
+  name: string;
+  percentage: number;
+  fromAsset?: boolean;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type SipPlan = SipBudgetPlan | SipInstrumentPlan;
+
 export type BaseInvestment = {
   id: string;
   type: InvestmentType;
