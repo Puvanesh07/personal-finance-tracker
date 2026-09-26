@@ -30,10 +30,7 @@ Disallow: /simulator
 Disallow: /timeline
 Disallow: /calendar
 Disallow: /budget
-Disallow: /forecast
 Disallow: /dna
-Disallow: /milestones
-Disallow: /cfo
 Disallow: /profits
 Disallow: /pricing
 Disallow: /payment

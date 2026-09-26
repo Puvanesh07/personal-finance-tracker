@@ -14,6 +14,7 @@ import { FiPercent, FiPieChart } from 'react-icons/fi';
 import { useSearchParams } from 'react-router-dom';
 
 import { FeatureInfo, type FeatureKey } from '../../components/ui/FeatureInfo';
+import { Collapsible } from '../../components/ui/Collapsible';
 import { MarketCapAllocationChart } from '../../components/dashboard/MarketCapAllocationChart';
 import { TargetAllocationPanel } from '../../components/investments/TargetAllocationPanel';
 import { InvestmentsSkeleton } from '../../components/loader/skeletons';
@@ -149,8 +150,16 @@ export function WealthPage() {
             <>
               {/* FinBoom-style target vs actual allocation + insights */}
               <TargetAllocationPanel />
-              {/* Fine-grained breakdowns (per-instrument & market-cap) */}
-              <MarketCapAllocationChart />
+              {/* Fine-grained breakdowns (per-instrument & market-cap) —
+                  collapsible & lazy: the chart only mounts once opened. */}
+              <Collapsible
+                title='Instrument &amp; market-cap breakdown'
+                subtitle='Fine-grained allocation across large / mid / small caps'
+                icon={<FiPieChart className='h-3.5 w-3.5' />}
+                storageKey='fintrackly-wealth-marketcap-chart'
+              >
+                <MarketCapAllocationChart />
+              </Collapsible>
             </>
           )}
         </div>

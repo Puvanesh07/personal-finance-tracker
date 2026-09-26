@@ -148,7 +148,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatINR(Math.max(0, g.targetAmount - saved))} remaining to reach your target of ${formatINR(g.targetAmount)}`,
           severity: 'good',
           question: 'Which of my financial goals is closest to completion?',
-          linkTo: '/essentials?tab=goals',
+          linkTo: '/goals',
         });
         break; // show at most one goal insight
       }
@@ -283,7 +283,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `You have ${formatNumber(runwayMonths, 1)} months of runway — target is 6 months (${formatINR(expForRunway * 6)})`,
           severity: runwayMonths < 1 ? 'danger' : 'warning',
           question: 'How is my emergency fund?',
-          linkTo: '/essentials',
+          linkTo: '/goals?tab=essentials',
         });
       } else if (emergencyTarget > 0 && emergencyCurrent < emergencyTarget * 0.5) {
         const pct = (emergencyCurrent / emergencyTarget) * 100;
@@ -294,7 +294,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatINR(emergencyCurrent)} saved of ${formatINR(emergencyTarget)} goal`,
           severity: 'warning',
           question: 'How is my emergency fund?',
-          linkTo: '/essentials',
+          linkTo: '/goals?tab=essentials',
         });
       }
     }
@@ -326,7 +326,7 @@ export function useProactiveInsights(): ProactiveInsight[] {
           body: `${formatNumber(actualPct, 0)}% saved vs ${formatNumber(expectedPct, 0)}% expected at this point — you're ${formatNumber(lead, 0)}% ahead`,
           severity: 'good',
           question: 'Which of my goals is ahead of schedule?',
-          linkTo: '/essentials?tab=goals',
+          linkTo: '/goals',
         });
         break; // one goal-lead insight at a time
       }

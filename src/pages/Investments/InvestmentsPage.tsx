@@ -33,6 +33,7 @@ import { UpsertInvestmentModal } from '../../components/investments/UpsertInvest
 import { Popover } from '../../components/ui/Popover';
 import { usePortfolioStore } from '../../store/portfolioStore';
 import { FeatureInfo } from '../../components/ui/FeatureInfo';
+import { Collapsible } from '../../components/ui/Collapsible';
 import { useStockMetadata } from '../../hooks/useStockMetadata';
 import {
   buildPortfolioCashflows,
@@ -673,6 +674,15 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
                 )}
               </div>
 
+              {/* Row 2 + Row 3: detailed returns & allocation — collapsible and
+                  lazy, so the XIRR/CAGR/allocation cards (and their math) only
+                  render when the user opens them. */}
+              <Collapsible
+                title='Detailed returns & allocation'
+                subtitle='XIRR, CAGR and asset allocation breakdown'
+                icon={<FiPieChart className='h-3.5 w-3.5' />}
+                storageKey='fintrackly-investments-analytics'
+              >
               {/* Row 2: XIRR + CAGR */}
               <div className='grid grid-cols-2 gap-2 md:gap-3'>
                 <StatCard
@@ -707,6 +717,7 @@ export function InvestmentsPage({ embedded = false }: { embedded?: boolean }) {
 
               {/* Row 3: Allocation bar (full width) */}
               <AllocationBar alloc={analytics.alloc} total={analytics.totalCurrent} />
+              </Collapsible>
             </div>
           )}
 

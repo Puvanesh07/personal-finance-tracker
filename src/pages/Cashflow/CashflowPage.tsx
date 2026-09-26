@@ -40,6 +40,7 @@ import type { CashflowEntry } from '../../types/investmentTypes';
 import { CashflowSkeleton } from '../../components/loader/skeletons';
 import { ImportCashflowModal } from '../../components/cashflow/ImportCashflowModal';
 import { Modal } from '../../components/ui/Modal';
+import { Collapsible } from '../../components/ui/Collapsible';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { UpsertCashflowModal } from '../../components/cashflow/UpsertCashflowModal';
@@ -560,50 +561,6 @@ export function CashflowPage() {
           </div>
         </header>
 
-        <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
-          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-              Savings rate
-            </p>
-            <p
-              className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
-            >
-              {advanced.savingsRate.toFixed(1)}%
-            </p>
-            <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
-              {advanced.savingsRate >= 25
-                ? 'Strong'
-                : advanced.savingsRate >= 10
-                  ? 'Watch'
-                  : 'Risk'}
-            </p>
-          </div>
-          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-              Burn rate / month
-            </p>
-            <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
-              {formatINR(advanced.burnRateMonthly)}
-            </p>
-          </div>
-          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-              Top expense category
-            </p>
-            <p className='mt-1 text-sm font-black text-slate-900 dark:text-slate-100'>
-              {advanced.topExpenseCategory}
-            </p>
-          </div>
-          <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
-            <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
-              Top expense amount
-            </p>
-            <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
-              {formatINR(advanced.topExpenseAmount)}
-            </p>
-          </div>
-        </div>
-
         {/* ── Period Filter Bar ────────────────────────────────────────── */}
         <div className='rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md shadow-sm'>
           <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100 dark:border-slate-800/60 rounded-t-2xl'>
@@ -778,7 +735,61 @@ export function CashflowPage() {
             />
           </div>
 
-          {/* TIER 2: The Visuals Row (Side-by-Side Pie Charts) */}
+          {/* TIER 2: collapsible visuals — collapsed by default so the
+              transactions table is reachable without scrolling past a wall of
+              charts. Lazy: the donuts AND the advanced-metric strip below only
+              mount once the user opens this panel. */}
+          <Collapsible
+            title='Advanced metrics &amp; breakdown charts'
+            subtitle='Savings rate, burn rate, top expenses &amp; category donuts — click to expand'
+            icon={<FiPieChart className='h-3.5 w-3.5' />}
+            storageKey='fintrackly-cashflow-charts-open'
+          >
+          {/* ── Advanced metrics strip (lazy, inside the collapsible) ── */}
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'>
+            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                Savings rate
+              </p>
+              <p
+                className={`mt-1 text-lg font-black ${advanced.savingsRate >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+              >
+                {advanced.savingsRate.toFixed(1)}%
+              </p>
+              <p className='mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400'>
+                {advanced.savingsRate >= 25
+                  ? 'Strong'
+                  : advanced.savingsRate >= 10
+                    ? 'Watch'
+                    : 'Risk'}
+              </p>
+            </div>
+            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                Burn rate / month
+              </p>
+              <p className='mt-1 text-lg font-black text-slate-900 dark:text-slate-100'>
+                {formatINR(advanced.burnRateMonthly)}
+              </p>
+            </div>
+            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                Top expense category
+              </p>
+              <p className='mt-1 text-sm font-black text-slate-900 dark:text-slate-100'>
+                {advanced.topExpenseCategory}
+              </p>
+            </div>
+            <div className='rounded-xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-slate-500'>
+                Top expense amount
+              </p>
+              <p className='mt-1 text-lg font-black text-rose-600 dark:text-rose-400'>
+                {formatINR(advanced.topExpenseAmount)}
+              </p>
+            </div>
+          </div>
+
           <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
             <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
               <div className='flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
@@ -894,6 +905,7 @@ export function CashflowPage() {
               )}
             </div>
           </div>
+          </Collapsible>
         </div>
 
         {/* ── Bulk actions ── */}

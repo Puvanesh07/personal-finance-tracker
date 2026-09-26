@@ -199,7 +199,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
               severity: 'info',
               actionLabel: 'View Goal',
-              actionPath: '/essentials?tab=goals',
+              actionPath: '/goals',
             },
           ),
         );
@@ -227,7 +227,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getTime() + 7 * 86_400_000).toISOString(),
                 severity: s,
                 actionLabel: 'Goals',
-                actionPath: '/essentials?tab=goals',
+                actionPath: '/goals',
               },
             ),
           );
@@ -252,7 +252,7 @@ export function useDerivedNotifications(): AppNotification[] {
                 expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
                 severity: 'low',
                 actionLabel: 'Add Contribution',
-                actionPath: '/essentials?tab=goals',
+                actionPath: '/goals',
               },
             ),
           );
@@ -287,7 +287,7 @@ export function useDerivedNotifications(): AppNotification[] {
               expiresAt: new Date(t.getFullYear(), t.getMonth() + 1, 0).toISOString(),
               severity: pct < 15 ? 'critical' : 'medium',
               actionLabel: 'Top Up Now',
-              actionPath: efGoal ? '/essentials?tab=goals' : '/reports',
+              actionPath: efGoal ? '/goals' : '/reports',
             },
           ),
         );

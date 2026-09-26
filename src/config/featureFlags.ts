@@ -17,11 +17,9 @@
  */
 
 export type FeatureKey =
-  | 'forecast'
   | 'calendar'
   | 'credentials'
   | 'simulator'
-  | 'cfo'
   | 'tools'
   | 'reports'
   | 'aiCoach';
@@ -31,11 +29,9 @@ export type FeatureKey =
  * you deliberately opt a surface out. Set a value to `false` to hide it.
  */
 export const FEATURE_FLAGS: Record<FeatureKey, boolean> = {
-  forecast: true,
   calendar: true,
   credentials: true,
   simulator: true,
-  cfo: true,
   tools: true,
   reports: true,
   aiCoach: true,
@@ -43,11 +39,9 @@ export const FEATURE_FLAGS: Record<FeatureKey, boolean> = {
 
 /** Which flag gates a route. Routes not listed here are always enabled. */
 const ROUTE_FLAGS: Record<string, FeatureKey> = {
-  '/forecast': 'forecast',
   '/calendar': 'calendar',
   '/credentials': 'credentials',
   '/simulator': 'simulator',
-  '/cfo': 'cfo',
   '/tools': 'tools',
   '/reports': 'reports',
   '/ai-agent': 'aiCoach',

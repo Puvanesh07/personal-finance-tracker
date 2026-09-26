@@ -116,12 +116,6 @@ const WhatIfSimulatorPage = lazy(() =>
 const FinancialCalendarPage = lazy(() =>
   import('./pages/Calendar/FinancialCalendarPage'),
 );
-const ForecastPage = lazy(() =>
-  import('./pages/Forecast/ForecastPage'),
-);
-const PersonalCFOPage = lazy(() =>
-  import('./pages/CFO/PersonalCFOPage'),
-);
 
 // ── Legacy route redirects ─────────────────────────────────────────────
 // Old deep links keep working by mapping onto the new tab shells.
@@ -229,15 +223,15 @@ export default function App() {
             />
             <Route
               path='/goals'
-              element={<Navigate to='/essentials?tab=goals' replace />}
-            />
-            <Route
-              path='/essentials'
               element={
                 <Suspense fallback={<GoalsSkeleton />}>
                   <EssentialsPage />
                 </Suspense>
               }
+            />
+            <Route
+              path='/essentials'
+              element={<Navigate to='/goals' replace />}
             />
             <Route
               path='/credentials'
@@ -280,24 +274,7 @@ export default function App() {
               path='/budget'
               element={<Navigate to='/cashflow?tab=budget' replace />}
             />
-            <Route
-              path='/forecast'
-              element={
-                <Suspense fallback={<ToolsSkeleton />}>
-                  <ForecastPage />
-                </Suspense>
-              }
-            />
             <Route path='/dna' element={<Navigate to='/cashflow?tab=dna' replace />} />
-            <Route path='/milestones' element={<Navigate to='/cfo#milestones' replace />} />
-            <Route
-              path='/cfo'
-              element={
-                <Suspense fallback={<ToolsSkeleton />}>
-                  <PersonalCFOPage />
-                </Suspense>
-              }
-            />
             <Route
               path='/tools'
               element={

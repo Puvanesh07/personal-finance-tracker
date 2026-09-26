@@ -12,7 +12,6 @@ import {
   FiLock,
   FiSettings,
   FiShield,
-  FiTrendingUp,
   FiGitBranch,
 } from 'react-icons/fi';
 import { AiFillCalculator } from 'react-icons/ai';
@@ -35,11 +34,9 @@ export type AppNavGroup = { label: string; items: AppNavItem[] };
 
 /** Items parked under "More" (declared once, filtered out of the main list). */
 const MORE_DESTINATIONS = [
-  '/forecast',
   '/calendar',
   '/credentials',
   '/simulator',
-  '/cfo',
   '/tools',
   '/reports',
 ];
@@ -84,16 +81,9 @@ const RAW_NAV_GROUPS: AppNavGroup[] = [
         bg: 'bg-blue-500/10',
       },
       {
-        to: '/essentials',
+        to: '/goals',
         icon: FiTarget,
         label: 'Goals',
-        accent: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
-      },
-      {
-        to: '/forecast',
-        icon: FiTrendingUp,
-        label: 'Forecast',
         accent: 'text-emerald-400',
         bg: 'bg-emerald-500/10',
       },
@@ -129,13 +119,6 @@ const RAW_NAV_GROUPS: AppNavGroup[] = [
         label: 'Simulator',
         accent: 'text-fuchsia-400',
         bg: 'bg-fuchsia-500/10',
-      },
-      {
-        to: '/cfo',
-        icon: FiShield,
-        label: 'Monthly plan',
-        accent: 'text-amber-400',
-        bg: 'bg-amber-500/10',
       },
     ],
   },

@@ -681,7 +681,7 @@ export function ReportsPage() {
           icon={<FiFlag className='h-5 w-5 text-amber-400' />}
           title='Financial Goals'
           color='bg-amber-500/10'
-          to='/essentials?tab=goals'
+          to='/goals'
         >
           <StatRow label='Active Goals' value={`${portStore.goals.length}`} />
           <StatRow

@@ -16,6 +16,7 @@ import { PendingPaymentsTab } from '../../components/liabilities/PendingPayments
 import type { Liability } from '../../types/investmentTypes';
 import { SavedViewsMenu } from '../../components/ui/SavedViewsMenu';
 import { Modal } from '../../components/ui/Modal';
+import { Collapsible } from '../../components/ui/Collapsible';
 import { UpsertLiabilityModal, liabilityTypeLabel } from '../../components/liabilities/UpsertLiabilityModal';
 import { RecordEmiPaymentModal } from '../../components/liabilities/RecordEmiPaymentModal';
 import { buildLiabilityInsights } from '../../utils/advancedInsights';
@@ -305,12 +306,16 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
           <FiCreditCard className='absolute -bottom-4 -right-4 h-32 w-32 text-rose-400/30' />
         </div>
 
-        <div className='lg:col-span-2 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/50 p-6 flex flex-col justify-center'>
-          <div className='flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-5'>
-            <FiPieChart className='h-4 w-4' />
-            Debt Breakdown (Active Only)
-          </div>
-
+        {/* Debt mix — collapsible & lazy: bars/legend only mount once opened,
+            so the liabilities table is reachable without extra scrolling. */}
+        <Collapsible
+          className='lg:col-span-2'
+          title='Debt breakdown (active only)'
+          subtitle='Bank loans vs credit cards vs personal — click to expand'
+          icon={<FiPieChart className='h-3.5 w-3.5' />}
+          storageKey='fintrackly-liabilities-breakdown'
+        >
+          <div className='flex flex-col justify-center'>
           {totalOutstanding === 0 ? (
             <div className='flex h-16 items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-sm font-medium text-slate-500 dark:text-slate-400'>
               No active debt. Great job!
@@ -375,7 +380,8 @@ export function LiabilitiesPage({ embedded = false }: { embedded?: boolean }) {
               </div>
             </div>
           )}
-        </div>
+          </div>
+        </Collapsible>
       </div>
 
       <div className='grid grid-cols-1 md:grid-cols-4 gap-3'>

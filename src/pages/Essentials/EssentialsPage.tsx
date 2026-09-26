@@ -24,10 +24,10 @@ type TabId = 'essentials' | 'goals';
 export function EssentialsPage() {
   const ready = usePortfolioStore((s) => s.ready);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: TabId = searchParams.get('tab') === 'goals' ? 'goals' : 'essentials';
+  const tab: TabId = searchParams.get('tab') === 'essentials' ? 'essentials' : 'goals';
 
   const setTab = (next: TabId) => {
-    setSearchParams(next === 'goals' ? { tab: 'goals' } : {}, { replace: true });
+    setSearchParams(next === 'essentials' ? { tab: 'essentials' } : {}, { replace: true });
   };
 
   if (!ready) return <GoalsSkeleton />;
@@ -44,23 +44,23 @@ export function EssentialsPage() {
       {/* ── Page header ── */}
       <header className='flex flex-col gap-2'>
         <h1 className='text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white'>
-          Essentials
+          Goals
         </h1>
         <p className='text-sm font-medium text-slate-600 dark:text-slate-300'>
-          Financial health check
+          Goals &amp; financial health
         </p>
       </header>
 
       {/* ── Tabs ── */}
       <div className='flex gap-2 border-b border-slate-200 dark:border-slate-800'>
-        <button type='button' className={tabCls('essentials')} onClick={() => setTab('essentials')}>
-          <span className='flex items-center gap-2'>
-            <FiShield className='h-4 w-4' /> Essentials
-          </span>
-        </button>
         <button type='button' className={tabCls('goals')} onClick={() => setTab('goals')}>
           <span className='flex items-center gap-2'>
             <FiFlag className='h-4 w-4' /> Goals
+          </span>
+        </button>
+        <button type='button' className={tabCls('essentials')} onClick={() => setTab('essentials')}>
+          <span className='flex items-center gap-2'>
+            <FiShield className='h-4 w-4' /> Health check
           </span>
         </button>
       </div>

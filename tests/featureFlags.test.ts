@@ -15,14 +15,14 @@ describe('feature flags (C2)', () => {
 
   it('enables every optional surface by default (launch = no behaviour change)', () => {
     expect(isFeatureEnabled('simulator')).toBe(true);
-    expect(isFeatureEnabled('cfo')).toBe(true);
+    expect(isFeatureEnabled('reports')).toBe(true);
     expect(isRouteEnabled('/simulator')).toBe(true);
   });
 
   it('hides a flagged route from the nav when turned off, without deleting it', () => {
     FEATURE_FLAGS.simulator = false;
     expect(isRouteEnabled('/simulator')).toBe(false);
-    expect(isRouteEnabled('/cfo')).toBe(true); // others unaffected
+    expect(isRouteEnabled('/calendar')).toBe(true); // others unaffected
   });
 
   it('ignores ?query params when resolving a route (deep links still gate)', () => {

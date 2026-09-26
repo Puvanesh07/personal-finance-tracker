@@ -41,11 +41,12 @@ import { TopHoldingsCard }             from '../../components/dashboard/TopHoldi
 import { UpcomingPaymentsCard }        from '../../components/dashboard/UpcomingPaymentsCard';
 import { usePortfolioStore }           from '../../store/portfolioStore';
 import { FeatureInfo }                 from '../../components/ui/FeatureInfo';
+import { Collapsible }                 from '../../components/ui/Collapsible';
 
 const QUICK_ACTIONS = [
   { label: 'Investment', icon: FiTrendingUp,   path: '/wealth?tab=assets',            color: 'text-emerald-500' },
   { label: 'Cashflow',   icon: FiActivity,     path: '/cashflow',                     color: 'text-purple-500'  },
-  { label: 'Goal',       icon: FiTarget,       path: '/essentials?tab=goals',         color: 'text-amber-500'   },
+  { label: 'Goal',       icon: FiTarget,       path: '/goals',         color: 'text-amber-500'   },
   { label: 'Liability',  icon: FiTrendingDown, path: '/wealth?tab=liabilities',       color: 'text-rose-500'    },
   { label: 'Reminder',   icon: FiBell,         path: '/payments',                     color: 'text-sky-500'     },
   { label: 'SIP Plan',   icon: FiLayers,       path: '/wealth?tab=allocation&sub=sip', color: 'text-teal-500'   },
@@ -145,49 +146,69 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Investments ── */}
-      <section>
-        <SectionHeading icon={FiTrendingUp} label='Investments' hint='holdings and allocation' />
+      {/* ── Investments (collapsible, lazy: cards render only once opened) ── */}
+      <Collapsible
+        title='Investments'
+        subtitle='holdings and allocation'
+        icon={<FiTrendingUp className='h-3.5 w-3.5' />}
+        storageKey='fintrackly-dash-investments'
+      >
         <div className='grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-3'>
           <div className='xl:col-span-2'>
             <TopHoldingsCard />
           </div>
           <AllocationCharts />
         </div>
-      </section>
+      </Collapsible>
 
       {/* ── Cash & growth trend ── */}
-      <section>
-        <SectionHeading icon={FiCreditCard} label='Cash & Progress' hint='balances and net-worth trend' />
+      <Collapsible
+        title='Cash & Progress'
+        subtitle='balances and net-worth trend'
+        icon={<FiCreditCard className='h-3.5 w-3.5' />}
+        storageKey='fintrackly-dash-cashprogress'
+      >
         <div className='grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-3'>
           <DashboardAccountsSummary />
           <div className='xl:col-span-2'>
             <GrowthChart />
           </div>
         </div>
-      </section>
+      </Collapsible>
 
       {/* ── Goals & protection ── */}
-      <section>
-        <SectionHeading icon={FiTarget} label='Goals & Protection' hint='targets, emergency fund and cover' />
+      <Collapsible
+        title='Goals & Protection'
+        subtitle='targets, emergency fund and cover'
+        icon={<FiTarget className='h-3.5 w-3.5' />}
+        storageKey='fintrackly-dash-goals'
+      >
         <GoalsEssentialsSummary />
-      </section>
+      </Collapsible>
 
       {/* ── Borrowing, lending & SIP ── */}
-      <section>
-        <SectionHeading icon={FiTrendingDown} label='Borrowing & Lending' hint='loans, money owed and SIP plan' />
+      <Collapsible
+        title='Borrowing & Lending'
+        subtitle='loans, money owed and SIP plan'
+        icon={<FiTrendingDown className='h-3.5 w-3.5' />}
+        storageKey='fintrackly-dash-borrowing'
+      >
         <div className='grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2 xl:grid-cols-3'>
           <DashboardLiabilitiesSummary />
           <DashboardReceivablesSummary />
           <DashboardSIPSummary />
         </div>
-      </section>
+      </Collapsible>
 
       {/* ── Recent activity ── */}
-      <section>
-        <SectionHeading icon={FiActivity} label='Recent Activity' hint='latest money movement' />
+      <Collapsible
+        title='Recent Activity'
+        subtitle='latest money movement'
+        icon={<FiActivity className='h-3.5 w-3.5' />}
+        storageKey='fintrackly-dash-recent'
+      >
         <RecentActivityCard />
-      </section>
+      </Collapsible>
     </div>
   );
 }

@@ -29,6 +29,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AccountsSkeleton } from '../../components/loader/skeletons';
 import { BsBank2 } from 'react-icons/bs';
 import { Modal } from '../../components/ui/Modal';
+import { Collapsible } from '../../components/ui/Collapsible';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { buildAccountsForecast } from '../../utils/advancedInsights';
 import {
@@ -841,8 +842,14 @@ export function AccountsPage() {
         </div>
       )}
 
-      {/* Charts */}
+      {/* Charts — collapsible & lazy: only render the charts once opened */}
       {userAccounts.length > 0 && (
+      <Collapsible
+        title='Account charts'
+        subtitle='Account-wise cashflow and balance distribution'
+        icon={<FiCreditCard className='h-3.5 w-3.5' />}
+        storageKey='fintrackly-accounts-charts'
+      >
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-5'>
           <div className='overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-md'>
             <p className='text-sm font-bold text-slate-700 dark:text-slate-300 mb-4'>
@@ -930,6 +937,7 @@ export function AccountsPage() {
             )}
           </div>
         </div>
+      </Collapsible>
       )}
 
       {/* Modals */}

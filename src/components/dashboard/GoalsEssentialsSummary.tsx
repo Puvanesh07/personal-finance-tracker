@@ -44,14 +44,14 @@ export function GoalsEssentialsSummary() {
         accent={ACCENT.emerald}
         title='Financial Goals'
         subtitle='Progress toward your targets'
-        action={<CardGo to='/essentials?tab=goals' />}
+        action={<CardGo to='/goals' />}
       >
         {goals.length === 0 ? (
           <div className='flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700'>
             <FiTarget className='h-6 w-6 text-slate-300 dark:text-slate-600' />
             <p className='text-sm text-slate-500 dark:text-slate-400'>No goals set yet.</p>
             <button
-              onClick={() => navigate('/essentials?tab=goals')}
+              onClick={() => navigate('/goals')}
               className='text-xs font-bold text-emerald-500 hover:text-emerald-400'
             >
               Set your first goal →
@@ -97,7 +97,7 @@ export function GoalsEssentialsSummary() {
             })}
             {goals.length > 4 && (
               <button
-                onClick={() => navigate('/essentials?tab=goals')}
+                onClick={() => navigate('/goals')}
                 className='w-full pt-1 text-center text-xs font-bold text-slate-400 hover:text-emerald-500'
               >
                 +{goals.length - 4} more goals →
@@ -113,7 +113,7 @@ export function GoalsEssentialsSummary() {
         accent={ACCENT.violet}
         title='Protection & Essentials'
         subtitle='Emergency fund & insurance cover'
-        action={<CardGo to='/essentials' />}
+        action={<CardGo to='/goals?tab=essentials' />}
       >
         <div className='space-y-4'>
           {/* Emergency Fund */}
@@ -134,7 +134,7 @@ export function GoalsEssentialsSummary() {
             </div>
             {efTarget === 0 && (
               <button
-                onClick={() => navigate('/essentials')}
+                onClick={() => navigate('/goals?tab=essentials')}
                 className='mt-2 text-[11px] font-bold text-blue-500 hover:text-blue-400'
               >
                 Set a target in Essentials →

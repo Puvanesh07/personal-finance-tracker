@@ -42,7 +42,7 @@ export function SearchTab() {
     cashflows.filter(e => e.category.toLowerCase().includes(q) || (e.notes ?? '').toLowerCase().includes(q)).slice(0, 5).forEach(e => items.push({ emoji: e.type === 'income' ? '💰' : '💸', title: e.category, sub: e.date, amount: e.amount, link: '/cashflow', type: 'Cashflow' }));
     trackedPayments.filter(p => p.title.toLowerCase().includes(q)).slice(0, 3).forEach(p => items.push({ emoji: '💳', title: p.title, sub: `Due ${p.dueDate}`, amount: p.amount, link: '/payments', type: 'Payment' }));
     investments.filter(i => i.name.toLowerCase().includes(q) || (i.symbol ?? '').toLowerCase().includes(q)).slice(0, 3).forEach(i => items.push({ emoji: '📈', title: i.name, sub: i.type.replace('_', ' '), link: '/wealth?tab=assets', type: 'Investment' }));
-    goals.filter(g => g.name.toLowerCase().includes(q)).slice(0, 3).forEach(g => items.push({ emoji: '🎯', title: g.name, sub: `Target ${formatINR(g.targetAmount)}`, link: '/essentials?tab=goals', type: 'Goal' }));
+    goals.filter(g => g.name.toLowerCase().includes(q)).slice(0, 3).forEach(g => items.push({ emoji: '🎯', title: g.name, sub: `Target ${formatINR(g.targetAmount)}`, link: '/goals', type: 'Goal' }));
     liabilities.filter(l => l.name.toLowerCase().includes(q)).slice(0, 2).forEach(l => items.push({ emoji: '🏦', title: l.name, sub: `Outstanding ${formatINR(l.outstanding ?? 0)}`, link: '/wealth?tab=liabilities', type: 'Liability' }));
     insurancePolicies.filter(p => p.policyName.toLowerCase().includes(q) || p.provider.toLowerCase().includes(q)).slice(0, 2).forEach(p => items.push({ emoji: '🛡️', title: p.policyName, sub: p.provider, link: '/insurance', type: 'Insurance' }));
     return items.slice(0, 10);
@@ -204,7 +204,6 @@ export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
       <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40'>
         <div className='flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 px-3 py-2 sm:px-4 sm:py-2.5'>
           <p className='flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 sm:text-xs'><FiCalendar className='h-3.5 w-3.5 shrink-0 text-emerald-500' />Next 7 days</p>
-          <button type='button' onClick={() => nav('/forecast')} className='flex shrink-0 items-center gap-0.5 py-1 text-[10px] font-bold text-violet-500 hover:underline'>Full forecast <FiChevronRight className='h-3 w-3' /></button>
         </div>
         <div className='grid grid-cols-3 gap-px bg-slate-100 dark:bg-slate-800'>
           {[
@@ -246,7 +245,7 @@ export function BriefTab({ onAsk }: { onAsk: (q: string) => void }) {
         <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40'>
           <div className='flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 px-3 py-2 sm:px-4 sm:py-2.5'>
             <p className='truncate text-[11px] font-bold text-slate-700 dark:text-slate-200 sm:text-xs'>🎯 Goals</p>
-            <button type='button' onClick={() => nav('/essentials?tab=goals')} className='flex shrink-0 items-center gap-0.5 py-1 text-[10px] font-bold text-violet-500 hover:underline'>View all <FiChevronRight className='h-3 w-3' /></button>
+            <button type='button' onClick={() => nav('/goals')} className='flex shrink-0 items-center gap-0.5 py-1 text-[10px] font-bold text-violet-500 hover:underline'>View all <FiChevronRight className='h-3 w-3' /></button>
           </div>
           {goals.filter(g => !g.status || g.status === 'active').slice(0, 3).map(g => {
             const contrib = goalContributions.filter(c => c.goalId === g.id).reduce((a, c) => a + c.amount, 0);
